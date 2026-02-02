@@ -5,6 +5,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { PropertyDetails } from "./PropertyDetailsForm";
 
+const SUPABASE_FUNCTION_URL = "https://pxhpfewunsetuxygeprp.supabase.co/functions/v1/generate-script";
+const SUPABASE_ANON_KEY = "sb_publishable_dZfmgOW6Z1N2FYNtiaDLMQ_Q27bxxAQ";
+
 interface ScriptGeneratorSectionProps {
   propertyDetails: PropertyDetails;
   script: string;
@@ -26,28 +29,65 @@ export function ScriptGeneratorSection({
   const generateScript = async () => {
     setIsGenerating(true);
 
-    // Simulate AI generation
-    await new Promise((resolve) => setTimeout(resolve, 2500));
+    try {
+      // Build full address
+      const fullAddress = [
+        propertyDetails.streetAddress,
+        propertyDetails.suburb,
+        propertyDetails.state,
+      ]
+        .filter(Boolean)
+        .join(", ");
 
-    const features = propertyDetails.features.length > 0
-      ? propertyDetails.features.join(", ").toLowerCase()
-      : "premium finishes";
+      const requestBody = {
+        address: fullAddress || propertyDetails.streetAddress,
+        price: propertyDetails.price,
+        bedrooms: String(propertyDetails.bedrooms),
+        bathrooms: String(propertyDetails.bathrooms),
+        size: propertyDetails.landSize,
+        features: propertyDetails.features,
+        description: "", // Optional property description
+      };
 
-    const generatedScript = `Welcome to ${propertyDetails.streetAddress || "this stunning property"}${propertyDetails.suburb ? ` in ${propertyDetails.suburb}` : ""}.
+      console.log("Generating script with:", requestBody);
 
-This exceptional ${propertyDetails.bedrooms}-bedroom, ${propertyDetails.bathrooms}-bathroom residence offers the perfect blend of style and functionality. ${propertyDetails.landSize ? `Sitting on a generous ${propertyDetails.landSize} square metre block, ` : ""}this home features ${features} throughout.
+      const response = await fetch(SUPABASE_FUNCTION_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify(requestBody),
+      });
 
-The thoughtfully designed layout provides seamless indoor-outdoor living, while premium appointments ensure comfort and convenience at every turn.
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Script generation failed:", response.status, errorText);
+        throw new Error(`Failed to generate script: ${response.status}`);
+      }
 
-${propertyDetails.price ? `Offered at ${propertyDetails.price}, this` : "This"} is an opportunity not to be missed. Contact us today to arrange your private inspection.`;
+      const data = await response.json();
+      console.log("Script generated successfully:", data);
 
-    onScriptChange(generatedScript);
-    setIsGenerating(false);
-
-    toast({
-      title: "Script Generated!",
-      description: "Your AI-powered property script is ready.",
-    });
+      if (data.script) {
+        onScriptChange(data.script);
+        toast({
+          title: "Script Generated!",
+          description: "Your AI-powered property script is ready.",
+        });
+      } else {
+        throw new Error("No script returned from API");
+      }
+    } catch (error) {
+      console.error("Script generation error:", error);
+      toast({
+        title: "Generation Failed",
+        description: error instanceof Error ? error.message : "Failed to generate script. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleCopy = async () => {
