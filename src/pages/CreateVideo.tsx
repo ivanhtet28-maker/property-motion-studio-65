@@ -239,34 +239,39 @@ export default function CreateVideo() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
-      {/* Top Navigation */}
-      <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4 flex-shrink-0">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-background via-background to-secondary/20 overflow-hidden">
+      {/* Premium Top Navigation */}
+      <header className="h-16 border-b border-border/50 bg-card/80 backdrop-blur-xl flex items-center justify-between px-6 flex-shrink-0 shadow-sm">
+        <Link to="/" className="flex items-center gap-3 group">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg shadow-primary/25 group-hover:shadow-primary/40 transition-shadow">
             <Video className="w-5 h-5 text-primary-foreground" />
           </div>
-          <span className="text-lg font-bold text-foreground hidden sm:block">
-            PropertyVideos.ai
+          <span className="text-xl font-bold text-foreground hidden sm:block tracking-tight">
+            PropertyVideos<span className="text-primary">.ai</span>
           </span>
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-2">
-          <Button variant="hero" size="sm" onClick={handleNewVideo}>
+        <nav className="hidden md:flex items-center gap-3">
+          <Button 
+            variant="hero" 
+            size="sm" 
+            onClick={handleNewVideo}
+            className="shadow-lg shadow-primary/20"
+          >
             New Video
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")} className="text-muted-foreground hover:text-foreground">
             Videos
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => navigate("/settings")}>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/settings")} className="text-muted-foreground hover:text-foreground">
             Account
           </Button>
         </nav>
 
         {/* Mobile Menu Button */}
         <button
-          className="md:hidden p-2 text-foreground"
+          className="md:hidden p-2.5 text-foreground hover:bg-secondary/50 rounded-lg transition-colors"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         >
           {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -275,14 +280,14 @@ export default function CreateVideo() {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-card border-b border-border p-4 space-y-2">
-          <Button variant="hero" className="w-full" onClick={handleNewVideo}>
+        <div className="md:hidden bg-card/95 backdrop-blur-xl border-b border-border/50 p-4 space-y-2 animate-fade-in">
+          <Button variant="hero" className="w-full shadow-lg" onClick={handleNewVideo}>
             New Video
           </Button>
-          <Button variant="ghost" className="w-full justify-start" onClick={() => navigate("/dashboard")}>
+          <Button variant="ghost" className="w-full justify-start text-muted-foreground" onClick={() => navigate("/dashboard")}>
             Videos
           </Button>
-          <Button variant="ghost" className="w-full justify-start" onClick={() => navigate("/settings")}>
+          <Button variant="ghost" className="w-full justify-start text-muted-foreground" onClick={() => navigate("/settings")}>
             Account
           </Button>
         </div>
@@ -302,18 +307,28 @@ export default function CreateVideo() {
         </div>
 
         {/* Center Content */}
-        <main className="flex-1 overflow-y-auto bg-background">
-          <div className="max-w-2xl mx-auto p-6 space-y-8">
-            {/* Property Details */}
-            <div className="bg-card rounded-xl border border-border p-6">
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-2xl mx-auto p-6 lg:p-8 space-y-6">
+            {/* Page Header */}
+            <div className="text-center mb-8">
+              <h1 className="text-2xl lg:text-3xl font-bold text-foreground mb-2">
+                Create Your Video
+              </h1>
+              <p className="text-muted-foreground">
+                Fill in the details below to generate a stunning property video
+              </p>
+            </div>
+
+            {/* Property Details Card */}
+            <div className="bg-card/80 backdrop-blur-sm rounded-2xl border border-border/50 p-6 shadow-card hover:shadow-card-hover transition-shadow">
               <PropertyDetailsForm
                 details={propertyDetails}
                 onChange={setPropertyDetails}
               />
             </div>
 
-            {/* Photo Upload */}
-            <div className="bg-card rounded-xl border border-border p-6">
+            {/* Photo Upload Card */}
+            <div className="bg-card/80 backdrop-blur-sm rounded-2xl border border-border/50 p-6 shadow-card hover:shadow-card-hover transition-shadow">
               <PhotoUpload
                 photos={photos}
                 onChange={setPhotos}
@@ -322,8 +337,8 @@ export default function CreateVideo() {
               />
             </div>
 
-            {/* Script Generator */}
-            <div className="bg-card rounded-xl border border-border p-6">
+            {/* Script Generator Card */}
+            <div className="bg-card/80 backdrop-blur-sm rounded-2xl border border-border/50 p-6 shadow-card hover:shadow-card-hover transition-shadow">
               <ScriptGeneratorSection
                 propertyDetails={propertyDetails}
                 script={script}
@@ -331,8 +346,8 @@ export default function CreateVideo() {
               />
             </div>
 
-            {/* Customization (Collapsible) */}
-            <div className="bg-card rounded-xl border border-border p-6">
+            {/* Customization Card */}
+            <div className="bg-card/80 backdrop-blur-sm rounded-2xl border border-border/50 p-6 shadow-card hover:shadow-card-hover transition-shadow">
               <CustomizationSection
                 settings={customization}
                 onChange={setCustomization}
@@ -340,19 +355,19 @@ export default function CreateVideo() {
             </div>
 
             {/* Mobile Generate Button */}
-            <div className="lg:hidden sticky bottom-0 bg-background pt-4 pb-6 -mx-6 px-6 border-t border-border">
+            <div className="lg:hidden sticky bottom-0 bg-gradient-to-t from-background via-background to-transparent pt-6 pb-8 -mx-6 px-6">
               <Button
                 variant="hero"
                 size="lg"
-                className="w-full"
+                className="w-full shadow-xl shadow-primary/30"
                 onClick={handleGenerate}
                 disabled={photos.length < 5 || isGenerating}
               >
                 {isGenerating ? "Generating..." : "Generate Video"}
               </Button>
               {photos.length < 5 && (
-                <p className="text-xs text-center text-warning mt-2">
-                  Add {5 - photos.length} more photos
+                <p className="text-xs text-center text-warning mt-3 font-medium">
+                  Add {5 - photos.length} more photos to continue
                 </p>
               )}
             </div>
