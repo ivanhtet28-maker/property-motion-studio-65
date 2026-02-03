@@ -1,14 +1,22 @@
-// Supabase client configuration - rebuilt 2026-02-03T08:40
-import { createClient } from '@supabase/supabase-js';
+// Supabase client configuration
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Supabase credentials from environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://pxhpfewunsetuxygeprp.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseAnonKey) {
-  console.error('VITE_SUPABASE_ANON_KEY is not set. Supabase functionality will not work.');
+// Check if Supabase is properly configured
+export const isSupabaseConfigured = !!supabaseAnonKey;
+
+// Create the Supabase client only if we have the key, otherwise create a mock
+let supabaseClient: SupabaseClient;
+
+if (supabaseAnonKey) {
+  supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+} else {
+  console.warn('VITE_SUPABASE_ANON_KEY is not set. Using placeholder client. Supabase functionality will not work.');
+  // Create a placeholder with a dummy key to prevent crash - it won't work but won't crash
+  supabaseClient = createClient(supabaseUrl, 'placeholder-key-supabase-not-configured');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey || '');
-
-export const isSupabaseConfigured = !!supabaseAnonKey;
+export const supabase = supabaseClient;
