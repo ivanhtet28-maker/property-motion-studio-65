@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -32,44 +34,105 @@ interface VideoItem {
   createdAt: string;
   status: "ready" | "processing";
   thumbnailUrl?: string;
+  videoUrl?: string;
+  suburb?: string;
+  state?: string;
 }
-
-const mockVideos: VideoItem[] = [
-  {
-    id: "1",
-    address: "123 Collins Street, Melbourne VIC 3000",
-    createdAt: "2 hours ago",
-    status: "ready",
-  },
-  {
-    id: "2",
-    address: "456 George Street, Sydney NSW 2000",
-    createdAt: "1 day ago",
-    status: "ready",
-  },
-  {
-    id: "3",
-    address: "789 Queen Street, Brisbane QLD 4000",
-    createdAt: "3 days ago",
-    status: "processing",
-  },
-  {
-    id: "4",
-    address: "321 King William Street, Adelaide SA 5000",
-    createdAt: "1 week ago",
-    status: "ready",
-  },
-];
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [videos, setVideos] = useState<VideoItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const videosUsed = 8;
+  const videosUsed = videos.length;
   const videosLimit = 30;
 
-  const filteredVideos = mockVideos.filter((video) => {
+  const loadVideos = useCallback(async () => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("videos")
+        .select(`
+          *,
+          property:property_id (
+            address,
+            suburb,
+            state,
+            postcode
+          )
+        `)
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      // Transform data for UI
+      const transformedVideos: VideoItem[] = (data || []).map((v) => {
+        const propertyAddress = v.property?.address
+          ? `${v.property.address}${v.property.suburb ? `, ${v.property.suburb}` : ''}${v.property.state ? ` ${v.property.state}` : ''}`
+          : "Unknown Address";
+
+        // Calculate time ago
+        const createdDate = new Date(v.created_at);
+        const now = new Date();
+        const diffMs = now.getTime() - createdDate.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+
+        let createdAt: string;
+        if (diffMins < 60) {
+          createdAt = `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+        } else if (diffHours < 24) {
+          createdAt = `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+        } else if (diffDays < 7) {
+          createdAt = `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+        } else {
+          createdAt = createdDate.toLocaleDateString();
+        }
+
+        // Map status
+        let status: "ready" | "processing";
+        if (v.status === "completed" || v.status === "done") {
+          status = "ready";
+        } else {
+          status = "processing";
+        }
+
+        return {
+          id: v.id,
+          address: propertyAddress,
+          suburb: v.property?.suburb || "",
+          state: v.property?.state || "",
+          status: status,
+          createdAt: createdAt,
+          videoUrl: v.video_url,
+          thumbnailUrl: v.thumbnail_url,
+        };
+      });
+
+      setVideos(transformedVideos);
+    } catch (err) {
+      console.error("Failed to load videos:", err);
+      setVideos([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadVideos();
+  }, [loadVideos]);
+
+  const filteredVideos = videos.filter((video) => {
     const matchesSearch = video.address.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || video.status === statusFilter;
     return matchesSearch && matchesStatus;
@@ -162,7 +225,14 @@ export default function Dashboard() {
           </div>
 
           {/* Video Grid */}
-          {filteredVideos.length > 0 ? (
+          {loading ? (
+            <div className="text-center py-20">
+              <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center mx-auto mb-6">
+                <Video className="w-10 h-10 text-muted-foreground animate-pulse" />
+              </div>
+              <p className="text-muted-foreground">Loading videos...</p>
+            </div>
+          ) : filteredVideos.length > 0 ? (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredVideos.map((video) => (
                 <div

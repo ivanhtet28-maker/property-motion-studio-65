@@ -1,0 +1,225 @@
+# .gitignore Update Summary
+
+Date: February 5, 2026
+Action: Updated .gitignore to include all .md files, .env files, and comprehensive ignore patterns
+
+## Changes Made
+
+### 1. Files Removed from Git Tracking
+
+The following files were removed from git tracking (but kept locally):
+
+- .env (CRITICAL SECURITY FIX - contained API keys)
+- README.md
+
+Command used:
+```
+git rm --cached .env
+git rm --cached README.md
+```
+
+### 2. Files Now Ignored
+
+#### Documentation Files (*.md)
+All markdown files are now ignored, including:
+- CLAUDE.md
+- README.md
+- SETUP_GUIDE.md
+- DEPLOYMENT_GUIDE.md
+- MUSIC_SETUP_GUIDE.md
+- DEPLOYMENT_CHECKLIST.md
+- TEST_SUMMARY.md
+- EXISTING_CODEBASE_ANALYSIS.md
+- FEATURE_ANALYSIS.md
+- LUMA_VS_SHOTSTACK_ANALYSIS.md
+- MESSAGE_TO_DEVELOPER.md
+- SHORT_MESSAGE_TO_DEVELOPER.md
+- CORRECTED_SHORT_MESSAGE.md
+
+#### Environment Files
+- .env
+- .env.local
+- .env.development.local
+- .env.test.local
+- .env.production.local
+- .env.*.local
+- *.env
+
+#### Build Outputs
+- dist
+- dist-ssr
+- build
+- .next
+- out
+- .nuxt
+- .cache
+- .parcel-cache
+
+#### Testing
+- coverage
+- *.lcov
+- .nyc_output
+- junit.xml
+- test-results
+- playwright-report
+- playwright/.cache
+
+#### Supabase
+- .supabase
+- supabase/.temp
+- supabase/.branches
+- supabase/functions/.env
+
+#### TypeScript
+- *.tsbuildinfo
+- .tsbuildinfo
+
+#### Editor Files
+- .vscode/* (except extensions.json and settings.json)
+- .idea
+- *.suo
+- *.ntvs*
+- *.njsproj
+- *.sln
+- *.sw?
+- *.swp
+- *~
+
+#### OS Files
+- .DS_Store
+- Thumbs.db
+- Desktop.ini
+- .AppleDouble
+- .LSOverride
+
+#### Logs
+- logs
+- *.log
+- npm-debug.log*
+- yarn-debug.log*
+- yarn-error.log*
+- pnpm-debug.log*
+- lerna-debug.log*
+- debug.log
+
+#### Temporary Files
+- *.tmp
+- *.temp
+- .tmp
+- .temp
+
+#### Cache Files
+- .npm
+- .eslintcache
+- .stylelintcache
+- .rpt2_cache/
+- .rts2_cache_cjs/
+- .rts2_cache_es/
+- .rts2_cache_umd/
+
+#### Package Managers
+- node_modules
+- .pnp
+- .pnp.js
+- .yarn-integrity
+- .yarn/cache
+- .yarn/unplugged
+- .yarn/build-state.yml
+- .yarn/install-state.gz
+- .pnp.*
+- *.tgz
+
+#### Deployment Platforms
+- .vercel
+- .netlify
+
+#### Misc
+- *.local
+- .turbo
+- .sentryclirc
+- .vite-inspect
+
+## Verification
+
+All files are now properly ignored:
+✅ All .md files ignored (13 files)
+✅ .env file ignored
+✅ Build outputs ignored
+✅ Test coverage ignored
+✅ Cache directories ignored
+✅ Editor config ignored (except allowed files)
+✅ OS-specific files ignored
+✅ Supabase local files ignored
+
+## Security Note
+
+CRITICAL: The .env file was previously tracked by git and contained sensitive information:
+- Supabase URL
+- Supabase Publishable Key
+- Supabase Project ID
+
+While these have been removed from tracking, they may still exist in git history.
+
+### Recommended Actions for Production:
+
+1. If this repository is public or will be shared:
+   - Rotate all API keys in .env
+   - Generate new Supabase anon key
+   - Consider using git-filter-repo to remove .env from history
+
+2. If this repository is private and controlled:
+   - Keep current keys
+   - Ensure .env stays untracked going forward
+
+## Next Steps
+
+To commit these changes:
+
+```bash
+git add .gitignore
+git commit -m "Update .gitignore: add all .md files, .env, and comprehensive ignore patterns
+
+- Remove .env from tracking (security fix)
+- Ignore all markdown documentation files
+- Add comprehensive ignore patterns for build, test, cache, and temp files
+- Add Supabase local development files
+- Add deployment platform files"
+```
+
+## Files Still Being Tracked (Modified)
+
+These modified files are still tracked and ready to commit:
+- .gitignore
+- package-lock.json
+- src/components/create-video/ScriptGeneratorSection.tsx
+- src/components/create-video/index.ts
+- src/components/ui/command.tsx
+- src/components/ui/textarea.tsx
+- src/pages/CreateVideo.tsx
+- src/pages/Dashboard.tsx
+- supabase/config.toml
+- supabase/functions/check-video-status/index.ts
+- supabase/functions/generate-script/index.ts
+- supabase/functions/generate-video/index.ts
+- tailwind.config.ts
+
+## New Untracked Files
+
+These new files are untracked and will not be committed (due to .gitignore):
+- All .md files in root directory
+- .env file
+- Test files in src/test/
+- New component files
+- New edge functions
+
+## Summary
+
+✅ .gitignore updated with comprehensive patterns
+✅ Security issue fixed (.env removed from tracking)
+✅ All documentation files (.md) now ignored
+✅ Build, test, and cache files ignored
+✅ Editor and OS files ignored
+✅ Supabase local files ignored
+
+The repository is now properly configured to exclude sensitive files,
+documentation, and build artifacts from version control.

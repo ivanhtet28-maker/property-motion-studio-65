@@ -89,17 +89,16 @@ Contact us today for a private inspection.`;
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const canGenerate = photoCount >= 5;
+  const canGenerate = photoCount >= 3 && photoCount <= 6;
 
   const getProgressStatus = () => {
     if (generatingProgress < 20) return "Uploading photos...";
-    if (generatingProgress < 40) return "Analyzing images...";
-    if (generatingProgress < 60) return "Building video scenes...";
-    if (generatingProgress < 80) return "Adding voiceover...";
+    if (generatingProgress < 80) return "Generating cinematic clips with Luma AI...";
+    if (generatingProgress < 95) return "Stitching video clips...";
     return "Finalizing your video...";
   };
 
-  const remainingSeconds = Math.max(0, Math.round(120 - (generatingProgress / 100) * 120));
+  const remainingSeconds = Math.max(0, Math.round(300 - (generatingProgress / 100) * 300)); // 5 minutes for Luma
 
   return (
     <aside className="w-[340px] bg-gradient-to-b from-card via-card to-secondary/20 border-l border-border/50 flex flex-col h-full overflow-hidden">
@@ -313,16 +312,29 @@ Contact us today for a private inspection.`;
             
             {!canGenerate ? (
               <div className="text-center">
-                <p className="text-sm text-warning font-medium">
-                  Add {5 - photoCount} more photos to continue
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Minimum 5 photos required
-                </p>
+                {photoCount < 3 ? (
+                  <>
+                    <p className="text-sm text-warning font-medium">
+                      Add {3 - photoCount} more photos to continue
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      3-6 photos required (15-30s video)
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-warning font-medium">
+                      Maximum 6 photos allowed
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      You have {photoCount} photos
+                    </p>
+                  </>
+                )}
               </div>
             ) : (
               <p className="text-xs text-center text-muted-foreground">
-                Estimated time: ~2 minutes
+                Estimated time: ~{photoCount * 45} seconds
               </p>
             )}
           </div>

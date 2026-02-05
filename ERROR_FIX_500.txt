@@ -1,0 +1,254 @@
+# 500 Error Fix - Generate Video Function
+
+**Date**: February 5, 2026
+**Error**: "Edge Function returned a non-2xx status code"
+**Status**: ✅ FIXED
+
+---
+
+## Problem
+
+User was getting a 500 Internal Server Error when trying to generate videos:
+
+```
+acpkhbjgnlenjfiswftx.supabase.co/functions/v1/generate-video:1
+Failed to load resource: the server responded with a status of 500 ()
+
+Video generation error: Error: Edge Function returned a non-2xx status code
+    at handleGenerate (CreateVideo.tsx:318:15)
+```
+
+---
+
+## Root Cause
+
+**File**: `supabase/functions/generate-video/index.ts` (Lines 117-123)
+
+The function was checking for `LUMA_API_KEY` and returning a 500 error if not found:
+
+```typescript
+if (!lumaApiKey) {
+  console.error("LUMA_API_KEY not configured");
+  return new Response(
+    JSON.stringify({
+      error: "Video generation service not configured. Please add LUMA_API_KEY secret."
+    }),
+    { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+```
+
+**Problem**: Luma AI is OPTIONAL (only for premium cinematic intros), but the code was treating it as REQUIRED.
+
+---
+
+## Fix Applied
+
+**Changed**: Made `LUMA_API_KEY` optional, only `SHOTSTACK_API_KEY` is required
+
+**Before** (BROKEN):
+```typescript
+try {
+  const lumaApiKey = Deno.env.get("LUMA_API_KEY");
+  const shotstackApiKey = Deno.env.get("SHOTSTACK_API_KEY");
+
+  // ❌ ERROR: Requires Luma even though it's optional
+  if (!lumaApiKey) {
+    console.error("LUMA_API_KEY not configured");
+    return new Response(
+      JSON.stringify({ error: "Video generation service not configured..." }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  if (!shotstackApiKey) {
+    // Check Shotstack...
+  }
+```
+
+**After** (FIXED):
+```typescript
+try {
+  const shotstackApiKey = Deno.env.get("SHOTSTACK_API_KEY");
+
+  // ✅ Only Shotstack is required for all video generation
+  if (!shotstackApiKey) {
+    console.error("SHOTSTACK_API_KEY not configured");
+    return new Response(
+      JSON.stringify({ error: "Video editing service not configured..." }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  // ✅ Note: LUMA_API_KEY is optional - only needed if user requests Luma intro
+```
+
+---
+
+## Changes Summary
+
+### What Was Fixed
+1. ✅ Removed required check for `LUMA_API_KEY`
+2. ✅ Kept required check for `SHOTSTACK_API_KEY` (always needed)
+3. ✅ Added comment explaining Luma is optional
+
+### What Still Works
+- ✅ Regular video generation (Shotstack only)
+- ✅ Video with voice synthesis (if ELEVENLABS_API_KEY set)
+- ✅ Video with background music
+- ✅ Video with agent overlay
+- ✅ Premium Luma intro (if LUMA_API_KEY set and user requests it)
+
+---
+
+## Required vs Optional API Keys
+
+### REQUIRED (for any video generation)
+- ✅ **SHOTSTACK_API_KEY** - Video rendering service (MUST be set)
+
+### OPTIONAL (enhance videos but not required)
+- ⚪ **LUMA_API_KEY** - Cinematic intro (only if user enables it)
+- ⚪ **ELEVENLABS_API_KEY** - Voice synthesis (only if user selects voice)
+- ⚪ **OPENAI_API_KEY** - AI script generation (only if user clicks "Generate Script")
+- ⚪ **SCRAPER_API_KEY** - Property scraping (only if user uses scrape feature)
+
+---
+
+## Deployment Instructions
+
+### Option 1: Deploy via Supabase Dashboard
+
+1. Go to: https://supabase.com/dashboard/project/acpkhbjgnlenjfiswftx/functions
+2. Click on `generate-video` function
+3. Click "Deploy New Version"
+4. The function should auto-deploy from your linked repository
+
+### Option 2: Deploy via Supabase CLI
+
+If you have Supabase CLI installed:
+
+```bash
+supabase functions deploy generate-video
+```
+
+### Option 3: Deploy All Functions
+
+```bash
+supabase functions deploy
+```
+
+---
+
+## Verify Deployment
+
+After deploying, verify the fix works:
+
+1. **Check Secrets** (required):
+   ```bash
+   supabase secrets list
+   ```
+
+   Should see:
+   - ✅ `SHOTSTACK_API_KEY` (REQUIRED)
+   - ⚪ `LUMA_API_KEY` (optional)
+   - ⚪ `ELEVENLABS_API_KEY` (optional)
+   - ⚪ `OPENAI_API_KEY` (optional)
+
+2. **Test Video Generation**:
+   - Upload 5-10 images
+   - Fill property details
+   - Click "Generate Video"
+   - Should work WITHOUT Luma API key
+   - Should see video rendering successfully
+
+3. **Check Logs**:
+   ```bash
+   supabase functions logs generate-video
+   ```
+
+   Should NOT see:
+   - ❌ "LUMA_API_KEY not configured"
+
+   Should see (if successful):
+   - ✅ "Creating Shotstack slideshow with X images"
+   - ✅ "Video duration calculation: ..."
+   - ✅ "Shotstack job started: ..."
+
+---
+
+## Testing Checklist
+
+After deployment, test:
+
+- [ ] Generate video without any optional features → Should work ✅
+- [ ] Generate video with voice (if ELEVENLABS_API_KEY set) → Should work ✅
+- [ ] Generate video with music → Should work ✅
+- [ ] Generate video with agent overlay → Should work ✅
+- [ ] Generate video with Luma intro (if LUMA_API_KEY set) → Should work ✅
+- [ ] Check error messages are clear if API key missing
+
+---
+
+## Error Messages (Updated)
+
+### Before Fix
+❌ "Video generation service not configured. Please add LUMA_API_KEY secret." (Even without using Luma!)
+
+### After Fix
+✅ "Video editing service not configured. Please add SHOTSTACK_API_KEY secret." (Only if Shotstack missing)
+
+---
+
+## Impact
+
+### Before
+- ❌ **BROKEN**: Users couldn't generate ANY videos without Luma API key
+- ❌ Confusing error message about optional service
+- ❌ Forced users to get Luma API key even if not using premium feature
+
+### After
+- ✅ **WORKS**: Users can generate videos with just Shotstack
+- ✅ Clear error if required service missing
+- ✅ Optional features are truly optional
+- ✅ Luma only required when explicitly requested
+
+---
+
+## Additional Notes
+
+### Why This Happened
+This code was likely written when planning the Luma integration, and the check was added as a placeholder. However, it should have been conditional (only check if user requests Luma intro).
+
+### Best Practice
+```typescript
+// ✅ GOOD: Check optional API key only when needed
+if (lumaIntroUrl && !lumaApiKey) {
+  console.warn("Luma intro requested but LUMA_API_KEY not configured");
+  // Continue without Luma intro
+}
+
+// ❌ BAD: Check optional API key always
+if (!lumaApiKey) {
+  return error; // Breaks everything!
+}
+```
+
+### Related Files
+- `supabase/functions/generate-luma-intro/index.ts` - Separate Luma intro generator
+- `supabase/functions/check-luma-status/index.ts` - Luma status checker
+- `src/pages/CreateVideo.tsx` - Frontend that calls generate-video
+
+---
+
+## Summary
+
+**Issue**: Function required optional Luma API key
+**Fix**: Made Luma API key truly optional
+**Result**: Video generation works with just Shotstack
+**Deploy**: Redeploy `generate-video` function to apply fix
+
+---
+
+**Status**: ✅ Fixed and ready to deploy
+**Priority**: HIGH (blocking video generation)
+**Action Required**: Deploy updated function

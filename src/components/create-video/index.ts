@@ -1,6 +1,7 @@
 export { LeftSidebar } from "./LeftSidebar";
 export { PropertyDetailsForm } from "./PropertyDetailsForm";
 export { PhotoUpload } from "./PhotoUpload";
+export { PropertySourceSelector } from "./PropertySourceSelector";
 export { CustomizationSection } from "./CustomizationSection";
 export { RightPanel } from "./RightPanel";
 export { ScriptGeneratorSection } from "./ScriptGeneratorSection";

@@ -11,8 +11,8 @@ interface PhotoUploadProps {
 export function PhotoUpload({
   photos,
   onChange,
-  minPhotos = 10,
-  maxPhotos = 20,
+  minPhotos = 3,
+  maxPhotos = 6,
 }: PhotoUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);

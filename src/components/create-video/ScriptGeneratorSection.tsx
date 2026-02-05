@@ -4,9 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { PropertyDetails } from "./PropertyDetailsForm";
-
-const SUPABASE_FUNCTION_URL = "https://pxhpfewunsetuxygeprp.supabase.co/functions/v1/generate-script";
-const SUPABASE_ANON_KEY = "sb_publishable_dZfmgOW6Z1N2FYNtiaDLMQ_Q27bxxAQ";
+import { supabase } from "@/lib/supabase";
 
 interface ScriptGeneratorSectionProps {
   propertyDetails: PropertyDetails;
@@ -51,25 +49,18 @@ export function ScriptGeneratorSection({
 
       console.log("Generating script with:", requestBody);
 
-      const response = await fetch(SUPABASE_FUNCTION_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify(requestBody),
+      const { data, error } = await supabase.functions.invoke("generate-script", {
+        body: requestBody,
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Script generation failed:", response.status, errorText);
-        throw new Error(`Failed to generate script: ${response.status}`);
+      if (error) {
+        console.error("Script generation failed:", error);
+        throw error;
       }
 
-      const data = await response.json();
       console.log("Script generated successfully:", data);
 
-      if (data.script) {
+      if (data?.success && data.script) {
         onScriptChange(data.script);
         toast({
           title: "Script Generated!",

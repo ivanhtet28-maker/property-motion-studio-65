@@ -1,148 +1,184 @@
-// Edge function to check video generation status (supports Shotstack and Luma Labs)
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
-console.log("check-video-status: initializing...");
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SHOTSTACK_API_URL = "https://api.shotstack.io/v1";
-const LUMA_API_URL = "https://api.lumalabs.ai/dream-machine/v1";
+async function updateVideoRecord(
+  videoId: string | undefined,
+  status: "processing" | "completed" | "failed",
+  videoUrl: string | null = null,
+  progress: number = 0,
+  errorMessage: string | null = null
+) {
+  if (!videoId) return;
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const updateData: {
+      status: string;
+      progress: number;
+      video_url?: string;
+      completed_at?: string;
+      error_message?: string;
+    } = {
+      status,
+      progress,
+    };
+
+    if (videoUrl) {
+      updateData.video_url = videoUrl;
+    }
+
+    if (status === "completed") {
+      updateData.completed_at = new Date().toISOString();
+    }
+
+    if (errorMessage) {
+      updateData.error_message = errorMessage;
+    }
+
+    const { error } = await supabase
+      .from("videos")
+      .update(updateData)
+      .eq("id", videoId);
+
+    if (error) {
+      console.error("Failed to update video record:", error);
+    } else {
+      console.log("Video record updated:", videoId, "status:", status, "progress:", progress);
+    }
+  } catch (err) {
+    console.error("Error updating video record:", err);
+  }
+}
 
 Deno.serve(async (req) => {
-  console.log("check-video-status: request received", req.method);
-
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
     const body = await req.json();
-    const jobId = body.jobId;
-    const provider = body.provider || "shotstack"; // Default to shotstack
+    const { generationIds, videoId, audioUrl, musicUrl, agentInfo, propertyData } = body;
 
-    if (!jobId) {
-      console.error("No jobId provided");
-      return new Response(
-        JSON.stringify({ error: "Job ID is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!generationIds || !Array.isArray(generationIds) || generationIds.length === 0) {
+      throw new Error("generationIds array is required");
     }
 
-    console.log(`Checking status for job ${jobId} (provider: ${provider})`);
+    console.log("Checking status for", generationIds.length, "Luma generations");
 
-    if (provider === "luma") {
-      // Luma Labs status check
-      const lumaApiKey = Deno.env.get("LUMA_API_KEY");
-      if (!lumaApiKey) {
-        return new Response(
-          JSON.stringify({ error: "Luma API key not configured" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const statusResponse = await fetch(`${LUMA_API_URL}/generations/${jobId}`, {
-        method: "GET",
-        headers: { 
-          "Authorization": `Bearer ${lumaApiKey}`,
-          "Content-Type": "application/json"
+    // Check batch status
+    const statusResponse = await fetch(
+      `${Deno.env.get("SUPABASE_URL")}/functions/v1/check-luma-batch`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
         },
-      });
-
-      const responseText = await statusResponse.text();
-      console.log("Luma response:", statusResponse.status, responseText.substring(0, 300));
-
-      if (!statusResponse.ok) {
-        return new Response(
-          JSON.stringify({ error: "Failed to check video status", details: responseText.substring(0, 200) }),
-          { status: statusResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        body: JSON.stringify({ generationIds }),
       }
+    );
 
-      const statusData = JSON.parse(responseText);
-      const lumaStatus = statusData.state;
-      const videoUrl = statusData.assets?.video;
+    const statusData = await statusResponse.json();
 
-      let status: "processing" | "done" | "failed";
-      if (lumaStatus === "completed") {
-        status = "done";
-      } else if (lumaStatus === "failed") {
-        status = "failed";
-      } else {
-        status = "processing";
-      }
+    if (!statusData.success) {
+      throw new Error("Failed to check Luma batch status");
+    }
 
+    const { allCompleted, anyFailed, summary, videoUrls } = statusData;
+
+    // Calculate progress based on completed clips
+    const progressPercent = Math.round((summary.completed / summary.total) * 80); // 0-80% for Luma generation
+
+    await updateVideoRecord(videoId, "processing", null, progressPercent);
+
+    // If any failed, return error
+    if (anyFailed && summary.completed === 0) {
+      await updateVideoRecord(videoId, "failed", null, 0, "All Luma generations failed");
       return new Response(
-        JSON.stringify({ 
-          status, 
-          videoUrl: status === "done" ? videoUrl : null, 
-          rawStatus: lumaStatus,
-          failureReason: statusData.failure_reason || null
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    } else {
-      // Shotstack status check (default)
-      const shotstackApiKey = Deno.env.get("SHOTSTACK_API_KEY");
-      if (!shotstackApiKey) {
-        return new Response(
-          JSON.stringify({ error: "Shotstack API key not configured" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const statusResponse = await fetch(`${SHOTSTACK_API_URL}/render/${jobId}`, {
-        method: "GET",
-        headers: { 
-          "x-api-key": shotstackApiKey,
-          "Content-Type": "application/json"
-        },
-      });
-
-      const responseText = await statusResponse.text();
-      console.log("Shotstack response:", statusResponse.status, responseText.substring(0, 500));
-
-      if (!statusResponse.ok) {
-        return new Response(
-          JSON.stringify({ error: "Failed to check video status", details: responseText.substring(0, 200) }),
-          { status: statusResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const statusData = JSON.parse(responseText);
-      const shotstackStatus = statusData.response?.status;
-      const videoUrl = statusData.response?.url;
-
-      console.log("Shotstack status:", shotstackStatus, "URL:", videoUrl || "none");
-
-      // Shotstack states: queued, fetching, rendering, saving, done, failed
-      let status: "processing" | "done" | "failed";
-      if (shotstackStatus === "done") {
-        status = "done";
-      } else if (shotstackStatus === "failed") {
-        status = "failed";
-      } else {
-        status = "processing";
-      }
-
-      return new Response(
-        JSON.stringify({ 
-          status, 
-          videoUrl: status === "done" ? videoUrl : null, 
-          rawStatus: shotstackStatus,
-          failureReason: statusData.response?.error || null
+        JSON.stringify({
+          status: "failed",
+          message: "All video clips failed to generate",
+          summary,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-  } catch (error) {
-    console.error("Error in check-video-status:", error);
+
+    // If not all complete yet, return processing status
+    if (!allCompleted) {
+      return new Response(
+        JSON.stringify({
+          status: "processing",
+          progress: progressPercent,
+          message: `${summary.completed}/${summary.total} clips ready`,
+          summary,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // All complete - start video stitching
+    console.log("All Luma clips ready, starting video stitching...");
+
+    await updateVideoRecord(videoId, "processing", null, 85, "Stitching video clips...");
+
+    const stitchResponse = await fetch(
+      `${Deno.env.get("SUPABASE_URL")}/functions/v1/stitch-video`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+        },
+        body: JSON.stringify({
+          videoUrls,
+          propertyData,
+          audioUrl,
+          musicUrl,
+          agentInfo,
+          videoId,
+        }),
+      }
+    );
+
+    const stitchData = await stitchResponse.json();
+
+    if (!stitchData.success) {
+      await updateVideoRecord(videoId, "failed", null, 0, stitchData.error || "Video stitching failed");
+      throw new Error(stitchData.error || "Video stitching failed");
+    }
+
+    // Video complete!
+    await updateVideoRecord(videoId, "completed", stitchData.videoUrl, 100);
+
+    console.log("Video generation complete:", stitchData.videoUrl);
+
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Failed to check status" }),
+      JSON.stringify({
+        status: "done",
+        videoUrl: stitchData.videoUrl,
+        duration: stitchData.duration,
+        clipsStitched: stitchData.clipsStitched,
+        message: "Video generated successfully",
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (error) {
+    console.error("Error checking video status:", error);
+    return new Response(
+      JSON.stringify({
+        status: "failed",
+        error: error instanceof Error ? error.message : "Failed to check video status",
+      }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

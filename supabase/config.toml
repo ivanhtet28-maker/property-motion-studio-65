@@ -8,3 +8,15 @@ verify_jwt = false
 
 [functions.check-video-status]
 verify_jwt = false
+
+[functions.scrape-property]
+verify_jwt = false
+
+[functions.generate-luma-batch]
+verify_jwt = false
+
+[functions.check-luma-batch]
+verify_jwt = false
+
+[functions.stitch-video]
+verify_jwt = false
