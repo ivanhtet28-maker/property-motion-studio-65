@@ -138,7 +138,6 @@ Deno.serve(async (req) => {
       ffmpegArgs.push("-vf", filters.join(","));
 
       // Audio mixing
-      let audioFilterIndex = 1;
       if (musicPath && audioPath) {
         // Mix music (lower volume) with voiceover
         ffmpegArgs.push(

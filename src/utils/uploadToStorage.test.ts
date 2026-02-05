@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { uploadImageToStorage, uploadImagesToStorage } from "./uploadToStorage";
 import { supabase } from "@/lib/supabase";

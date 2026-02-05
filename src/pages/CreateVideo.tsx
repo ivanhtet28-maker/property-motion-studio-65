@@ -65,7 +65,15 @@ export default function CreateVideo() {
   const [generationIds, setGenerationIds] = useState<string[] | null>(null);
   const [videoRecordId, setVideoRecordId] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [generationData, setGenerationData] = useState<any>(null);
+  const [generationData, setGenerationData] = useState<{
+    generationIds: string[];
+    totalClips: number;
+    estimatedTime: number;
+    audioUrl: string | null;
+    musicUrl: string | null;
+    agentInfo: CustomizationSettings['agentInfo'];
+    propertyData: Record<string, unknown>;
+  } | null>(null);
 
   // Poll for video status (Luma batch workflow)
   const pollVideoStatus = async (
@@ -73,8 +81,14 @@ export default function CreateVideo() {
     videoId: string | null,
     audioUrl: string | null,
     musicUrl: string | null,
-    agentInfo: any,
-    propertyData: any
+    agentInfo: CustomizationSettings['agentInfo'],
+    propertyData: {
+      address: string;
+      price: string;
+      beds: number;
+      baths: number;
+      description: string;
+    }
   ) => {
     const maxAttempts = 120; // 10 minutes max (120 * 5 seconds) - Luma takes longer
     let attempts = 0;

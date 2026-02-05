@@ -58,6 +58,13 @@ const getMusicUrl = (musicId: string): string | null => {
   return MUSIC_LIBRARY[musicId] || null;
 };
 
+interface LumaGeneration {
+  imageUrl: string;
+  generationId: string;
+  status: "queued" | "error";
+  error?: string;
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -208,8 +215,8 @@ Deno.serve(async (req) => {
       throw new Error(lumaData.error || "Failed to start Luma batch generation");
     }
 
-    const generations = lumaData.generations.filter((g: any) => g.status === "queued");
-    const generationIds = generations.map((g: any) => g.generationId);
+    const generations = (lumaData.generations as LumaGeneration[]).filter((g) => g.status === "queued");
+    const generationIds = generations.map((g) => g.generationId);
 
     console.log(`Started ${generations.length} Luma generations`);
     console.log("Generation IDs:", generationIds);
