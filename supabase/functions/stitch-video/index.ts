@@ -135,16 +135,29 @@
                           font-family: 'Helvetica Neue', Arial, sans-serif;
                           color: white;
                         ">
-                          <!-- Top Section: Address -->
+                          <!-- Top Section: Address and Features -->
                           <div style="text-align: center;">
                             <div style="
                               font-size: 38px;
                               font-weight: 700;
                               letter-spacing: 1px;
                               text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.9);
+                              margin-bottom: ${propertyData.features && propertyData.features.length > 0 ? '15px' : '0'};
                             ">
                               ${propertyData.address}
                             </div>
+                            ${propertyData.features && propertyData.features.length > 0 ? `
+                              <div style="
+                                font-size: 16px;
+                                font-weight: 400;
+                                letter-spacing: 0.5px;
+                                opacity: 0.9;
+                                text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.9);
+                                margin-top: 10px;
+                              ">
+                                ${propertyData.features.slice(0, 4).join(' • ')}
+                              </div>
+                            ` : ''}
                           </div>
 
                           <!-- Bottom Section: Property Stats (Left-aligned modern text layout) -->
