@@ -1,6 +1,5 @@
 // Edge function for video generation using Luma AI completely
   /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
-  // Version 2.0 - Luma batch generation
 
   import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -12,15 +11,15 @@
   };
 
   interface PropertyData {
-    address: string;
-    price: string;
-    beds: number;
-    baths: number;
-    carSpaces?: number;
-    landSize?: string;
-    features?: string[];
-    description: string;
-  }
+      address: string;
+      price: string;
+      beds: number;
+      baths: number;
+      carSpaces?: number;        // ← NEW (optional)
+      landSize?: string;          // ← NEW (optional)
+      features?: string[];        // ← NEW (optional)
+      description: string;
+    }
 
   interface GenerateVideoRequest {
     imageUrls: string[];
@@ -40,32 +39,32 @@
   }
 
   // Music library mapping - updated IDs to match frontend
-  const MUSIC_LIBRARY: Record<string, string> = {
-    // Cinematic & Epic
-    "cinematic-epic-1": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/cinematic-epic-1.mp3",
-    "cinematic-epic-2": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/cinematic-epic-2.mp3",
-    "cinematic-epic-3": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/cinematic-epic-3.mp3",
+    const MUSIC_LIBRARY: Record<string, string> = {
+      // Cinematic & Epic
+      "cinematic-epic-1": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/cinematic-epic-1.mp3",
+      "cinematic-epic-2": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/cinematic-epic-2.mp3",
+      "cinematic-epic-3": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/cinematic-epic-3.mp3",
 
-    // Modern & Chill
-    "modern-chill-1": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/modern-chill-1.mp3",
-    "modern-chill-2": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/modern-chill-2.mp3",
-    "modern-chill-3": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/modern-chill-3.mp3",
+      // Modern & Chill
+      "modern-chill-1": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/modern-chill-1.mp3",
+      "modern-chill-2": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/modern-chill-2.mp3",
+      "modern-chill-3": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/modern-chill-3.mp3",
 
-    // Upbeat & Energetic
-    "upbeat-energetic-1": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/upbeat-energetic-1.mp3",
-    "upbeat-energetic-2": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/upbeat-energetic-2.mp3",
-    "upbeat-energetic-3": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/upbeat-energetic-3.mp3",
+      // Upbeat & Energetic
+      "upbeat-energetic-1": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/upbeat-energetic-1.mp3",
+      "upbeat-energetic-2": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/upbeat-energetic-2.mp3",
+      "upbeat-energetic-3": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/upbeat-energetic-3.mp3",
 
-    // Classical Elegance
-    "classical-elegant-1": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/classical-elegant-1.mp3",
-    "classical-elegant-2": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/classical-elegant-2.mp3",
-    "classical-elegant-3": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/classical-elegant-3.mp3",
+      // Classical Elegance
+      "classical-elegant-1": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/classical-elegant-1.mp3",
+      "classical-elegant-2": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/classical-elegant-2.mp3",
+      "classical-elegant-3": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/classical-elegant-3.mp3",
 
-    // Ambient Relaxing
-    "ambient-relaxing-1": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/ambient-relaxing-1.mp3",
-    "ambient-relaxing-2": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/ambient-relaxing-2.mp3",
-    "ambient-relaxing-3": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/ambient-relaxing-3.mp3",
-  };
+      // Ambient Relaxing
+      "ambient-relaxing-1": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/ambient-relaxing-1.mp3",
+      "ambient-relaxing-2": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/ambient-relaxing-2.mp3",
+      "ambient-relaxing-3": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/ambient-relaxing-3.mp3",
+    };
 
   const getMusicUrl = (musicId: string): string | null => {
     return MUSIC_LIBRARY[musicId] || null;
@@ -79,7 +78,6 @@
   }
 
   Deno.serve(async (req) => {
-    // Handle CORS preflight requests
     if (req.method === "OPTIONS") {
       return new Response("ok", { headers: corsHeaders });
     }
@@ -91,7 +89,6 @@
       console.log("Total images:", imageUrls?.length || 0);
       console.log("Property:", propertyData?.address);
 
-      // Validate input - 3-6 images for 15-30 second video (5 seconds per clip)
       if (!imageUrls || imageUrls.length < 3) {
         return new Response(
           JSON.stringify({ error: "Need at least 3 images for video generation (15 seconds minimum)" }),
@@ -106,7 +103,6 @@
         );
       }
 
-      // Validate images are URLs
       for (const url of imageUrls) {
         if (!url.startsWith("http")) {
           return new Response(
@@ -116,11 +112,9 @@
         }
       }
 
-      // Calculate expected duration
-      const expectedDuration = imageUrls.length * 5; // 5 seconds per Luma clip
+      const expectedDuration = imageUrls.length * 5;
       console.log("Expected video duration:", expectedDuration, "seconds");
 
-      // === STEP 1: GENERATE VOICEOVER (if voice selected) ===
       let audioUrl: string | null = null;
       if (voice && script) {
         console.log("Generating voiceover with ElevenLabs...");
@@ -153,7 +147,6 @@
         }
       }
 
-      // === STEP 2: GET MUSIC URL (if music selected) ===
       let musicUrl: string | null = null;
       if (music) {
         musicUrl = getMusicUrl(music);
@@ -164,7 +157,6 @@
         }
       }
 
-      // === STEP 3: CREATE DATABASE RECORD ===
       let videoRecordId: string | null = null;
       if (userId) {
         try {
@@ -204,7 +196,6 @@
         }
       }
 
-      // === STEP 4: START LUMA BATCH GENERATION ===
       console.log("Starting Luma batch generation for", imageUrls.length, "images...");
 
       const lumaResponse = await fetch(
@@ -234,8 +225,6 @@
       console.log(`Started ${generations.length} Luma generations`);
       console.log("Generation IDs:", generationIds);
 
-      // Return immediately with job details
-      // The frontend will poll check-luma-batch and then call stitch-video
       return new Response(
         JSON.stringify({
           success: true,
@@ -244,13 +233,13 @@
           generationIds: generationIds,
           totalClips: generationIds.length,
           estimatedDuration: expectedDuration,
-          estimatedTime: generationIds.length * 45, // ~45 seconds per clip
+          estimatedTime: generationIds.length * 45,
           message: `Started ${generationIds.length} Luma AI generations. Use check-luma-batch to poll status.`,
           audioUrl: audioUrl,
           musicUrl: musicUrl,
           agentInfo: agentInfo,
           propertyData: propertyData,
-          style: style, // Pass template style for frontend to use
+          style: style, // Pass template style for video overlays
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

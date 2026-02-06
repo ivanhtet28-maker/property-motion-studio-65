@@ -198,7 +198,7 @@ Deno.serve(async (req) => {
           musicUrl: musicUrl,
           agentInfo: agentInfo,
           propertyData: propertyData,
-          style: style || "modern-luxe",
+          style: style || "modern-luxe", // Pass template style for video overlays
           videoId: videoId,
         }),
       }
