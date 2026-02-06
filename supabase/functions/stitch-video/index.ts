@@ -86,6 +86,35 @@
               ],
             }] : []),
 
+            // Dark overlay on first clip (makes text more visible)
+            {
+              clips: [
+                {
+                  asset: {
+                    type: "html",
+                    html: `
+                      <div style="
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        background: rgba(0, 0, 0, 0.4);
+                      "></div>
+                    `,
+                    css: "",
+                    width: 1080,
+                    height: 1920,
+                  },
+                  start: 0,
+                  length: 5, // Only darken first 5 seconds (first clip)
+                  transition: {
+                    out: "fade",
+                  },
+                },
+              ],
+            },
+
             // Property details overlay (first 5 seconds only) - Bottom positioned
               {
                 clips: [
@@ -98,13 +127,13 @@
                           bottom: 200px;
                           left: 50%;
                           transform: translateX(-50%);
-                          background: rgba(0, 0, 0, 0.95);
-                          backdrop-filter: blur(25px);
+                          background: rgba(0, 0, 0, 0.75);
+                          backdrop-filter: blur(20px);
                           border-radius: 12px;
                           padding: 30px 40px;
                           text-align: center;
-                          box-shadow: 0 12px 48px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(0, 0, 0, 0.9);
-                          border: 2px solid rgba(0, 0, 0, 0.5);
+                          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+                          border: 1px solid rgba(255, 255, 255, 0.15);
                           max-width: 950px;
                           width: 90%;
                         ">
