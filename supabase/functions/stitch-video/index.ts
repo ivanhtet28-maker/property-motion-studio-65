@@ -159,12 +159,9 @@
                               align-items: center;
                               gap: 10px;
                             ">
-                              <span style="
-                                font-size: 28px;
-                                font-weight: 600;
-                                color: white;
-                                text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.8);
-                              ">BED</span>
+                              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="filter: drop-shadow(2px 2px 6px rgba(0, 0, 0, 0.8));">
+                                <path d="M20 9V6C20 4.9 19.1 4 18 4H6C4.9 4 4 4.9 4 6V9C2.9 9 2 9.9 2 11V17H4V20H6V17H18V20H20V17H22V11C22 9.9 21.1 9 20 9ZM18 9H13V6H18V9ZM6 6H11V9H6V6Z" fill="white"/>
+                              </svg>
                               <span style="
                                 font-size: 28px;
                                 font-weight: 700;
@@ -178,12 +175,9 @@
                               align-items: center;
                               gap: 10px;
                             ">
-                              <span style="
-                                font-size: 28px;
-                                font-weight: 600;
-                                color: white;
-                                text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.8);
-                              ">BATH</span>
+                              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="filter: drop-shadow(2px 2px 6px rgba(0, 0, 0, 0.8));">
+                                <path d="M21 10H7V7C7 5.9 7.9 5 9 5C10.1 5 11 5.9 11 7H13C13 4.79 11.21 3 9 3C6.79 3 5 4.79 5 7V10H3C2.45 10 2 10.45 2 11V12C2 15.31 4.69 18 8 18V21H10V18H14V21H16V18C19.31 18 22 15.31 22 12V11C22 10.45 21.55 10 21 10Z" fill="white"/>
+                              </svg>
                               <span style="
                                 font-size: 28px;
                                 font-weight: 700;
@@ -198,12 +192,9 @@
                                 align-items: center;
                                 gap: 10px;
                               ">
-                                <span style="
-                                  font-size: 28px;
-                                  font-weight: 600;
-                                  color: white;
-                                  text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.8);
-                                ">CAR</span>
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="filter: drop-shadow(2px 2px 6px rgba(0, 0, 0, 0.8));">
+                                  <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5H6.5C5.84 5 5.29 5.42 5.08 6.01L3 12V20C3 20.55 3.45 21 4 21H5C5.55 21 6 20.55 6 20V19H18V20C18 20.55 18.45 21 19 21H20C20.55 21 21 20.55 21 20V12L18.92 6.01ZM6.5 16C5.67 16 5 15.33 5 14.5C5 13.67 5.67 13 6.5 13C7.33 13 8 13.67 8 14.5C8 15.33 7.33 16 6.5 16ZM17.5 16C16.67 16 16 15.33 16 14.5C16 13.67 16.67 13 17.5 13C18.33 13 19 13.67 19 14.5C19 15.33 18.33 16 17.5 16ZM5 11L6.5 6.5H17.5L19 11H5Z" fill="white"/>
+                                </svg>
                                 <span style="
                                   font-size: 28px;
                                   font-weight: 700;
@@ -219,6 +210,9 @@
                                 align-items: center;
                                 gap: 10px;
                               ">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" style="filter: drop-shadow(2px 2px 6px rgba(0, 0, 0, 0.8));">
+                                  <path d="M20 2H4C2.9 2 2 2.9 2 4V20C2 21.1 2.9 22 4 22H20C21.1 22 22 21.1 22 20V4C22 2.9 21.1 2 20 2ZM20 20H4V4H20V20ZM6 6H18V9H6V6ZM6 11H13V18H6V11ZM15 11H18V14H15V11ZM15 16H18V18H15V16Z" fill="white"/>
+                                </svg>
                                 <span style="
                                   font-size: 28px;
                                   font-weight: 700;
