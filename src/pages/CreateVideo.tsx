@@ -269,6 +269,9 @@ export default function CreateVideo() {
         price: propertyDetails.price,
         beds: propertyDetails.bedrooms,
         baths: propertyDetails.bathrooms,
+        carSpaces: propertyDetails.carSpaces,
+        landSize: propertyDetails.landSize,
+        features: propertyDetails.features,
         description: videoScript,
       };
 

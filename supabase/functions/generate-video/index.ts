@@ -16,6 +16,9 @@
     price: string;
     beds: number;
     baths: number;
+    carSpaces?: number;
+    landSize?: string;
+    features?: string[];
     description: string;
   }
 

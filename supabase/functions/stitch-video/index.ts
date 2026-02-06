@@ -14,6 +14,9 @@ interface StitchVideoRequest {
     price: string;
     beds: number;
     baths: number;
+    carSpaces?: number;
+    landSize?: string;
+    features?: string[];
     description?: string;
   };
   audioUrl?: string;
@@ -102,40 +105,85 @@ Deno.serve(async (req) => {
                       text-align: center;
                       box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
                       border: 2px solid rgba(255, 255, 255, 0.15);
-                      max-width: 800px;
+                      max-width: 900px;
                     ">
                       <div style="color: white; font-family: 'Arial', sans-serif;">
+                        <!-- Property Address -->
                         <div style="font-size: 36px; font-weight: bold; margin-bottom: 20px; line-height: 1.3;">
                           ${propertyData.address}
                         </div>
-                        <div style="display: flex; justify-content: center; gap: 30px; margin-top: 25px;">
-                          ${propertyData.price ? `
-                            <div style="text-align: center;">
-                              <div style="font-size: 32px; font-weight: bold; color: #10b981;">
-                                ${propertyData.price}
-                              </div>
-                              <div style="font-size: 14px; opacity: 0.7; margin-top: 5px;">
-                                Price
-                              </div>
+
+                        <!-- Price (Large & Prominent) -->
+                        ${propertyData.price ? `
+                          <div style="font-size: 42px; font-weight: bold; color: #10b981; margin-bottom: 25px;">
+                            ${propertyData.price}
+                          </div>
+                        ` : ''}
+
+                        <!-- Property Stats Grid -->
+                        <div style="display: flex; justify-content: center; gap: 25px; margin-top: 25px; flex-wrap: wrap;">
+                          <!-- Bedrooms -->
+                          <div style="text-align: center; min-width: 80px;">
+                            <div style="font-size: 28px; font-weight: bold;">
+                              🛏️ ${propertyData.beds}
                             </div>
-                          ` : ''}
-                          <div style="text-align: center;">
-                            <div style="font-size: 32px; font-weight: bold;">
-                              ${propertyData.beds}
-                            </div>
-                            <div style="font-size: 14px; opacity: 0.7; margin-top: 5px;">
+                            <div style="font-size: 13px; opacity: 0.7; margin-top: 5px;">
                               Beds
                             </div>
                           </div>
-                          <div style="text-align: center;">
-                            <div style="font-size: 32px; font-weight: bold;">
-                              ${propertyData.baths}
+
+                          <!-- Bathrooms -->
+                          <div style="text-align: center; min-width: 80px;">
+                            <div style="font-size: 28px; font-weight: bold;">
+                              🛁 ${propertyData.baths}
                             </div>
-                            <div style="font-size: 14px; opacity: 0.7; margin-top: 5px;">
+                            <div style="font-size: 13px; opacity: 0.7; margin-top: 5px;">
                               Baths
                             </div>
                           </div>
+
+                          <!-- Car Spaces -->
+                          ${propertyData.carSpaces ? `
+                            <div style="text-align: center; min-width: 80px;">
+                              <div style="font-size: 28px; font-weight: bold;">
+                                🚗 ${propertyData.carSpaces}
+                              </div>
+                              <div style="font-size: 13px; opacity: 0.7; margin-top: 5px;">
+                                Cars
+                              </div>
+                            </div>
+                          ` : ''}
+
+                          <!-- Land Size -->
+                          ${propertyData.landSize ? `
+                            <div style="text-align: center; min-width: 100px;">
+                              <div style="font-size: 28px; font-weight: bold;">
+                                📐 ${propertyData.landSize}
+                              </div>
+                              <div style="font-size: 13px; opacity: 0.7; margin-top: 5px;">
+                                m²
+                              </div>
+                            </div>
+                          ` : ''}
                         </div>
+
+                        <!-- Property Features (Top 4) -->
+                        ${propertyData.features && propertyData.features.length > 0 ? `
+                          <div style="margin-top: 25px; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;">
+                            ${propertyData.features.slice(0, 4).map(feature => `
+                              <div style="
+                                background: rgba(255, 255, 255, 0.15);
+                                padding: 8px 16px;
+                                border-radius: 20px;
+                                font-size: 13px;
+                                font-weight: 500;
+                                border: 1px solid rgba(255, 255, 255, 0.2);
+                              ">
+                                ${feature}
+                              </div>
+                            `).join('')}
+                          </div>
+                        ` : ''}
                       </div>
                     </div>
                   `,
