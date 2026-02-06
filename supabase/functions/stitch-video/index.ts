@@ -138,8 +138,8 @@
                           <!-- Top Section: Address -->
                           <div style="text-align: center;">
                             <div style="
-                              font-size: 28px;
-                              font-weight: 400;
+                              font-size: 38px;
+                              font-weight: 700;
                               letter-spacing: 1px;
                               text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.9);
                             ">
@@ -147,51 +147,66 @@
                             </div>
                           </div>
 
-                          <!-- Bottom Section: Property Stats (Left-aligned with icons) -->
+                          <!-- Bottom Section: Property Stats (Left-aligned single row) -->
                           <div style="
                             display: flex;
                             align-items: center;
-                            gap: 25px;
+                            gap: 30px;
                           ">
-                            <!-- Bedrooms with icon -->
+                            <!-- Bedrooms -->
                             <div style="
                               display: flex;
                               align-items: center;
-                              gap: 8px;
+                              gap: 10px;
                             ">
-                              <span style="font-size: 24px;">🛏️</span>
                               <span style="
-                                font-size: 22px;
-                                font-weight: 500;
+                                font-size: 28px;
+                                font-weight: 600;
+                                color: white;
+                                text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.8);
+                              ">BED</span>
+                              <span style="
+                                font-size: 28px;
+                                font-weight: 700;
                                 text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.8);
                               ">${propertyData.beds}</span>
                             </div>
 
-                            <!-- Bathrooms with icon -->
+                            <!-- Bathrooms -->
                             <div style="
                               display: flex;
                               align-items: center;
-                              gap: 8px;
+                              gap: 10px;
                             ">
-                              <span style="font-size: 24px;">🚿</span>
                               <span style="
-                                font-size: 22px;
-                                font-weight: 500;
+                                font-size: 28px;
+                                font-weight: 600;
+                                color: white;
+                                text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.8);
+                              ">BATH</span>
+                              <span style="
+                                font-size: 28px;
+                                font-weight: 700;
                                 text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.8);
                               ">${propertyData.baths}</span>
                             </div>
 
                             ${propertyData.carSpaces ? `
-                              <!-- Parking with icon -->
+                              <!-- Parking -->
                               <div style="
                                 display: flex;
                                 align-items: center;
-                                gap: 8px;
+                                gap: 10px;
                               ">
-                                <span style="font-size: 24px;">🚗</span>
                                 <span style="
-                                  font-size: 22px;
-                                  font-weight: 500;
+                                  font-size: 28px;
+                                  font-weight: 600;
+                                  color: white;
+                                  text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.8);
+                                ">CAR</span>
+                                <span style="
+                                  font-size: 28px;
+                                  font-weight: 700;
                                   text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.8);
                                 ">${propertyData.carSpaces}</span>
                               </div>
@@ -202,11 +217,12 @@
                               <div style="
                                 display: flex;
                                 align-items: center;
-                                gap: 8px;
+                                gap: 10px;
                               ">
                                 <span style="
-                                  font-size: 22px;
-                                  font-weight: 500;
+                                  font-size: 28px;
+                                  font-weight: 700;
+                                  color: white;
                                   text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.8);
                                 ">${propertyData.landSize}m²</span>
                               </div>
