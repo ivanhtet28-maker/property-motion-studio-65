@@ -258,8 +258,27 @@ export default function CreateVideo() {
         setGeneratingProgress(30);
       }
 
-      // Step 2: Use the script if available, otherwise use default
-      const videoScript = script || "This is a beautiful property with great features";
+      // Step 2: Generate script if empty (use same logic as RightPanel)
+      let videoScript = script;
+
+      if (!videoScript) {
+        // Use the same script generation logic as RightPanel
+        const { streetAddress, suburb, bedrooms, bathrooms, landSize, features } = propertyDetails;
+
+        if (streetAddress) {
+          const featureText = features.length > 0 ? `, featuring ${features.slice(0, 3).join(", ")}` : "";
+
+          videoScript = `Welcome to ${streetAddress} in ${suburb || "a prime location"}.
+
+This exceptional ${bedrooms}-bedroom, ${bathrooms}-bathroom home offers ${landSize || "generous"} square meters of living space${featureText}.
+
+Perfect for families seeking modern luxury living with every convenience at your doorstep.
+
+Contact us today for a private inspection.`;
+        } else {
+          videoScript = "This is a beautiful property with great features";
+        }
+      }
 
       // Step 3: Call generate-video using Supabase client (Luma AI workflow)
       console.log("Calling generate-video API (Luma AI)...");
