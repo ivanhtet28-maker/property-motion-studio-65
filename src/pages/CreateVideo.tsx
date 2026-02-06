@@ -17,6 +17,7 @@ import {
 } from "@/components/create-video";
 import { ScriptGeneratorSection } from "@/components/create-video/ScriptGeneratorSection";
 import { uploadImagesToStorage } from "@/utils/uploadToStorage";
+import { getMusicId } from "@/config/musicMapping";
 
 export default function CreateVideo() {
   const navigate = useNavigate();
@@ -270,13 +271,16 @@ export default function CreateVideo() {
         description: videoScript,
       };
 
+      // Convert frontend music track name to backend ID
+      const musicId = getMusicId(customization.musicTrack);
+
       const { data, error: fnError } = await supabase.functions.invoke("generate-video", {
         body: {
           imageUrls: imageUrls,
           propertyData: propertyDataPayload,
           style: customization.selectedTemplate,
           voice: customization.voiceType,
-          music: customization.musicTrack,
+          music: musicId,
           userId: user?.id,
           script: videoScript,
           agentInfo: {

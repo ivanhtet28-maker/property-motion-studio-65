@@ -36,23 +36,32 @@
     };
   }
 
-  // Music library mapping
+  // Music library mapping - updated IDs to match frontend
   const MUSIC_LIBRARY: Record<string, string> = {
-    "upbeat-modern-1": "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/upbeat-modern-1.mp3",
-    "upbeat-modern-2": "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/upbeat-modern-2.mp3",
-    "upbeat-modern-3": "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/upbeat-modern-3.mp3",
-    "calm-ambient-1": "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/calm-ambient-1.mp3",
-    "calm-ambient-2": "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/calm-ambient-2.mp3",
-    "calm-ambient-3": "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/calm-ambient-3.mp3",
-    "luxury-elegant-1": "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/luxury-elegant-1.mp3",
-    "luxury-elegant-2": "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/luxury-elegant-2.mp3",
-    "luxury-elegant-3": "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/luxury-elegant-3.mp3",
-    "energetic-pop-1": "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/energetic-pop-1.mp3",
-    "energetic-pop-2": "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/energetic-pop-2.mp3",
-    "energetic-pop-3": "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/energetic-pop-3.mp3",
-    "classical-sophisticated-1": "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/classical-sophisticated-1.mp3",
-    "classical-sophisticated-2": "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/classical-sophisticated-2.mp3",
-    "classical-sophisticated-3": "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/classical-sophisticated-3.mp3",
+    // Cinematic & Epic
+    "cinematic-epic-1": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/cinematic-epic-1.mp3",
+    "cinematic-epic-2": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/cinematic-epic-2.mp3",
+    "cinematic-epic-3": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/cinematic-epic-3.mp3",
+
+    // Modern & Chill
+    "modern-chill-1": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/modern-chill-1.mp3",
+    "modern-chill-2": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/modern-chill-2.mp3",
+    "modern-chill-3": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/modern-chill-3.mp3",
+
+    // Upbeat & Energetic
+    "upbeat-energetic-1": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/upbeat-energetic-1.mp3",
+    "upbeat-energetic-2": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/upbeat-energetic-2.mp3",
+    "upbeat-energetic-3": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/upbeat-energetic-3.mp3",
+
+    // Classical Elegance
+    "classical-elegant-1": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/classical-elegant-1.mp3",
+    "classical-elegant-2": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/classical-elegant-2.mp3",
+    "classical-elegant-3": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/classical-elegant-3.mp3",
+
+    // Ambient Relaxing
+    "ambient-relaxing-1": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/ambient-relaxing-1.mp3",
+    "ambient-relaxing-2": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/ambient-relaxing-2.mp3",
+    "ambient-relaxing-3": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/ambient-relaxing-3.mp3",
   };
 
   const getMusicUrl = (musicId: string): string | null => {
