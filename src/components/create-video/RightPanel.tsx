@@ -106,11 +106,11 @@ Contact us today for a private inspection.`;
   return (
     <aside className="w-[340px] bg-gradient-to-b from-card via-card to-secondary/20 border-l border-border/50 flex flex-col h-full overflow-hidden">
       {/* Video Preview Frame */}
-      <div className="p-4 pb-0">
-        <div className="relative aspect-video bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl overflow-hidden shadow-2xl">
+      <div className="p-4 pb-0 flex justify-center">
+        <div className="relative w-[190px] aspect-[9/16] bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl overflow-hidden shadow-2xl">
           {/* Monitor Frame Effect */}
           <div className="absolute inset-0 border-4 border-gray-700 rounded-xl pointer-events-none" />
-          
+
           {videoReady && videoUrl ? (
             <video
               src={videoUrl}
@@ -154,19 +154,21 @@ Contact us today for a private inspection.`;
         </div>
         
         {/* Video specs bar */}
-        <div className="flex items-center justify-center gap-4 mt-3 text-xs text-muted-foreground">
+        <div className="flex flex-col items-center gap-1 mt-3 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <Monitor className="w-3 h-3" />
-            1080p HD
+            9:16 Portrait
           </span>
-          <span className="flex items-center gap-1">
-            <Volume2 className="w-3 h-3" />
-            Voiceover
-          </span>
-          <span className="flex items-center gap-1">
-            <Sparkles className="w-3 h-3" />
-            AI Enhanced
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1">
+              <Volume2 className="w-3 h-3" />
+              Audio
+            </span>
+            <span className="flex items-center gap-1">
+              <Sparkles className="w-3 h-3" />
+              AI
+            </span>
+          </div>
         </div>
       </div>
 
