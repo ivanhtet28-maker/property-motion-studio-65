@@ -250,6 +250,7 @@
           musicUrl: musicUrl,
           agentInfo: agentInfo,
           propertyData: propertyData,
+          style: style, // Pass template style for frontend to use
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

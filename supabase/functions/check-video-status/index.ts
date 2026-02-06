@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { generationIds, videoId, audioUrl, musicUrl, agentInfo, propertyData, stitchJobId } = body;
+    const { generationIds, videoId, audioUrl, musicUrl, agentInfo, propertyData, style, stitchJobId } = body;
 
     // If stitchJobId is provided, we're polling Shotstack stitching job instead of Luma
     if (stitchJobId) {
@@ -198,6 +198,7 @@ Deno.serve(async (req) => {
           musicUrl: musicUrl,
           agentInfo: agentInfo,
           propertyData: propertyData,
+          style: style || "modern-luxe",
           videoId: videoId,
         }),
       }

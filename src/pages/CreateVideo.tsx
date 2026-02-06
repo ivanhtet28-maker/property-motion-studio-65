@@ -77,6 +77,7 @@ export default function CreateVideo() {
     musicUrl: string | null;
     agentInfo: CustomizationSettings['agentInfo'];
     propertyData: Record<string, unknown>;
+    style: string;
   } | null>(null);
 
   // Poll for video status (Luma batch workflow)
@@ -119,7 +120,7 @@ export default function CreateVideo() {
 
         console.log(`Polling attempt ${attempts}/${maxAttempts} for ${generationIds.length} Luma clips`);
 
-        const { data, error: fnError } = await supabase.functions.invoke("video-status", {
+        const { data, error: fnError } = await supabase.functions.invoke("check-video-status", {
           body: {
             generationIds,
             videoId,
@@ -127,6 +128,7 @@ export default function CreateVideo() {
             musicUrl,
             agentInfo,
             propertyData,
+            style: propertyData.style || "modern-luxe", // Pass template style
             stitchJobId: currentStitchJobId, // Pass stitchJobId if we're in stitching phase
           },
         });

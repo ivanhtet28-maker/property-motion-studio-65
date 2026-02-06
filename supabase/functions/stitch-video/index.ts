@@ -7,6 +7,118 @@
 
   const SHOTSTACK_API_KEY = Deno.env.get("SHOTSTACK_API_KEY");
 
+  // Template configurations
+  const TEMPLATE_STYLES: Record<string, {
+    title: string;
+    titleFont: string;
+    titleSize: string;
+    titleWeight: string;
+    titleColor: string;
+    titleShadow: string;
+    addressFont: string;
+    addressSize: string;
+    addressWeight: string;
+    statFont: string;
+    statSize: string;
+    statWeight: string;
+    accentColor: string;
+  }> = {
+    "modern-luxe": {
+      title: "Modern Luxe",
+      titleFont: "'Montserrat', 'Helvetica Neue', sans-serif",
+      titleSize: "80px",
+      titleWeight: "800",
+      titleColor: "white",
+      titleShadow: "4px 4px 15px rgba(0, 0, 0, 0.9)",
+      addressFont: "'Montserrat', sans-serif",
+      addressSize: "36px",
+      addressWeight: "600",
+      statFont: "'Montserrat', sans-serif",
+      statSize: "40px",
+      statWeight: "700",
+      accentColor: "#8B5CF6", // Purple
+    },
+    "just-listed": {
+      title: "Just Listed",
+      titleFont: "'Playfair Display', serif",
+      titleSize: "75px",
+      titleWeight: "700",
+      titleColor: "white",
+      titleShadow: "3px 3px 12px rgba(0, 0, 0, 0.9)",
+      addressFont: "'Lato', sans-serif",
+      addressSize: "34px",
+      addressWeight: "400",
+      statFont: "'Lato', sans-serif",
+      statSize: "38px",
+      statWeight: "700",
+      accentColor: "#3B82F6", // Blue
+    },
+    "minimalist": {
+      title: "Now Available",
+      titleFont: "'Inter', sans-serif",
+      titleSize: "70px",
+      titleWeight: "300",
+      titleColor: "white",
+      titleShadow: "2px 2px 10px rgba(0, 0, 0, 0.9)",
+      addressFont: "'Inter', sans-serif",
+      addressSize: "32px",
+      addressWeight: "300",
+      statFont: "'Inter', sans-serif",
+      statSize: "36px",
+      statWeight: "600",
+      accentColor: "#6B7280", // Gray
+    },
+    "cinematic": {
+      title: "Featured Property",
+      titleFont: "'Bebas Neue', 'Arial Black', sans-serif",
+      titleSize: "85px",
+      titleWeight: "900",
+      titleColor: "white",
+      titleShadow: "5px 5px 20px rgba(0, 0, 0, 1)",
+      addressFont: "'Roboto', sans-serif",
+      addressSize: "38px",
+      addressWeight: "700",
+      statFont: "'Roboto', sans-serif",
+      statSize: "42px",
+      statWeight: "900",
+      accentColor: "#EF4444", // Red
+    },
+    "luxury": {
+      title: "Luxury Estate",
+      titleFont: "'Cormorant Garamond', serif",
+      titleSize: "78px",
+      titleWeight: "600",
+      titleColor: "#FFD700", // Gold
+      titleShadow: "3px 3px 12px rgba(0, 0, 0, 0.95)",
+      addressFont: "'Cormorant Garamond', serif",
+      addressSize: "35px",
+      addressWeight: "500",
+      statFont: "'Cormorant Garamond', serif",
+      statSize: "39px",
+      statWeight: "600",
+      accentColor: "#FFD700", // Gold
+    },
+    "real-estate-pro": {
+      title: "New Listing",
+      titleFont: "'Open Sans', sans-serif",
+      titleSize: "72px",
+      titleWeight: "700",
+      titleColor: "white",
+      titleShadow: "3px 3px 10px rgba(0, 0, 0, 0.9)",
+      addressFont: "'Open Sans', sans-serif",
+      addressSize: "33px",
+      addressWeight: "600",
+      statFont: "'Open Sans', sans-serif",
+      statSize: "37px",
+      statWeight: "700",
+      accentColor: "#10B981", // Green
+    },
+  };
+
+  function getTemplateStyle(style: string | undefined) {
+    return TEMPLATE_STYLES[style || "modern-luxe"] || TEMPLATE_STYLES["modern-luxe"];
+  }
+
   interface StitchVideoRequest {
     videoUrls: string[];
     propertyData: {
@@ -27,6 +139,7 @@
       email: string;
       photo: string | null;
     };
+    style?: string;
     videoId?: string;
   }
 
@@ -36,7 +149,7 @@
     }
 
     try {
-      const { videoUrls, propertyData, audioUrl, musicUrl, agentInfo, videoId }: StitchVideoRequest = await req.json();
+      const { videoUrls, propertyData, audioUrl, musicUrl, agentInfo, style, videoId }: StitchVideoRequest = await req.json();
 
       if (!videoUrls || videoUrls.length === 0) {
         throw new Error("No video URLs provided for stitching");
@@ -61,6 +174,10 @@
           out: "fade",
         } : undefined,
       }));
+
+      // Get template style
+      const templateStyle = getTemplateStyle(style);
+      console.log("Using template style:", style || "modern-luxe");
 
       // Build Shotstack edit
       const edit = {
@@ -132,14 +249,29 @@
                           display: flex;
                           flex-direction: column;
                           justify-content: space-between;
-                          font-family: 'Helvetica Neue', Arial, sans-serif;
-                          color: white;
+                          font-family: ${templateStyle.addressFont};
+                          color: ${templateStyle.titleColor};
                         ">
-                          <!-- Top Section: Address and Features -->
+                          <!-- Top Section: Template Title + Address + Features -->
                           <div style="text-align: center;">
+                            <!-- Template Title -->
                             <div style="
-                              font-size: 38px;
-                              font-weight: 700;
+                              font-family: ${templateStyle.titleFont};
+                              font-size: ${templateStyle.titleSize};
+                              font-weight: ${templateStyle.titleWeight};
+                              color: ${templateStyle.titleColor};
+                              text-shadow: ${templateStyle.titleShadow};
+                              letter-spacing: 2px;
+                              margin-bottom: 25px;
+                            ">
+                              ${templateStyle.title}
+                            </div>
+
+                            <!-- Address -->
+                            <div style="
+                              font-family: ${templateStyle.addressFont};
+                              font-size: ${templateStyle.addressSize};
+                              font-weight: ${templateStyle.addressWeight};
                               letter-spacing: 1px;
                               text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.9);
                               margin-bottom: ${propertyData.features && propertyData.features.length > 0 ? '15px' : '0'};
@@ -173,13 +305,15 @@
                               align-items: flex-start;
                             ">
                               <span style="
-                                font-size: 42px;
-                                font-weight: 700;
+                                font-family: ${templateStyle.statFont};
+                                font-size: ${templateStyle.statSize};
+                                font-weight: ${templateStyle.statWeight};
                                 line-height: 1;
                                 margin-bottom: 5px;
                                 text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.9);
                               ">${propertyData.beds}</span>
                               <span style="
+                                font-family: ${templateStyle.addressFont};
                                 font-size: 18px;
                                 font-weight: 400;
                                 letter-spacing: 1px;
@@ -195,13 +329,15 @@
                               align-items: flex-start;
                             ">
                               <span style="
-                                font-size: 42px;
-                                font-weight: 700;
+                                font-family: ${templateStyle.statFont};
+                                font-size: ${templateStyle.statSize};
+                                font-weight: ${templateStyle.statWeight};
                                 line-height: 1;
                                 margin-bottom: 5px;
                                 text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.9);
                               ">${propertyData.baths}</span>
                               <span style="
+                                font-family: ${templateStyle.addressFont};
                                 font-size: 18px;
                                 font-weight: 400;
                                 letter-spacing: 1px;
