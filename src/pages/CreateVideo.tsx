@@ -121,7 +121,7 @@ export default function CreateVideo() {
 
         console.log(`Polling attempt ${attempts}/${maxAttempts} for ${generationIds.length} Luma clips`);
 
-        const { data, error: fnError } = await supabase.functions.invoke("check-video-status", {
+        const { data, error: fnError } = await supabase.functions.invoke("video-status", {
           body: {
             generationIds,
             videoId,

@@ -6,7 +6,7 @@ verify_jwt = false
 [functions.generate-script]
 verify_jwt = false
 
-[functions.check-video-status]
+[functions.video-status]
 verify_jwt = false
 
 [functions.scrape-property]
