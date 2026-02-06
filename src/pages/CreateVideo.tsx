@@ -18,6 +18,7 @@ import {
 import { ScriptGeneratorSection } from "@/components/create-video/ScriptGeneratorSection";
 import { uploadImagesToStorage } from "@/utils/uploadToStorage";
 import { getMusicId } from "@/config/musicMapping";
+import { getVoiceId } from "@/config/voiceMapping";
 
 export default function CreateVideo() {
   const navigate = useNavigate();
@@ -274,12 +275,15 @@ export default function CreateVideo() {
       // Convert frontend music track name to backend ID
       const musicId = getMusicId(customization.musicTrack);
 
+      // Convert frontend voice name to backend ID (only if voiceover is enabled)
+      const voiceId = customization.includeVoiceover ? getVoiceId(customization.voiceType) : null;
+
       const { data, error: fnError } = await supabase.functions.invoke("generate-video", {
         body: {
           imageUrls: imageUrls,
           propertyData: propertyDataPayload,
           style: customization.selectedTemplate,
-          voice: customization.voiceType,
+          voice: voiceId,
           music: musicId,
           userId: user?.id,
           script: videoScript,
