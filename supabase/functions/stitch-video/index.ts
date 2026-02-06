@@ -98,86 +98,162 @@ Deno.serve(async (req) => {
                       top: 50%;
                       left: 50%;
                       transform: translate(-50%, -50%);
-                      background: rgba(0, 0, 0, 0.9);
-                      backdrop-filter: blur(15px);
-                      border-radius: 24px;
-                      padding: 40px 50px;
+                      background: rgba(0, 0, 0, 0.85);
+                      backdrop-filter: blur(20px);
+                      border-radius: 16px;
+                      padding: 50px 60px;
                       text-align: center;
-                      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
-                      border: 2px solid rgba(255, 255, 255, 0.15);
-                      max-width: 900px;
+                      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+                      border: 1px solid rgba(255, 255, 255, 0.1);
+                      max-width: 850px;
                     ">
-                      <div style="color: white; font-family: 'Arial', sans-serif;">
+                      <div style="color: white; font-family: 'Helvetica Neue', Arial, sans-serif;">
                         <!-- Property Address -->
-                        <div style="font-size: 36px; font-weight: bold; margin-bottom: 20px; line-height: 1.3;">
+                        <div style="
+                          font-size: 32px;
+                          font-weight: 300;
+                          letter-spacing: 0.5px;
+                          margin-bottom: 15px;
+                          line-height: 1.4;
+                          text-transform: uppercase;
+                          opacity: 0.95;
+                        ">
                           ${propertyData.address}
                         </div>
 
-                        <!-- Price (Large & Prominent) -->
+                        <!-- Divider Line -->
+                        <div style="
+                          width: 60px;
+                          height: 2px;
+                          background: white;
+                          margin: 20px auto;
+                          opacity: 0.3;
+                        "></div>
+
+                        <!-- Price -->
                         ${propertyData.price ? `
-                          <div style="font-size: 42px; font-weight: bold; color: #10b981; margin-bottom: 25px;">
+                          <div style="
+                            font-size: 38px;
+                            font-weight: 600;
+                            letter-spacing: 1px;
+                            margin-bottom: 30px;
+                            color: white;
+                          ">
                             ${propertyData.price}
                           </div>
                         ` : ''}
 
                         <!-- Property Stats Grid -->
-                        <div style="display: flex; justify-content: center; gap: 25px; margin-top: 25px; flex-wrap: wrap;">
+                        <div style="
+                          display: flex;
+                          justify-content: center;
+                          gap: 40px;
+                          margin-top: 30px;
+                          flex-wrap: wrap;
+                        ">
                           <!-- Bedrooms -->
-                          <div style="text-align: center; min-width: 80px;">
-                            <div style="font-size: 28px; font-weight: bold;">
-                              🛏️ ${propertyData.beds}
+                          <div style="text-align: center;">
+                            <div style="
+                              font-size: 36px;
+                              font-weight: 300;
+                              margin-bottom: 8px;
+                            ">
+                              ${propertyData.beds}
                             </div>
-                            <div style="font-size: 13px; opacity: 0.7; margin-top: 5px;">
-                              Beds
+                            <div style="
+                              font-size: 11px;
+                              text-transform: uppercase;
+                              letter-spacing: 2px;
+                              opacity: 0.6;
+                              font-weight: 500;
+                            ">
+                              Bedrooms
                             </div>
                           </div>
 
                           <!-- Bathrooms -->
-                          <div style="text-align: center; min-width: 80px;">
-                            <div style="font-size: 28px; font-weight: bold;">
-                              🛁 ${propertyData.baths}
+                          <div style="text-align: center;">
+                            <div style="
+                              font-size: 36px;
+                              font-weight: 300;
+                              margin-bottom: 8px;
+                            ">
+                              ${propertyData.baths}
                             </div>
-                            <div style="font-size: 13px; opacity: 0.7; margin-top: 5px;">
-                              Baths
+                            <div style="
+                              font-size: 11px;
+                              text-transform: uppercase;
+                              letter-spacing: 2px;
+                              opacity: 0.6;
+                              font-weight: 500;
+                            ">
+                              Bathrooms
                             </div>
                           </div>
 
                           <!-- Car Spaces -->
                           ${propertyData.carSpaces ? `
-                            <div style="text-align: center; min-width: 80px;">
-                              <div style="font-size: 28px; font-weight: bold;">
-                                🚗 ${propertyData.carSpaces}
+                            <div style="text-align: center;">
+                              <div style="
+                                font-size: 36px;
+                                font-weight: 300;
+                                margin-bottom: 8px;
+                              ">
+                                ${propertyData.carSpaces}
                               </div>
-                              <div style="font-size: 13px; opacity: 0.7; margin-top: 5px;">
-                                Cars
+                              <div style="
+                                font-size: 11px;
+                                text-transform: uppercase;
+                                letter-spacing: 2px;
+                                opacity: 0.6;
+                                font-weight: 500;
+                              ">
+                                Parking
                               </div>
                             </div>
                           ` : ''}
 
                           <!-- Land Size -->
                           ${propertyData.landSize ? `
-                            <div style="text-align: center; min-width: 100px;">
-                              <div style="font-size: 28px; font-weight: bold;">
-                                📐 ${propertyData.landSize}
+                            <div style="text-align: center;">
+                              <div style="
+                                font-size: 36px;
+                                font-weight: 300;
+                                margin-bottom: 8px;
+                              ">
+                                ${propertyData.landSize}
                               </div>
-                              <div style="font-size: 13px; opacity: 0.7; margin-top: 5px;">
-                                m²
+                              <div style="
+                                font-size: 11px;
+                                text-transform: uppercase;
+                                letter-spacing: 2px;
+                                opacity: 0.6;
+                                font-weight: 500;
+                              ">
+                                Square Meters
                               </div>
                             </div>
                           ` : ''}
                         </div>
 
-                        <!-- Property Features (Top 4) -->
+                        <!-- Property Features (Top 3) -->
                         ${propertyData.features && propertyData.features.length > 0 ? `
-                          <div style="margin-top: 25px; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap;">
-                            ${propertyData.features.slice(0, 4).map(feature => `
+                          <div style="
+                            margin-top: 35px;
+                            display: flex;
+                            justify-content: center;
+                            gap: 20px;
+                            flex-wrap: wrap;
+                          ">
+                            ${propertyData.features.slice(0, 3).map(feature => `
                               <div style="
-                                background: rgba(255, 255, 255, 0.15);
-                                padding: 8px 16px;
-                                border-radius: 20px;
-                                font-size: 13px;
+                                padding: 10px 20px;
+                                font-size: 11px;
+                                text-transform: uppercase;
+                                letter-spacing: 1.5px;
                                 font-weight: 500;
-                                border: 1px solid rgba(255, 255, 255, 0.2);
+                                opacity: 0.7;
+                                border-bottom: 1px solid rgba(255, 255, 255, 0.3);
                               ">
                                 ${feature}
                               </div>
