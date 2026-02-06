@@ -185,14 +185,16 @@ export function PropertySourceSelector({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <TabsTrigger
-                  value="scrape"
-                  disabled
-                  className="flex items-center gap-2 opacity-50 cursor-not-allowed"
-                >
-                  <Link2 className="w-4 h-4" />
-                  Scrape from URL
-                </TabsTrigger>
+                <div className="flex-1">
+                  <TabsTrigger
+                    value="scrape"
+                    disabled
+                    className="flex items-center gap-2 opacity-50 cursor-not-allowed w-full"
+                  >
+                    <Link2 className="w-4 h-4" />
+                    Scrape from URL
+                  </TabsTrigger>
+                </div>
               </TooltipTrigger>
               <TooltipContent>
                 <p>Coming soon</p>
