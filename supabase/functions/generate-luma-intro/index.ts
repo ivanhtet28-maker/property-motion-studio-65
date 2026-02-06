@@ -55,6 +55,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        model: "ray-2",
         prompt: cinematicPrompt,
         keyframes: {
           frame0: {
