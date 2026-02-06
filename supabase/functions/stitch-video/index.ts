@@ -98,13 +98,13 @@ Deno.serve(async (req) => {
                       bottom: 200px;
                       left: 50%;
                       transform: translateX(-50%);
-                      background: linear-gradient(180deg, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0.9) 100%);
-                      backdrop-filter: blur(20px);
+                      background: rgba(0, 0, 0, 0.95);
+                      backdrop-filter: blur(25px);
                       border-radius: 12px;
                       padding: 30px 40px;
                       text-align: center;
-                      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-                      border: 1px solid rgba(255, 255, 255, 0.1);
+                      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(0, 0, 0, 0.9);
+                      border: 2px solid rgba(0, 0, 0, 0.5);
                       max-width: 950px;
                       width: 90%;
                     ">
@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
                             letter-spacing: 1px;
                             margin-bottom: 8px;
                             text-transform: uppercase;
-                            opacity: 0.95;
+                            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.9), 0 0 20px rgba(0, 0, 0, 0.8);
                           ">
                             ${propertyData.address}
                           </div>
@@ -128,6 +128,7 @@ Deno.serve(async (req) => {
                               letter-spacing: 0.5px;
                               color: white;
                               margin-top: 5px;
+                              text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.9), 0 0 20px rgba(0, 0, 0, 0.8);
                             ">
                               ${propertyData.price}
                             </div>
@@ -138,8 +139,9 @@ Deno.serve(async (req) => {
                         <div style="
                           width: 50px;
                           height: 1px;
-                          background: rgba(255, 255, 255, 0.3);
+                          background: rgba(255, 255, 255, 0.5);
                           margin: 20px auto;
+                          box-shadow: 0 0 4px rgba(255, 255, 255, 0.3);
                         "></div>
 
                         <!-- Property Stats - Horizontal Single Row -->
@@ -155,12 +157,13 @@ Deno.serve(async (req) => {
                             <span style="
                               font-size: 28px;
                               font-weight: 300;
+                              text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
                             ">${propertyData.beds}</span>
                             <span style="
                               font-size: 11px;
                               text-transform: uppercase;
                               letter-spacing: 1.5px;
-                              opacity: 0.6;
+                              text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
                             ">Beds</span>
                           </div>
 
@@ -168,7 +171,8 @@ Deno.serve(async (req) => {
                           <div style="
                             width: 1px;
                             height: 20px;
-                            background: rgba(255, 255, 255, 0.2);
+                            background: rgba(255, 255, 255, 0.4);
+                            box-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
                           "></div>
 
                           <!-- Bathrooms -->
@@ -176,12 +180,13 @@ Deno.serve(async (req) => {
                             <span style="
                               font-size: 28px;
                               font-weight: 300;
+                              text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
                             ">${propertyData.baths}</span>
                             <span style="
                               font-size: 11px;
                               text-transform: uppercase;
                               letter-spacing: 1.5px;
-                              opacity: 0.6;
+                              text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
                             ">Baths</span>
                           </div>
 
@@ -190,7 +195,8 @@ Deno.serve(async (req) => {
                             <div style="
                               width: 1px;
                               height: 20px;
-                              background: rgba(255, 255, 255, 0.2);
+                              background: rgba(255, 255, 255, 0.4);
+                              box-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
                             "></div>
 
                             <!-- Parking -->
@@ -198,12 +204,13 @@ Deno.serve(async (req) => {
                               <span style="
                                 font-size: 28px;
                                 font-weight: 300;
+                                text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
                               ">${propertyData.carSpaces}</span>
                               <span style="
                                 font-size: 11px;
                                 text-transform: uppercase;
                                 letter-spacing: 1.5px;
-                                opacity: 0.6;
+                                text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
                               ">Parking</span>
                             </div>
                           ` : ''}
@@ -213,7 +220,8 @@ Deno.serve(async (req) => {
                             <div style="
                               width: 1px;
                               height: 20px;
-                              background: rgba(255, 255, 255, 0.2);
+                              background: rgba(255, 255, 255, 0.4);
+                              box-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
                             "></div>
 
                             <!-- Land Size -->
@@ -221,12 +229,13 @@ Deno.serve(async (req) => {
                               <span style="
                                 font-size: 28px;
                                 font-weight: 300;
+                                text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
                               ">${propertyData.landSize}</span>
                               <span style="
                                 font-size: 11px;
                                 text-transform: uppercase;
                                 letter-spacing: 1.5px;
-                                opacity: 0.6;
+                                text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
                               ">m²</span>
                             </div>
                           ` : ''}
@@ -246,9 +255,10 @@ Deno.serve(async (req) => {
                                 font-size: 10px;
                                 text-transform: uppercase;
                                 letter-spacing: 1.5px;
-                                opacity: 0.5;
+                                opacity: 0.8;
                                 padding: 0 10px;
-                                border-right: 1px solid rgba(255, 255, 255, 0.2);
+                                border-right: 1px solid rgba(255, 255, 255, 0.3);
+                                text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8);
                               ">
                                 ${feature}
                               </span>
