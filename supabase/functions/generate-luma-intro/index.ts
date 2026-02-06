@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
     }
 
     // Create cinematic intro prompt for Luma AI
-    const cinematicPrompt = `Cinematic establishing shot of luxury property. Smooth camera movement revealing the stunning architecture. Golden hour lighting, professional real estate cinematography, elegant and sophisticated.`;
+    const cinematicPrompt = `High-end cinematic establishing shot of luxury property. Smooth, slow, stabilized camera motion with subtle parallax (no shaking). Camera performs a gentle wide-to-medium dolly-in revealing the architecture. Golden hour sunlight with warm natural tones, soft shadows, realistic reflections. Emphasis on grandeur, clean lines, symmetry, and premium materials. Luxury property cinematography, calm and elegant mood. Ultra-realistic lighting, consistent exposure, natural colors. Shallow cinematic depth of field where appropriate, sharp focus on the building. No people, no vehicles, no text overlays. Photorealistic, upscale, professional real estate marketing video. 4K quality, clean, stable, cohesive establishing shot.`;
 
     console.log("Calling Luma AI API...");
 

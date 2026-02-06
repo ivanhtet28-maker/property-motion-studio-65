@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            prompt: `Professional real estate video showcasing property at ${propertyAddress}. Smooth cinematic camera movement, golden hour lighting, architectural details, luxury property cinematography. 4K quality.`,
+            prompt: `High-end cinematic real estate video of ${propertyAddress}. Smooth, slow, stabilized camera motion with subtle parallax (no shaking). Camera performs a gentle dolly-in and slight lateral glide, maintaining architectural accuracy. Golden hour sunlight with warm natural tones, soft shadows, realistic reflections. Emphasis on clean lines, symmetry, textures, windows, façade, and premium materials. Luxury property cinematography, calm and elegant mood. Ultra-realistic lighting, consistent exposure, natural colors. Shallow cinematic depth of field where appropriate, sharp focus on the building. No people, no vehicles, no text overlays. Photorealistic, upscale, professional real estate marketing video. 4K quality, clean, stable, cohesive shot.`,
             keyframes: {
               frame0: {
                 type: "image",
