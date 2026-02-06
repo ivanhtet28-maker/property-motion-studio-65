@@ -86,7 +86,7 @@
               ],
             }] : []),
 
-            // Dark overlay on first clip (makes text more visible)
+            // Gradient overlay on first clip (dark left to transparent right)
             {
               clips: [
                 {
@@ -99,7 +99,7 @@
                         left: 0;
                         width: 100%;
                         height: 100%;
-                        background: rgba(0, 0, 0, 0.4);
+                        background: linear-gradient(90deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.3) 50%, transparent 100%);
                       "></div>
                     `,
                     css: "",
@@ -107,7 +107,7 @@
                     height: 1920,
                   },
                   start: 0,
-                  length: 5, // Only darken first 5 seconds (first clip)
+                  length: 5, // Only on first 5 seconds (first clip)
                   transition: {
                     out: "fade",
                   },
@@ -115,7 +115,7 @@
               ],
             },
 
-            // Property details overlay (first 5 seconds only) - Left-aligned modern design
+            // Property details overlay (first 5 seconds only) - Clean gradient design
               {
                 clips: [
                   {
@@ -135,23 +135,13 @@
                           font-family: 'Helvetica Neue', Arial, sans-serif;
                           color: white;
                         ">
-                          <!-- Top Section: Just Listed + Address -->
+                          <!-- Top Section: Address -->
                           <div style="text-align: center;">
                             <div style="
-                              font-size: 72px;
-                              font-weight: 700;
-                              letter-spacing: 2px;
-                              text-shadow: 3px 3px 12px rgba(0, 0, 0, 0.9);
-                              margin-bottom: 20px;
-                            ">
-                              Just Listed
-                            </div>
-                            <div style="
-                              font-size: 20px;
-                              font-weight: 300;
+                              font-size: 28px;
+                              font-weight: 400;
                               letter-spacing: 1px;
                               text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.9);
-                              opacity: 0.95;
                             ">
                               ${propertyData.address}
                             </div>
@@ -168,9 +158,6 @@
                               display: flex;
                               align-items: center;
                               gap: 8px;
-                              background: rgba(0, 0, 0, 0.5);
-                              padding: 8px 16px;
-                              border-radius: 8px;
                             ">
                               <span style="font-size: 24px;">🛏️</span>
                               <span style="
@@ -185,9 +172,6 @@
                               display: flex;
                               align-items: center;
                               gap: 8px;
-                              background: rgba(0, 0, 0, 0.5);
-                              padding: 8px 16px;
-                              border-radius: 8px;
                             ">
                               <span style="font-size: 24px;">🚿</span>
                               <span style="
@@ -203,9 +187,6 @@
                                 display: flex;
                                 align-items: center;
                                 gap: 8px;
-                                background: rgba(0, 0, 0, 0.5);
-                                padding: 8px 16px;
-                                border-radius: 8px;
                               ">
                                 <span style="font-size: 24px;">🚗</span>
                                 <span style="
@@ -222,9 +203,6 @@
                                 display: flex;
                                 align-items: center;
                                 gap: 8px;
-                                background: rgba(0, 0, 0, 0.5);
-                                padding: 8px 16px;
-                                border-radius: 8px;
                               ">
                                 <span style="
                                   font-size: 22px;
