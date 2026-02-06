@@ -147,98 +147,77 @@
                             </div>
                           </div>
 
-                          <!-- Bottom Section: Property Stats (Left-aligned single row) -->
+                          <!-- Bottom Section: Property Stats (Left-aligned modern text layout) -->
                           <div style="
                             display: flex;
                             align-items: center;
-                            gap: 35px;
+                            gap: 40px;
                           ">
                             <!-- Bedrooms -->
                             <div style="
                               display: flex;
-                              align-items: center;
-                              gap: 12px;
+                              flex-direction: column;
+                              align-items: flex-start;
                             ">
-                              <div style="
-                                width: 45px;
-                                height: 45px;
-                                background: rgba(255, 255, 255, 0.2);
-                                border: 2px solid white;
-                                border-radius: 50%;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                font-size: 20px;
-                                font-weight: 700;
-                                color: white;
-                                text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.9);
-                              ">
-                                🛏
-                              </div>
                               <span style="
-                                font-size: 32px;
+                                font-size: 42px;
                                 font-weight: 700;
+                                line-height: 1;
+                                margin-bottom: 5px;
                                 text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.9);
                               ">${propertyData.beds}</span>
+                              <span style="
+                                font-size: 18px;
+                                font-weight: 400;
+                                letter-spacing: 1px;
+                                opacity: 0.95;
+                                text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.9);
+                              ">${propertyData.beds === 1 ? 'Bedroom' : 'Bedrooms'}</span>
                             </div>
 
                             <!-- Bathrooms -->
                             <div style="
                               display: flex;
-                              align-items: center;
-                              gap: 12px;
+                              flex-direction: column;
+                              align-items: flex-start;
                             ">
-                              <div style="
-                                width: 45px;
-                                height: 45px;
-                                background: rgba(255, 255, 255, 0.2);
-                                border: 2px solid white;
-                                border-radius: 50%;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                font-size: 20px;
-                                font-weight: 700;
-                                color: white;
-                                text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.9);
-                              ">
-                                🚿
-                              </div>
                               <span style="
-                                font-size: 32px;
+                                font-size: 42px;
                                 font-weight: 700;
+                                line-height: 1;
+                                margin-bottom: 5px;
                                 text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.9);
                               ">${propertyData.baths}</span>
+                              <span style="
+                                font-size: 18px;
+                                font-weight: 400;
+                                letter-spacing: 1px;
+                                opacity: 0.95;
+                                text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.9);
+                              ">${propertyData.baths === 1 ? 'Bathroom' : 'Bathrooms'}</span>
                             </div>
 
                             ${propertyData.carSpaces ? `
-                              <!-- Parking -->
+                              <!-- Car Spaces -->
                               <div style="
                                 display: flex;
-                                align-items: center;
-                                gap: 12px;
+                                flex-direction: column;
+                                align-items: flex-start;
                               ">
-                                <div style="
-                                  width: 45px;
-                                  height: 45px;
-                                  background: rgba(255, 255, 255, 0.2);
-                                  border: 2px solid white;
-                                  border-radius: 50%;
-                                  display: flex;
-                                  align-items: center;
-                                  justify-content: center;
-                                  font-size: 20px;
-                                  font-weight: 700;
-                                  color: white;
-                                  text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.9);
-                                ">
-                                  🚗
-                                </div>
                                 <span style="
-                                  font-size: 32px;
+                                  font-size: 42px;
                                   font-weight: 700;
+                                  line-height: 1;
+                                  margin-bottom: 5px;
                                   text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.9);
                                 ">${propertyData.carSpaces}</span>
+                                <span style="
+                                  font-size: 18px;
+                                  font-weight: 400;
+                                  letter-spacing: 1px;
+                                  opacity: 0.95;
+                                  text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.9);
+                                ">${propertyData.carSpaces === 1 ? 'Car Space' : 'Car Spaces'}</span>
                               </div>
                             ` : ''}
 
@@ -246,30 +225,23 @@
                               <!-- Land Size -->
                               <div style="
                                 display: flex;
-                                align-items: center;
-                                gap: 12px;
+                                flex-direction: column;
+                                align-items: flex-start;
                               ">
-                                <div style="
-                                  width: 45px;
-                                  height: 45px;
-                                  background: rgba(255, 255, 255, 0.2);
-                                  border: 2px solid white;
-                                  border-radius: 50%;
-                                  display: flex;
-                                  align-items: center;
-                                  justify-content: center;
-                                  font-size: 16px;
-                                  font-weight: 700;
-                                  color: white;
-                                  text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.9);
-                                ">
-                                  m²
-                                </div>
                                 <span style="
-                                  font-size: 32px;
+                                  font-size: 42px;
                                   font-weight: 700;
+                                  line-height: 1;
+                                  margin-bottom: 5px;
                                   text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.9);
-                                ">${propertyData.landSize}</span>
+                                ">${propertyData.landSize}m²</span>
+                                <span style="
+                                  font-size: 18px;
+                                  font-weight: 400;
+                                  letter-spacing: 1px;
+                                  opacity: 0.95;
+                                  text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.9);
+                                ">Land Size</span>
                               </div>
                             ` : ''}
                           </div>
