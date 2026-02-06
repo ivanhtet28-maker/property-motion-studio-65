@@ -83,6 +83,76 @@ Deno.serve(async (req) => {
             ],
           }] : []),
 
+          // Property details overlay (first 5 seconds only)
+          {
+            clips: [
+              {
+                asset: {
+                  type: "html",
+                  html: `
+                    <div style="
+                      position: absolute;
+                      top: 50%;
+                      left: 50%;
+                      transform: translate(-50%, -50%);
+                      background: rgba(0, 0, 0, 0.9);
+                      backdrop-filter: blur(15px);
+                      border-radius: 24px;
+                      padding: 40px 50px;
+                      text-align: center;
+                      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+                      border: 2px solid rgba(255, 255, 255, 0.15);
+                      max-width: 800px;
+                    ">
+                      <div style="color: white; font-family: 'Arial', sans-serif;">
+                        <div style="font-size: 36px; font-weight: bold; margin-bottom: 20px; line-height: 1.3;">
+                          ${propertyData.address}
+                        </div>
+                        <div style="display: flex; justify-content: center; gap: 30px; margin-top: 25px;">
+                          ${propertyData.price ? `
+                            <div style="text-align: center;">
+                              <div style="font-size: 32px; font-weight: bold; color: #10b981;">
+                                ${propertyData.price}
+                              </div>
+                              <div style="font-size: 14px; opacity: 0.7; margin-top: 5px;">
+                                Price
+                              </div>
+                            </div>
+                          ` : ''}
+                          <div style="text-align: center;">
+                            <div style="font-size: 32px; font-weight: bold;">
+                              ${propertyData.beds}
+                            </div>
+                            <div style="font-size: 14px; opacity: 0.7; margin-top: 5px;">
+                              Beds
+                            </div>
+                          </div>
+                          <div style="text-align: center;">
+                            <div style="font-size: 32px; font-weight: bold;">
+                              ${propertyData.baths}
+                            </div>
+                            <div style="font-size: 14px; opacity: 0.7; margin-top: 5px;">
+                              Baths
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  `,
+                  css: "",
+                  width: 1080,
+                  height: 1920,
+                },
+                start: 0,
+                length: 5, // Only show for first 5 seconds (first clip)
+                transition: {
+                  in: "fade",
+                  out: "fade",
+                },
+              },
+            ],
+          },
+
           // Agent overlay track (if available)
           ...(agentInfo && agentInfo.name ? [{
             clips: [
