@@ -3,6 +3,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Link2, Upload, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { PhotoUpload } from "./PhotoUpload";
 import { supabase } from "@/lib/supabase";
@@ -176,10 +182,23 @@ export function PropertySourceSelector({
             <Upload className="w-4 h-4" />
             Upload Photos
           </TabsTrigger>
-          <TabsTrigger value="scrape" className="flex items-center gap-2">
-            <Link2 className="w-4 h-4" />
-            Scrape from URL
-          </TabsTrigger>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <TabsTrigger
+                  value="scrape"
+                  disabled
+                  className="flex items-center gap-2 opacity-50 cursor-not-allowed"
+                >
+                  <Link2 className="w-4 h-4" />
+                  Scrape from URL
+                </TabsTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Coming soon</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </TabsList>
 
         <TabsContent value="upload" className="mt-6">
