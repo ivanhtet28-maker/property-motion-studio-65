@@ -93,7 +93,8 @@ export default function CreateVideo() {
       beds: number;
       baths: number;
       description: string;
-    }
+    },
+    style: string
   ) => {
     const maxAttempts = 120; // 10 minutes max (120 * 5 seconds) - Luma takes longer
     let attempts = 0;
@@ -128,7 +129,7 @@ export default function CreateVideo() {
             musicUrl,
             agentInfo,
             propertyData,
-            style: propertyData.style || "modern-luxe", // Pass template style
+            style: style, // Pass template style
             stitchJobId: currentStitchJobId, // Pass stitchJobId if we're in stitching phase
           },
         });
@@ -353,7 +354,8 @@ Contact us today for a private inspection.`;
           data.audioUrl,
           data.musicUrl,
           data.agentInfo,
-          propertyDataPayload
+          propertyDataPayload,
+          customization.selectedTemplate // Pass template style
         );
       } else {
         throw new Error(data.error || "Video generation failed");
