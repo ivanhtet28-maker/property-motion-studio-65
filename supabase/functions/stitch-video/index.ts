@@ -44,6 +44,8 @@
 
       console.log("=== SHOTSTACK VIDEO STITCHING ===");
       console.log("Stitching", videoUrls.length, "Luma AI clips");
+      console.log("Property Data Received:", JSON.stringify(propertyData, null, 2));
+      console.log("Agent Info Received:", agentInfo ? JSON.stringify(agentInfo, null, 2) : "No agent info");
 
       // Calculate total duration
       const videoClipsDuration = videoUrls.length * 5;
@@ -58,6 +60,8 @@
         },
         start: index * 5,
         length: 5,
+        // Reduce opacity on first clip to make text more visible
+        opacity: index === 0 ? 0.7 : 1.0,
         transition: index > 0 ? {
           in: "fade",
           out: "fade",
@@ -73,63 +77,7 @@
             volume: 0.3,
           } : undefined,
           tracks: [
-            // Video track (BOTTOM)
-            {
-              clips: videoClips,
-            },
-
-            // Property details overlay (first 5 seconds) - Using title assets
-            {
-              clips: [
-                {
-                  asset: {
-                    type: "title",
-                    text: propertyData.address,
-                    style: "minimal",
-                    color: "#FFFFFF",
-                    size: "medium",
-                    background: "#000000",
-                    position: "top",
-                  },
-                  start: 0,
-                  length: 5,
-                },
-                {
-                  asset: {
-                    type: "title",
-                    text: `${propertyData.beds} BED • ${propertyData.baths} BATH${propertyData.carSpaces ? ` • ${propertyData.carSpaces} CAR` : ""}${propertyData.landSize ? ` • ${propertyData.landSize}m²` : ""}`,
-                    style: "minimal",
-                    color: "#FFFFFF",
-                    size: "small",
-                    background: "#000000",
-                    position: "bottom",
-                  },
-                  start: 0,
-                  length: 5,
-                },
-              ],
-            },
-
-            // Agent card at the end (text only, no images)
-            ...(agentInfo && agentInfo.name ? [{
-              clips: [
-                {
-                  asset: {
-                    type: "title",
-                    text: `${agentInfo.name}\n${agentInfo.phone}${agentInfo.email ? `\n${agentInfo.email}` : ""}\n\nCONTACT ME TODAY`,
-                    style: "minimal",
-                    color: "#FFFFFF",
-                    size: "medium",
-                    background: "#000000",
-                    position: "center",
-                  },
-                  start: videoClipsDuration,
-                  length: 5,
-                },
-              ],
-            }] : []),
-
-            // Voiceover track
+            // Voiceover track - BOTTOM (Track 0)
             ...(audioUrl ? [{
               clips: [
                 {
@@ -143,6 +91,77 @@
                 },
               ],
             }] : []),
+
+            // Video track (Track 1 or 0 if no audio)
+            {
+              clips: videoClips,
+            },
+
+            // Property address overlay - ON TOP (Track 2 or 1)
+            {
+              clips: [
+                {
+                  asset: {
+                    type: "title",
+                    text: propertyData.address,
+                    style: "subtitle",
+                    color: "#FFFFFF",
+                    size: "large",
+                    position: "top",
+                    offset: {
+                      x: 0,
+                      y: 0.05,
+                    },
+                  },
+                  start: 0.1,
+                  length: 4.9,
+                  fit: "none",
+                  scale: 1.0,
+                },
+              ],
+            },
+
+            // Property specs overlay - ON TOP (Track 3 or 2)
+            {
+              clips: [
+                {
+                  asset: {
+                    type: "title",
+                    text: `${propertyData.beds} BED • ${propertyData.baths} BATH${propertyData.carSpaces ? ` • ${propertyData.carSpaces} CAR` : ""}${propertyData.landSize ? ` • ${propertyData.landSize}m²` : ""}`,
+                    style: "subtitle",
+                    color: "#FFFFFF",
+                    size: "medium",
+                    position: "bottom",
+                    offset: {
+                      x: 0,
+                      y: -0.05,
+                    },
+                  },
+                  start: 0.1,
+                  length: 4.9,
+                  fit: "none",
+                  scale: 1.0,
+                },
+              ],
+            },
+
+            // Agent card at the end - ON TOP (Track 4 or 3)
+            ...(agentInfo && agentInfo.name ? [{
+              clips: [
+                {
+                  asset: {
+                    type: "title",
+                    text: `${agentInfo.name}\n${agentInfo.phone}${agentInfo.email ? `\n${agentInfo.email}` : ""}\n\nCONTACT ME TODAY`,
+                    style: "subtitle",
+                    color: "#FFFFFF",
+                    size: "large",
+                    position: "center",
+                  },
+                  start: videoClipsDuration,
+                  length: 5,
+                },
+              ],
+            }] : []),
           ],
         },
         output: {
@@ -153,6 +172,9 @@
       };
 
       console.log("Sending stitch job to Shotstack...");
+      console.log("Property Address Text:", propertyData.address);
+      console.log("Property Specs Text:", `${propertyData.beds} BED • ${propertyData.baths} BATH${propertyData.carSpaces ? ` • ${propertyData.carSpaces} CAR` : ""}${propertyData.landSize ? ` • ${propertyData.landSize}m²` : ""}`);
+      console.log("Edit payload tracks count:", edit.timeline.tracks.length);
 
       // Submit to Shotstack
       const response = await fetch("https://api.shotstack.io/v1/render", {
