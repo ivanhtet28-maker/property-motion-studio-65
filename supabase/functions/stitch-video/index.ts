@@ -255,7 +255,6 @@
                     asset: {
                       type: "html",
                       html: `
-                        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
                         <div style="
                           position: absolute;
                           top: 0;
@@ -323,11 +322,19 @@
                               align-items: center;
                               gap: 15px;
                             ">
-                              <i class="fa-solid fa-bed" style="
-                                color: ${templateStyle.accentColor};
-                                font-size: 36px;
-                                text-shadow: 3px 3px 10px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
-                              "></i>
+                              <div style="
+                                width: 36px;
+                                height: 36px;
+                                background: ${templateStyle.accentColor};
+                                border-radius: 6px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 20px;
+                                font-weight: 700;
+                                color: white;
+                                text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.5);
+                              ">🛏</div>
                               <span style="
                                 font-family: ${templateStyle.statFont};
                                 font-size: ${templateStyle.statSize};
@@ -351,11 +358,19 @@
                               align-items: center;
                               gap: 15px;
                             ">
-                              <i class="fa-solid fa-bath" style="
-                                color: ${templateStyle.accentColor};
-                                font-size: 36px;
-                                text-shadow: 3px 3px 10px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
-                              "></i>
+                              <div style="
+                                width: 36px;
+                                height: 36px;
+                                background: ${templateStyle.accentColor};
+                                border-radius: 6px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 20px;
+                                font-weight: 700;
+                                color: white;
+                                text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.5);
+                              ">🚿</div>
                               <span style="
                                 font-family: ${templateStyle.statFont};
                                 font-size: ${templateStyle.statSize};
@@ -380,11 +395,19 @@
                                 align-items: center;
                                 gap: 15px;
                               ">
-                                <i class="fa-solid fa-car" style="
-                                  color: ${templateStyle.accentColor};
-                                  font-size: 36px;
-                                  text-shadow: 3px 3px 10px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
-                                "></i>
+                                <div style="
+                                  width: 36px;
+                                  height: 36px;
+                                  background: ${templateStyle.accentColor};
+                                  border-radius: 6px;
+                                  display: flex;
+                                  align-items: center;
+                                  justify-content: center;
+                                  font-size: 20px;
+                                  font-weight: 700;
+                                  color: white;
+                                  text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.5);
+                                ">🚗</div>
                                 <span style="
                                   font-family: ${templateStyle.statFont};
                                   font-size: ${templateStyle.statSize};
@@ -410,11 +433,19 @@
                                 align-items: center;
                                 gap: 15px;
                               ">
-                                <i class="fa-solid fa-ruler-combined" style="
-                                  color: ${templateStyle.accentColor};
-                                  font-size: 36px;
-                                  text-shadow: 3px 3px 10px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
-                                "></i>
+                                <div style="
+                                  width: 36px;
+                                  height: 36px;
+                                  background: ${templateStyle.accentColor};
+                                  border-radius: 6px;
+                                  display: flex;
+                                  align-items: center;
+                                  justify-content: center;
+                                  font-size: 20px;
+                                  font-weight: 700;
+                                  color: white;
+                                  text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.5);
+                                ">📐</div>
                                 <span style="
                                   font-family: ${templateStyle.statFont};
                                   font-size: ${templateStyle.statSize};
