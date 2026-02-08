@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
         },
         body: new URLSearchParams({
           email: email,
-          metadata: JSON.stringify({ supabase_user_id: userId }),
+          "metadata[supabase_user_id]": userId,
         }).toString(),
       });
 
