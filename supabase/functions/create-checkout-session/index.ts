@@ -9,10 +9,10 @@ const corsHeaders = {
 
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
 
-// Stripe price IDs from Stripe Dashboard
+// Stripe price IDs from Stripe Dashboard (TEST MODE)
 const PRICE_IDS = {
-  starter: "price_1Sya0mGkPU4YhgKfmAj63FX0", // $299/month - 10 videos
-  growth: "price_1SyZzMGkPU4YhgKfWTj39Enj",  // $499/month - 30 videos
+  starter: "price_1Syaj2GkPU4YhgKfafjlmn2s", // $299/month - 10 videos
+  growth: "price_1SyajHGkPU4YhgKfesr95mxL",  // $499/month - 30 videos
   // Enterprise is custom - handled separately
 };
 
@@ -142,6 +142,8 @@ Deno.serve(async (req) => {
       body: new URLSearchParams({
         customer: customerId,
         mode: "subscription",
+        "payment_method_types[0]": "card",
+        billing_address_collection: "auto",
         "line_items[0][price]": priceId,
         "line_items[0][quantity]": "1",
         success_url: `${origin}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
