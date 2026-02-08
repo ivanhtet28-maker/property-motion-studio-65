@@ -197,12 +197,21 @@
       const templateStyle = getTemplateStyle(style);
       console.log("Using template style:", style || "modern-luxe");
 
-      // Debug: Log agentInfo values
+      // Debug: Log agentInfo values and check image sizes
       if (agentInfo) {
         console.log("Agent Info - Name:", agentInfo.name);
-        console.log("Agent Info - Logo:", agentInfo.logo ? "Logo provided" : "No logo");
+        console.log("Agent Info - Logo:", agentInfo.logo ? `Logo size: ${agentInfo.logo.length} chars` : "No logo");
+        console.log("Agent Info - Photo:", agentInfo.photo ? `Photo size: ${agentInfo.photo.length} chars` : "No photo");
         console.log("Agent Info - Color Scheme:", agentInfo.colorScheme || "default (purple)");
         console.log("Brand Color:", getBrandColor(agentInfo.colorScheme));
+
+        // Warn if images are too large
+        if (agentInfo.logo && agentInfo.logo.length > 100000) {
+          console.warn("WARNING: Logo is very large:", agentInfo.logo.length, "chars - may cause Shotstack issues");
+        }
+        if (agentInfo.photo && agentInfo.photo.length > 100000) {
+          console.warn("WARNING: Agent photo is very large:", agentInfo.photo.length, "chars - may cause Shotstack issues");
+        }
       }
 
       // Build Shotstack edit
@@ -310,157 +319,97 @@
                             ` : ''}
                           </div>
 
-                          <!-- Bottom Section: Property Stats with Icons -->
+                          <!-- Bottom Section: Property Stats (Text Only) -->
                           <div style="
                             display: flex;
                             align-items: center;
-                            gap: 50px;
+                            gap: 45px;
                           ">
                             <!-- Bedrooms -->
-                            <div style="
-                              display: flex;
-                              align-items: center;
-                              gap: 15px;
-                            ">
-                              <div style="
-                                width: 36px;
-                                height: 36px;
-                                background: ${templateStyle.accentColor};
-                                border-radius: 6px;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                font-size: 20px;
-                                font-weight: 700;
-                                color: white;
-                                text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.5);
-                              ">🛏</div>
+                            <div style="display: flex; flex-direction: column; align-items: flex-start;">
                               <span style="
                                 font-family: ${templateStyle.statFont};
                                 font-size: ${templateStyle.statSize};
                                 font-weight: ${templateStyle.statWeight};
                                 color: white;
+                                line-height: 1;
+                                margin-bottom: 8px;
                                 text-shadow: 3px 3px 10px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
                               ">${propertyData.beds}</span>
                               <span style="
                                 font-family: ${templateStyle.addressFont};
-                                font-size: 22px;
+                                font-size: 20px;
                                 font-weight: 400;
                                 letter-spacing: 1px;
-                                color: white;
+                                color: ${templateStyle.accentColor};
                                 text-shadow: 3px 3px 8px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
-                              ">${propertyData.beds === 1 ? 'Bedroom' : 'Bedrooms'}</span>
+                              ">${propertyData.beds === 1 ? 'BEDROOM' : 'BEDROOMS'}</span>
                             </div>
 
                             <!-- Bathrooms -->
-                            <div style="
-                              display: flex;
-                              align-items: center;
-                              gap: 15px;
-                            ">
-                              <div style="
-                                width: 36px;
-                                height: 36px;
-                                background: ${templateStyle.accentColor};
-                                border-radius: 6px;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                font-size: 20px;
-                                font-weight: 700;
-                                color: white;
-                                text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.5);
-                              ">🚿</div>
+                            <div style="display: flex; flex-direction: column; align-items: flex-start;">
                               <span style="
                                 font-family: ${templateStyle.statFont};
                                 font-size: ${templateStyle.statSize};
                                 font-weight: ${templateStyle.statWeight};
                                 color: white;
+                                line-height: 1;
+                                margin-bottom: 8px;
                                 text-shadow: 3px 3px 10px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
                               ">${propertyData.baths}</span>
                               <span style="
                                 font-family: ${templateStyle.addressFont};
-                                font-size: 22px;
+                                font-size: 20px;
                                 font-weight: 400;
                                 letter-spacing: 1px;
-                                color: white;
+                                color: ${templateStyle.accentColor};
                                 text-shadow: 3px 3px 8px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
-                              ">${propertyData.baths === 1 ? 'Bathroom' : 'Bathrooms'}</span>
+                              ">${propertyData.baths === 1 ? 'BATHROOM' : 'BATHROOMS'}</span>
                             </div>
 
                             ${propertyData.carSpaces ? `
                               <!-- Car Spaces -->
-                              <div style="
-                                display: flex;
-                                align-items: center;
-                                gap: 15px;
-                              ">
-                                <div style="
-                                  width: 36px;
-                                  height: 36px;
-                                  background: ${templateStyle.accentColor};
-                                  border-radius: 6px;
-                                  display: flex;
-                                  align-items: center;
-                                  justify-content: center;
-                                  font-size: 20px;
-                                  font-weight: 700;
-                                  color: white;
-                                  text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.5);
-                                ">🚗</div>
+                              <div style="display: flex; flex-direction: column; align-items: flex-start;">
                                 <span style="
                                   font-family: ${templateStyle.statFont};
                                   font-size: ${templateStyle.statSize};
                                   font-weight: ${templateStyle.statWeight};
                                   color: white;
+                                  line-height: 1;
+                                  margin-bottom: 8px;
                                   text-shadow: 3px 3px 10px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
                                 ">${propertyData.carSpaces}</span>
                                 <span style="
                                   font-family: ${templateStyle.addressFont};
-                                  font-size: 22px;
+                                  font-size: 20px;
                                   font-weight: 400;
                                   letter-spacing: 1px;
-                                  color: white;
+                                  color: ${templateStyle.accentColor};
                                   text-shadow: 3px 3px 8px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
-                                ">${propertyData.carSpaces === 1 ? 'Car Space' : 'Car Spaces'}</span>
+                                ">${propertyData.carSpaces === 1 ? 'CAR SPACE' : 'CAR SPACES'}</span>
                               </div>
                             ` : ''}
 
                             ${propertyData.landSize ? `
                               <!-- Land Size -->
-                              <div style="
-                                display: flex;
-                                align-items: center;
-                                gap: 15px;
-                              ">
-                                <div style="
-                                  width: 36px;
-                                  height: 36px;
-                                  background: ${templateStyle.accentColor};
-                                  border-radius: 6px;
-                                  display: flex;
-                                  align-items: center;
-                                  justify-content: center;
-                                  font-size: 20px;
-                                  font-weight: 700;
-                                  color: white;
-                                  text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.5);
-                                ">📐</div>
+                              <div style="display: flex; flex-direction: column; align-items: flex-start;">
                                 <span style="
                                   font-family: ${templateStyle.statFont};
                                   font-size: ${templateStyle.statSize};
                                   font-weight: ${templateStyle.statWeight};
                                   color: white;
+                                  line-height: 1;
+                                  margin-bottom: 8px;
                                   text-shadow: 3px 3px 10px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
                                 ">${propertyData.landSize}m²</span>
                                 <span style="
                                   font-family: ${templateStyle.addressFont};
-                                  font-size: 22px;
+                                  font-size: 20px;
                                   font-weight: 400;
                                   letter-spacing: 1px;
-                                  color: white;
+                                  color: ${templateStyle.accentColor};
                                   text-shadow: 3px 3px 8px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
-                                ">Land Size</span>
+                                ">LAND SIZE</span>
                               </div>
                             ` : ''}
                           </div>
@@ -650,6 +599,14 @@
         },
       };
 
+      // Check payload size before sending
+      const payloadString = JSON.stringify(edit);
+      const payloadSizeKB = (payloadString.length / 1024).toFixed(2);
+      console.log("Payload size:", payloadSizeKB, "KB");
+      if (payloadString.length > 500000) {
+        console.warn("WARNING: Payload is very large (", payloadSizeKB, "KB) - may exceed Shotstack limits");
+      }
+
       console.log("Sending stitch job to Shotstack...");
 
       // Submit to Shotstack
@@ -659,7 +616,7 @@
           "Content-Type": "application/json",
           "x-api-key": SHOTSTACK_API_KEY!,
         },
-        body: JSON.stringify(edit),
+        body: payloadString,
       });
 
       if (!response.ok) {
