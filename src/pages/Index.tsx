@@ -1,6 +1,10 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Play, Link2, Wand2, Download, Check, Star, ChevronRight } from "lucide-react";
+import { Play, Link2, Wand2, Download, Check, Star, ChevronRight, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Accordion,
   AccordionContent,
@@ -108,9 +112,12 @@ interface PricingCardProps {
   cta: string;
   highlighted?: boolean;
   badge?: string;
+  planId: string;
+  onSelectPlan: (planId: string) => void;
+  isLoading?: boolean;
 }
 
-function PricingCard({ name, price, period, description, features, cta, highlighted, badge }: PricingCardProps) {
+function PricingCard({ name, price, period, description, features, cta, highlighted, badge, planId, onSelectPlan, isLoading }: PricingCardProps) {
   return (
     <div
       className={`relative rounded-2xl p-8 transition-all duration-300 hover-lift ${
@@ -143,18 +150,75 @@ function PricingCard({ name, price, period, description, features, cta, highligh
         ))}
       </ul>
       <Button
-        asChild
         variant={highlighted ? "secondary" : "hero"}
         size="lg"
         className={`w-full mt-8 ${highlighted ? "text-primary" : ""}`}
+        onClick={() => onSelectPlan(planId)}
+        disabled={isLoading}
       >
-        <Link to="/signup">{cta}</Link>
+        {isLoading ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Loading...
+          </>
+        ) : (
+          cta
+        )}
       </Button>
     </div>
   );
 }
 
 export default function Index() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+
+  const handleSelectPlan = async (planId: string) => {
+    // Enterprise requires contact sales
+    if (planId === "enterprise") {
+      window.location.href = "mailto:hello@propertymotion.com?subject=Enterprise%20Plan%20Inquiry";
+      return;
+    }
+
+    // Check if user is logged in
+    if (!user) {
+      navigate("/signup");
+      return;
+    }
+
+    setLoadingPlan(planId);
+
+    try {
+      // Call create-checkout-session function
+      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
+        body: {
+          plan: planId,
+          userId: user.id,
+          email: user.email,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.url) {
+        // Redirect to Stripe checkout
+        window.location.href = data.url;
+      } else {
+        throw new Error("No checkout URL returned");
+      }
+    } catch (error) {
+      console.error("Checkout error:", error);
+      toast({
+        title: "Checkout Error",
+        description: error instanceof Error ? error.message : "Failed to start checkout",
+        variant: "destructive",
+      });
+      setLoadingPlan(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -252,6 +316,9 @@ export default function Index() {
               description="Perfect for solo agents"
               features={["10 videos per month", "HD videos", "All templates", "Agent branding", "Email support"]}
               cta="Start Free Trial"
+              planId="starter"
+              onSelectPlan={handleSelectPlan}
+              isLoading={loadingPlan === "starter"}
             />
             <PricingCard
               name="Growth"
@@ -262,6 +329,9 @@ export default function Index() {
               cta="Start Free Trial"
               highlighted
               badge="⭐ RECOMMENDED"
+              planId="growth"
+              onSelectPlan={handleSelectPlan}
+              isLoading={loadingPlan === "growth"}
             />
             <PricingCard
               name="Enterprise"
@@ -270,6 +340,9 @@ export default function Index() {
               description="For agencies & teams"
               features={["Unlimited videos", "Everything in Growth", "White label option", "Multi-user access", "API access"]}
               cta="Enquire Now"
+              planId="enterprise"
+              onSelectPlan={handleSelectPlan}
+              isLoading={loadingPlan === "enterprise"}
             />
           </div>
         </div>

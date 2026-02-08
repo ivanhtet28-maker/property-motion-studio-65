@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Navbar } from "@/components/layout/Navbar";
-import { User, CreditCard, Building2, Check, Loader2, Download } from "lucide-react";
+import { User, CreditCard, Building2, Check, Loader2, Download, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 
 const plans = [
   {
@@ -45,6 +47,7 @@ export default function Settings() {
   const [searchParams] = useSearchParams();
   const defaultTab = searchParams.get("tab") || "profile";
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const [agentName, setAgentName] = useState("John Smith");
   const [agentPhone, setAgentPhone] = useState("0412 345 678");
@@ -55,6 +58,68 @@ export default function Settings() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
+  // Subscription state
+  const [subscriptionData, setSubscriptionData] = useState<any>(null);
+  const [isLoadingSubscription, setIsLoadingSubscription] = useState(true);
+  const [isManagingSubscription, setIsManagingSubscription] = useState(false);
+
+  // Load subscription data
+  useEffect(() => {
+    if (user?.id) {
+      loadSubscriptionData();
+    }
+  }, [user]);
+
+  const loadSubscriptionData = async () => {
+    if (!user?.id) return;
+
+    try {
+      setIsLoadingSubscription(true);
+      const { data, error } = await supabase
+        .from("user_preferences")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+
+      if (error) throw error;
+      setSubscriptionData(data);
+    } catch (error) {
+      console.error("Failed to load subscription:", error);
+    } finally {
+      setIsLoadingSubscription(false);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    if (!user?.id) return;
+
+    setIsManagingSubscription(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-portal-session", {
+        body: { userId: user.id },
+      });
+
+      if (error) throw error;
+
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      console.error("Portal error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to open subscription management",
+        variant: "destructive",
+      });
+      setIsManagingSubscription(false);
+    }
+  };
+
+  // Determine current plan from subscription data
+  const currentPlan = subscriptionData?.subscription_plan || "starter";
+  const subscriptionStatus = subscriptionData?.subscription_status;
+  const isActive = subscriptionStatus === "active" || subscriptionStatus === "trialing";
 
   const handleSaveProfile = async () => {
     setIsSaving(true);
@@ -249,56 +314,105 @@ export default function Settings() {
 
             {/* Plan Tab */}
             <TabsContent value="plan" className="space-y-8">
-              {/* Current Plan */}
-              <div className="grid md:grid-cols-3 gap-6">
-                {plans.map((plan) => (
-                  <div
-                    key={plan.id}
-                    className={`rounded-xl p-6 ${
-                      plan.current
-                        ? "bg-primary text-primary-foreground border-2 border-primary"
-                        : "bg-card border border-border"
-                    }`}
-                  >
-                    {plan.current && (
-                      <span className="inline-block px-2 py-1 bg-success text-success-foreground text-xs font-medium rounded-full mb-4">
-                        Current Plan
-                      </span>
-                    )}
-                    <h3 className={`text-lg font-bold ${plan.current ? "" : "text-foreground"}`}>
-                      {plan.name}
-                    </h3>
-                    <p className={`text-sm mt-1 ${plan.current ? "opacity-80" : "text-muted-foreground"}`}>
-                      {plan.description}
-                    </p>
-                    <div className="mt-4">
-                      <span className="text-3xl font-bold">
-                        {typeof plan.price === 'number' ? `$${plan.price}` : plan.price}
-                      </span>
-                      {typeof plan.price === 'number' && (
-                        <span className={`text-sm ${plan.current ? "opacity-80" : "text-muted-foreground"}`}>
-                          /month
-                        </span>
+              {/* Subscription Status */}
+              {isLoadingSubscription ? (
+                <div className="bg-card rounded-xl border border-border p-6 text-center">
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                  <p className="text-muted-foreground">Loading subscription...</p>
+                </div>
+              ) : subscriptionData && isActive ? (
+                <div className="bg-card rounded-xl border border-border p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground">Active Subscription</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {subscriptionData.videos_used_this_period || 0} of{" "}
+                        {currentPlan === "growth" ? "30" : currentPlan === "starter" ? "10" : "unlimited"} videos used this period
+                      </p>
+                      {subscriptionData.subscription_period_end && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {subscriptionData.subscription_cancel_at_period_end
+                            ? `Cancels on ${new Date(subscriptionData.subscription_period_end).toLocaleDateString()}`
+                            : `Renews on ${new Date(subscriptionData.subscription_period_end).toLocaleDateString()}`
+                          }
+                        </p>
                       )}
                     </div>
-                    <p className={`mt-2 text-sm ${plan.current ? "opacity-80" : "text-muted-foreground"}`}>
-                      {plan.videos === -1 ? "Unlimited" : plan.videos} videos/month
-                    </p>
-                    {plan.current ? (
-                      <div className="mt-6 flex items-center gap-2 text-sm">
-                        <Check className="w-4 h-4" />
-                        8 of {plan.videos} used
-                      </div>
-                    ) : (
-                      <Button
-                        variant={plan.current ? "secondary" : "outline"}
-                        className="w-full mt-6"
-                      >
-                        {plan.id === 'enterprise' ? 'Contact Sales' : (typeof plan.price === 'number' && plan.price > 499) ? "Upgrade" : "Downgrade"}
-                      </Button>
-                    )}
+                    <Button
+                      variant="outline"
+                      onClick={handleManageSubscription}
+                      disabled={isManagingSubscription}
+                    >
+                      {isManagingSubscription ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          Manage Subscription
+                        </>
+                      )}
+                    </Button>
                   </div>
-                ))}
+                </div>
+              ) : null}
+
+              {/* Current Plan */}
+              <div className="grid md:grid-cols-3 gap-6">
+                {plans.map((plan) => {
+                  const isCurrent = plan.id === currentPlan && isActive;
+                  return (
+                    <div
+                      key={plan.id}
+                      className={`rounded-xl p-6 ${
+                        isCurrent
+                          ? "bg-primary text-primary-foreground border-2 border-primary"
+                          : "bg-card border border-border"
+                      }`}
+                    >
+                      {isCurrent && (
+                        <span className="inline-block px-2 py-1 bg-success text-success-foreground text-xs font-medium rounded-full mb-4">
+                          Current Plan
+                        </span>
+                      )}
+                      <h3 className={`text-lg font-bold ${isCurrent ? "" : "text-foreground"}`}>
+                        {plan.name}
+                      </h3>
+                      <p className={`text-sm mt-1 ${isCurrent ? "opacity-80" : "text-muted-foreground"}`}>
+                        {plan.description}
+                      </p>
+                      <div className="mt-4">
+                        <span className="text-3xl font-bold">
+                          {typeof plan.price === 'number' ? `$${plan.price}` : plan.price}
+                        </span>
+                        {typeof plan.price === 'number' && (
+                          <span className={`text-sm ${isCurrent ? "opacity-80" : "text-muted-foreground"}`}>
+                            /month
+                          </span>
+                        )}
+                      </div>
+                      <p className={`mt-2 text-sm ${isCurrent ? "opacity-80" : "text-muted-foreground"}`}>
+                        {plan.videos === -1 ? "Unlimited" : plan.videos} videos/month
+                      </p>
+                      {isCurrent ? (
+                        <div className="mt-6 flex items-center gap-2 text-sm">
+                          <Check className="w-4 h-4" />
+                          {subscriptionData?.videos_used_this_period || 0} of {plan.videos === -1 ? "unlimited" : plan.videos} used
+                        </div>
+                      ) : (
+                        <Button
+                          variant={isCurrent ? "secondary" : "outline"}
+                          className="w-full mt-6"
+                          onClick={() => navigate("/#pricing")}
+                        >
+                          {plan.id === 'enterprise' ? 'Contact Sales' : (typeof plan.price === 'number' && plan.price > 499) ? "Upgrade" : "Change Plan"}
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Feature Comparison */}
@@ -348,19 +462,43 @@ export default function Settings() {
               {/* Payment Method */}
               <div className="bg-card rounded-xl border border-border p-6">
                 <h2 className="text-lg font-semibold text-foreground mb-6">Payment Method</h2>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-8 bg-secondary rounded flex items-center justify-center">
-                      <CreditCard className="w-6 h-6 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">•••• •••• •••• 4242</p>
-                      <p className="text-sm text-muted-foreground">Expires 12/26</p>
-                    </div>
+                {isLoadingSubscription ? (
+                  <div className="text-center py-4">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto" />
                   </div>
-                  <Button variant="outline">Update</Button>
-                </div>
-              </div>
+                ) : subscriptionData?.payment_method_last4 ? (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-8 bg-secondary rounded flex items-center justify-center">
+                        <CreditCard className="w-6 h-6 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-foreground">
+                          {subscriptionData.payment_method_brand?.toUpperCase() || "Card"} •••• {subscriptionData.payment_method_last4}
+                        </p>
+                        <p className="text-sm text-muted-foreground">Via Stripe</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={handleManageSubscription}
+                      disabled={isManagingSubscription}
+                    >
+                      {isManagingSubscription ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        "Update"
+                      )}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground mb-4">No payment method on file</p>
+                    <Button variant="outline" onClick={() => navigate("/#pricing")}>
+                      Choose a Plan
+                    </Button>
+                  </div>
+                )}</div>
 
               {/* Billing History */}
               <div className="bg-card rounded-xl border border-border overflow-hidden">
