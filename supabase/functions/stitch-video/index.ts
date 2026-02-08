@@ -301,108 +301,47 @@
               clips: videoClips,
             },
 
-            // Property details overlay using text assets (first 5 seconds only)
+            // Property details overlay - simplified single text test
             {
               clips: [
-                // Title
                 {
                   asset: {
-                    type: "text",
+                    type: "title",
                     text: templateStyle.title,
-                    font: {
-                      family: templateStyle.titleFont.replace(/'/g, ""),
-                      size: 72,
-                      color: "#FFFFFF",
-                      weight: 800,
-                    },
-                    width: 1080,
-                    height: 200,
-                    horizontalAlignment: "center",
-                    verticalAlignment: "top",
-                    background: {
-                      color: "#000000",
-                      opacity: 0.6,
-                    },
+                    style: "minimal",
+                    color: "#FFFFFF",
+                    size: "large",
+                    background: "#000000",
+                    position: "top",
                   },
                   start: 0,
                   length: 5,
-                  position: "top",
-                  offset: { y: 0.05 },
                 },
-                // Address
                 {
                   asset: {
-                    type: "text",
+                    type: "title",
                     text: propertyData.address,
-                    font: {
-                      family: templateStyle.addressFont.replace(/'/g, ""),
-                      size: 36,
-                      color: "#FFFFFF",
-                      weight: 600,
-                    },
-                    width: 1080,
-                    height: 100,
-                    horizontalAlignment: "center",
-                    verticalAlignment: "top",
-                    background: {
-                      color: "#000000",
-                      opacity: 0.5,
-                    },
+                    style: "minimal",
+                    color: "#FFFFFF",
+                    size: "medium",
+                    background: "#000000",
+                    position: "center",
                   },
                   start: 0,
                   length: 5,
-                  position: "top",
-                  offset: { y: 0.15 },
                 },
-                // Features (optional)
-                ...(propertyData.features && propertyData.features.length > 0 ? [{
-                  asset: {
-                    type: "text",
-                    text: propertyData.features.slice(0, 4).join("  •  "),
-                    font: {
-                      family: templateStyle.addressFont.replace(/'/g, ""),
-                      size: 24,
-                      color: "#FFFFFF",
-                      weight: 400,
-                    },
-                    width: 1080,
-                    height: 60,
-                    horizontalAlignment: "center",
-                    verticalAlignment: "top",
-                    background: {
-                      color: "#000000",
-                      opacity: 0.4,
-                    },
-                  },
-                  start: 0,
-                  length: 5,
-                  position: "top",
-                  offset: { y: 0.22 },
-                }] : []),
-                // Stats
                 {
                   asset: {
-                    type: "text",
-                    text: `${propertyData.beds} BED  •  ${propertyData.baths} BATH${propertyData.carSpaces ? `  •  ${propertyData.carSpaces} CAR` : ""}${propertyData.landSize ? `  •  ${propertyData.landSize}m²` : ""}`,
-                    font: {
-                      family: templateStyle.statFont.replace(/'/g, ""),
-                      size: 40,
-                      color: templateStyle.accentColor,
-                      weight: 700,
-                    },
-                    width: 1000,
-                    height: 80,
-                    horizontalAlignment: "left",
-                    verticalAlignment: "bottom",
-                    background: {
-                      color: "#000000",
-                      opacity: 0.7,
-                    },
+                    type: "title",
+                    text: `${propertyData.beds} BED • ${propertyData.baths} BATH${propertyData.carSpaces ? ` • ${propertyData.carSpaces} CAR` : ""}`,
+                    style: "minimal",
+                    color: templateStyle.accentColor,
+                    size: "small",
+                    background: "#000000",
+                    position: "bottom",
                   },
                   start: 0,
                   length: 5,
-                  position: "bottomLeft",
-                  offset: { x: 0.04, y: 0.05 },
                 },
               ],
             },
