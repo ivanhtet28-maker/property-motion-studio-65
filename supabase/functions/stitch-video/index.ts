@@ -228,36 +228,7 @@
               clips: videoClips,
             },
 
-            // Dark gradient overlay on first clip (top and bottom gradients)
-            {
-              clips: [
-                {
-                  asset: {
-                    type: "html",
-                    html: `
-                      <div style="
-                        position: absolute;
-                        top: 0;
-                        left: 0;
-                        width: 100%;
-                        height: 100%;
-                        background: linear-gradient(to bottom, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.4) 35%, rgba(0, 0, 0, 0.4) 65%, rgba(0, 0, 0, 0.9) 100%);
-                      "></div>
-                    `,
-                    css: "",
-                    width: 1080,
-                    height: 1920,
-                  },
-                  start: 0,
-                  length: 5, // Only on first 5 seconds (first clip)
-                  transition: {
-                    out: "fade",
-                  },
-                },
-              ],
-            },
-
-            // Property details overlay (first 5 seconds only) - Clean gradient design
+            // Property details overlay (first 5 seconds only) - Text with strong outline
               {
                 clips: [
                   {
@@ -285,7 +256,12 @@
                               font-size: ${templateStyle.titleSize};
                               font-weight: ${templateStyle.titleWeight};
                               color: white;
-                              text-shadow: 4px 4px 12px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
+                              -webkit-text-stroke: 2px rgba(0, 0, 0, 0.5);
+                              text-shadow:
+                                0 0 20px rgba(0, 0, 0, 0.9),
+                                0 0 40px rgba(0, 0, 0, 0.7),
+                                4px 4px 15px rgba(0, 0, 0, 1),
+                                -2px -2px 10px rgba(0, 0, 0, 0.8);
                               letter-spacing: 2px;
                               margin-bottom: 25px;
                             ">
@@ -298,8 +274,13 @@
                               font-size: ${templateStyle.addressSize};
                               font-weight: ${templateStyle.addressWeight};
                               color: white;
+                              -webkit-text-stroke: 1.5px rgba(0, 0, 0, 0.5);
                               letter-spacing: 1px;
-                              text-shadow: 3px 3px 10px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
+                              text-shadow:
+                                0 0 15px rgba(0, 0, 0, 0.9),
+                                0 0 30px rgba(0, 0, 0, 0.7),
+                                3px 3px 12px rgba(0, 0, 0, 1),
+                                -1px -1px 8px rgba(0, 0, 0, 0.8);
                               margin-bottom: ${propertyData.features && propertyData.features.length > 0 ? '15px' : '0'};
                             ">
                               ${propertyData.address}
@@ -310,8 +291,12 @@
                                 font-weight: 400;
                                 letter-spacing: 0.5px;
                                 color: white;
-                                opacity: 0.95;
-                                text-shadow: 3px 3px 8px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
+                                -webkit-text-stroke: 1px rgba(0, 0, 0, 0.4);
+                                text-shadow:
+                                  0 0 12px rgba(0, 0, 0, 0.9),
+                                  0 0 25px rgba(0, 0, 0, 0.7),
+                                  2px 2px 10px rgba(0, 0, 0, 1),
+                                  -1px -1px 6px rgba(0, 0, 0, 0.8);
                                 margin-top: 10px;
                               ">
                                 ${propertyData.features.slice(0, 4).join(' • ')}
@@ -332,9 +317,14 @@
                                 font-size: ${templateStyle.statSize};
                                 font-weight: ${templateStyle.statWeight};
                                 color: white;
+                                -webkit-text-stroke: 2px rgba(0, 0, 0, 0.5);
                                 line-height: 1;
                                 margin-bottom: 8px;
-                                text-shadow: 3px 3px 10px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
+                                text-shadow:
+                                  0 0 15px rgba(0, 0, 0, 0.9),
+                                  0 0 30px rgba(0, 0, 0, 0.7),
+                                  3px 3px 12px rgba(0, 0, 0, 1),
+                                  -1px -1px 8px rgba(0, 0, 0, 0.8);
                               ">${propertyData.beds}</span>
                               <span style="
                                 font-family: ${templateStyle.addressFont};
@@ -342,7 +332,12 @@
                                 font-weight: 400;
                                 letter-spacing: 1px;
                                 color: ${templateStyle.accentColor};
-                                text-shadow: 3px 3px 8px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
+                                -webkit-text-stroke: 1px rgba(0, 0, 0, 0.4);
+                                text-shadow:
+                                  0 0 12px rgba(0, 0, 0, 0.9),
+                                  0 0 25px rgba(0, 0, 0, 0.7),
+                                  2px 2px 10px rgba(0, 0, 0, 1),
+                                  -1px -1px 6px rgba(0, 0, 0, 0.8);
                               ">${propertyData.beds === 1 ? 'BEDROOM' : 'BEDROOMS'}</span>
                             </div>
 
@@ -353,9 +348,14 @@
                                 font-size: ${templateStyle.statSize};
                                 font-weight: ${templateStyle.statWeight};
                                 color: white;
+                                -webkit-text-stroke: 2px rgba(0, 0, 0, 0.5);
                                 line-height: 1;
                                 margin-bottom: 8px;
-                                text-shadow: 3px 3px 10px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
+                                text-shadow:
+                                  0 0 15px rgba(0, 0, 0, 0.9),
+                                  0 0 30px rgba(0, 0, 0, 0.7),
+                                  3px 3px 12px rgba(0, 0, 0, 1),
+                                  -1px -1px 8px rgba(0, 0, 0, 0.8);
                               ">${propertyData.baths}</span>
                               <span style="
                                 font-family: ${templateStyle.addressFont};
@@ -363,7 +363,12 @@
                                 font-weight: 400;
                                 letter-spacing: 1px;
                                 color: ${templateStyle.accentColor};
-                                text-shadow: 3px 3px 8px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
+                                -webkit-text-stroke: 1px rgba(0, 0, 0, 0.4);
+                                text-shadow:
+                                  0 0 12px rgba(0, 0, 0, 0.9),
+                                  0 0 25px rgba(0, 0, 0, 0.7),
+                                  2px 2px 10px rgba(0, 0, 0, 1),
+                                  -1px -1px 6px rgba(0, 0, 0, 0.8);
                               ">${propertyData.baths === 1 ? 'BATHROOM' : 'BATHROOMS'}</span>
                             </div>
 
@@ -375,9 +380,14 @@
                                   font-size: ${templateStyle.statSize};
                                   font-weight: ${templateStyle.statWeight};
                                   color: white;
+                                  -webkit-text-stroke: 2px rgba(0, 0, 0, 0.5);
                                   line-height: 1;
                                   margin-bottom: 8px;
-                                  text-shadow: 3px 3px 10px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
+                                  text-shadow:
+                                    0 0 15px rgba(0, 0, 0, 0.9),
+                                    0 0 30px rgba(0, 0, 0, 0.7),
+                                    3px 3px 12px rgba(0, 0, 0, 1),
+                                    -1px -1px 8px rgba(0, 0, 0, 0.8);
                                 ">${propertyData.carSpaces}</span>
                                 <span style="
                                   font-family: ${templateStyle.addressFont};
@@ -385,7 +395,12 @@
                                   font-weight: 400;
                                   letter-spacing: 1px;
                                   color: ${templateStyle.accentColor};
-                                  text-shadow: 3px 3px 8px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
+                                  -webkit-text-stroke: 1px rgba(0, 0, 0, 0.4);
+                                  text-shadow:
+                                    0 0 12px rgba(0, 0, 0, 0.9),
+                                    0 0 25px rgba(0, 0, 0, 0.7),
+                                    2px 2px 10px rgba(0, 0, 0, 1),
+                                    -1px -1px 6px rgba(0, 0, 0, 0.8);
                                 ">${propertyData.carSpaces === 1 ? 'CAR SPACE' : 'CAR SPACES'}</span>
                               </div>
                             ` : ''}
@@ -398,9 +413,14 @@
                                   font-size: ${templateStyle.statSize};
                                   font-weight: ${templateStyle.statWeight};
                                   color: white;
+                                  -webkit-text-stroke: 2px rgba(0, 0, 0, 0.5);
                                   line-height: 1;
                                   margin-bottom: 8px;
-                                  text-shadow: 3px 3px 10px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
+                                  text-shadow:
+                                    0 0 15px rgba(0, 0, 0, 0.9),
+                                    0 0 30px rgba(0, 0, 0, 0.7),
+                                    3px 3px 12px rgba(0, 0, 0, 1),
+                                    -1px -1px 8px rgba(0, 0, 0, 0.8);
                                 ">${propertyData.landSize}m²</span>
                                 <span style="
                                   font-family: ${templateStyle.addressFont};
@@ -408,7 +428,12 @@
                                   font-weight: 400;
                                   letter-spacing: 1px;
                                   color: ${templateStyle.accentColor};
-                                  text-shadow: 3px 3px 8px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
+                                  -webkit-text-stroke: 1px rgba(0, 0, 0, 0.4);
+                                  text-shadow:
+                                    0 0 12px rgba(0, 0, 0, 0.9),
+                                    0 0 25px rgba(0, 0, 0, 0.7),
+                                    2px 2px 10px rgba(0, 0, 0, 1),
+                                    -1px -1px 6px rgba(0, 0, 0, 0.8);
                                 ">LAND SIZE</span>
                               </div>
                             ` : ''}
