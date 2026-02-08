@@ -35,6 +35,8 @@
       phone: string;
       email: string;
       photo: string | null;
+      logo?: string | null;
+      colorScheme?: string;
     };
   }
 

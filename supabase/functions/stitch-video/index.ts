@@ -119,6 +119,20 @@
     return TEMPLATE_STYLES[style || "modern-luxe"] || TEMPLATE_STYLES["modern-luxe"];
   }
 
+  // Color scheme mapping (matches frontend options)
+  const COLOR_SCHEMES: Record<string, string> = {
+    purple: "#6D28D9",
+    blue: "#0066FF",
+    teal: "#06B6D4",
+    green: "#10B981",
+    orange: "#F97316",
+    pink: "#EC4899",
+  };
+
+  function getBrandColor(colorScheme: string | undefined) {
+    return COLOR_SCHEMES[colorScheme || "purple"] || COLOR_SCHEMES["purple"];
+  }
+
   interface StitchVideoRequest {
     videoUrls: string[];
     propertyData: {
@@ -138,6 +152,8 @@
       phone: string;
       email: string;
       photo: string | null;
+      logo?: string | null;
+      colorScheme?: string;
     };
     style?: string;
     videoId?: string;
@@ -181,6 +197,14 @@
       const templateStyle = getTemplateStyle(style);
       console.log("Using template style:", style || "modern-luxe");
 
+      // Debug: Log agentInfo values
+      if (agentInfo) {
+        console.log("Agent Info - Name:", agentInfo.name);
+        console.log("Agent Info - Logo:", agentInfo.logo ? "Logo provided" : "No logo");
+        console.log("Agent Info - Color Scheme:", agentInfo.colorScheme || "default (purple)");
+        console.log("Brand Color:", getBrandColor(agentInfo.colorScheme));
+      }
+
       // Build Shotstack edit
       const edit = {
         timeline: {
@@ -195,7 +219,7 @@
               clips: videoClips,
             },
 
-            // Dark gradient overlay on first clip (left to right fade)
+            // Dark gradient overlay on first clip (top and bottom gradients)
             {
               clips: [
                 {
@@ -208,7 +232,7 @@
                         left: 0;
                         width: 100%;
                         height: 100%;
-                        background: linear-gradient(to right, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.6) 40%, rgba(0, 0, 0, 0.3) 70%, transparent 100%);
+                        background: linear-gradient(to bottom, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.4) 35%, rgba(0, 0, 0, 0.4) 65%, rgba(0, 0, 0, 0.9) 100%);
                       "></div>
                     `,
                     css: "",
@@ -231,6 +255,7 @@
                     asset: {
                       type: "html",
                       html: `
+                        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
                         <div style="
                           position: absolute;
                           top: 0;
@@ -242,7 +267,7 @@
                           flex-direction: column;
                           justify-content: space-between;
                           font-family: ${templateStyle.addressFont};
-                          color: ${templateStyle.titleColor};
+                          color: white;
                         ">
                           <!-- Top Section: Template Title + Address + Features -->
                           <div style="text-align: center;">
@@ -251,8 +276,8 @@
                               font-family: ${templateStyle.titleFont};
                               font-size: ${templateStyle.titleSize};
                               font-weight: ${templateStyle.titleWeight};
-                              color: ${templateStyle.titleColor};
-                              text-shadow: ${templateStyle.titleShadow};
+                              color: white;
+                              text-shadow: 4px 4px 12px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
                               letter-spacing: 2px;
                               margin-bottom: 25px;
                             ">
@@ -264,8 +289,9 @@
                               font-family: ${templateStyle.addressFont};
                               font-size: ${templateStyle.addressSize};
                               font-weight: ${templateStyle.addressWeight};
+                              color: white;
                               letter-spacing: 1px;
-                              text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.9);
+                              text-shadow: 3px 3px 10px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
                               margin-bottom: ${propertyData.features && propertyData.features.length > 0 ? '15px' : '0'};
                             ">
                               ${propertyData.address}
@@ -275,8 +301,9 @@
                                 font-size: 16px;
                                 font-weight: 400;
                                 letter-spacing: 0.5px;
-                                opacity: 0.9;
-                                text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.9);
+                                color: white;
+                                opacity: 0.95;
+                                text-shadow: 3px 3px 8px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
                                 margin-top: 10px;
                               ">
                                 ${propertyData.features.slice(0, 4).join(' • ')}
@@ -284,57 +311,65 @@
                             ` : ''}
                           </div>
 
-                          <!-- Bottom Section: Property Stats (Left-aligned modern text layout) -->
+                          <!-- Bottom Section: Property Stats with Icons -->
                           <div style="
                             display: flex;
                             align-items: center;
-                            gap: 40px;
+                            gap: 50px;
                           ">
                             <!-- Bedrooms -->
                             <div style="
                               display: flex;
-                              flex-direction: column;
-                              align-items: flex-start;
+                              align-items: center;
+                              gap: 15px;
                             ">
+                              <i class="fa-solid fa-bed" style="
+                                color: ${templateStyle.accentColor};
+                                font-size: 36px;
+                                text-shadow: 3px 3px 10px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
+                              "></i>
                               <span style="
                                 font-family: ${templateStyle.statFont};
                                 font-size: ${templateStyle.statSize};
                                 font-weight: ${templateStyle.statWeight};
-                                line-height: 1;
-                                margin-bottom: 5px;
-                                text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.9);
+                                color: white;
+                                text-shadow: 3px 3px 10px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
                               ">${propertyData.beds}</span>
                               <span style="
                                 font-family: ${templateStyle.addressFont};
-                                font-size: 18px;
+                                font-size: 22px;
                                 font-weight: 400;
                                 letter-spacing: 1px;
-                                opacity: 0.95;
-                                text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.9);
+                                color: white;
+                                text-shadow: 3px 3px 8px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
                               ">${propertyData.beds === 1 ? 'Bedroom' : 'Bedrooms'}</span>
                             </div>
 
                             <!-- Bathrooms -->
                             <div style="
                               display: flex;
-                              flex-direction: column;
-                              align-items: flex-start;
+                              align-items: center;
+                              gap: 15px;
                             ">
+                              <i class="fa-solid fa-bath" style="
+                                color: ${templateStyle.accentColor};
+                                font-size: 36px;
+                                text-shadow: 3px 3px 10px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
+                              "></i>
                               <span style="
                                 font-family: ${templateStyle.statFont};
                                 font-size: ${templateStyle.statSize};
                                 font-weight: ${templateStyle.statWeight};
-                                line-height: 1;
-                                margin-bottom: 5px;
-                                text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.9);
+                                color: white;
+                                text-shadow: 3px 3px 10px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
                               ">${propertyData.baths}</span>
                               <span style="
                                 font-family: ${templateStyle.addressFont};
-                                font-size: 18px;
+                                font-size: 22px;
                                 font-weight: 400;
                                 letter-spacing: 1px;
-                                opacity: 0.95;
-                                text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.9);
+                                color: white;
+                                text-shadow: 3px 3px 8px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
                               ">${propertyData.baths === 1 ? 'Bathroom' : 'Bathrooms'}</span>
                             </div>
 
@@ -342,22 +377,28 @@
                               <!-- Car Spaces -->
                               <div style="
                                 display: flex;
-                                flex-direction: column;
-                                align-items: flex-start;
+                                align-items: center;
+                                gap: 15px;
                               ">
+                                <i class="fa-solid fa-car" style="
+                                  color: ${templateStyle.accentColor};
+                                  font-size: 36px;
+                                  text-shadow: 3px 3px 10px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
+                                "></i>
                                 <span style="
-                                  font-size: 42px;
-                                  font-weight: 700;
-                                  line-height: 1;
-                                  margin-bottom: 5px;
-                                  text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.9);
+                                  font-family: ${templateStyle.statFont};
+                                  font-size: ${templateStyle.statSize};
+                                  font-weight: ${templateStyle.statWeight};
+                                  color: white;
+                                  text-shadow: 3px 3px 10px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
                                 ">${propertyData.carSpaces}</span>
                                 <span style="
-                                  font-size: 18px;
+                                  font-family: ${templateStyle.addressFont};
+                                  font-size: 22px;
                                   font-weight: 400;
                                   letter-spacing: 1px;
-                                  opacity: 0.95;
-                                  text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.9);
+                                  color: white;
+                                  text-shadow: 3px 3px 8px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
                                 ">${propertyData.carSpaces === 1 ? 'Car Space' : 'Car Spaces'}</span>
                               </div>
                             ` : ''}
@@ -366,22 +407,28 @@
                               <!-- Land Size -->
                               <div style="
                                 display: flex;
-                                flex-direction: column;
-                                align-items: flex-start;
+                                align-items: center;
+                                gap: 15px;
                               ">
+                                <i class="fa-solid fa-ruler-combined" style="
+                                  color: ${templateStyle.accentColor};
+                                  font-size: 36px;
+                                  text-shadow: 3px 3px 10px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
+                                "></i>
                                 <span style="
-                                  font-size: 42px;
-                                  font-weight: 700;
-                                  line-height: 1;
-                                  margin-bottom: 5px;
-                                  text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.9);
+                                  font-family: ${templateStyle.statFont};
+                                  font-size: ${templateStyle.statSize};
+                                  font-weight: ${templateStyle.statWeight};
+                                  color: white;
+                                  text-shadow: 3px 3px 10px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
                                 ">${propertyData.landSize}m²</span>
                                 <span style="
-                                  font-size: 18px;
+                                  font-family: ${templateStyle.addressFont};
+                                  font-size: 22px;
                                   font-weight: 400;
                                   letter-spacing: 1px;
-                                  opacity: 0.95;
-                                  text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.9);
+                                  color: white;
+                                  text-shadow: 3px 3px 8px rgba(0, 0, 0, 1), 2px 2px 6px rgba(0, 0, 0, 0.9);
                                 ">Land Size</span>
                               </div>
                             ` : ''}
@@ -447,56 +494,90 @@
                         justify-content: center;
                         font-family: 'Helvetica Neue', Arial, sans-serif;
                         color: white;
-                        text-align: center;
                         padding: 60px;
                       ">
-                        ${agentInfo.photo ? `
+                        ${agentInfo.logo ? `
                           <img
-                            src="${agentInfo.photo}"
+                            src="${agentInfo.logo}"
                             style="
-                              width: 180px;
-                              height: 180px;
-                              border-radius: 50%;
-                              border: 4px solid white;
-                              object-fit: cover;
-                              margin-bottom: 30px;
-                              box-shadow: 0 8px 32px rgba(255, 255, 255, 0.2);
+                              max-width: 200px;
+                              max-height: 80px;
+                              object-fit: contain;
+                              margin-bottom: 60px;
                             "
                           />
                         ` : ''}
                         <div style="
-                          font-size: 42px;
-                          font-weight: 700;
-                          margin-bottom: 15px;
-                          letter-spacing: 1px;
+                          display: flex;
+                          flex-direction: row;
+                          align-items: center;
+                          justify-content: center;
+                          gap: 30px;
+                          margin-bottom: 50px;
                         ">
-                          ${agentInfo.name}
+                          ${agentInfo.photo ? `
+                            <div style="
+                              width: 136px;
+                              height: 136px;
+                              border-radius: 50%;
+                              background: ${getBrandColor(agentInfo.colorScheme)};
+                              display: flex;
+                              align-items: center;
+                              justify-content: center;
+                              padding: 6px;
+                              box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+                            ">
+                              <img
+                                src="${agentInfo.photo}"
+                                style="
+                                  width: 120px;
+                                  height: 120px;
+                                  border-radius: 50%;
+                                  border: 3px solid white;
+                                  object-fit: cover;
+                                "
+                              />
+                            </div>
+                          ` : ''}
+                          <div style="text-align: left; max-width: 450px;">
+                            <div style="
+                              font-size: 36px;
+                              font-weight: 700;
+                              margin-bottom: 12px;
+                              letter-spacing: 0.5px;
+                              line-height: 1.2;
+                            ">
+                              ${agentInfo.name}
+                            </div>
+                            ${agentInfo.phone ? `
+                              <div style="
+                                font-size: 24px;
+                                opacity: 0.95;
+                                margin-bottom: 8px;
+                                font-weight: 400;
+                              ">
+                                ${agentInfo.phone}
+                              </div>
+                            ` : ''}
+                            ${agentInfo.email ? `
+                              <div style="
+                                font-size: 20px;
+                                opacity: 0.85;
+                                font-weight: 300;
+                              ">
+                                ${agentInfo.email}
+                              </div>
+                            ` : ''}
+                          </div>
                         </div>
-                        ${agentInfo.phone ? `
-                          <div style="
-                            font-size: 28px;
-                            opacity: 0.9;
-                            margin-bottom: 10px;
-                            font-weight: 400;
-                          ">
-                            ${agentInfo.phone}
-                          </div>
-                        ` : ''}
-                        ${agentInfo.email ? `
-                          <div style="
-                            font-size: 24px;
-                            opacity: 0.8;
-                            font-weight: 300;
-                          ">
-                            ${agentInfo.email}
-                          </div>
-                        ` : ''}
                         <div style="
-                          margin-top: 40px;
+                          background: ${getBrandColor(agentInfo.colorScheme)};
+                          padding: 15px 40px;
+                          border-radius: 12px;
                           font-size: 20px;
-                          opacity: 0.7;
-                          font-weight: 300;
+                          font-weight: 500;
                           letter-spacing: 2px;
+                          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
                         ">
                           CONTACT ME TODAY
                         </div>

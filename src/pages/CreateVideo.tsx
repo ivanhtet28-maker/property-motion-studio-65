@@ -303,6 +303,10 @@ Contact us today for a private inspection.`;
       // Convert frontend voice name to backend ID (only if voiceover is enabled)
       const voiceId = customization.includeVoiceover ? getVoiceId(customization.voiceType) : null;
 
+      // Debug: Log values being sent
+      console.log("Sending to backend - Logo:", customization.logoUrl ? "Logo provided" : "No logo");
+      console.log("Sending to backend - Color Scheme:", customization.colorScheme);
+
       const { data, error: fnError } = await supabase.functions.invoke("generate-video", {
         body: {
           imageUrls: imageUrls,
@@ -317,6 +321,8 @@ Contact us today for a private inspection.`;
             phone: customization.agentInfo.phone,
             email: customization.agentInfo.email,
             photo: customization.agentInfo.photo,
+            logo: customization.logoUrl,
+            colorScheme: customization.colorScheme,
           },
         },
       });

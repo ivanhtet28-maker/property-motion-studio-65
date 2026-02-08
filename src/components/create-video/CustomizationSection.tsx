@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, Settings, Mic, Music, Palette, Play, SkipForward, Upload } from "lucide-react";
+import { ChevronDown, Settings, Mic, Music, Palette, Play, SkipForward, Upload, X } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -247,11 +247,41 @@ export function CustomizationSection({ settings, onChange }: CustomizationSectio
 
             <div className="space-y-2">
               <Label className="text-sm text-muted-foreground">Logo</Label>
-              <label className="flex items-center justify-center gap-2 p-3 border border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 hover:bg-secondary/30 transition-all">
-                <input type="file" accept="image/*" className="hidden" />
-                <Upload className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Upload Logo</span>
-              </label>
+              {settings.logoUrl ? (
+                <div className="relative p-3 border border-primary/50 rounded-lg">
+                  <img
+                    src={settings.logoUrl}
+                    alt="Logo"
+                    className="max-h-16 mx-auto object-contain"
+                  />
+                  <button
+                    onClick={() => onChange({ ...settings, logoUrl: null })}
+                    className="absolute top-1 right-1 p-1 bg-secondary rounded-full hover:bg-secondary/80"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex items-center justify-center gap-2 p-3 border border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 hover:bg-secondary/30 transition-all">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file && file.type.startsWith("image/")) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                          onChange({ ...settings, logoUrl: event.target?.result as string });
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                  <Upload className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Upload Logo</span>
+                </label>
+              )}
             </div>
 
             <div className="space-y-2">
