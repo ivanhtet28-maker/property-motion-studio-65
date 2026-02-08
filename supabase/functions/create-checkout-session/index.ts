@@ -9,10 +9,10 @@ const corsHeaders = {
 
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
 
-// Stripe price IDs from Stripe Dashboard (TEST MODE)
+// Stripe price IDs from Stripe Dashboard (LIVE MODE)
 const PRICE_IDS = {
-  starter: "price_1Syaj2GkPU4YhgKfafjlmn2s", // $299/month - 10 videos
-  growth: "price_1SyajHGkPU4YhgKfesr95mxL",  // $499/month - 30 videos
+  starter: "price_1Sya0mGkPU4YhgKfmAj63FX0", // $299/month - 10 videos
+  growth: "price_1SyZzMGkPU4YhgKfWTj39Enj",  // $499/month - 30 videos
   // Enterprise is custom - handled separately
 };
 
