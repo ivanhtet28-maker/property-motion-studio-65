@@ -9,10 +9,10 @@ const corsHeaders = {
 
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
 
-// Stripe price IDs - You'll need to create these in your Stripe dashboard
+// Stripe price IDs from Stripe Dashboard
 const PRICE_IDS = {
-  starter: "price_starter_monthly", // Replace with your actual Stripe price ID
-  growth: "price_growth_monthly",   // Replace with your actual Stripe price ID
+  starter: "price_1Sya0mGkPU4YhgKfmAj63FX0", // $299/month - 10 videos
+  growth: "price_1SyZzMGkPU4YhgKfWTj39Enj",  // $499/month - 30 videos
   // Enterprise is custom - handled separately
 };
 
