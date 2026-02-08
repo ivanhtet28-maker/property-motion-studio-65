@@ -29,12 +29,18 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { plan, userId, email }: CheckoutRequest = await req.json();
+    const body = await req.json();
+    const { plan, userId, email }: CheckoutRequest = body;
 
     console.log("=== CREATE CHECKOUT SESSION ===");
+    console.log("Request body:", JSON.stringify(body));
     console.log("Plan:", plan);
     console.log("User ID:", userId);
     console.log("Email:", email);
+
+    if (!userId || !email || !plan) {
+      throw new Error(`Missing required fields: userId=${!!userId}, email=${!!email}, plan=${!!plan}`);
+    }
 
     if (!STRIPE_SECRET_KEY) {
       throw new Error("STRIPE_SECRET_KEY not configured");
@@ -56,12 +62,34 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Check if user already has a Stripe customer ID
-    const { data: user } = await supabase
+    // Check if user exists in users table and has a Stripe customer ID
+    let { data: user } = await supabase
       .from("users")
-      .select("stripe_customer_id")
+      .select("stripe_customer_id, email")
       .eq("id", userId)
       .single();
+
+    // If user doesn't exist in users table, create them
+    if (!user) {
+      console.log("User not found in users table, creating...");
+      const { data: newUser, error: insertError } = await supabase
+        .from("users")
+        .insert({
+          id: userId,
+          email: email,
+          plan: 'starter',
+          videos_limit: 10,
+        })
+        .select("stripe_customer_id, email")
+        .single();
+
+      if (insertError) {
+        console.error("Failed to create user:", insertError);
+        throw new Error(`Failed to create user record: ${insertError.message}`);
+      }
+
+      user = newUser;
+    }
 
     let customerId = user?.stripe_customer_id;
 
