@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, Settings, Mic, Music, Palette, Play, SkipForward, Upload, X } from "lucide-react";
+import { ChevronDown, Settings, Mic, Music, Palette, Play, SkipForward } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -30,8 +30,6 @@ export interface CustomizationSettings {
   voiceType: string;
   musicStyle: string;
   musicTrack: string;
-  colorScheme: string;
-  logoUrl: string | null;
   selectedTemplate: string;
   agentInfo: AgentInfo;
 }
@@ -60,15 +58,6 @@ const musicTracks: Record<string, string[]> = {
   "Classical Elegance": ["Nocturne - Piano Solo", "Adagio - String Quartet", "Grace - Chamber Music"],
   "Ambient Relaxing": ["Drift - Ambient Tones", "Serenity - Nature Sounds", "Flow - Meditation"],
 };
-
-const colorSchemes = [
-  { id: "purple", name: "Purple", color: "#6D28D9" },
-  { id: "blue", name: "Blue", color: "#0066FF" },
-  { id: "teal", name: "Teal", color: "#06B6D4" },
-  { id: "green", name: "Green", color: "#10B981" },
-  { id: "orange", name: "Orange", color: "#F97316" },
-  { id: "pink", name: "Pink", color: "#EC4899" },
-];
 
 interface CustomizationSectionProps {
   settings: CustomizationSettings;
@@ -244,64 +233,6 @@ export function CustomizationSection({ settings, onChange }: CustomizationSectio
               agentInfo={settings.agentInfo}
               onChange={(agentInfo) => onChange({ ...settings, agentInfo })}
             />
-
-            <div className="space-y-2">
-              <Label className="text-sm text-muted-foreground">Logo</Label>
-              {settings.logoUrl ? (
-                <div className="relative p-3 border border-primary/50 rounded-lg">
-                  <img
-                    src={settings.logoUrl}
-                    alt="Logo"
-                    className="max-h-16 mx-auto object-contain"
-                  />
-                  <button
-                    onClick={() => onChange({ ...settings, logoUrl: null })}
-                    className="absolute top-1 right-1 p-1 bg-secondary rounded-full hover:bg-secondary/80"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              ) : (
-                <label className="flex items-center justify-center gap-2 p-3 border border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 hover:bg-secondary/30 transition-all">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file && file.type.startsWith("image/")) {
-                        const reader = new FileReader();
-                        reader.onload = (event) => {
-                          onChange({ ...settings, logoUrl: event.target?.result as string });
-                        };
-                        reader.readAsDataURL(file);
-                      }
-                    }}
-                  />
-                  <Upload className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Upload Logo</span>
-                </label>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm text-muted-foreground">Color Scheme</Label>
-              <div className="flex gap-2">
-                {colorSchemes.map((scheme) => (
-                  <button
-                    key={scheme.id}
-                    onClick={() => onChange({ ...settings, colorScheme: scheme.id })}
-                    className={`w-8 h-8 rounded-full transition-all ${
-                      settings.colorScheme === scheme.id
-                        ? "ring-2 ring-offset-2 ring-primary"
-                        : "hover:scale-110"
-                    }`}
-                    style={{ backgroundColor: scheme.color }}
-                    title={scheme.name}
-                  />
-                ))}
-              </div>
-            </div>
           </div>
         </CollapsibleContent>
       </Collapsible>
