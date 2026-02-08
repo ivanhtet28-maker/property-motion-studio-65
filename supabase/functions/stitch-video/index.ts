@@ -301,117 +301,111 @@
               clips: videoClips,
             },
 
-            // Property details overlay (first 5 seconds only) - Text with strong outline
-              // PROPERTY OVERLAYS (use multiple simple HTML assets)
-{
-  clips: [
-    // Title (top center)
-    {
-      asset: {
-        type: "html",
-        html: `<p>${templateStyle.title}</p>`,
-        css: `
-          p {
-            font-family: ${templateStyle.titleFont};
-            font-size: ${templateStyle.titleSize};
-            font-weight: ${templateStyle.titleWeight};
-            color: ${templateStyle.titleColor};
-            text-align: center;
-            text-shadow: ${templateStyle.titleShadow};
-            margin: 0;
-          }
-        `,
-        width: 1000,
-        height: 160,
-        background: "transparent",
-      },
-      start: 0,
-      length: 5,
-      position: "top",
-      offset: { y: 0.08 },
-    },
-
-    // Address (below title)
-    {
-      asset: {
-        type: "html",
-        html: `<p>${propertyData.address}</p>`,
-        css: `
-          p {
-            font-family: ${templateStyle.addressFont};
-            font-size: ${templateStyle.addressSize};
-            font-weight: ${templateStyle.addressWeight};
-            color: white;
-            text-align: center;
-            text-shadow: 0 0 15px rgba(0,0,0,0.9);
-            margin: 0;
-          }
-        `,
-        width: 1000,
-        height: 140,
-        background: "transparent",
-      },
-      start: 0,
-      length: 5,
-      position: "top",
-      offset: { y: 0.18 },
-    },
-
-    // Features (optional, smaller)
-    ...(propertyData.features?.length
-      ? [{
-          asset: {
-            type: "html",
-            html: `<p>${propertyData.features.slice(0, 4).join(" • ")}</p>`,
-            css: `
-              p {
-                font-family: ${templateStyle.addressFont};
-                font-size: 26px;
-                font-weight: 400;
-                color: white;
-                text-align: center;
-                text-shadow: 0 0 12px rgba(0,0,0,0.9);
-                margin: 0;
-              }
-            `,
-            width: 1000,
-            height: 120,
-            background: "transparent",
-          },
-          start: 0,
-          length: 5,
-          position: "top",
-          offset: { y: 0.26 },
-        }]
-      : []),
-
-    // Stats (bottom left) – keep it simple
-    {
-      asset: {
-        type: "html",
-        html: `<p>${propertyData.beds} BED • ${propertyData.baths} BATH${propertyData.carSpaces ? ` • ${propertyData.carSpaces} CAR` : ""}${propertyData.landSize ? ` • ${propertyData.landSize}m²` : ""}</p>`,
-        css: `
-          p {
-            font-family: ${templateStyle.statFont};
-            font-size: 36px;
-            font-weight: ${templateStyle.statWeight};
-            color: white;
-            text-align: left;
-            text-shadow: 0 0 15px rgba(0,0,0,0.9);
-            margin: 0;
-          }
-        `,
-        width: 1000,
-        height: 120,
-        background: "transparent",
-      },
-      start: 0,
-      length: 5,
-      position: "bottomLeft",
-      offset: { x: 0.06, y: 0.08 },
-    },
-  ],
-},
+            // Property details overlay using text assets (first 5 seconds only)
+            {
+              clips: [
+                // Title
+                {
+                  asset: {
+                    type: "text",
+                    text: templateStyle.title,
+                    font: {
+                      family: templateStyle.titleFont.replace(/'/g, ""),
+                      size: 72,
+                      color: "#FFFFFF",
+                      weight: 800,
+                    },
+                    width: 1080,
+                    height: 200,
+                    horizontalAlignment: "center",
+                    verticalAlignment: "top",
+                    background: {
+                      color: "#000000",
+                      opacity: 0.6,
+                    },
+                  },
+                  start: 0,
+                  length: 5,
+                  position: "top",
+                  offset: { y: 0.05 },
+                },
+                // Address
+                {
+                  asset: {
+                    type: "text",
+                    text: propertyData.address,
+                    font: {
+                      family: templateStyle.addressFont.replace(/'/g, ""),
+                      size: 36,
+                      color: "#FFFFFF",
+                      weight: 600,
+                    },
+                    width: 1080,
+                    height: 100,
+                    horizontalAlignment: "center",
+                    verticalAlignment: "top",
+                    background: {
+                      color: "#000000",
+                      opacity: 0.5,
+                    },
+                  },
+                  start: 0,
+                  length: 5,
+                  position: "top",
+                  offset: { y: 0.15 },
+                },
+                // Features (optional)
+                ...(propertyData.features && propertyData.features.length > 0 ? [{
+                  asset: {
+                    type: "text",
+                    text: propertyData.features.slice(0, 4).join("  •  "),
+                    font: {
+                      family: templateStyle.addressFont.replace(/'/g, ""),
+                      size: 24,
+                      color: "#FFFFFF",
+                      weight: 400,
+                    },
+                    width: 1080,
+                    height: 60,
+                    horizontalAlignment: "center",
+                    verticalAlignment: "top",
+                    background: {
+                      color: "#000000",
+                      opacity: 0.4,
+                    },
+                  },
+                  start: 0,
+                  length: 5,
+                  position: "top",
+                  offset: { y: 0.22 },
+                }] : []),
+                // Stats
+                {
+                  asset: {
+                    type: "text",
+                    text: `${propertyData.beds} BED  •  ${propertyData.baths} BATH${propertyData.carSpaces ? `  •  ${propertyData.carSpaces} CAR` : ""}${propertyData.landSize ? `  •  ${propertyData.landSize}m²` : ""}`,
+                    font: {
+                      family: templateStyle.statFont.replace(/'/g, ""),
+                      size: 40,
+                      color: templateStyle.accentColor,
+                      weight: 700,
+                    },
+                    width: 1000,
+                    height: 80,
+                    horizontalAlignment: "left",
+                    verticalAlignment: "bottom",
+                    background: {
+                      color: "#000000",
+                      opacity: 0.7,
+                    },
+                  },
+                  start: 0,
+                  length: 5,
+                  position: "bottomLeft",
+                  offset: { x: 0.04, y: 0.05 },
+                },
+              ],
+            },
             // Black background for agent card at the end (if agent info provided)
             ...(agentInfo && agentInfo.name ? [{
               clips: [
