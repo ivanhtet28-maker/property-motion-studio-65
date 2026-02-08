@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
   try {
     const body: GenerateScriptRequest = await req.json();
 
-    console.log("=== GENERATE AI SCRIPT (Claude Sonnet) ===");
+    console.log("=== GENERATE AI SCRIPT (Claude Sonnet 4.5) ===");
     console.log("- Address:", body.address);
     console.log("- Price:", body.price);
     console.log("- Bedrooms:", body.bedrooms);
@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
     const sizeText = size ? `${size} square meters` : "generous living space";
 
     // Create AI prompt
-    const prompt = `You are a professional real estate copywriter. Write a compelling 30-second video script for a property listing.
+    const prompt = `You are a professional real estate copywriter. Write a compelling 15-second video script for a property listing.
 
 Property Details:
 - Address: ${address || "this stunning property"}
@@ -71,11 +71,11 @@ ${description ? `- Additional Info: ${description}` : ''}
 Requirements:
 - Write in a warm, enthusiastic tone
 - Highlight key selling points
-- Keep it concise (30 seconds when read aloud, approximately 75-90 words)
+- Keep it very concise (15 seconds when read aloud, approximately 35-40 words maximum)
 - End with a strong call-to-action
 - Use vivid, descriptive language
-- Format: 3 short paragraphs
-- Focus on lifestyle benefits and emotional appeal
+- Format: 2 short sentences
+- Focus on the most compelling feature and lifestyle benefit
 
 Write only the script, no preamble or explanations.`;
 
@@ -90,8 +90,8 @@ Write only the script, no preamble or explanations.`;
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-3-sonnet-20240229",
-        max_tokens: 300,
+        model: "claude-sonnet-4-5",
+        max_tokens: 150,
         messages: [
           {
             role: "user",
@@ -113,10 +113,10 @@ Write only the script, no preamble or explanations.`;
     const script = data.content[0]?.text?.trim();
 
     if (!script) {
-      throw new Error("No script generated from Claude");
+      throw new Error("No script generated from Claude Sonnet 4.5");
     }
 
-    console.log("AI script generated successfully with Claude");
+    console.log("AI script generated successfully with Claude Sonnet 4.5");
     console.log("Script length:", script.length, "characters");
 
     return new Response(

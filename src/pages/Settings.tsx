@@ -12,32 +12,32 @@ const plans = [
   {
     id: "starter",
     name: "Starter",
-    price: 49,
+    price: 299,
     videos: 10,
     description: "Perfect for solo agents",
   },
   {
-    id: "professional",
-    name: "Professional",
-    price: 99,
+    id: "growth",
+    name: "Growth",
+    price: 499,
     videos: 30,
     description: "For busy agents",
     current: true,
   },
   {
-    id: "agency",
-    name: "Agency",
-    price: 199,
+    id: "enterprise",
+    name: "Enterprise",
+    price: "Custom",
     videos: -1,
     description: "For agencies & teams",
   },
 ];
 
 const billingHistory = [
-  { date: "Jan 15, 2025", description: "Professional Plan", amount: "$99.00" },
-  { date: "Dec 15, 2024", description: "Professional Plan", amount: "$99.00" },
-  { date: "Nov 15, 2024", description: "Professional Plan", amount: "$99.00" },
-  { date: "Oct 15, 2024", description: "Starter Plan", amount: "$49.00" },
+  { date: "Jan 15, 2025", description: "Growth Plan", amount: "$499.00" },
+  { date: "Dec 15, 2024", description: "Growth Plan", amount: "$499.00" },
+  { date: "Nov 15, 2024", description: "Growth Plan", amount: "$499.00" },
+  { date: "Oct 15, 2024", description: "Starter Plan", amount: "$299.00" },
 ];
 
 export default function Settings() {
@@ -272,10 +272,14 @@ export default function Settings() {
                       {plan.description}
                     </p>
                     <div className="mt-4">
-                      <span className="text-3xl font-bold">${plan.price}</span>
-                      <span className={`text-sm ${plan.current ? "opacity-80" : "text-muted-foreground"}`}>
-                        /month
+                      <span className="text-3xl font-bold">
+                        {typeof plan.price === 'number' ? `$${plan.price}` : plan.price}
                       </span>
+                      {typeof plan.price === 'number' && (
+                        <span className={`text-sm ${plan.current ? "opacity-80" : "text-muted-foreground"}`}>
+                          /month
+                        </span>
+                      )}
                     </div>
                     <p className={`mt-2 text-sm ${plan.current ? "opacity-80" : "text-muted-foreground"}`}>
                       {plan.videos === -1 ? "Unlimited" : plan.videos} videos/month
@@ -290,7 +294,7 @@ export default function Settings() {
                         variant={plan.current ? "secondary" : "outline"}
                         className="w-full mt-6"
                       >
-                        {plan.price > 99 ? "Upgrade" : "Downgrade"}
+                        {plan.id === 'enterprise' ? 'Contact Sales' : (typeof plan.price === 'number' && plan.price > 499) ? "Upgrade" : "Downgrade"}
                       </Button>
                     )}
                   </div>
@@ -309,9 +313,9 @@ export default function Settings() {
                         <th className="text-left p-4 font-medium text-muted-foreground">Feature</th>
                         <th className="text-center p-4 font-medium text-muted-foreground">Starter</th>
                         <th className="text-center p-4 font-medium text-muted-foreground bg-accent">
-                          Professional
+                          Growth
                         </th>
-                        <th className="text-center p-4 font-medium text-muted-foreground">Agency</th>
+                        <th className="text-center p-4 font-medium text-muted-foreground">Enterprise</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -325,12 +329,12 @@ export default function Settings() {
                         ["White Label", "—", "—", "✓"],
                         ["Multi-user", "—", "—", "✓"],
                         ["API Access", "—", "—", "✓"],
-                      ].map(([feature, starter, pro, agency], index) => (
+                      ].map(([feature, starter, growth, enterprise], index) => (
                         <tr key={index} className="border-b border-border last:border-0">
                           <td className="p-4 text-foreground">{feature}</td>
                           <td className="p-4 text-center text-muted-foreground">{starter}</td>
-                          <td className="p-4 text-center bg-accent text-foreground">{pro}</td>
-                          <td className="p-4 text-center text-muted-foreground">{agency}</td>
+                          <td className="p-4 text-center bg-accent text-foreground">{growth}</td>
+                          <td className="p-4 text-center text-muted-foreground">{enterprise}</td>
                         </tr>
                       ))}
                     </tbody>

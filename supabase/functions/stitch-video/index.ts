@@ -26,10 +26,27 @@
     folder: string
   ): Promise<string | null> {
     try {
+      console.log("Starting image upload...");
+      console.log("Base64 data length:", base64Data.length);
+
+      // Detect content type from base64 prefix
+      let contentType = "image/png";
+      if (base64Data.includes("data:image/jpeg") || base64Data.includes("data:image/jpg")) {
+        contentType = "image/jpeg";
+      } else if (base64Data.includes("data:image/png")) {
+        contentType = "image/png";
+      } else if (base64Data.includes("data:image/webp")) {
+        contentType = "image/webp";
+      }
+
+      console.log("Detected content type:", contentType);
+
       // Remove data:image/xxx;base64, prefix if present
       const base64Content = base64Data.includes(",")
         ? base64Data.split(",")[1]
         : base64Data;
+
+      console.log("Base64 content length after split:", base64Content.length);
 
       // Convert base64 to Uint8Array
       const binaryString = atob(base64Content);
@@ -38,24 +55,43 @@
         bytes[i] = binaryString.charCodeAt(i);
       }
 
+      console.log("Converted to bytes, length:", bytes.length);
+
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
       const filePath = `${folder}/${fileName}`;
 
+      console.log("Uploading to path:", filePath);
+
       const { error: uploadError } = await supabase.storage
         .from("video-assets")
         .upload(filePath, bytes, {
-          contentType: "image/png",
+          contentType: contentType,
           upsert: true,
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error("Upload error:", uploadError);
+        throw uploadError;
+      }
 
       const { data: urlData } = supabase.storage
         .from("video-assets")
         .getPublicUrl(filePath);
+
+      console.log("Upload successful, URL:", urlData.publicUrl);
+
+      // Verify the image is accessible
+      try {
+        const verifyResponse = await fetch(urlData.publicUrl, { method: "HEAD" });
+        console.log("Image verification status:", verifyResponse.status);
+        console.log("Image content-type:", verifyResponse.headers.get("content-type"));
+        console.log("Image content-length:", verifyResponse.headers.get("content-length"));
+      } catch (verifyErr) {
+        console.error("Failed to verify uploaded image:", verifyErr);
+      }
 
       return urlData.publicUrl;
     } catch (err) {
@@ -94,7 +130,7 @@
     }
 
     try {
-      const { videoUrls, propertyData, audioUrl, musicUrl, agentInfo, videoId }: StitchVideoRequest = await req.json();
+      const { videoUrls, propertyData, audioUrl, musicUrl, agentInfo, style, videoId }: StitchVideoRequest = await req.json();
 
       if (!videoUrls || videoUrls.length === 0) {
         throw new Error("No video URLs provided for stitching");
@@ -103,15 +139,35 @@
       console.log("=== SHOTSTACK VIDEO STITCHING ===");
       console.log("Stitching", videoUrls.length, "Luma AI clips");
       console.log("Property Data Received:", JSON.stringify(propertyData, null, 2));
-      console.log("Agent Info Received:", agentInfo ? JSON.stringify(agentInfo, null, 2) : "No agent info");
+      console.log("Agent Info Received:", agentInfo ? {
+        name: agentInfo.name,
+        phone: agentInfo.phone,
+        email: agentInfo.email,
+        hasPhoto: !!agentInfo.photo,
+        photoLength: agentInfo.photo ? agentInfo.photo.length : 0
+      } : "No agent info");
 
       // Upload agent photo to storage if provided (to avoid payload size issues)
       let agentPhotoUrl: string | null = null;
       if (agentInfo?.photo) {
+        console.log("Agent photo data type:", typeof agentInfo.photo);
+        console.log("Agent photo starts with:", agentInfo.photo.substring(0, 50));
         console.log("Uploading agent photo to storage...");
-        const fileName = `agent-${videoId || Date.now()}.png`;
+
+        // Detect file extension from base64 prefix
+        let extension = "png";
+        if (agentInfo.photo.includes("data:image/jpeg") || agentInfo.photo.includes("data:image/jpg")) {
+          extension = "jpg";
+        } else if (agentInfo.photo.includes("data:image/webp")) {
+          extension = "webp";
+        }
+
+        const fileName = `agent-${videoId || Date.now()}.${extension}`;
+        console.log("Using filename:", fileName);
         agentPhotoUrl = await uploadBase64ToStorage(agentInfo.photo, fileName, "agent-photos");
         console.log("Agent photo URL:", agentPhotoUrl);
+      } else {
+        console.log("No agent photo provided in agentInfo");
       }
 
       // Calculate total duration
@@ -164,129 +220,100 @@
               clips: videoClips,
             },
 
-            // Template title overlay - TOP (Track 2 or 1)
-            ...(style && TEMPLATE_NAMES[style] ? [{
-              clips: [
-                {
-                  asset: {
-                    type: "title",
-                    text: TEMPLATE_NAMES[style],
-                    style: "subtitle",
-                    color: "#FFFFFF",
-                    size: "small",
-                    position: "top",
-                    offset: {
-                      x: 0,
-                      y: 0.02,
-                    },
-                  },
-                  start: 0.1,
-                  length: 4.9,
-                  fit: "none",
-                  scale: 1.0,
-                },
-              ],
-            }] : []),
-
-            // Property address overlay (Track 3 or 2)
+            // Property details HTML overlay - complete control over positioning (Track 2 or 1)
             {
               clips: [
                 {
                   asset: {
-                    type: "title",
-                    text: propertyData.address,
-                    style: "subtitle",
-                    color: "#FFFFFF",
-                    size: "small",
-                    position: "top",
-                    offset: {
-                      x: 0,
-                      y: 0.08,
-                    },
-                  },
-                  start: 0.1,
-                  length: 4.9,
-                  fit: "none",
-                  scale: 0.9,
-                },
-              ],
-            },
-
-            // Property details overlay - price and specs (Track 4 or 3)
-            {
-              clips: [
-                {
-                  asset: {
-                    type: "title",
-                    text: `${propertyData.price} • ${propertyData.beds} BED • ${propertyData.baths} BATH${propertyData.carSpaces ? ` • ${propertyData.carSpaces} CAR` : ""}${propertyData.landSize ? ` • ${propertyData.landSize}m²` : ""}`,
-                    style: "subtitle",
-                    color: "#FFFFFF",
-                    size: "small",
-                    position: "top",
-                    offset: {
-                      x: 0,
-                      y: 0.14,
-                    },
-                  },
-                  start: 0.1,
-                  length: 4.9,
-                  fit: "none",
-                  scale: 0.8,
-                },
-              ],
-            },
-
-            // Agent card at the end - ON TOP (Track 5 or 4)
-            ...(agentInfo && agentInfo.name ? [{
-              clips: [
-                {
-                  asset: agentPhotoUrl ? {
                     type: "html",
                     html: `
                       <div style="
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: center;
                         width: 100%;
                         height: 100%;
-                        font-family: Arial, sans-serif;
+                        display: flex;
+                        flex-direction: column;
+                        padding-top: 80px;
                         text-align: center;
-                        color: white;
+                        font-family: Arial, sans-serif;
                       ">
-                        <img
-                          src="${agentPhotoUrl}"
-                          style="
-                            width: 120px;
-                            height: 120px;
-                            border-radius: 50%;
-                            border: 3px solid white;
-                            object-fit: cover;
-                            margin-bottom: 20px;
-                          "
-                        />
-                        <div style="font-size: 32px; font-weight: bold; margin-bottom: 10px;">
-                          ${agentInfo.name}
-                        </div>
-                        <div style="font-size: 24px; margin-bottom: 5px;">
-                          ${agentInfo.phone}
-                        </div>
-                        ${agentInfo.email ? `<div style="font-size: 20px; margin-bottom: 20px;">${agentInfo.email}</div>` : ''}
-                        <div style="font-size: 28px; font-weight: bold; margin-top: 15px;">
-                          CONTACT ME TODAY
+                        <div style="
+                          background: rgba(0, 0, 0, 0.95);
+                          padding: 40px 60px;
+                          margin: 0 auto;
+                          border-radius: 20px;
+                          border: 3px solid rgba(255, 255, 255, 0.3);
+                          color: white;
+                          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+                        ">
+                          ${style && TEMPLATE_NAMES[style] ? `<div style="font-size: 52px; font-weight: 900; margin-bottom: 28px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${TEMPLATE_NAMES[style]}</div>` : ''}
+                          <div style="font-size: 42px; font-weight: 700; margin-bottom: 22px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${propertyData.address}</div>
+                          <div style="font-size: 38px; font-weight: 900; margin-bottom: 18px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">$${propertyData.price}</div>
+                          <div style="font-size: 32px; line-height: 1.7; text-shadow: 3px 3px 6px rgba(0,0,0,1); font-weight: 600; color: white;">
+                            <div>${propertyData.beds} Bedroom${propertyData.beds !== 1 ? 's' : ''} | ${propertyData.baths} Bathroom${propertyData.baths !== 1 ? 's' : ''}</div>
+                            <div>${propertyData.carSpaces ? `${propertyData.carSpaces} Car Space${propertyData.carSpaces !== 1 ? 's' : ''}` : ''}${propertyData.carSpaces && propertyData.landSize ? ' | ' : ''}${propertyData.landSize ? `${propertyData.landSize}m² Land Size` : ''}</div>
+                          </div>
                         </div>
                       </div>
                     `,
                     css: "",
                     width: 1080,
                     height: 1920,
-                  } : {
-                    type: "title",
-                    text: `${agentInfo.name}\n${agentInfo.phone}${agentInfo.email ? `\n${agentInfo.email}` : ""}\n\nCONTACT ME TODAY`,
-                    style: "subtitle",
-                    color: "#FFFFFF",
-                    size: "small",
-                    position: "center",
+                  },
+                  start: 0.1,
+                  length: 4.9,
+                },
+              ],
+            },
+
+            // Agent photo (rectangular for now) - Track 3 or 2
+            ...(agentPhotoUrl ? [{
+              clips: [
+                {
+                  asset: {
+                    type: "image",
+                    src: agentPhotoUrl,
+                  },
+                  start: videoClipsDuration,
+                  length: 5,
+                  fit: "crop",
+                  scale: 0.2,
+                  position: "top",
+                  offset: {
+                    x: 0,
+                    y: -0.18,
+                  },
+                },
+              ],
+            }] : []),
+
+            // Agent text details - Track 5 or 4
+            ...(agentInfo && agentInfo.name ? [{
+              clips: [
+                {
+                  asset: {
+                    type: "html",
+                    html: `
+                      <div style="
+                        width: 1080px;
+                        height: 1920px;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        font-family: Arial, sans-serif;
+                        color: white;
+                        text-align: center;
+                        padding-top: ${agentPhotoUrl ? '100px' : '0'};
+                      ">
+                        <div style="font-size: 48px; font-weight: bold; margin-bottom: 20px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.name}</div>
+                        <div style="font-size: 38px; margin-bottom: 15px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.phone}</div>
+                        ${agentInfo.email ? `<div style="font-size: 32px; margin-bottom: 30px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.email}</div>` : ''}
+                        <div style="font-size: 44px; font-weight: bold; margin-top: 20px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">CONTACT ME TODAY</div>
+                      </div>
+                    `,
+                    css: "",
+                    width: 1080,
+                    height: 1920,
                   },
                   start: videoClipsDuration,
                   length: 5,

@@ -247,29 +247,29 @@ export default function Index() {
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto items-start">
             <PricingCard
               name="Starter"
-              price="$49"
+              price="$299"
               period="month"
               description="Perfect for solo agents"
               features={["10 videos per month", "HD videos", "All templates", "Agent branding", "Email support"]}
               cta="Start Free Trial"
             />
             <PricingCard
-              name="Professional"
-              price="$99"
+              name="Growth"
+              price="$499"
               period="month"
               description="For busy agents"
               features={["30 videos per month", "Everything in Starter", "Priority support", "Analytics dashboard", "Custom music"]}
               cta="Start Free Trial"
               highlighted
-              badge="Most Popular"
+              badge="⭐ RECOMMENDED"
             />
             <PricingCard
-              name="Agency"
-              price="$199"
-              period="month"
+              name="Enterprise"
+              price="Custom"
+              period="pricing"
               description="For agencies & teams"
-              features={["Unlimited videos", "Everything in Pro", "White label option", "Multi-user access", "API access"]}
-              cta="Contact Sales"
+              features={["Unlimited videos", "Everything in Growth", "White label option", "Multi-user access", "API access"]}
+              cta="Enquire Now"
             />
           </div>
         </div>
