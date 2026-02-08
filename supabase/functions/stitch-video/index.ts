@@ -301,47 +301,65 @@
               clips: videoClips,
             },
 
-            // Property details overlay - simplified single text test
+            // Property details overlay - using HTML like agent card (this works!)
             {
               clips: [
                 {
                   asset: {
-                    type: "title",
-                    text: templateStyle.title,
-                    style: "minimal",
-                    color: "#FFFFFF",
-                    size: "large",
-                    background: "#000000",
-                    position: "top",
+                    type: "html",
+                    html: `
+                      <div style="
+                        width: 100%;
+                        height: 100%;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: space-between;
+                        font-family: Arial, sans-serif;
+                        color: white;
+                        padding: 80px 60px;
+                      ">
+                        <div style="text-align: center;">
+                          <div style="
+                            font-size: 72px;
+                            font-weight: 800;
+                            margin-bottom: 20px;
+                            background: rgba(0, 0, 0, 0.6);
+                            padding: 20px;
+                            display: inline-block;
+                          ">
+                            ${templateStyle.title}
+                          </div>
+                          <div style="
+                            font-size: 36px;
+                            font-weight: 600;
+                            background: rgba(0, 0, 0, 0.5);
+                            padding: 15px;
+                            display: inline-block;
+                          ">
+                            ${propertyData.address}
+                          </div>
+                        </div>
+                        <div style="
+                          font-size: 40px;
+                          font-weight: 700;
+                          background: rgba(0, 0, 0, 0.7);
+                          padding: 15px 30px;
+                          display: inline-block;
+                          color: ${templateStyle.accentColor};
+                        ">
+                          ${propertyData.beds} BED  •  ${propertyData.baths} BATH${propertyData.carSpaces ? `  •  ${propertyData.carSpaces} CAR` : ""}${propertyData.landSize ? `  •  ${propertyData.landSize}m²` : ""}
+                        </div>
+                      </div>
+                    `,
+                    css: "",
+                    width: 1080,
+                    height: 1920,
                   },
                   start: 0,
                   length: 5,
-                },
-                {
-                  asset: {
-                    type: "title",
-                    text: propertyData.address,
-                    style: "minimal",
-                    color: "#FFFFFF",
-                    size: "medium",
-                    background: "#000000",
-                    position: "center",
+                  transition: {
+                    out: "fade",
                   },
-                  start: 0,
-                  length: 5,
-                },
-                {
-                  asset: {
-                    type: "title",
-                    text: `${propertyData.beds} BED • ${propertyData.baths} BATH${propertyData.carSpaces ? ` • ${propertyData.carSpaces} CAR` : ""}`,
-                    style: "minimal",
-                    color: templateStyle.accentColor,
-                    size: "small",
-                    background: "#000000",
-                    position: "bottom",
-                  },
-                  start: 0,
-                  length: 5,
                 },
               ],
             },
