@@ -158,8 +158,10 @@
       console.log("=== SHOTSTACK VIDEO STITCHING ===");
       console.log("Stitching", videoUrls.length, "Luma AI clips");
 
-      // Calculate total duration (5 seconds per Luma clip)
-      const totalDuration = videoUrls.length * 5;
+      // Calculate total duration (5 seconds per Luma clip + 5 seconds for agent card if agent info provided)
+      const videoClipsDuration = videoUrls.length * 5;
+      const agentCardDuration = (agentInfo && agentInfo.name) ? 5 : 0;
+      const totalDuration = videoClipsDuration + agentCardDuration;
 
       // Build video track with all Luma clips in sequence
       const videoClips = videoUrls.map((url, index) => ({
@@ -400,7 +402,7 @@
                 ],
               },
 
-            // Agent overlay track (if available)
+            // Black background for agent card at the end (if agent info provided)
             ...(agentInfo && agentInfo.name ? [{
               clips: [
                 {
@@ -409,45 +411,94 @@
                     html: `
                       <div style="
                         position: absolute;
-                        bottom: 40px;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        background: rgba(0, 0, 0, 0.85);
-                        backdrop-filter: blur(10px);
-                        border-radius: 20px;
-                        padding: 15px 25px;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        background: #000000;
+                      "></div>
+                    `,
+                    css: "",
+                    width: 1080,
+                    height: 1920,
+                  },
+                  start: videoClipsDuration,
+                  length: 5,
+                },
+              ],
+            }] : []),
+
+            // Agent branding card at the end (if available)
+            ...(agentInfo && agentInfo.name ? [{
+              clips: [
+                {
+                  asset: {
+                    type: "html",
+                    html: `
+                      <div style="
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
                         display: flex;
+                        flex-direction: column;
                         align-items: center;
-                        gap: 15px;
-                        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-                        border: 1px solid rgba(255, 255, 255, 0.1);
+                        justify-content: center;
+                        font-family: 'Helvetica Neue', Arial, sans-serif;
+                        color: white;
+                        text-align: center;
+                        padding: 60px;
                       ">
                         ${agentInfo.photo ? `
                           <img
                             src="${agentInfo.photo}"
                             style="
-                              width: 60px;
-                              height: 60px;
+                              width: 180px;
+                              height: 180px;
                               border-radius: 50%;
-                              border: 2px solid white;
+                              border: 4px solid white;
                               object-fit: cover;
+                              margin-bottom: 30px;
+                              box-shadow: 0 8px 32px rgba(255, 255, 255, 0.2);
                             "
                           />
                         ` : ''}
-                        <div style="color: white; font-family: Arial, sans-serif;">
-                          <div style="font-size: 18px; font-weight: bold; margin-bottom: 3px;">
-                            ${agentInfo.name}
+                        <div style="
+                          font-size: 42px;
+                          font-weight: 700;
+                          margin-bottom: 15px;
+                          letter-spacing: 1px;
+                        ">
+                          ${agentInfo.name}
+                        </div>
+                        ${agentInfo.phone ? `
+                          <div style="
+                            font-size: 28px;
+                            opacity: 0.9;
+                            margin-bottom: 10px;
+                            font-weight: 400;
+                          ">
+                            ${agentInfo.phone}
                           </div>
-                          ${agentInfo.phone ? `
-                            <div style="font-size: 14px; opacity: 0.9;">
-                              ${agentInfo.phone}
-                            </div>
-                          ` : ''}
-                          ${agentInfo.email ? `
-                            <div style="font-size: 12px; opacity: 0.7; margin-top: 2px;">
-                              ${agentInfo.email}
-                            </div>
-                          ` : ''}
+                        ` : ''}
+                        ${agentInfo.email ? `
+                          <div style="
+                            font-size: 24px;
+                            opacity: 0.8;
+                            font-weight: 300;
+                          ">
+                            ${agentInfo.email}
+                          </div>
+                        ` : ''}
+                        <div style="
+                          margin-top: 40px;
+                          font-size: 20px;
+                          opacity: 0.7;
+                          font-weight: 300;
+                          letter-spacing: 2px;
+                        ">
+                          CONTACT ME TODAY
                         </div>
                       </div>
                     `,
@@ -455,14 +506,16 @@
                     width: 1080,
                     height: 1920,
                   },
-                  start: 0,
-                  length: totalDuration,
-                  position: "bottom",
+                  start: videoClipsDuration,
+                  length: 5,
+                  transition: {
+                    in: "fade",
+                  },
                 },
               ],
             }] : []),
 
-            // Voiceover track (if available)
+            // Voiceover track (if available) - only during video clips, not agent card
             ...(audioUrl ? [{
               clips: [
                 {
@@ -472,7 +525,7 @@
                     volume: 1.0, // Full volume for voiceover
                   },
                   start: 0,
-                  length: totalDuration,
+                  length: videoClipsDuration, // Only play during video clips
                 },
               ],
             }] : []),
