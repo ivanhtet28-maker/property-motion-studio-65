@@ -38,7 +38,18 @@
             },
             body: JSON.stringify({
               model: "ray-2",
-              prompt: `High-end cinematic real estate video of ${propertyAddress}. Smooth, slow, stabilized camera motion with subtle parallax (no shaking). Camera performs a gentle dolly-in and slight lateral glide, maintaining architectural accuracy. Golden hour sunlight with warm natural tones, soft shadows, realistic reflections. Emphasis on clean lines, symmetry, textures, windows, façade, and premium materials. Luxury property cinematography, calm and elegant mood. Ultra-realistic lighting, consistent exposure, natural colors. Shallow cinematic depth of field where appropriate, sharp focus on the building. No people, no vehicles, no text overlays. Photorealistic, upscale, professional real estate marketing video. 4K quality, clean, stable, cohesive shot.`,
+              prompt: `High-end cinematic real estate video of ${propertyAddress}.
+Ultra-stable camera with locked horizon and tripod-level steadiness.
+Extremely slow, controlled camera motion only — subtle forward dolly or micro parallax, no rotation.
+Camera behaves as if mounted on a professional gimbal or tripod head.
+No shaking, no jitter, no wobble, no handheld motion.
+Smooth continuous motion from start to end with no sudden changes.
+Maintain strict architectural accuracy and straight vertical lines.
+Golden hour natural lighting, soft shadows, realistic reflections.
+Luxury real estate cinematography, calm and elegant mood.
+Photorealistic, consistent exposure, natural color grading.
+No people, no vehicles, no text, no camera artifacts.
+4K quality, clean, stable, professional property marketing video.`,
               keyframes: {
                 frame0: {
                   type: "image",

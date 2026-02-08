@@ -302,231 +302,116 @@
             },
 
             // Property details overlay (first 5 seconds only) - Text with strong outline
-              {
-                clips: [
-                  {
-                    asset: {
-                      type: "html",
-                      html: `
-                        <div style="
-                          position: absolute;
-                          top: 0;
-                          left: 0;
-                          width: 100%;
-                          height: 100%;
-                          padding: 80px 60px;
-                          display: flex;
-                          flex-direction: column;
-                          justify-content: space-between;
-                          font-family: ${templateStyle.addressFont};
-                          color: white;
-                        ">
-                          <!-- Top Section: Template Title + Address + Features -->
-                          <div style="text-align: center;">
-                            <!-- Template Title -->
-                            <div style="
-                              font-family: ${templateStyle.titleFont};
-                              font-size: ${templateStyle.titleSize};
-                              font-weight: ${templateStyle.titleWeight};
-                              color: white;
-                              -webkit-text-stroke: 2px rgba(0, 0, 0, 0.5);
-                              text-shadow:
-                                0 0 20px rgba(0, 0, 0, 0.9),
-                                0 0 40px rgba(0, 0, 0, 0.7),
-                                4px 4px 15px rgba(0, 0, 0, 1),
-                                -2px -2px 10px rgba(0, 0, 0, 0.8);
-                              letter-spacing: 2px;
-                              margin-bottom: 25px;
-                            ">
-                              ${templateStyle.title}
-                            </div>
+              // PROPERTY OVERLAYS (use multiple simple HTML assets)
+{
+  clips: [
+    // Title (top center)
+    {
+      asset: {
+        type: "html",
+        html: `<p>${templateStyle.title}</p>`,
+        css: `
+          p {
+            font-family: ${templateStyle.titleFont};
+            font-size: ${templateStyle.titleSize};
+            font-weight: ${templateStyle.titleWeight};
+            color: ${templateStyle.titleColor};
+            text-align: center;
+            text-shadow: ${templateStyle.titleShadow};
+            margin: 0;
+          }
+        `,
+        width: 1000,
+        height: 160,
+        background: "transparent",
+      },
+      start: 0,
+      length: 5,
+      position: "top",
+      offset: { y: 0.08 },
+    },
 
-                            <!-- Address -->
-                            <div style="
-                              font-family: ${templateStyle.addressFont};
-                              font-size: ${templateStyle.addressSize};
-                              font-weight: ${templateStyle.addressWeight};
-                              color: white;
-                              -webkit-text-stroke: 1.5px rgba(0, 0, 0, 0.5);
-                              letter-spacing: 1px;
-                              text-shadow:
-                                0 0 15px rgba(0, 0, 0, 0.9),
-                                0 0 30px rgba(0, 0, 0, 0.7),
-                                3px 3px 12px rgba(0, 0, 0, 1),
-                                -1px -1px 8px rgba(0, 0, 0, 0.8);
-                              margin-bottom: ${propertyData.features && propertyData.features.length > 0 ? '15px' : '0'};
-                            ">
-                              ${propertyData.address}
-                            </div>
-                            ${propertyData.features && propertyData.features.length > 0 ? `
-                              <div style="
-                                font-size: 16px;
-                                font-weight: 400;
-                                letter-spacing: 0.5px;
-                                color: white;
-                                -webkit-text-stroke: 1px rgba(0, 0, 0, 0.4);
-                                text-shadow:
-                                  0 0 12px rgba(0, 0, 0, 0.9),
-                                  0 0 25px rgba(0, 0, 0, 0.7),
-                                  2px 2px 10px rgba(0, 0, 0, 1),
-                                  -1px -1px 6px rgba(0, 0, 0, 0.8);
-                                margin-top: 10px;
-                              ">
-                                ${propertyData.features.slice(0, 4).join(' • ')}
-                              </div>
-                            ` : ''}
-                          </div>
+    // Address (below title)
+    {
+      asset: {
+        type: "html",
+        html: `<p>${propertyData.address}</p>`,
+        css: `
+          p {
+            font-family: ${templateStyle.addressFont};
+            font-size: ${templateStyle.addressSize};
+            font-weight: ${templateStyle.addressWeight};
+            color: white;
+            text-align: center;
+            text-shadow: 0 0 15px rgba(0,0,0,0.9);
+            margin: 0;
+          }
+        `,
+        width: 1000,
+        height: 140,
+        background: "transparent",
+      },
+      start: 0,
+      length: 5,
+      position: "top",
+      offset: { y: 0.18 },
+    },
 
-                          <!-- Bottom Section: Property Stats (Text Only) -->
-                          <div style="
-                            display: flex;
-                            align-items: center;
-                            gap: 45px;
-                          ">
-                            <!-- Bedrooms -->
-                            <div style="display: flex; flex-direction: column; align-items: flex-start;">
-                              <span style="
-                                font-family: ${templateStyle.statFont};
-                                font-size: ${templateStyle.statSize};
-                                font-weight: ${templateStyle.statWeight};
-                                color: white;
-                                -webkit-text-stroke: 2px rgba(0, 0, 0, 0.5);
-                                line-height: 1;
-                                margin-bottom: 8px;
-                                text-shadow:
-                                  0 0 15px rgba(0, 0, 0, 0.9),
-                                  0 0 30px rgba(0, 0, 0, 0.7),
-                                  3px 3px 12px rgba(0, 0, 0, 1),
-                                  -1px -1px 8px rgba(0, 0, 0, 0.8);
-                              ">${propertyData.beds}</span>
-                              <span style="
-                                font-family: ${templateStyle.addressFont};
-                                font-size: 20px;
-                                font-weight: 400;
-                                letter-spacing: 1px;
-                                color: ${templateStyle.accentColor};
-                                -webkit-text-stroke: 1px rgba(0, 0, 0, 0.4);
-                                text-shadow:
-                                  0 0 12px rgba(0, 0, 0, 0.9),
-                                  0 0 25px rgba(0, 0, 0, 0.7),
-                                  2px 2px 10px rgba(0, 0, 0, 1),
-                                  -1px -1px 6px rgba(0, 0, 0, 0.8);
-                              ">${propertyData.beds === 1 ? 'BEDROOM' : 'BEDROOMS'}</span>
-                            </div>
+    // Features (optional, smaller)
+    ...(propertyData.features?.length
+      ? [{
+          asset: {
+            type: "html",
+            html: `<p>${propertyData.features.slice(0, 4).join(" • ")}</p>`,
+            css: `
+              p {
+                font-family: ${templateStyle.addressFont};
+                font-size: 26px;
+                font-weight: 400;
+                color: white;
+                text-align: center;
+                text-shadow: 0 0 12px rgba(0,0,0,0.9);
+                margin: 0;
+              }
+            `,
+            width: 1000,
+            height: 120,
+            background: "transparent",
+          },
+          start: 0,
+          length: 5,
+          position: "top",
+          offset: { y: 0.26 },
+        }]
+      : []),
 
-                            <!-- Bathrooms -->
-                            <div style="display: flex; flex-direction: column; align-items: flex-start;">
-                              <span style="
-                                font-family: ${templateStyle.statFont};
-                                font-size: ${templateStyle.statSize};
-                                font-weight: ${templateStyle.statWeight};
-                                color: white;
-                                -webkit-text-stroke: 2px rgba(0, 0, 0, 0.5);
-                                line-height: 1;
-                                margin-bottom: 8px;
-                                text-shadow:
-                                  0 0 15px rgba(0, 0, 0, 0.9),
-                                  0 0 30px rgba(0, 0, 0, 0.7),
-                                  3px 3px 12px rgba(0, 0, 0, 1),
-                                  -1px -1px 8px rgba(0, 0, 0, 0.8);
-                              ">${propertyData.baths}</span>
-                              <span style="
-                                font-family: ${templateStyle.addressFont};
-                                font-size: 20px;
-                                font-weight: 400;
-                                letter-spacing: 1px;
-                                color: ${templateStyle.accentColor};
-                                -webkit-text-stroke: 1px rgba(0, 0, 0, 0.4);
-                                text-shadow:
-                                  0 0 12px rgba(0, 0, 0, 0.9),
-                                  0 0 25px rgba(0, 0, 0, 0.7),
-                                  2px 2px 10px rgba(0, 0, 0, 1),
-                                  -1px -1px 6px rgba(0, 0, 0, 0.8);
-                              ">${propertyData.baths === 1 ? 'BATHROOM' : 'BATHROOMS'}</span>
-                            </div>
-
-                            ${propertyData.carSpaces ? `
-                              <!-- Car Spaces -->
-                              <div style="display: flex; flex-direction: column; align-items: flex-start;">
-                                <span style="
-                                  font-family: ${templateStyle.statFont};
-                                  font-size: ${templateStyle.statSize};
-                                  font-weight: ${templateStyle.statWeight};
-                                  color: white;
-                                  -webkit-text-stroke: 2px rgba(0, 0, 0, 0.5);
-                                  line-height: 1;
-                                  margin-bottom: 8px;
-                                  text-shadow:
-                                    0 0 15px rgba(0, 0, 0, 0.9),
-                                    0 0 30px rgba(0, 0, 0, 0.7),
-                                    3px 3px 12px rgba(0, 0, 0, 1),
-                                    -1px -1px 8px rgba(0, 0, 0, 0.8);
-                                ">${propertyData.carSpaces}</span>
-                                <span style="
-                                  font-family: ${templateStyle.addressFont};
-                                  font-size: 20px;
-                                  font-weight: 400;
-                                  letter-spacing: 1px;
-                                  color: ${templateStyle.accentColor};
-                                  -webkit-text-stroke: 1px rgba(0, 0, 0, 0.4);
-                                  text-shadow:
-                                    0 0 12px rgba(0, 0, 0, 0.9),
-                                    0 0 25px rgba(0, 0, 0, 0.7),
-                                    2px 2px 10px rgba(0, 0, 0, 1),
-                                    -1px -1px 6px rgba(0, 0, 0, 0.8);
-                                ">${propertyData.carSpaces === 1 ? 'CAR SPACE' : 'CAR SPACES'}</span>
-                              </div>
-                            ` : ''}
-
-                            ${propertyData.landSize ? `
-                              <!-- Land Size -->
-                              <div style="display: flex; flex-direction: column; align-items: flex-start;">
-                                <span style="
-                                  font-family: ${templateStyle.statFont};
-                                  font-size: ${templateStyle.statSize};
-                                  font-weight: ${templateStyle.statWeight};
-                                  color: white;
-                                  -webkit-text-stroke: 2px rgba(0, 0, 0, 0.5);
-                                  line-height: 1;
-                                  margin-bottom: 8px;
-                                  text-shadow:
-                                    0 0 15px rgba(0, 0, 0, 0.9),
-                                    0 0 30px rgba(0, 0, 0, 0.7),
-                                    3px 3px 12px rgba(0, 0, 0, 1),
-                                    -1px -1px 8px rgba(0, 0, 0, 0.8);
-                                ">${propertyData.landSize}m²</span>
-                                <span style="
-                                  font-family: ${templateStyle.addressFont};
-                                  font-size: 20px;
-                                  font-weight: 400;
-                                  letter-spacing: 1px;
-                                  color: ${templateStyle.accentColor};
-                                  -webkit-text-stroke: 1px rgba(0, 0, 0, 0.4);
-                                  text-shadow:
-                                    0 0 12px rgba(0, 0, 0, 0.9),
-                                    0 0 25px rgba(0, 0, 0, 0.7),
-                                    2px 2px 10px rgba(0, 0, 0, 1),
-                                    -1px -1px 6px rgba(0, 0, 0, 0.8);
-                                ">LAND SIZE</span>
-                              </div>
-                            ` : ''}
-                          </div>
-                        </div>
-                      `,
-                      css: "",
-                      width: 1080,
-                      height: 1920,
-                    },
-                    start: 0,
-                    length: 5,
-                    transition: {
-                      in: "fade",
-                      out: "fade",
-                    },
-                  },
-                ],
-              },
-
+    // Stats (bottom left) – keep it simple
+    {
+      asset: {
+        type: "html",
+        html: `<p>${propertyData.beds} BED • ${propertyData.baths} BATH${propertyData.carSpaces ? ` • ${propertyData.carSpaces} CAR` : ""}${propertyData.landSize ? ` • ${propertyData.landSize}m²` : ""}</p>`,
+        css: `
+          p {
+            font-family: ${templateStyle.statFont};
+            font-size: 36px;
+            font-weight: ${templateStyle.statWeight};
+            color: white;
+            text-align: left;
+            text-shadow: 0 0 15px rgba(0,0,0,0.9);
+            margin: 0;
+          }
+        `,
+        width: 1000,
+        height: 120,
+        background: "transparent",
+      },
+      start: 0,
+      length: 5,
+      position: "bottomLeft",
+      offset: { x: 0.06, y: 0.08 },
+    },
+  ],
+},
             // Black background for agent card at the end (if agent info provided)
             ...(agentInfo && agentInfo.name ? [{
               clips: [
