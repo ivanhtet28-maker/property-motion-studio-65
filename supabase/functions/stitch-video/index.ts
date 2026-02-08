@@ -188,20 +188,10 @@
             volume: 0.3, // Background music at 30% volume
           } : undefined,
           tracks: [
-            // Voiceover track (if available)
-            ...(audioUrl ? [{
-              clips: [
-                {
-                  asset: {
-                    type: "audio",
-                    src: audioUrl,
-                    volume: 1.0, // Full volume for voiceover
-                  },
-                  start: 0,
-                  length: totalDuration,
-                },
-              ],
-            }] : []),
+            // Video track with all Luma clips (BOTTOM LAYER)
+            {
+              clips: videoClips,
+            },
 
             // Dark gradient overlay on first clip (left to right fade)
             {
@@ -472,10 +462,20 @@
               ],
             }] : []),
 
-            // Video track with all Luma clips
-            {
-              clips: videoClips,
-            },
+            // Voiceover track (if available)
+            ...(audioUrl ? [{
+              clips: [
+                {
+                  asset: {
+                    type: "audio",
+                    src: audioUrl,
+                    volume: 1.0, // Full volume for voiceover
+                  },
+                  start: 0,
+                  length: totalDuration,
+                },
+              ],
+            }] : []),
           ],
         },
         output: {
