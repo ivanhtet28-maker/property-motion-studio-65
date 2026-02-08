@@ -33,17 +33,17 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: userPrefs, error: dbError } = await supabase
-      .from("user_preferences")
+    const { data: user, error: dbError } = await supabase
+      .from("users")
       .select("stripe_customer_id")
-      .eq("user_id", userId)
+      .eq("id", userId)
       .single();
 
-    if (dbError || !userPrefs?.stripe_customer_id) {
+    if (dbError || !user?.stripe_customer_id) {
       throw new Error("No Stripe customer found for this user");
     }
 
-    const customerId = userPrefs.stripe_customer_id;
+    const customerId = user.stripe_customer_id;
 
     // Create portal session
     const origin = req.headers.get("origin") || "http://localhost:5173";

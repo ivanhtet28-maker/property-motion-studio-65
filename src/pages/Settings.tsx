@@ -77,9 +77,9 @@ export default function Settings() {
     try {
       setIsLoadingSubscription(true);
       const { data, error } = await supabase
-        .from("user_preferences")
+        .from("users")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("id", user.id)
         .single();
 
       if (error) throw error;

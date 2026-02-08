@@ -57,13 +57,13 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Check if user already has a Stripe customer ID
-    const { data: userPrefs } = await supabase
-      .from("user_preferences")
+    const { data: user } = await supabase
+      .from("users")
       .select("stripe_customer_id")
-      .eq("user_id", userId)
+      .eq("id", userId)
       .single();
 
-    let customerId = userPrefs?.stripe_customer_id;
+    let customerId = user?.stripe_customer_id;
 
     // Create Stripe customer if doesn't exist
     if (!customerId) {
@@ -90,9 +90,9 @@ Deno.serve(async (req) => {
 
       // Save customer ID to database
       await supabase
-        .from("user_preferences")
+        .from("users")
         .update({ stripe_customer_id: customerId })
-        .eq("user_id", userId);
+        .eq("id", userId);
 
       console.log("Stripe customer created:", customerId);
     }
