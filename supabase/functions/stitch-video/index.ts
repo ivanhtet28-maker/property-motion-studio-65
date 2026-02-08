@@ -1,11 +1,59 @@
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
+  import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   };
 
   const SHOTSTACK_API_KEY = Deno.env.get("SHOTSTACK_API_KEY");
+
+  // Helper function to upload base64 image to Supabase Storage
+  async function uploadBase64ToStorage(
+    base64Data: string,
+    fileName: string,
+    folder: string = "temp"
+  ): Promise<string | null> {
+    try {
+      // Remove data:image/xxx;base64, prefix if present
+      const base64String = base64Data.includes(",") ? base64Data.split(",")[1] : base64Data;
+
+      // Convert base64 to Uint8Array
+      const binaryString = atob(base64String);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+      const filePath = `${folder}/${fileName}`;
+
+      const { error } = await supabase.storage
+        .from("video-assets")
+        .upload(filePath, bytes, {
+          contentType: "image/png",
+          upsert: true,
+        });
+
+      if (error) {
+        console.error("Storage upload error:", error);
+        return null;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("video-assets")
+        .getPublicUrl(filePath);
+
+      return urlData.publicUrl;
+    } catch (err) {
+      console.error("Failed to upload base64 to storage:", err);
+      return null;
+    }
+  }
 
   // Template configurations
   const TEMPLATE_STYLES: Record<string, {
@@ -197,7 +245,10 @@
       const templateStyle = getTemplateStyle(style);
       console.log("Using template style:", style || "modern-luxe");
 
-      // Debug: Log agentInfo values and check image sizes
+      // Convert base64 images to storage URLs to reduce payload size
+      let logoUrl: string | null = null;
+      let photoUrl: string | null = null;
+
       if (agentInfo) {
         console.log("Agent Info - Name:", agentInfo.name);
         console.log("Agent Info - Logo:", agentInfo.logo ? `Logo size: ${agentInfo.logo.length} chars` : "No logo");
@@ -205,12 +256,34 @@
         console.log("Agent Info - Color Scheme:", agentInfo.colorScheme || "default (purple)");
         console.log("Brand Color:", getBrandColor(agentInfo.colorScheme));
 
-        // Warn if images are too large
-        if (agentInfo.logo && agentInfo.logo.length > 100000) {
-          console.warn("WARNING: Logo is very large:", agentInfo.logo.length, "chars - may cause Shotstack issues");
+        // Upload logo to storage if it's base64
+        if (agentInfo.logo && agentInfo.logo.startsWith("data:")) {
+          console.log("Uploading logo to storage to reduce payload size...");
+          logoUrl = await uploadBase64ToStorage(
+            agentInfo.logo,
+            `logo-${Date.now()}.png`,
+            "agent-logos"
+          );
+          if (logoUrl) {
+            console.log("Logo uploaded to storage:", logoUrl);
+          }
+        } else if (agentInfo.logo) {
+          logoUrl = agentInfo.logo; // Already a URL
         }
-        if (agentInfo.photo && agentInfo.photo.length > 100000) {
-          console.warn("WARNING: Agent photo is very large:", agentInfo.photo.length, "chars - may cause Shotstack issues");
+
+        // Upload photo to storage if it's base64
+        if (agentInfo.photo && agentInfo.photo.startsWith("data:")) {
+          console.log("Uploading agent photo to storage to reduce payload size...");
+          photoUrl = await uploadBase64ToStorage(
+            agentInfo.photo,
+            `agent-${Date.now()}.png`,
+            "agent-photos"
+          );
+          if (photoUrl) {
+            console.log("Agent photo uploaded to storage:", photoUrl);
+          }
+        } else if (agentInfo.photo) {
+          photoUrl = agentInfo.photo; // Already a URL
         }
       }
 
@@ -501,9 +574,9 @@
                         color: white;
                         padding: 60px;
                       ">
-                        ${agentInfo.logo ? `
+                        ${logoUrl ? `
                           <img
-                            src="${agentInfo.logo}"
+                            src="${logoUrl}"
                             style="
                               max-width: 200px;
                               max-height: 80px;
@@ -520,7 +593,7 @@
                           gap: 30px;
                           margin-bottom: 50px;
                         ">
-                          ${agentInfo.photo ? `
+                          ${photoUrl ? `
                             <div style="
                               width: 136px;
                               height: 136px;
@@ -533,7 +606,7 @@
                               box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
                             ">
                               <img
-                                src="${agentInfo.photo}"
+                                src="${photoUrl}"
                                 style="
                                   width: 120px;
                                   height: 120px;
