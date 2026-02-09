@@ -102,6 +102,7 @@
 
   interface StitchVideoRequest {
     videoUrls: string[];
+    clipDurations?: number[]; // Array of durations for each clip
     propertyData: {
       address: string;
       price: string;
@@ -130,7 +131,7 @@
     }
 
     try {
-      const { videoUrls, propertyData, audioUrl, musicUrl, agentInfo, style, videoId }: StitchVideoRequest = await req.json();
+      const { videoUrls, clipDurations, propertyData, audioUrl, musicUrl, agentInfo, style, videoId }: StitchVideoRequest = await req.json();
 
       if (!videoUrls || videoUrls.length === 0) {
         throw new Error("No video URLs provided for stitching");
@@ -170,26 +171,39 @@
         console.log("No agent photo provided in agentInfo");
       }
 
+      // Use provided clip durations or default to 5 seconds each
+      const durations = clipDurations || videoUrls.map(() => 5);
+
       // Calculate total duration
-      const videoClipsDuration = videoUrls.length * 5;
+      const videoClipsDuration = durations.reduce((sum, duration) => sum + duration, 0);
       const agentCardDuration = (agentInfo && agentInfo.name) ? 3.5 : 0;
       const totalDuration = videoClipsDuration + agentCardDuration;
 
+      console.log("Clip durations:", durations);
+      console.log("Video clips duration:", videoClipsDuration);
+      console.log("Total duration:", totalDuration);
+
       // Build video track with all Luma clips in sequence
-      const videoClips = videoUrls.map((url, index) => ({
-        asset: {
-          type: "video",
-          src: url,
-        },
-        start: index * 5,
-        length: 5,
-        // Reduce opacity on first clip to make text more visible
-        opacity: index === 0 ? 0.7 : 1.0,
-        transition: index > 0 ? {
-          in: "fade",
-          out: "fade",
-        } : undefined,
-      }));
+      let currentStart = 0;
+      const videoClips = videoUrls.map((url, index) => {
+        const clipDuration = durations[index];
+        const clip = {
+          asset: {
+            type: "video",
+            src: url,
+          },
+          start: currentStart,
+          length: clipDuration,
+          // Reduce opacity on first clip to make text more visible
+          opacity: index === 0 ? 0.7 : 1.0,
+          transition: index > 0 ? {
+            in: "fade",
+            out: "fade",
+          } : undefined,
+        };
+        currentStart += clipDuration;
+        return clip;
+      });
 
       // Build Shotstack edit
       const edit = {

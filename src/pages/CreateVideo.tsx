@@ -94,7 +94,8 @@ export default function CreateVideo() {
       baths: number;
       description: string;
     },
-    style: string
+    style: string,
+    clipDurations: number[]
   ) => {
     const maxAttempts = 120; // 10 minutes max (120 * 5 seconds) - Luma takes longer
     let attempts = 0;
@@ -131,6 +132,7 @@ export default function CreateVideo() {
             propertyData,
             style: style, // Pass template style
             stitchJobId: currentStitchJobId, // Pass stitchJobId if we're in stitching phase
+            clipDurations: clipDurations, // Pass custom clip durations
           },
         });
 
@@ -420,6 +422,9 @@ Contact us today for a private inspection.`;
           description: `Generating ${data.totalClips} cinematic clips with Luma AI... this may take ${estimatedMinutes}-${estimatedMinutes + 2} minutes.`,
         });
 
+        // Extract clip durations for stitching
+        const clipDurations = imageMetadataPayload.map(meta => meta.duration);
+
         // Start polling for video status
         pollVideoStatus(
           data.generationIds,
@@ -428,7 +433,8 @@ Contact us today for a private inspection.`;
           data.musicUrl,
           data.agentInfo,
           propertyDataPayload,
-          customization.selectedTemplate // Pass template style
+          customization.selectedTemplate, // Pass template style
+          clipDurations // Pass clip durations
         );
       } else {
         throw new Error(data.error || "Video generation failed");
