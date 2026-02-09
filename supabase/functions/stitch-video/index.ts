@@ -172,7 +172,7 @@
 
       // Calculate total duration
       const videoClipsDuration = videoUrls.length * 5;
-      const agentCardDuration = (agentInfo && agentInfo.name) ? 5 : 0;
+      const agentCardDuration = (agentInfo && agentInfo.name) ? 3.5 : 0;
       const totalDuration = videoClipsDuration + agentCardDuration;
 
       // Build video track with all Luma clips in sequence
@@ -265,7 +265,22 @@
               ],
             },
 
-            // Agent photo (rectangular for now) - Track 3 or 2
+            // Agent outro background - Blurred first clip (Track 3 or 2)
+            ...(agentInfo && agentInfo.name ? [{
+              clips: [
+                {
+                  asset: {
+                    type: "video",
+                    src: videoUrls[0], // Use first Luma clip
+                  },
+                  start: videoClipsDuration,
+                  length: 3.5,
+                  filter: "blur",
+                },
+              ],
+            }] : []),
+
+            // Agent photo (rectangular for now) - Track 4 or 3
             ...(agentPhotoUrl ? [{
               clips: [
                 {
@@ -274,7 +289,7 @@
                     src: agentPhotoUrl,
                   },
                   start: videoClipsDuration,
-                  length: 5,
+                  length: 3.5,
                   fit: "crop",
                   scale: 0.2,
                   position: "top",
@@ -316,7 +331,7 @@
                     height: 1920,
                   },
                   start: videoClipsDuration,
-                  length: 5,
+                  length: 3.5,
                 },
               ],
             }] : []),
