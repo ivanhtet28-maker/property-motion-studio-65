@@ -274,7 +274,7 @@
                     height: 1920,
                   },
                   start: 0.1,
-                  length: 4.9,
+                  length: durations[0] - 0.1, // Match first clip duration (minus 0.1s offset)
                 },
               ],
             },
