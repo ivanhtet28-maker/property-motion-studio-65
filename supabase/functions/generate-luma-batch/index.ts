@@ -28,17 +28,17 @@ Subtle forward dolly movement, gentle push-in effect.
 No shake, no wobble, perfectly smooth zoom motion.
 Revealing property details with elegant forward movement.`,
 
-    "pan-left": `Smooth slow horizontal pan from right to left across scene.
+    "pan-left": `Camera slowly turns left across the scene.
 Stabilized gimbal camera on fluid head tripod.
 Elegant sweeping motion revealing property features.
-No vertical movement, perfect horizontal rotation only.
-Controlled cinematic pan with consistent smooth speed.`,
+No vertical movement, smooth horizontal rotation only.
+Controlled cinematic movement with consistent speed.`,
 
-    "pan-right": `Smooth slow horizontal pan from left to right across scene.
+    "pan-right": `Camera slowly turns right across the scene.
 Stabilized gimbal camera on fluid head tripod.
 Elegant sweeping motion revealing property features.
-No vertical movement, perfect horizontal rotation only.
-Controlled cinematic pan with consistent smooth speed.`,
+No vertical movement, smooth horizontal rotation only.
+Controlled cinematic movement with consistent speed.`,
   };
 
   const BASE_PROMPT_SUFFIX = `Maintain strict architectural accuracy and straight vertical lines.
