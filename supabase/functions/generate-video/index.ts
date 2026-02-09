@@ -90,7 +90,7 @@
     }
 
     try {
-      const { imageUrls, propertyData, style, voice, music, userId, propertyId, script, agentInfo }: GenerateVideoRequest = await req.json();
+      const { imageUrls, imageMetadata, propertyData, style, voice, music, userId, propertyId, script, agentInfo }: GenerateVideoRequest = await req.json();
 
       console.log("=== LUMA AI VIDEO GENERATION ===");
       console.log("Total images:", imageUrls?.length || 0);
