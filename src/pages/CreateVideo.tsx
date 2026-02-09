@@ -19,6 +19,7 @@ import { ScriptGeneratorSection } from "@/components/create-video/ScriptGenerato
 import { uploadImagesToStorage } from "@/utils/uploadToStorage";
 import { getMusicId } from "@/config/musicMapping";
 import { getVoiceId } from "@/config/voiceMapping";
+import { ImageMetadata } from "@/components/create-video/PhotoUpload";
 
 export default function CreateVideo() {
   const navigate = useNavigate();
@@ -40,6 +41,7 @@ export default function CreateVideo() {
   });
 
   const [photos, setPhotos] = useState<File[]>([]);
+  const [imageMetadata, setImageMetadata] = useState<ImageMetadata[]>([]);
   const [scrapedImageUrls, setScrapedImageUrls] = useState<string[]>([]);
   const [script, setScript] = useState("");
 
@@ -301,9 +303,20 @@ Contact us today for a private inspection.`;
       // Convert frontend voice name to backend ID (only if voiceover is enabled)
       const voiceId = customization.includeVoiceover ? getVoiceId(customization.voiceType) : null;
 
-      const { data, error: fnError } = await supabase.functions.invoke("generate-video", {
+      // Prepare image metadata with camera angles and durations
+      const imageMetadataPayload = imageUrls.map((url, index) => {
+        const metadata = imageMetadata[index];
+        return {
+          url,
+          cameraAngle: metadata?.cameraAngle || "auto",
+          duration: metadata?.duration || 3.5,
+        };
+      });
+
+      const { data, error: fnError} = await supabase.functions.invoke("generate-video", {
         body: {
           imageUrls: imageUrls,
+          imageMetadata: imageMetadataPayload,
           propertyData: propertyDataPayload,
           style: customization.selectedTemplate,
           voice: voiceId,
@@ -464,6 +477,8 @@ Contact us today for a private inspection.`;
               <PropertySourceSelector
                 photos={photos}
                 onPhotosChange={setPhotos}
+                imageMetadata={imageMetadata}
+                onMetadataChange={setImageMetadata}
                 propertyDetails={propertyDetails}
                 onPropertyDetailsChange={setPropertyDetails}
                 onScrapedImagesChange={setScrapedImageUrls}

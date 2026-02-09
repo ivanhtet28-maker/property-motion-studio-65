@@ -44,12 +44,12 @@ Deno.serve(async (req) => {
 
         if (userId && plan) {
           await supabase
-            .from("users")
+            .from("user_preferences")
             .update({
               subscription_plan: plan,
               subscription_tier: plan,
             })
-            .eq("id", userId);
+            .eq("user_id", userId);
 
           console.log(`Updated user ${userId} to plan ${plan}`);
         }
@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
 
         // Update subscription in database
         await supabase
-          .from("users")
+          .from("user_preferences")
           .update({
             stripe_subscription_id: subscription.id,
             subscription_status: subscription.status,
@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
             payment_method_last4: paymentMethodLast4,
             payment_method_brand: paymentMethodBrand,
           })
-          .eq("id", userId);
+          .eq("user_id", userId);
 
         console.log(`Updated subscription for user ${userId}`);
         break;
@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
 
         // Downgrade to free tier
         await supabase
-          .from("users")
+          .from("user_preferences")
           .update({
             stripe_subscription_id: null,
             subscription_status: "canceled",
@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
             subscription_tier: "starter",
             subscription_cancel_at_period_end: false,
           })
-          .eq("id", userId);
+          .eq("user_id", userId);
 
         console.log(`Canceled subscription for user ${userId}`);
         break;
@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
         const subscriptionId = invoice.subscription;
         if (subscriptionId) {
           await supabase
-            .from("users")
+            .from("user_preferences")
             .update({
               videos_used_this_period: 0,
               period_reset_date: new Date().toISOString(),
@@ -161,7 +161,7 @@ Deno.serve(async (req) => {
         const subscriptionId = invoice.subscription;
         if (subscriptionId) {
           await supabase
-            .from("users")
+            .from("user_preferences")
             .update({
               subscription_status: "past_due",
             })

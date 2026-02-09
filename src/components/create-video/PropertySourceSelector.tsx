@@ -10,7 +10,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Link2, Upload, Loader2, CheckCircle, AlertCircle } from "lucide-react";
-import { PhotoUpload } from "./PhotoUpload";
+import { PhotoUpload, ImageMetadata } from "./PhotoUpload";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { PropertyDetails } from "./index";
@@ -18,6 +18,8 @@ import { PropertyDetails } from "./index";
 interface PropertySourceSelectorProps {
   photos: File[];
   onPhotosChange: (photos: File[]) => void;
+  imageMetadata?: ImageMetadata[];
+  onMetadataChange?: (metadata: ImageMetadata[]) => void;
   propertyDetails: PropertyDetails;
   onPropertyDetailsChange: (details: PropertyDetails) => void;
   onScrapedImagesChange?: (imageUrls: string[]) => void;
@@ -42,6 +44,8 @@ interface ScrapedData {
 export function PropertySourceSelector({
   photos,
   onPhotosChange,
+  imageMetadata,
+  onMetadataChange,
   propertyDetails,
   onPropertyDetailsChange,
   onScrapedImagesChange,
@@ -204,7 +208,14 @@ export function PropertySourceSelector({
         </TabsList>
 
         <TabsContent value="upload" className="mt-6">
-          <PhotoUpload photos={photos} onChange={onPhotosChange} minPhotos={3} maxPhotos={6} />
+          <PhotoUpload
+            photos={photos}
+            onChange={onPhotosChange}
+            imageMetadata={imageMetadata}
+            onMetadataChange={onMetadataChange}
+            minPhotos={3}
+            maxPhotos={6}
+          />
         </TabsContent>
 
         <TabsContent value="scrape" className="mt-6 space-y-4">

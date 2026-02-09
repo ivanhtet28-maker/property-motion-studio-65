@@ -7,27 +7,76 @@
 
   const LUMA_API_KEY = Deno.env.get("LUMA_API_KEY");
 
+  // Camera angle prompts for Luma AI
+  const CAMERA_ANGLE_PROMPTS: Record<string, string> = {
+    auto: `High-end cinematic real estate video.
+Ultra-stable camera with locked horizon and tripod-level steadiness.
+Extremely slow, controlled camera motion only — subtle forward dolly or micro parallax, no rotation.
+Camera behaves as if mounted on a professional gimbal or tripod head.
+No shaking, no jitter, no wobble, no handheld motion.
+Smooth continuous motion from start to end with no sudden changes.`,
+
+    "wide-shot": `Locked static wide establishing shot, no camera movement whatsoever.
+Camera mounted on heavy-duty tripod, completely motionless.
+Architectural photography style with perfect straight verticals.
+No panning, no tilting, no zooming, no motion at all.
+Ultra-stable locked camera position from start to finish.`,
+
+    "zoom-in": `Slow smooth cinematic zoom toward center focal point.
+Stabilized gimbal camera on professional slider.
+Subtle forward dolly movement, gentle push-in effect.
+No shake, no wobble, perfectly smooth zoom motion.
+Revealing property details with elegant forward movement.`,
+
+    "pan-left": `Smooth slow horizontal pan from right to left across scene.
+Stabilized gimbal camera on fluid head tripod.
+Elegant sweeping motion revealing property features.
+No vertical movement, perfect horizontal rotation only.
+Controlled cinematic pan with consistent smooth speed.`,
+
+    "pan-right": `Smooth slow horizontal pan from left to right across scene.
+Stabilized gimbal camera on fluid head tripod.
+Elegant sweeping motion revealing property features.
+No vertical movement, perfect horizontal rotation only.
+Controlled cinematic pan with consistent smooth speed.`,
+  };
+
+  const BASE_PROMPT_SUFFIX = `Maintain strict architectural accuracy and straight vertical lines.
+Golden hour natural lighting, soft shadows, realistic reflections.
+Luxury real estate cinematography, calm and elegant mood.
+Photorealistic, consistent exposure, natural color grading.
+No people, no vehicles, no text, no camera artifacts.
+720p quality, clean, stable, professional property marketing video.`;
+
   Deno.serve(async (req) => {
     if (req.method === "OPTIONS") {
       return new Response("ok", { headers: corsHeaders });
     }
 
     try {
-      const { imageUrls, propertyAddress } = await req.json();
+      const { imageMetadata, propertyAddress } = await req.json();
 
-      if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) {
-        throw new Error("imageUrls array is required");
+      if (!imageMetadata || !Array.isArray(imageMetadata) || imageMetadata.length === 0) {
+        throw new Error("imageMetadata array is required");
       }
 
       if (!LUMA_API_KEY) {
         throw new Error("LUMA_API_KEY not configured");
       }
 
-      console.log(`Starting batch generation for ${imageUrls.length} images...`);
+      console.log(`Starting batch generation for ${imageMetadata.length} images...`);
 
-      const generationPromises = imageUrls.map(async (imageUrl, index) => {
+      const generationPromises = imageMetadata.map(async (metadata: { url: string; cameraAngle: string; duration: number }, index) => {
+        const { url: imageUrl, cameraAngle, duration } = metadata;
         try {
-          console.log(`Creating generation ${index + 1}/${imageUrls.length} for image:`, imageUrl);
+          console.log(`Creating generation ${index + 1}/${imageMetadata.length} for image:`, imageUrl);
+          console.log(`Camera angle: ${cameraAngle}, Duration: ${duration}s`);
+
+          // Build custom prompt based on camera angle
+          const anglePrompt = CAMERA_ANGLE_PROMPTS[cameraAngle] || CAMERA_ANGLE_PROMPTS["auto"];
+          const fullPrompt = `High-end cinematic real estate video of ${propertyAddress}.
+${anglePrompt}
+${BASE_PROMPT_SUFFIX}`;
 
           // Luma API v1
           const response = await fetch("https://api.lumalabs.ai/dream-machine/v1/generations", {
@@ -38,18 +87,7 @@
             },
             body: JSON.stringify({
               model: "ray-2",
-              prompt: `High-end cinematic real estate video of ${propertyAddress}.
-Ultra-stable camera with locked horizon and tripod-level steadiness.
-Extremely slow, controlled camera motion only — subtle forward dolly or micro parallax, no rotation.
-Camera behaves as if mounted on a professional gimbal or tripod head.
-No shaking, no jitter, no wobble, no handheld motion.
-Smooth continuous motion from start to end with no sudden changes.
-Maintain strict architectural accuracy and straight vertical lines.
-Golden hour natural lighting, soft shadows, realistic reflections.
-Luxury real estate cinematography, calm and elegant mood.
-Photorealistic, consistent exposure, natural color grading.
-No people, no vehicles, no text, no camera artifacts.
-4K quality, clean, stable, professional property marketing video.`,
+              prompt: fullPrompt,
               keyframes: {
                 frame0: {
                   type: "image",
@@ -58,6 +96,8 @@ No people, no vehicles, no text, no camera artifacts.
               },
               aspect_ratio: "9:16",
               loop: false,
+              // Note: Luma AI may not support custom durations yet
+              // If supported in future, use: duration: duration
             }),
           });
 
@@ -106,7 +146,7 @@ No people, no vehicles, no text, no camera artifacts.
         JSON.stringify({
           success: true,
           generations: results,
-          totalRequested: imageUrls.length,
+          totalRequested: imageMetadata.length,
           successful: successful.length,
           failed: failed.length,
         }),

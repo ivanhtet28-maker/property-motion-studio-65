@@ -21,8 +21,15 @@
       description: string;
     }
 
+  interface ImageMetadata {
+    url: string;
+    cameraAngle: string;
+    duration: number;
+  }
+
   interface GenerateVideoRequest {
     imageUrls: string[];
+    imageMetadata?: ImageMetadata[];
     propertyData: PropertyData;
     style: string;
     voice: string;
@@ -198,6 +205,13 @@
 
       console.log("Starting Luma batch generation for", imageUrls.length, "images...");
 
+      // Prepare image metadata (use provided metadata or create default)
+      const metadataForLuma = imageMetadata || imageUrls.map(url => ({
+        url,
+        cameraAngle: "auto",
+        duration: 3.5
+      }));
+
       const lumaResponse = await fetch(
         `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-luma-batch`,
         {
@@ -207,7 +221,7 @@
             "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
           },
           body: JSON.stringify({
-            imageUrls: imageUrls,
+            imageMetadata: metadataForLuma,
             propertyAddress: propertyData.address,
           }),
         }

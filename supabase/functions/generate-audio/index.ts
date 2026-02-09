@@ -13,11 +13,13 @@ const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY");
 // ElevenLabs Voice ID mapping
 // You can find more voices at: https://elevenlabs.io/voice-library
 const VOICE_IDS: Record<string, string> = {
-  "australian-male": "TxGEqnHWrfWFTfGW9XjX",
-  "british-female": "21m00Tcm4TlvDq8ikWAM",
-  "american-male": "VR6AewLTigWG4xSOukaG",
-  "american-female": "EXAVITQu4vr4xnSDxMaL",
-};
+    "australian-male": "TxGEqnHWrfWFTfGW9XjX",
+    "australian-female": "EXAVITQu4vr4xnSDxMaL",  // Added - using American Female as placeholder
+    "british-male": "VR6AewLTigWG4xSOukaG",       // Added - using American Male as placeholder
+    "british-female": "21m00Tcm4TlvDq8ikWAM",
+    "american-male": "VR6AewLTigWG4xSOukaG",
+    "american-female": "EXAVITQu4vr4xnSDxMaL",
+  };
 
 interface GenerateAudioRequest {
   script: string;
