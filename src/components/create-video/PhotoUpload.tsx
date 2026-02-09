@@ -271,7 +271,7 @@ export function PhotoUpload({
             {onMetadataChange && imageMetadata.length > 0 && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">Total: {getTotalDuration().toFixed(1)}s</span>
-                <Select onValueChange={(value) => setAllAngles(value as CameraAngle)}>
+                <Select value="" onValueChange={(value) => setAllAngles(value as CameraAngle)}>
                   <SelectTrigger className="h-7 text-xs w-[140px]">
                     <SelectValue placeholder="Set all to..." />
                   </SelectTrigger>
