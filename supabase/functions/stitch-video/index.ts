@@ -348,6 +348,7 @@
       console.log("Property Address Text:", propertyData.address);
       console.log("Property Specs Text:", `${propertyData.beds} BED • ${propertyData.baths} BATH${propertyData.carSpaces ? ` • ${propertyData.carSpaces} CAR` : ""}${propertyData.landSize ? ` • ${propertyData.landSize}m²` : ""}`);
       console.log("Edit payload tracks count:", edit.timeline.tracks.length);
+      console.log("Full Shotstack edit payload:", JSON.stringify(edit, null, 2));
 
       // Submit to Shotstack
       const response = await fetch("https://api.shotstack.io/v1/render", {
