@@ -46,6 +46,7 @@ interface RightPanelProps {
   error: string | null;
   videoUrl?: string | null;
   videoUrls?: string[];
+  agentInfoValid?: boolean;
 }
 
 export function RightPanel({
@@ -58,6 +59,7 @@ export function RightPanel({
   error,
   videoUrl,
   videoUrls = [],
+  agentInfoValid = true,
 }: RightPanelProps) {
   const [isEditingScript, setIsEditingScript] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -91,7 +93,7 @@ Contact us today for a private inspection.`;
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const canGenerate = photoCount >= 3 && photoCount <= 6;
+  const canGenerate = photoCount >= 3 && photoCount <= 6 && agentInfoValid;
 
   const getProgressStatus = () => {
     if (generatingProgress < 20) return "Uploading photos...";
@@ -326,13 +328,22 @@ Contact us today for a private inspection.`;
                       3-6 photos required (15-30s video)
                     </p>
                   </>
-                ) : (
+                ) : photoCount > 6 ? (
                   <>
                     <p className="text-sm text-warning font-medium">
                       Maximum 6 photos allowed
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
                       You have {photoCount} photos
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-warning font-medium">
+                      Please fill in agent details
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Name and phone required for video outro
                     </p>
                   </>
                 )}

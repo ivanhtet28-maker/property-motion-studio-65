@@ -229,6 +229,27 @@ export default function CreateVideo() {
       return;
     }
 
+    // Validate agent info (required for video outro)
+    if (!customization.agentInfo.name.trim()) {
+      setError("Please fill in your agent name");
+      toast({
+        title: "Agent info required",
+        description: "Your name is required for the video outro",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!customization.agentInfo.phone.trim()) {
+      setError("Please fill in your agent phone number");
+      toast({
+        title: "Agent info required",
+        description: "Your phone number is required for the video outro",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Check subscription status and free trial
     if (user?.id) {
       const { data: userData, error: userError } = await supabase
@@ -551,7 +572,13 @@ Contact us today for a private inspection.`;
                 size="lg"
                 className="w-full shadow-xl shadow-primary/30"
                 onClick={handleGenerate}
-                disabled={(photos.length < 3 && scrapedImageUrls.length < 3) || (Math.max(photos.length, scrapedImageUrls.length) > 6) || isGenerating}
+                disabled={
+                  (photos.length < 3 && scrapedImageUrls.length < 3) ||
+                  (Math.max(photos.length, scrapedImageUrls.length) > 6) ||
+                  !customization.agentInfo.name.trim() ||
+                  !customization.agentInfo.phone.trim() ||
+                  isGenerating
+                }
               >
                 {isGenerating ? "Generating..." : "Generate Video"}
               </Button>
@@ -563,6 +590,16 @@ Contact us today for a private inspection.`;
               {Math.max(photos.length, scrapedImageUrls.length) > 6 && (
                 <p className="text-xs text-center text-warning mt-3 font-medium">
                   Maximum 6 photos allowed (you have {Math.max(photos.length, scrapedImageUrls.length)})
+                </p>
+              )}
+              {!customization.agentInfo.name.trim() && (
+                <p className="text-xs text-center text-warning mt-3 font-medium">
+                  Please fill in your agent name
+                </p>
+              )}
+              {!customization.agentInfo.phone.trim() && customization.agentInfo.name.trim() && (
+                <p className="text-xs text-center text-warning mt-3 font-medium">
+                  Please fill in your agent phone number
                 </p>
               )}
             </div>
@@ -581,6 +618,7 @@ Contact us today for a private inspection.`;
             error={error}
             videoUrl={videoUrl}
             videoUrls={videoUrls}
+            agentInfoValid={!!customization.agentInfo.name.trim() && !!customization.agentInfo.phone.trim()}
           />
         </div>
       </div>
