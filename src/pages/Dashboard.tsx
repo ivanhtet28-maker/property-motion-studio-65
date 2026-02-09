@@ -27,6 +27,8 @@ import {
   Plus,
   ChevronUp,
 } from "lucide-react";
+import { SubscriptionModal } from "@/components/SubscriptionModal";
+import { useToast } from "@/hooks/use-toast";
 
 interface VideoItem {
   id: string;
@@ -42,11 +44,14 @@ interface VideoItem {
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
   const videosUsed = videos.length;
   const videosLimit = 30;
 
@@ -131,6 +136,47 @@ export default function Dashboard() {
   useEffect(() => {
     loadVideos();
   }, [loadVideos]);
+
+  // Load subscription status
+  useEffect(() => {
+    const loadSubscriptionStatus = async () => {
+      if (!user?.id) return;
+
+      const { data, error } = await supabase
+        .from("users")
+        .select("subscription_status")
+        .eq("id", user.id)
+        .single();
+
+      if (!error && data) {
+        setSubscriptionStatus(data.subscription_status);
+      }
+    };
+
+    loadSubscriptionStatus();
+  }, [user]);
+
+  // Handle download with subscription check
+  const handleDownload = async (videoUrl: string | undefined) => {
+    if (!videoUrl) {
+      toast({
+        title: "Video not ready",
+        description: "This video is still processing",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if user has active subscription
+    if (subscriptionStatus !== "active") {
+      // Show subscription modal
+      setShowSubscriptionModal(true);
+      return;
+    }
+
+    // Allow download
+    window.open(videoUrl, "_blank");
+  };
 
   const filteredVideos = videos.filter((video) => {
     const matchesSearch = video.address.toLowerCase().includes(searchQuery.toLowerCase());
@@ -269,6 +315,7 @@ export default function Dashboard() {
                     {video.status === "ready" && (
                       <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
+                          onClick={() => handleDownload(video.videoUrl)}
                           className="p-2 rounded-lg bg-background/90 text-foreground hover:bg-background transition-colors"
                           aria-label="Download video"
                         >
@@ -314,6 +361,12 @@ export default function Dashboard() {
           )}
         </div>
       </main>
+
+      {/* Subscription Modal */}
+      <SubscriptionModal
+        open={showSubscriptionModal}
+        onOpenChange={setShowSubscriptionModal}
+      />
     </div>
   );
 }

@@ -165,11 +165,43 @@
       }
 
       let videoRecordId: string | null = null;
+      let isFreeTrial = false;
+
       if (userId) {
         try {
           const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
           const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
           const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+          // Check user subscription status and free trial availability
+          const { data: userData, error: userError } = await supabase
+            .from("users")
+            .select("subscription_status, free_video_used")
+            .eq("id", userId)
+            .single();
+
+          if (!userError && userData) {
+            const hasActiveSubscription = userData.subscription_status === "active";
+            const hasFreeTrial = !userData.free_video_used;
+
+            // Determine if this is a free trial video
+            if (!hasActiveSubscription && hasFreeTrial) {
+              isFreeTrial = true;
+              console.log("This is a free trial video generation");
+
+              // Mark free trial as used
+              const { error: updateError } = await supabase
+                .from("users")
+                .update({ free_video_used: true })
+                .eq("id", userId);
+
+              if (updateError) {
+                console.error("Failed to mark free trial as used:", updateError);
+              } else {
+                console.log("Free trial marked as used for user:", userId);
+              }
+            }
+          }
 
           const { data: videoRecord, error: dbError } = await supabase
             .from("videos")
@@ -188,6 +220,7 @@
               agent_name: agentInfo?.name || null,
               agent_phone: agentInfo?.phone || null,
               agent_email: agentInfo?.email || null,
+              is_free_trial: isFreeTrial,
             })
             .select()
             .single();
@@ -196,7 +229,7 @@
             console.error("Failed to create video record:", dbError);
           } else {
             videoRecordId = videoRecord.id;
-            console.log("Video record created:", videoRecordId);
+            console.log("Video record created:", videoRecordId, isFreeTrial ? "(FREE TRIAL)" : "");
           }
         } catch (dbErr) {
           console.error("Database error:", dbErr);

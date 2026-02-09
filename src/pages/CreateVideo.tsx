@@ -229,6 +229,47 @@ export default function CreateVideo() {
       return;
     }
 
+    // Check subscription status and free trial
+    if (user?.id) {
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("subscription_status, free_video_used, videos_used_this_period, videos_limit")
+        .eq("id", user.id)
+        .single();
+
+      if (userError) {
+        console.error("Error checking user status:", userError);
+        // Continue anyway - don't block on this check
+      } else if (userData) {
+        const hasActiveSubscription = userData.subscription_status === "active";
+        const hasFreeTrial = !userData.free_video_used;
+
+        // If no active subscription and free trial already used, show error
+        if (!hasActiveSubscription && !hasFreeTrial) {
+          setError("You've used your free video. Subscribe to generate more videos!");
+          toast({
+            title: "Subscription Required",
+            description: "Subscribe to continue creating videos",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // If has active subscription, check video limit
+        if (hasActiveSubscription) {
+          if (userData.videos_used_this_period >= userData.videos_limit) {
+            setError(`Video limit reached (${userData.videos_limit}/${userData.videos_limit}). Upgrade your plan or wait for next billing period.`);
+            toast({
+              title: "Limit Reached",
+              description: "You've reached your monthly video limit",
+              variant: "destructive",
+            });
+            return;
+          }
+        }
+      }
+    }
+
     setError(null);
     setIsGenerating(true);
     setGeneratingProgress(0);
