@@ -50,7 +50,7 @@ No people, no vehicles, no text, no camera artifacts.
 
   Deno.serve(async (req) => {
     if (req.method === "OPTIONS") {
-      return new Response("ok", { headers: corsHeaders });
+      return new Response("ok", { status: 200, headers: corsHeaders });
     }
 
     try {
