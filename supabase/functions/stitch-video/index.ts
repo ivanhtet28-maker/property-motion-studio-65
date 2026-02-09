@@ -210,7 +210,7 @@
                     volume: 1.0,
                   },
                   start: 0,
-                  length: videoClipsDuration,
+                  length: totalDuration, // Extended to include agent outro
                 },
               ],
             }] : []),
