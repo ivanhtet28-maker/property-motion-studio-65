@@ -151,11 +151,11 @@ export function CustomizationSection({ settings, onChange }: CustomizationSectio
     try {
       // Map music style to music library category
       const styleToCategoryMap: Record<string, string> = {
-        "Cinematic & Epic": "luxury-elegant-1",
-        "Modern & Chill": "upbeat-modern-1",
-        "Upbeat & Energetic": "energetic-pop-1",
-        "Classical Elegance": "classical-sophisticated-1",
-        "Ambient Relaxing": "calm-ambient-1",
+        "Cinematic & Epic": "cinematic-epic-1",
+        "Modern & Chill": "modern-chill-1",
+        "Upbeat & Energetic": "upbeat-energetic-1",
+        "Classical Elegance": "classical-elegant-1",
+        "Ambient Relaxing": "ambient-relaxing-1",
       };
 
       const musicId = styleToCategoryMap[settings.musicStyle];
