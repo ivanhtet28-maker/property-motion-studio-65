@@ -43,6 +43,7 @@ interface RightPanelProps {
   propertyDetails: PropertyDetails;
   photoCount: number;
   onGenerate: () => void;
+  onReset: () => void;
   isGenerating: boolean;
   generatingProgress: number;
   videoReady: boolean;
@@ -56,6 +57,7 @@ export function RightPanel({
   propertyDetails,
   photoCount,
   onGenerate,
+  onReset,
   isGenerating,
   generatingProgress,
   videoReady,
@@ -364,6 +366,17 @@ Contact us today for a private inspection.`;
             <Button variant="ghost" size="sm" className="w-full gap-2" onClick={handleCopyLink}>
               {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
               {copied ? "Link Copied!" : "Copy Share Link"}
+            </Button>
+
+            {/* Generate Another Video Button */}
+            <Button
+              variant="outline"
+              size="lg"
+              className="w-full gap-2 h-12 border-2 border-primary/30 hover:bg-primary/10"
+              onClick={onReset}
+            >
+              <Sparkles className="w-5 h-5" />
+              Generate Another Video
             </Button>
           </div>
         )}

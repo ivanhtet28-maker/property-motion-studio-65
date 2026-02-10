@@ -80,6 +80,20 @@ export default function CreateVideo() {
     style: string;
   } | null>(null);
 
+  // Reset video generation state to create another video
+  const handleReset = () => {
+    setIsGenerating(false);
+    setGeneratingProgress(0);
+    setVideoReady(false);
+    setError(null);
+    setGenerationIds(null);
+    setVideoRecordId(null);
+    setVideoUrl(null);
+    setVideoUrls([]);
+    setStitchJobId(null);
+    setGenerationData(null);
+  };
+
   // Poll for video status (Luma batch workflow)
   const pollVideoStatus = async (
     generationIds: string[],
@@ -618,6 +632,7 @@ Contact us today for a private inspection.`;
             propertyDetails={propertyDetails}
             photoCount={scrapedImageUrls.length > 0 ? scrapedImageUrls.length : photos.length}
             onGenerate={handleGenerate}
+            onReset={handleReset}
             isGenerating={isGenerating}
             generatingProgress={generatingProgress}
             videoReady={videoReady}
