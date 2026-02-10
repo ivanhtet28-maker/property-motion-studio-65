@@ -79,6 +79,7 @@ export default function CreateVideo() {
     propertyData: Record<string, unknown>;
     style: string;
   } | null>(null);
+  const [refreshSidebarTrigger, setRefreshSidebarTrigger] = useState(0);
 
   // Reset video generation state to create another video
   const handleReset = () => {
@@ -174,6 +175,7 @@ export default function CreateVideo() {
           setGeneratingProgress(100);
           setIsGenerating(false);
           setVideoReady(true);
+          setRefreshSidebarTrigger(prev => prev + 1); // Refresh recent videos list
           toast({
             title: "Video Ready!",
             description: "Your property video has been generated successfully!",
@@ -533,6 +535,7 @@ Contact us today for a private inspection.`;
             onSelectTemplate={(templateId) =>
               setCustomization((prev) => ({ ...prev, selectedTemplate: templateId }))
             }
+            refreshTrigger={refreshSidebarTrigger}
           />
         </div>
 
