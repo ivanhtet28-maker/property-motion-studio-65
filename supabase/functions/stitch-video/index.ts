@@ -308,29 +308,37 @@
                         flex-direction: column;
                         align-items: center;
                         justify-content: center;
-                        font-family: Arial, sans-serif;
-                        color: white;
                         text-align: center;
-                        padding: 60px;
+                        font-family: Arial, sans-serif;
                       ">
-                        ${agentInfo.photo ? `
-                          <img
-                            src="${agentInfo.photo}"
-                            style="
-                              width: 180px;
-                              height: 180px;
-                              border-radius: 50%;
-                              border: 4px solid white;
-                              object-fit: cover;
-                              margin-bottom: 30px;
-                              box-shadow: 0 8px 32px rgba(255, 255, 255, 0.2);
-                            "
-                          />
-                        ` : ''}
-                        <div style="font-size: 42px; font-weight: 700; margin-bottom: 15px; letter-spacing: 1px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.name}</div>
-                        ${agentInfo.phone ? `<div style="font-size: 28px; margin-bottom: 10px; font-weight: 400; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.phone}</div>` : ''}
-                        ${agentInfo.email ? `<div style="font-size: 24px; font-weight: 300; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.email}</div>` : ''}
-                        <div style="margin-top: 40px; font-size: 20px; font-weight: 300; letter-spacing: 2px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">CONTACT ME TODAY</div>
+                        <div style="
+                          background: rgba(0, 0, 0, 0.95);
+                          padding: 40px 60px;
+                          margin: 0 auto;
+                          border-radius: 20px;
+                          border: 3px solid rgba(255, 255, 255, 0.3);
+                          color: white;
+                          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+                        ">
+                          ${agentInfo.photo ? `
+                            <img
+                              src="${agentInfo.photo}"
+                              style="
+                                width: 180px;
+                                height: 180px;
+                                border-radius: 50%;
+                                border: 4px solid white;
+                                object-fit: cover;
+                                margin-bottom: 30px;
+                                box-shadow: 0 8px 32px rgba(255, 255, 255, 0.2);
+                              "
+                            />
+                          ` : ''}
+                          <div style="font-size: 42px; font-weight: 700; margin-bottom: 15px; letter-spacing: 1px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.name}</div>
+                          ${agentInfo.phone ? `<div style="font-size: 28px; margin-bottom: 10px; font-weight: 400; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.phone}</div>` : ''}
+                          ${agentInfo.email ? `<div style="font-size: 24px; font-weight: 300; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.email}</div>` : ''}
+                          <div style="margin-top: 40px; font-size: 20px; font-weight: 300; letter-spacing: 2px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">CONTACT ME TODAY</div>
+                        </div>
                       </div>
                     `,
                     css: "",
