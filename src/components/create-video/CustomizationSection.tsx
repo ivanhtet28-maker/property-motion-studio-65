@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
+import { MUSIC_LIBRARY } from "@/config/musicLibrary";
 import {
   Select,
   SelectContent,
@@ -148,25 +149,55 @@ export function CustomizationSection({ settings, onChange }: CustomizationSectio
     setIsPreviewingMusic(true);
 
     try {
-      // Get the first track for the selected music style
-      const firstTrack = currentTracks[0];
-      if (!firstTrack) {
-        throw new Error("No music track available for this style");
+      // Map music style to music library category
+      const styleToCategoryMap: Record<string, string> = {
+        "Cinematic & Epic": "luxury-elegant-1",
+        "Modern & Chill": "upbeat-modern-1",
+        "Upbeat & Energetic": "energetic-pop-1",
+        "Classical Elegance": "classical-sophisticated-1",
+        "Ambient Relaxing": "calm-ambient-1",
+      };
+
+      const musicId = styleToCategoryMap[settings.musicStyle];
+      if (!musicId) {
+        throw new Error("Music style not found");
       }
 
-      // For now, we'll use a placeholder URL
-      // TODO: Upload actual music files to Supabase Storage and use real URLs
-      console.log("Would play music:", settings.musicStyle, "-", firstTrack);
+      const track = MUSIC_LIBRARY[musicId];
+      if (!track) {
+        throw new Error("Music track not available");
+      }
 
-      // Simulate loading
-      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log("Playing music preview:", track.name, "from", track.url);
 
-      setIsPreviewingMusic(false);
-      alert("Music preview coming soon! Please select your preferred style and we'll include it in your video.");
+      // Create audio element and play
+      const audio = new Audio(track.url);
+      setMusicAudio(audio);
+
+      audio.onended = () => {
+        setIsPreviewingMusic(false);
+      };
+
+      audio.onerror = () => {
+        setIsPreviewingMusic(false);
+        console.error("Failed to load music file");
+        alert("Music file not available. Please ensure music files are uploaded to Supabase Storage.");
+      };
+
+      // Play for 30 seconds preview
+      await audio.play();
+      setTimeout(() => {
+        if (audio && !audio.paused) {
+          audio.pause();
+          audio.currentTime = 0;
+          setIsPreviewingMusic(false);
+        }
+      }, 30000); // 30 second preview
+
     } catch (error) {
       console.error("Music preview error:", error);
       setIsPreviewingMusic(false);
-      alert("Music preview not yet available.");
+      alert("Failed to preview music. Please try again.");
     }
   };
 

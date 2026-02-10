@@ -18,19 +18,19 @@ interface MusicTrack {
 export const MUSIC_LIBRARY: Record<string, MusicTrack> = {
   // Upbeat/Modern tracks
   "upbeat-modern-1": {
-    url: "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/upbeat-modern-1.mp3",
+    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/upbeat-modern-1.mp3",
     name: "Upbeat Modern 1",
     duration: 120,
     category: "modern",
   },
   "upbeat-modern-2": {
-    url: "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/upbeat-modern-2.mp3",
+    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/upbeat-modern-2.mp3",
     name: "Upbeat Modern 2",
     duration: 130,
     category: "modern",
   },
   "upbeat-modern-3": {
-    url: "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/upbeat-modern-3.mp3",
+    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/upbeat-modern-3.mp3",
     name: "Upbeat Modern 3",
     duration: 125,
     category: "modern",
@@ -38,19 +38,19 @@ export const MUSIC_LIBRARY: Record<string, MusicTrack> = {
 
   // Calm/Ambient tracks
   "calm-ambient-1": {
-    url: "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/calm-ambient-1.mp3",
+    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/calm-ambient-1.mp3",
     name: "Calm Ambient 1",
     duration: 150,
     category: "ambient",
   },
   "calm-ambient-2": {
-    url: "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/calm-ambient-2.mp3",
+    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/calm-ambient-2.mp3",
     name: "Calm Ambient 2",
     duration: 140,
     category: "ambient",
   },
   "calm-ambient-3": {
-    url: "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/calm-ambient-3.mp3",
+    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/calm-ambient-3.mp3",
     name: "Calm Ambient 3",
     duration: 145,
     category: "ambient",
@@ -58,19 +58,19 @@ export const MUSIC_LIBRARY: Record<string, MusicTrack> = {
 
   // Luxury/Elegant tracks
   "luxury-elegant-1": {
-    url: "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/luxury-elegant-1.mp3",
+    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/luxury-elegant-1.mp3",
     name: "Luxury Elegant 1",
     duration: 135,
     category: "luxury",
   },
   "luxury-elegant-2": {
-    url: "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/luxury-elegant-2.mp3",
+    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/luxury-elegant-2.mp3",
     name: "Luxury Elegant 2",
     duration: 128,
     category: "luxury",
   },
   "luxury-elegant-3": {
-    url: "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/luxury-elegant-3.mp3",
+    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/luxury-elegant-3.mp3",
     name: "Luxury Elegant 3",
     duration: 142,
     category: "luxury",
@@ -78,19 +78,19 @@ export const MUSIC_LIBRARY: Record<string, MusicTrack> = {
 
   // Energetic/Pop tracks
   "energetic-pop-1": {
-    url: "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/energetic-pop-1.mp3",
+    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/energetic-pop-1.mp3",
     name: "Energetic Pop 1",
     duration: 118,
     category: "energetic",
   },
   "energetic-pop-2": {
-    url: "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/energetic-pop-2.mp3",
+    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/energetic-pop-2.mp3",
     name: "Energetic Pop 2",
     duration: 122,
     category: "energetic",
   },
   "energetic-pop-3": {
-    url: "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/energetic-pop-3.mp3",
+    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/energetic-pop-3.mp3",
     name: "Energetic Pop 3",
     duration: 115,
     category: "energetic",
@@ -98,19 +98,19 @@ export const MUSIC_LIBRARY: Record<string, MusicTrack> = {
 
   // Classical/Sophisticated tracks
   "classical-sophisticated-1": {
-    url: "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/classical-sophisticated-1.mp3",
+    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/classical-sophisticated-1.mp3",
     name: "Classical Sophisticated 1",
     duration: 160,
     category: "classical",
   },
   "classical-sophisticated-2": {
-    url: "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/classical-sophisticated-2.mp3",
+    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/classical-sophisticated-2.mp3",
     name: "Classical Sophisticated 2",
     duration: 155,
     category: "classical",
   },
   "classical-sophisticated-3": {
-    url: "https://acpkhbjgnlenjfiswftx.supabase.co/storage/v1/object/public/video-assets/music/classical-sophisticated-3.mp3",
+    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/classical-sophisticated-3.mp3",
     name: "Classical Sophisticated 3",
     duration: 148,
     category: "classical",
