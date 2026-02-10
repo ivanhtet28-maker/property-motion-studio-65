@@ -294,27 +294,7 @@
               ],
             }] : []),
 
-            // Agent photo (rectangular for now) - Track 4 or 3
-            ...(agentPhotoUrl ? [{
-              clips: [
-                {
-                  asset: {
-                    type: "image",
-                    src: agentPhotoUrl,
-                  },
-                  start: videoClipsDuration,
-                  length: agentCardDuration,
-                  fit: "crop",
-                  scale: 0.2,
-                  position: "top",
-                  offset: {
-                    y: -0.18,
-                  },
-                },
-              ],
-            }] : []),
-
-            // Agent text details with photo background - Track 5 or 4
+            // Agent branding card - Track 4 or 3
             ...(agentInfo && agentInfo.name ? [{
               clips: [
                 {
@@ -322,22 +302,38 @@
                     type: "html",
                     html: `
                       <div style="
-                        width: 1080px;
-                        height: 1920px;
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
                         display: flex;
                         flex-direction: column;
-                        justify-content: center;
                         align-items: center;
+                        justify-content: center;
                         font-family: Arial, sans-serif;
                         color: white;
                         text-align: center;
-                        padding-top: ${agentPhotoUrl ? '140px' : '0'};
-                        ${agentPhotoUrl ? `background-image: url('${agentPhotoUrl}'); background-size: 220px 220px; background-repeat: no-repeat; background-position: top 80px center;` : ''}
+                        padding: 60px;
                       ">
-                        <div style="font-size: 48px; font-weight: bold; margin-bottom: 20px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.name}</div>
-                        <div style="font-size: 38px; margin-bottom: 15px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.phone}</div>
-                        ${agentInfo.email ? `<div style="font-size: 32px; margin-bottom: 30px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.email}</div>` : ''}
-                        <div style="font-size: 44px; font-weight: bold; margin-top: 20px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">CONTACT ME TODAY</div>
+                        ${agentPhotoUrl ? `
+                          <img
+                            src="${agentPhotoUrl}"
+                            style="
+                              width: 180px;
+                              height: 180px;
+                              border-radius: 50%;
+                              border: 4px solid white;
+                              object-fit: cover;
+                              margin-bottom: 30px;
+                              box-shadow: 0 8px 32px rgba(255, 255, 255, 0.2);
+                            "
+                          />
+                        ` : ''}
+                        <div style="font-size: 42px; font-weight: 700; margin-bottom: 15px; letter-spacing: 1px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.name}</div>
+                        ${agentInfo.phone ? `<div style="font-size: 28px; margin-bottom: 10px; font-weight: 400; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.phone}</div>` : ''}
+                        ${agentInfo.email ? `<div style="font-size: 24px; font-weight: 300; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.email}</div>` : ''}
+                        <div style="margin-top: 40px; font-size: 20px; font-weight: 300; letter-spacing: 2px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">CONTACT ME TODAY</div>
                       </div>
                     `,
                     css: "",
