@@ -87,8 +87,8 @@ export function VideoTemplateSelector({
               </div>
             )}
 
-            {/* Template preview with title and property details */}
-            <div className="w-full aspect-video rounded-lg bg-gradient-to-br from-slate-600 to-slate-800 mb-2 flex flex-col items-center justify-center relative overflow-hidden p-3">
+            {/* Template preview with title and address */}
+            <div className="w-full aspect-video rounded-lg bg-gradient-to-br from-slate-600 to-slate-800 mb-2 flex flex-col items-center justify-center relative overflow-hidden p-2">
               <div
                 className="absolute inset-0 opacity-20"
                 style={{
@@ -96,24 +96,12 @@ export function VideoTemplateSelector({
                   backgroundSize: "20px 20px"
                 }}
               />
-              <div className="z-10 text-center space-y-1">
-                <div className="text-base font-bold text-white mb-2" style={{ textShadow: "2px 2px 4px rgba(0,0,0,0.8)" }}>
+              <div className="z-10 text-center space-y-1.5">
+                <div className="text-lg font-bold text-white" style={{ textShadow: "2px 2px 4px rgba(0,0,0,0.8)" }}>
                   {template.name}
                 </div>
-                <div className="text-[10px] font-semibold text-white" style={{ textShadow: "1px 1px 3px rgba(0,0,0,0.8)" }}>
-                  123 Sample Street,
-                </div>
-                <div className="text-[10px] font-semibold text-white mb-1" style={{ textShadow: "1px 1px 3px rgba(0,0,0,0.8)" }}>
-                  Suburb, State
-                </div>
-                <div className="text-xs font-bold text-white mb-1" style={{ textShadow: "1px 1px 3px rgba(0,0,0,0.8)" }}>
-                  $750,000
-                </div>
-                <div className="text-[9px] font-medium text-white" style={{ textShadow: "1px 1px 3px rgba(0,0,0,0.8)" }}>
-                  3 Bedrooms | 2 Bathrooms
-                </div>
-                <div className="text-[9px] font-medium text-white" style={{ textShadow: "1px 1px 3px rgba(0,0,0,0.8)" }}>
-                  2 Car Spaces | 450m² Land Size
+                <div className="text-[11px] font-semibold text-white leading-tight" style={{ textShadow: "1px 1px 3px rgba(0,0,0,0.8)" }}>
+                  123 Sample Street,<br />Suburb, State
                 </div>
               </div>
             </div>
