@@ -3,6 +3,7 @@ import { ChevronDown, Settings, Mic, Music, Palette, Play, SkipForward } from "l
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/lib/supabase";
 import {
   Select,
   SelectContent,
@@ -67,8 +68,61 @@ interface CustomizationSectionProps {
 export function CustomizationSection({ settings, onChange }: CustomizationSectionProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isPreviewingVoice, setIsPreviewingVoice] = useState(false);
+  const [voiceAudio, setVoiceAudio] = useState<HTMLAudioElement | null>(null);
 
   const currentTracks = musicTracks[settings.musicStyle] || [];
+
+  const handlePreviewVoice = async () => {
+    if (isPreviewingVoice) {
+      // Stop current preview
+      if (voiceAudio) {
+        voiceAudio.pause();
+        voiceAudio.currentTime = 0;
+      }
+      setIsPreviewingVoice(false);
+      return;
+    }
+
+    setIsPreviewingVoice(true);
+
+    try {
+      // Call backend function to generate voice preview
+      const { data, error } = await supabase.functions.invoke("preview-voice", {
+        body: {
+          voiceType: settings.voiceType,
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      // Create audio from the response
+      const audioBlob = new Blob([data], { type: "audio/mpeg" });
+      const audioUrl = URL.createObjectURL(audioBlob);
+
+      const audio = new Audio(audioUrl);
+      setVoiceAudio(audio);
+
+      audio.onended = () => {
+        setIsPreviewingVoice(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      audio.onerror = () => {
+        setIsPreviewingVoice(false);
+        URL.revokeObjectURL(audioUrl);
+        alert("Failed to play voice preview.");
+      };
+
+      await audio.play();
+    } catch (error) {
+      console.error("Voice preview error:", error);
+      setIsPreviewingVoice(false);
+      alert("Failed to preview voice. Please try again.");
+    }
+  };
 
   return (
     <section className="space-y-4">
@@ -131,9 +185,15 @@ export function CustomizationSection({ settings, onChange }: CustomizationSectio
                     </SelectContent>
                   </Select>
                 </div>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Play className="w-3 h-3" />
-                  Preview Voice Sample
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={handlePreviewVoice}
+                  disabled={isPreviewingVoice}
+                >
+                  <Play className={`w-3 h-3 ${isPreviewingVoice ? "text-primary animate-pulse" : ""}`} />
+                  {isPreviewingVoice ? "Playing..." : "Preview Voice Sample"}
                 </Button>
               </div>
             )}
