@@ -87,9 +87,18 @@ export function VideoTemplateSelector({
               </div>
             )}
 
-            {/* Template preview placeholder */}
-            <div className="w-full aspect-video rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 mb-2 flex items-center justify-center">
-              <span className="text-2xl">🎬</span>
+            {/* Template preview with title */}
+            <div className="w-full aspect-video rounded-lg bg-gradient-to-br from-slate-600 to-slate-800 mb-2 flex items-center justify-center relative overflow-hidden">
+              <div
+                className="absolute inset-0 opacity-20"
+                style={{
+                  backgroundImage: "url('data:image/svg+xml,%3Csvg width=\"100\" height=\"100\" viewBox=\"0 0 100 100\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3Cpath d=\"M0 0h50v50H0z\" fill=\"%23fff\" opacity=\".1\"/%3E%3C/svg%3E')",
+                  backgroundSize: "20px 20px"
+                }}
+              />
+              <span className="text-lg font-bold text-white z-10" style={{ textShadow: "2px 2px 4px rgba(0,0,0,0.8)" }}>
+                {template.name}
+              </span>
             </div>
 
             {/* Template info */}
