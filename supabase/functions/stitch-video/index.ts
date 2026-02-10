@@ -214,7 +214,7 @@
             volume: 0.3,
           } : undefined,
           tracks: [
-            // Voiceover track - BOTTOM (Track 0)
+            // Voiceover track (Track 0)
             ...(audioUrl ? [{
               clips: [
                 {
@@ -229,72 +229,7 @@
               ],
             }] : []),
 
-            // Video track (Track 1 or 0 if no audio)
-            {
-              clips: videoClips,
-            },
-
-            // Property details HTML overlay - complete control over positioning (Track 2 or 1)
-            {
-              clips: [
-                {
-                  asset: {
-                    type: "html",
-                    html: `
-                      <div style="
-                        width: 100%;
-                        height: 100%;
-                        display: flex;
-                        flex-direction: column;
-                        padding-top: 80px;
-                        text-align: center;
-                        font-family: Arial, sans-serif;
-                      ">
-                        <div style="
-                          background: rgba(0, 0, 0, 0.95);
-                          padding: 40px 60px;
-                          margin: 0 auto;
-                          border-radius: 20px;
-                          border: 3px solid rgba(255, 255, 255, 0.3);
-                          color: white;
-                          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
-                        ">
-                          ${style && TEMPLATE_NAMES[style] ? `<div style="font-size: 52px; font-weight: 900; margin-bottom: 28px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${TEMPLATE_NAMES[style]}</div>` : ''}
-                          <div style="font-size: 42px; font-weight: 700; margin-bottom: 22px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${propertyData.address}</div>
-                          <div style="font-size: 38px; font-weight: 900; margin-bottom: 18px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">$${propertyData.price}</div>
-                          <div style="font-size: 32px; line-height: 1.7; text-shadow: 3px 3px 6px rgba(0,0,0,1); font-weight: 600; color: white;">
-                            <div>${propertyData.beds} Bedroom${propertyData.beds !== 1 ? 's' : ''} | ${propertyData.baths} Bathroom${propertyData.baths !== 1 ? 's' : ''}</div>
-                            <div>${propertyData.carSpaces ? `${propertyData.carSpaces} Car Space${propertyData.carSpaces !== 1 ? 's' : ''}` : ''}${propertyData.carSpaces && propertyData.landSize ? ' | ' : ''}${propertyData.landSize ? `${propertyData.landSize}m² Land Size` : ''}</div>
-                          </div>
-                        </div>
-                      </div>
-                    `,
-                    css: "",
-                    width: 1080,
-                    height: 1920,
-                  },
-                  start: 0.1,
-                  length: durations[0] - 0.1, // Match first clip duration (minus 0.1s offset)
-                },
-              ],
-            },
-
-            // Agent outro background - First clip with reduced opacity (Track 3 or 2)
-            ...(agentInfo && agentInfo.name ? [{
-              clips: [
-                {
-                  asset: {
-                    type: "video",
-                    src: videoUrls[0], // Use first Luma clip
-                  },
-                  start: videoClipsDuration,
-                  length: agentCardDuration,
-                  opacity: 0.5,
-                },
-              ],
-            }] : []),
-
-            // Agent branding card - Track 4 or 3 (renders ON TOP of blurred background)
+            // Agent branding card - Track 1 (TOP - renders on top)
             ...(agentInfo && agentInfo.name ? [{
               clips: [
                 {
@@ -350,6 +285,71 @@
                 },
               ],
             }] : []),
+
+            // Property details HTML overlay (Track 2)
+            {
+              clips: [
+                {
+                  asset: {
+                    type: "html",
+                    html: `
+                      <div style="
+                        width: 100%;
+                        height: 100%;
+                        display: flex;
+                        flex-direction: column;
+                        padding-top: 80px;
+                        text-align: center;
+                        font-family: Arial, sans-serif;
+                      ">
+                        <div style="
+                          background: rgba(0, 0, 0, 0.95);
+                          padding: 40px 60px;
+                          margin: 0 auto;
+                          border-radius: 20px;
+                          border: 3px solid rgba(255, 255, 255, 0.3);
+                          color: white;
+                          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+                        ">
+                          ${style && TEMPLATE_NAMES[style] ? `<div style="font-size: 52px; font-weight: 900; margin-bottom: 28px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${TEMPLATE_NAMES[style]}</div>` : ''}
+                          <div style="font-size: 42px; font-weight: 700; margin-bottom: 22px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${propertyData.address}</div>
+                          <div style="font-size: 38px; font-weight: 900; margin-bottom: 18px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">$${propertyData.price}</div>
+                          <div style="font-size: 32px; line-height: 1.7; text-shadow: 3px 3px 6px rgba(0,0,0,1); font-weight: 600; color: white;">
+                            <div>${propertyData.beds} Bedroom${propertyData.beds !== 1 ? 's' : ''} | ${propertyData.baths} Bathroom${propertyData.baths !== 1 ? 's' : ''}</div>
+                            <div>${propertyData.carSpaces ? `${propertyData.carSpaces} Car Space${propertyData.carSpaces !== 1 ? 's' : ''}` : ''}${propertyData.carSpaces && propertyData.landSize ? ' | ' : ''}${propertyData.landSize ? `${propertyData.landSize}m² Land Size` : ''}</div>
+                          </div>
+                        </div>
+                      </div>
+                    `,
+                    css: "",
+                    width: 1080,
+                    height: 1920,
+                  },
+                  start: 0.1,
+                  length: durations[0] - 0.1, // Match first clip duration (minus 0.1s offset)
+                },
+              ],
+            },
+
+            // Agent outro background - First clip with reduced opacity (Track 3)
+            ...(agentInfo && agentInfo.name ? [{
+              clips: [
+                {
+                  asset: {
+                    type: "video",
+                    src: videoUrls[0], // Use first Luma clip
+                  },
+                  start: videoClipsDuration,
+                  length: agentCardDuration,
+                  opacity: 0.5,
+                },
+              ],
+            }] : []),
+
+            // Main video clips track (Track 4 - AT BOTTOM)
+            {
+              clips: videoClips,
+            },
           ],
         },
         output: {
