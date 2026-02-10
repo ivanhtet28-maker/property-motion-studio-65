@@ -123,11 +123,8 @@ export function VideoTemplateSelector({
               <div className="text-2xl font-bold text-white mb-3" style={{ textShadow: "2px 2px 4px rgba(0,0,0,0.8)" }}>
                 {currentTemplate.name}
               </div>
-              <div className="text-sm font-semibold text-white leading-tight" style={{ textShadow: "1px 1px 3px rgba(0,0,0,0.8)" }}>
-                123 Sample Street,
-              </div>
-              <div className="text-sm font-semibold text-white mb-2" style={{ textShadow: "1px 1px 3px rgba(0,0,0,0.8)" }}>
-                Suburb, State
+              <div className="text-[11px] font-semibold text-white mb-2" style={{ textShadow: "1px 1px 3px rgba(0,0,0,0.8)" }}>
+                123 Sample Street, Suburb, State
               </div>
               <div className="text-lg font-bold text-white mb-2" style={{ textShadow: "1px 1px 3px rgba(0,0,0,0.8)" }}>
                 $750,000
