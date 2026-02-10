@@ -74,14 +74,14 @@ No rotation, no pan, no tilt, no vertical movement.
 Constant speed, no acceleration.
 No shaking, no jitter, no wobble.`,
 
-    "pan-left": `Ultra-stable pan to left ONLY.
+    "pan-left": `Ultra-stable YAW ROTATION to LEFT ONLY.
 Pan angle budget: small (about 4–6 degrees total).
 Rotation-only around a fixed pivot point (tripod fluid head).
 No dolly, no zoom, no tilt, no vertical movement, no forward/backward movement.
 Constant speed, no acceleration.
 No shaking, no jitter, no wobble.`,
 
-    "pan-right": `Ultra-stable pan to right ONLY.
+    "pan-right": `Ultra-stable YAW ROTATION to RIGHT ONLY.
 Pan angle budget: small (about 4–6 degrees total).
 Rotation-only around a fixed pivot point (tripod fluid head).
 No dolly, no zoom, no tilt, no vertical movement, no forward/backward movement.
