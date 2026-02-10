@@ -279,7 +279,22 @@
               ],
             },
 
-            // Agent branding card - Track 3 or 2 (no blurred background)
+            // Agent outro background - Blurred first clip (Track 3 or 2)
+            ...(agentInfo && agentInfo.name ? [{
+              clips: [
+                {
+                  asset: {
+                    type: "video",
+                    src: videoUrls[0], // Use first Luma clip
+                  },
+                  start: videoClipsDuration + 0.1,
+                  length: agentCardDuration - 0.1,
+                  filter: "blur",
+                },
+              ],
+            }] : []),
+
+            // Agent branding card - Track 4 or 3 (renders ON TOP of blurred background)
             ...(agentInfo && agentInfo.name ? [{
               clips: [
                 {
@@ -297,7 +312,7 @@
                         font-family: Arial, sans-serif;
                       ">
                         <div style="
-                          background: rgba(0, 0, 0, 0.95);
+                          background: rgba(0, 0, 0, 0.85);
                           padding: 40px 60px;
                           margin: 0 auto;
                           border-radius: 20px;
