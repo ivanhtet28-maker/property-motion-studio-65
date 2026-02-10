@@ -176,7 +176,7 @@
 
       // Calculate total duration
       const videoClipsDuration = durations.reduce((sum, duration) => sum + duration, 0);
-      const agentCardDuration = (agentInfo && agentInfo.name) ? 3.5 : 0;
+      const agentCardDuration = (agentInfo && agentInfo.name) ? durations[0] : 0; // Match first clip duration
       const totalDuration = videoClipsDuration + agentCardDuration;
 
       console.log("Clip durations:", durations);
