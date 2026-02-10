@@ -303,7 +303,7 @@ export default function Index() {
               price="$149"
               period="month"
               description="Perfect for 6-10 listings/month"
-              features={["30 credits per month", "HD videos (up to 10 images)", "All templates", "Agent branding", "Email support"]}
+              features={["30 credits per month", "HD videos (up to 10 images)", "All templates", "Email support"]}
               cta="Start Free Trial"
               planId="starter"
               onSelectPlan={handleSelectPlan}
@@ -314,7 +314,7 @@ export default function Index() {
               price="$299"
               period="month"
               description="Perfect for 12-20 listings/month"
-              features={["60 credits per month", "Everything in Starter", "Priority support", "Analytics dashboard", "Custom music"]}
+              features={["60 credits per month", "Everything in Starter", "Priority support", "Analytics dashboard"]}
               cta="Start Free Trial"
               highlighted
               badge="⭐ RECOMMENDED"
