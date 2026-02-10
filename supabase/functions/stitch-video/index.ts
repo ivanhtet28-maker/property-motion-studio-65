@@ -279,6 +279,44 @@
               ],
             },
 
+            // Agent photo test in intro - bottom right corner (Track 3 or 2)
+            ...(agentInfo?.photo ? [{
+              clips: [
+                {
+                  asset: {
+                    type: "html",
+                    html: `
+                      <div style="
+                        width: 100%;
+                        height: 100%;
+                        display: flex;
+                        align-items: flex-end;
+                        justify-content: flex-end;
+                        padding: 40px;
+                      ">
+                        <img
+                          src="${agentInfo.photo}"
+                          style="
+                            width: 120px;
+                            height: 120px;
+                            border-radius: 50%;
+                            border: 4px solid white;
+                            object-fit: cover;
+                            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+                          "
+                        />
+                      </div>
+                    `,
+                    css: "",
+                    width: 1080,
+                    height: 1920,
+                  },
+                  start: 0.1,
+                  length: durations[0] - 0.1,
+                },
+              ],
+            }] : []),
+
             // Agent outro background - Blurred first clip (Track 3 or 2)
             ...(agentInfo && agentInfo.name ? [{
               clips: [
