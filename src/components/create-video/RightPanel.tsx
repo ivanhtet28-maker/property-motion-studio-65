@@ -150,7 +150,7 @@ Contact us today for a private inspection.`;
     window.open(videoUrl, "_blank");
   };
 
-  const canGenerate = photoCount >= 3 && photoCount <= 6 && agentInfoValid;
+  const canGenerate = photoCount >= 3 && photoCount <= 10 && agentInfoValid;
 
   const getProgressStatus = () => {
     if (generatingProgress < 20) return "Uploading photos...";
@@ -403,13 +403,13 @@ Contact us today for a private inspection.`;
                       Add {3 - photoCount} more photos to continue
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      3-6 photos required (15-30s video)
+                      3-10 photos required (15-50s video)
                     </p>
                   </>
-                ) : photoCount > 6 ? (
+                ) : photoCount > 10 ? (
                   <>
                     <p className="text-sm text-warning font-medium">
-                      Maximum 6 photos allowed
+                      Maximum 10 photos allowed
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
                       You have {photoCount} photos

@@ -62,7 +62,7 @@ export function PhotoUpload({
   imageMetadata = [],
   onMetadataChange,
   minPhotos = 3,
-  maxPhotos = 6,
+  maxPhotos = 10,
 }: PhotoUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);

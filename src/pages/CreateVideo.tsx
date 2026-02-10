@@ -232,7 +232,7 @@ export default function CreateVideo() {
   };
 
   const handleGenerate = async () => {
-    // Check if we have either uploaded photos or scraped images (3-6 for Luma AI)
+    // Check if we have either uploaded photos or scraped images (3-10 for Luma AI)
     const imageCount = scrapedImageUrls.length > 0 ? scrapedImageUrls.length : photos.length;
 
     if (imageCount < 3) {
@@ -240,8 +240,8 @@ export default function CreateVideo() {
       return;
     }
 
-    if (imageCount > 6) {
-      setError(`Maximum 6 photos allowed for 15-30 second video (you have ${imageCount})`);
+    if (imageCount > 10) {
+      setError(`Maximum 10 photos allowed for 15-50 second video (you have ${imageCount})`);
       return;
     }
 
@@ -594,7 +594,7 @@ Contact us today for a private inspection.`;
                 onClick={handleGenerate}
                 disabled={
                   (photos.length < 3 && scrapedImageUrls.length < 3) ||
-                  (Math.max(photos.length, scrapedImageUrls.length) > 6) ||
+                  (Math.max(photos.length, scrapedImageUrls.length) > 10) ||
                   !customization.agentInfo.name.trim() ||
                   !customization.agentInfo.phone.trim() ||
                   isGenerating
@@ -604,12 +604,12 @@ Contact us today for a private inspection.`;
               </Button>
               {photos.length < 3 && scrapedImageUrls.length < 3 && (
                 <p className="text-xs text-center text-warning mt-3 font-medium">
-                  Add {3 - Math.max(photos.length, scrapedImageUrls.length)} more photos to continue (3-6 images for 15-30s video)
+                  Add {3 - Math.max(photos.length, scrapedImageUrls.length)} more photos to continue (3-10 images for 15-50s video)
                 </p>
               )}
-              {Math.max(photos.length, scrapedImageUrls.length) > 6 && (
+              {Math.max(photos.length, scrapedImageUrls.length) > 10 && (
                 <p className="text-xs text-center text-warning mt-3 font-medium">
-                  Maximum 6 photos allowed (you have {Math.max(photos.length, scrapedImageUrls.length)})
+                  Maximum 10 photos allowed (you have {Math.max(photos.length, scrapedImageUrls.length)})
                 </p>
               )}
               {!customization.agentInfo.name.trim() && (

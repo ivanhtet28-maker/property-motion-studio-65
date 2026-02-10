@@ -294,55 +294,44 @@ export default function Index() {
             Simple, Transparent Pricing
           </h2>
           <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-            Choose the plan that fits your needs. All plans include a 7-day free trial.
+            Choose the plan that fits your needs. Subscription plans or pay as you go.
           </p>
-
-          {/* Billing Toggle */}
-          <div className="flex items-center justify-center gap-4 mb-12">
-            <span className="text-foreground font-medium">Monthly</span>
-            <button className="relative w-14 h-7 bg-primary rounded-full transition-colors">
-              <span className="absolute left-1 top-1 w-5 h-5 bg-primary-foreground rounded-full transition-transform" />
-            </button>
-            <span className="text-muted-foreground">
-              Annual <span className="text-success font-semibold">Save 20%</span>
-            </span>
-          </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto items-start">
             <PricingCard
               name="Starter"
-              price="$299"
+              price="$149"
               period="month"
-              description="Perfect for solo agents"
-              features={["10 videos per month", "HD videos", "All templates", "Agent branding", "Email support"]}
+              description="Perfect for 6-10 listings/month"
+              features={["30 credits per month", "HD videos (up to 10 images)", "All templates", "Agent branding", "Email support"]}
               cta="Start Free Trial"
               planId="starter"
               onSelectPlan={handleSelectPlan}
               isLoading={loadingPlan === "starter"}
             />
             <PricingCard
-              name="Growth"
-              price="$499"
+              name="Professional"
+              price="$299"
               period="month"
-              description="For busy agents"
-              features={["30 videos per month", "Everything in Starter", "Priority support", "Analytics dashboard", "Custom music"]}
+              description="Perfect for 12-20 listings/month"
+              features={["60 credits per month", "Everything in Starter", "Priority support", "Analytics dashboard", "Custom music"]}
               cta="Start Free Trial"
               highlighted
               badge="⭐ RECOMMENDED"
-              planId="growth"
+              planId="professional"
               onSelectPlan={handleSelectPlan}
-              isLoading={loadingPlan === "growth"}
+              isLoading={loadingPlan === "professional"}
             />
             <PricingCard
-              name="Enterprise"
-              price="Custom"
-              period="pricing"
-              description="For agencies & teams"
-              features={["Unlimited videos", "Everything in Growth", "White label option", "Multi-user access", "API access"]}
-              cta="Enquire Now"
-              planId="enterprise"
+              name="Pay As You Go"
+              price="From $25"
+              period=""
+              description="Flexible credit packs"
+              features={["5 credits - $25", "25 credits - $99", "50 credits - $179", "100 credits - $329", "No expiry"]}
+              cta="Buy Credits"
+              planId="payg"
               onSelectPlan={handleSelectPlan}
-              isLoading={loadingPlan === "enterprise"}
+              isLoading={loadingPlan === "payg"}
             />
           </div>
         </div>
