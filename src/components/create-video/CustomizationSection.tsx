@@ -64,9 +64,10 @@ const musicTracks: Record<string, string[]> = {
 interface CustomizationSectionProps {
   settings: CustomizationSettings;
   onChange: (settings: CustomizationSettings) => void;
+  previewImageUrl?: string;
 }
 
-export function CustomizationSection({ settings, onChange }: CustomizationSectionProps) {
+export function CustomizationSection({ settings, onChange, previewImageUrl }: CustomizationSectionProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isPreviewingVoice, setIsPreviewingVoice] = useState(false);
   const [isPreviewingMusic, setIsPreviewingMusic] = useState(false);
@@ -224,6 +225,7 @@ export function CustomizationSection({ settings, onChange }: CustomizationSectio
               onSelectTemplate={(templateId) =>
                 onChange({ ...settings, selectedTemplate: templateId })
               }
+              previewImageUrl={previewImageUrl}
             />
           </div>
 

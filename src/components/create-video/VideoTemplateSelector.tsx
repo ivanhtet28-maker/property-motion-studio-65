@@ -52,11 +52,13 @@ const templates: VideoTemplate[] = [
 interface VideoTemplateSelectorProps {
   selectedTemplate: string;
   onSelectTemplate: (templateId: string) => void;
+  previewImageUrl?: string;
 }
 
 export function VideoTemplateSelector({
   selectedTemplate,
   onSelectTemplate,
+  previewImageUrl,
 }: VideoTemplateSelectorProps) {
   const currentIndex = templates.findIndex(t => t.id === selectedTemplate);
   const currentTemplate = templates[currentIndex] || templates[0];
@@ -112,13 +114,24 @@ export function VideoTemplateSelector({
 
           {/* Large Template Preview with Property Details */}
           <div className="w-full aspect-[9/16] max-h-[400px] rounded-lg bg-gradient-to-br from-slate-600 to-slate-800 flex flex-col items-center justify-center relative overflow-hidden p-6">
-            <div
-              className="absolute inset-0 opacity-20"
-              style={{
-                backgroundImage: "url('data:image/svg+xml,%3Csvg width=\"100\" height=\"100\" viewBox=\"0 0 100 100\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3Cpath d=\"M0 0h50v50H0z\" fill=\"%23fff\" opacity=\".1\"/%3E%3C/svg%3E')",
-                backgroundSize: "20px 20px"
-              }}
-            />
+            {previewImageUrl ? (
+              <>
+                <img
+                  src={previewImageUrl}
+                  alt="Property preview"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-black/40" />
+              </>
+            ) : (
+              <div
+                className="absolute inset-0 opacity-20"
+                style={{
+                  backgroundImage: "url('data:image/svg+xml,%3Csvg width=\"100\" height=\"100\" viewBox=\"0 0 100 100\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3Cpath d=\"M0 0h50v50H0z\" fill=\"%23fff\" opacity=\".1\"/%3E%3C/svg%3E')",
+                  backgroundSize: "20px 20px"
+                }}
+              />
+            )}
             <div className="z-10 text-center space-y-2">
               <div className="text-2xl font-bold text-white mb-3" style={{ textShadow: "2px 2px 4px rgba(0,0,0,0.8)" }}>
                 {currentTemplate.name}

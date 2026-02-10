@@ -588,6 +588,13 @@ Contact us today for a private inspection.`;
               <CustomizationSection
                 settings={customization}
                 onChange={setCustomization}
+                previewImageUrl={
+                  scrapedImageUrls.length > 0
+                    ? scrapedImageUrls[0]
+                    : photos.length > 0
+                    ? URL.createObjectURL(photos[0])
+                    : undefined
+                }
               />
             </div>
 
