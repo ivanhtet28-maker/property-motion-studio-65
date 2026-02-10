@@ -245,35 +245,26 @@
                         justify-content: center;
                         text-align: center;
                         font-family: Arial, sans-serif;
+                        color: white;
                       ">
-                        <div style="
-                          background: rgba(0, 0, 0, 0.85);
-                          padding: 40px 60px;
-                          margin: 0 auto;
-                          border-radius: 20px;
-                          border: 3px solid rgba(255, 255, 255, 0.3);
-                          color: white;
-                          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
-                        ">
-                          ${agentInfo.photo ? `
-                            <img
-                              src="${agentInfo.photo}"
-                              style="
-                                width: 180px;
-                                height: 180px;
-                                border-radius: 50%;
-                                border: 4px solid white;
-                                object-fit: cover;
-                                margin-bottom: 30px;
-                                box-shadow: 0 8px 32px rgba(255, 255, 255, 0.2);
-                              "
-                            />
-                          ` : ''}
-                          <div style="font-size: 42px; font-weight: 700; margin-bottom: 15px; letter-spacing: 1px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.name}</div>
-                          ${agentInfo.phone ? `<div style="font-size: 28px; margin-bottom: 10px; font-weight: 400; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.phone}</div>` : ''}
-                          ${agentInfo.email ? `<div style="font-size: 24px; font-weight: 300; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.email}</div>` : ''}
-                          <div style="margin-top: 40px; font-size: 20px; font-weight: 300; letter-spacing: 2px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">CONTACT ME TODAY</div>
-                        </div>
+                        ${agentInfo.photo ? `
+                          <img
+                            src="${agentInfo.photo}"
+                            style="
+                              width: 120px;
+                              height: 120px;
+                              border-radius: 50%;
+                              border: 4px solid white;
+                              object-fit: cover;
+                              margin-bottom: 30px;
+                              box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+                            "
+                          />
+                        ` : ''}
+                        <div style="font-size: 42px; font-weight: 700; margin-bottom: 15px; letter-spacing: 1px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.name}</div>
+                        ${agentInfo.phone ? `<div style="font-size: 28px; margin-bottom: 10px; font-weight: 400; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.phone}</div>` : ''}
+                        ${agentInfo.email ? `<div style="font-size: 24px; font-weight: 300; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.email}</div>` : ''}
+                        <div style="margin-top: 40px; font-size: 20px; font-weight: 300; letter-spacing: 2px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">CONTACT ME TODAY</div>
                       </div>
                     `,
                     css: "",
@@ -301,23 +292,14 @@
                         padding-top: 80px;
                         text-align: center;
                         font-family: Arial, sans-serif;
+                        color: white;
                       ">
-                        <div style="
-                          background: rgba(0, 0, 0, 0.95);
-                          padding: 40px 60px;
-                          margin: 0 auto;
-                          border-radius: 20px;
-                          border: 3px solid rgba(255, 255, 255, 0.3);
-                          color: white;
-                          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
-                        ">
-                          ${style && TEMPLATE_NAMES[style] ? `<div style="font-size: 52px; font-weight: 900; margin-bottom: 28px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${TEMPLATE_NAMES[style]}</div>` : ''}
-                          <div style="font-size: 42px; font-weight: 700; margin-bottom: 22px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${propertyData.address}</div>
-                          <div style="font-size: 38px; font-weight: 900; margin-bottom: 18px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">$${propertyData.price}</div>
-                          <div style="font-size: 32px; line-height: 1.7; text-shadow: 3px 3px 6px rgba(0,0,0,1); font-weight: 600; color: white;">
-                            <div>${propertyData.beds} Bedroom${propertyData.beds !== 1 ? 's' : ''} | ${propertyData.baths} Bathroom${propertyData.baths !== 1 ? 's' : ''}</div>
-                            <div>${propertyData.carSpaces ? `${propertyData.carSpaces} Car Space${propertyData.carSpaces !== 1 ? 's' : ''}` : ''}${propertyData.carSpaces && propertyData.landSize ? ' | ' : ''}${propertyData.landSize ? `${propertyData.landSize}m² Land Size` : ''}</div>
-                          </div>
+                        ${style && TEMPLATE_NAMES[style] ? `<div style="font-size: 52px; font-weight: 900; margin-bottom: 28px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${TEMPLATE_NAMES[style]}</div>` : ''}
+                        <div style="font-size: 42px; font-weight: 700; margin-bottom: 22px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${propertyData.address}</div>
+                        <div style="font-size: 38px; font-weight: 900; margin-bottom: 18px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">$${propertyData.price}</div>
+                        <div style="font-size: 32px; line-height: 1.7; text-shadow: 3px 3px 6px rgba(0,0,0,1); font-weight: 600; color: white;">
+                          <div>${propertyData.beds} Bedroom${propertyData.beds !== 1 ? 's' : ''} | ${propertyData.baths} Bathroom${propertyData.baths !== 1 ? 's' : ''}</div>
+                          <div>${propertyData.carSpaces ? `${propertyData.carSpaces} Car Space${propertyData.carSpaces !== 1 ? 's' : ''}` : ''}${propertyData.carSpaces && propertyData.landSize ? ' | ' : ''}${propertyData.landSize ? `${propertyData.landSize}m² Land Size` : ''}</div>
                         </div>
                       </div>
                     `,
@@ -331,7 +313,7 @@
               ],
             },
 
-            // Agent outro background - First clip with reduced opacity (Track 3)
+            // Agent outro background - First clip blurred (Track 3)
             ...(agentInfo && agentInfo.name ? [{
               clips: [
                 {
@@ -341,7 +323,7 @@
                   },
                   start: videoClipsDuration,
                   length: agentCardDuration,
-                  opacity: 0.5,
+                  filter: "blur",
                 },
               ],
             }] : []),
