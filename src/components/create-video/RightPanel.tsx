@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -16,6 +17,8 @@ import {
   Volume2,
 } from "lucide-react";
 import { PropertyDetails } from "./PropertyDetailsForm";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Social icons
 const FacebookIcon = () => (
@@ -61,8 +64,30 @@ export function RightPanel({
   videoUrls = [],
   agentInfoValid = true,
 }: RightPanelProps) {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [isEditingScript, setIsEditingScript] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
+
+  // Load subscription status
+  useEffect(() => {
+    const loadSubscriptionStatus = async () => {
+      if (!user?.id) return;
+
+      const { data, error } = await supabase
+        .from("users")
+        .select("subscription_status")
+        .eq("id", user.id)
+        .single();
+
+      if (!error && data) {
+        setSubscriptionStatus(data.subscription_status);
+      }
+    };
+
+    loadSubscriptionStatus();
+  }, [user]);
 
   // Generate a mock script based on property details
   const generateScript = () => {
@@ -91,6 +116,23 @@ Contact us today for a private inspection.`;
     navigator.clipboard.writeText("https://propertyvideos.ai/share/abc123");
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Handle download with subscription check
+  const handleDownload = () => {
+    if (!videoUrl) {
+      return;
+    }
+
+    // Check if user has active subscription
+    if (subscriptionStatus !== "active") {
+      // Redirect to landing page pricing section
+      navigate("/#pricing");
+      return;
+    }
+
+    // Allow download
+    window.open(videoUrl, "_blank");
   };
 
   const canGenerate = photoCount >= 3 && photoCount <= 6 && agentInfoValid;
@@ -284,7 +326,7 @@ Contact us today for a private inspection.`;
             <Button
               variant="hero"
               className="w-full gap-2 shadow-lg shadow-primary/25"
-              onClick={() => videoUrl && window.open(videoUrl, '_blank')}
+              onClick={handleDownload}
               disabled={!videoUrl}
             >
               <Download className="w-4 h-4" />
