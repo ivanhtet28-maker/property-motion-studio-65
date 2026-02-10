@@ -114,14 +114,23 @@ Contact us today for a private inspection.`;
           <div className="absolute inset-0 border-4 border-gray-700 rounded-xl pointer-events-none" />
 
           {videoReady && videoUrl ? (
-            <video
-              src={videoUrl}
-              className="w-full h-full object-cover"
-              autoPlay
-              loop
-              muted
-              playsInline
-            />
+            <div className="relative w-full h-full">
+              <video
+                src={videoUrl}
+                controls
+                className="w-full h-full object-cover video-no-menu"
+                autoPlay
+                playsInline
+              />
+              <style>{`
+                .video-no-menu::-webkit-media-controls-overflow-button {
+                  display: none;
+                }
+                .video-no-menu::-webkit-media-controls-panel-container button:last-child {
+                  display: none;
+                }
+              `}</style>
+            </div>
           ) : (
             <>
               {/* Placeholder with animated gradient */}
