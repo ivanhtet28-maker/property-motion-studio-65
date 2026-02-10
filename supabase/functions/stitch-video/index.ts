@@ -279,22 +279,7 @@
               ],
             },
 
-            // Agent outro background - Blurred first clip (Track 3 or 2)
-            ...(agentInfo && agentInfo.name ? [{
-              clips: [
-                {
-                  asset: {
-                    type: "video",
-                    src: videoUrls[0], // Use first Luma clip
-                  },
-                  start: videoClipsDuration + 0.1,
-                  length: agentCardDuration - 0.1,
-                  filter: "blur",
-                },
-              ],
-            }] : []),
-
-            // Agent branding card - Track 4 or 3
+            // Agent branding card - Track 3 or 2 (no blurred background)
             ...(agentInfo && agentInfo.name ? [{
               clips: [
                 {
