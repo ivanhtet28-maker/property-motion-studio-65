@@ -116,9 +116,10 @@ Contact us today for a private inspection.`;
           {videoReady && videoUrl ? (
             <video
               src={videoUrl}
-              controls
               className="w-full h-full object-cover"
               autoPlay
+              loop
+              muted
               playsInline
             />
           ) : (
