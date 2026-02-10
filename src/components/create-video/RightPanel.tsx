@@ -133,7 +133,13 @@ Contact us today for a private inspection.`;
     if (subscriptionStatus !== "active") {
       console.log("No active subscription, redirecting to pricing");
       // Redirect to landing page pricing section
-      navigate("/#pricing");
+      navigate("/");
+      setTimeout(() => {
+        const pricingSection = document.getElementById("pricing");
+        if (pricingSection) {
+          pricingSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
       return;
     }
 

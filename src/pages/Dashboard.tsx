@@ -170,7 +170,13 @@ export default function Dashboard() {
     // Check if user has active subscription
     if (subscriptionStatus !== "active") {
       // Redirect to landing page pricing section
-      navigate("/#pricing");
+      navigate("/");
+      setTimeout(() => {
+        const pricingSection = document.getElementById("pricing");
+        if (pricingSection) {
+          pricingSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
       return;
     }
 
