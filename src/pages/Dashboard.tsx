@@ -169,8 +169,8 @@ export default function Dashboard() {
 
     // Check if user has active subscription
     if (subscriptionStatus !== "active") {
-      // Show subscription modal
-      setShowSubscriptionModal(true);
+      // Redirect to landing page pricing section
+      navigate("/#pricing");
       return;
     }
 
