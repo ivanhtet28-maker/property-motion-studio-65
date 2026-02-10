@@ -87,19 +87,28 @@ export function CustomizationSection({ settings, onChange }: CustomizationSectio
     setIsPreviewingVoice(true);
 
     try {
-      // Call backend function to generate voice preview
-      const { data, error } = await supabase.functions.invoke("preview-voice", {
-        body: {
-          voiceType: settings.voiceType,
+      // Get Supabase credentials from environment
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+      // Call backend function directly with fetch to handle binary response
+      const response = await fetch(`${supabaseUrl}/functions/v1/preview-voice`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${supabaseKey}`,
         },
+        body: JSON.stringify({
+          voiceType: settings.voiceType,
+        }),
       });
 
-      if (error) {
-        throw new Error(error.message);
+      if (!response.ok) {
+        throw new Error("Failed to generate voice preview");
       }
 
-      // Create audio from the response
-      const audioBlob = new Blob([data], { type: "audio/mpeg" });
+      // Get audio blob from response
+      const audioBlob = await response.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
 
       const audio = new Audio(audioUrl);
