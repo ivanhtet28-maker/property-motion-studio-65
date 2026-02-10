@@ -248,32 +248,17 @@
                         color: white;
                       ">
                         ${agentInfo.photo ? `
-                          <div class="agent-photo">
-                            <img src="${agentInfo.photo}" />
+                          <div style="width: 70px; height: 70px; border-radius: 50%; overflow: hidden; margin: 0 auto 30px auto; border: 4px solid white; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);">
+                            <img src="${agentInfo.photo}" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
                           </div>
                         ` : ''}
                         <div style="font-size: 42px; font-weight: 700; margin-bottom: 15px; letter-spacing: 1px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.name}</div>
-                        ${agentInfo.phone ? `<div style="font-size: 38px; margin-bottom: 10px; font-weight: 400; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.phone}</div>` : ''}
-                        ${agentInfo.email ? `<div style="font-size: 38px; font-weight: 400; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.email}</div>` : ''}
+                        ${agentInfo.phone ? `<div style="font-size: 38px; margin-bottom: 10px; font-weight: 600; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.phone}</div>` : ''}
+                        ${agentInfo.email ? `<div style="font-size: 38px; font-weight: 600; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.email}</div>` : ''}
                         <div style="margin-top: 40px; font-size: 42px; font-weight: 700; letter-spacing: 2px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">CONTACT ME TODAY</div>
                       </div>
                     `,
-                    css: `
-                      .agent-photo {
-                        width: 120px;
-                        height: 120px;
-                        border-radius: 50%;
-                        overflow: hidden;
-                        margin-bottom: 30px;
-                        border: 4px solid white;
-                        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-                      }
-                      .agent-photo img {
-                        width: 100%;
-                        height: 100%;
-                        object-fit: cover;
-                      }
-                    `,
+                    css: "",
                     width: 1080,
                     height: 1920,
                   },
