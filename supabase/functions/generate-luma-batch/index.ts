@@ -11,17 +11,15 @@
   function getMotionModifier(duration: number): string {
     switch (duration) {
       case 3:
-        return `Motion intensity: slow and controlled. Clearly visible but stable movement.`;
       case 3.5:
-        return `Motion intensity: very slow and controlled. Subtle movement, premium feel.`;
+        return `Motion intensity: slow and controlled. Clearly visible but stable movement.`;
       case 4:
-        return `Motion intensity: very slow, nearly static. Reduce movement to prevent drift.`;
       case 4.5:
-        return `Motion intensity: ultra-slow micro-motion only. Minimal parallax, almost static.`;
+        return `Motion intensity: very slow, nearly static. Reduce movement to prevent drift.`;
       case 5:
-        return `Motion intensity: almost completely static. Micro parallax only to avoid jitter.`;
+        return `Motion intensity: ultra-slow micro-motion only. Minimal parallax, almost static.`;
       default:
-        return `Motion intensity: very slow and controlled. Subtle movement, premium feel.`;
+        return `Motion intensity: slow and controlled. Clearly visible but stable movement.`;
     }
   }
 
@@ -29,17 +27,15 @@
   function getPanAngleBudget(duration: number): string {
     switch (duration) {
       case 3:
-        return `Pan angle budget: small pan (about 7–8 degrees total).`;
       case 3.5:
-        return `Pan angle budget: small pan (about 5–6 degrees total).`;
+        return `Pan angle budget: small pan (about 7–8 degrees total).`;
       case 4:
-        return `Pan angle budget: micro pan (about 4–5 degrees total).`;
       case 4.5:
-        return `Pan angle budget: very small micro pan (about 3–4 degrees total).`;
+        return `Pan angle budget: micro pan (about 4–5 degrees total).`;
       case 5:
-        return `Pan angle budget: minimal micro pan only (about 2–3 degrees total).`;
+        return `Pan angle budget: very small micro pan (about 3–4 degrees total).`;
       default:
-        return `Pan angle budget: small pan (about 5–6 degrees total).`;
+        return `Pan angle budget: small pan (about 7–8 degrees total).`;
     }
   }
 
@@ -47,17 +43,15 @@
   function getPushInBudget(duration: number): string {
     switch (duration) {
       case 3:
-        return `Push-in distance: subtle but visible forward movement.`;
       case 3.5:
-        return `Push-in distance: small and controlled forward movement.`;
+        return `Push-in distance: subtle but visible forward movement.`;
       case 4:
-        return `Push-in distance: very small forward movement only.`;
       case 4.5:
-        return `Push-in distance: micro forward movement only.`;
+        return `Push-in distance: very small forward movement only.`;
       case 5:
-        return `Push-in distance: almost static, barely perceptible forward movement.`;
+        return `Push-in distance: micro forward movement only.`;
       default:
-        return `Push-in distance: small and controlled forward movement.`;
+        return `Push-in distance: subtle but visible forward movement.`;
     }
   }
 
