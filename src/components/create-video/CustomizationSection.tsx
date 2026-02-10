@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, Settings, Mic, Music, Palette, Play } from "lucide-react";
+import { ChevronDown, Settings, Mic, Music, Palette, Play, Pause } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -314,10 +314,18 @@ export function CustomizationSection({ settings, onChange }: CustomizationSectio
                 size="sm"
                 className="gap-2"
                 onClick={handlePreviewMusic}
-                disabled={isPreviewingMusic}
               >
-                <Play className={`w-3 h-3 ${isPreviewingMusic ? "text-primary animate-pulse" : ""}`} />
-                {isPreviewingMusic ? "Loading..." : "Preview Music"}
+                {isPreviewingMusic ? (
+                  <>
+                    <Pause className="w-3 h-3 text-primary" />
+                    Pause
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3 h-3" />
+                    Preview Music
+                  </>
+                )}
               </Button>
             </div>
           </div>
