@@ -57,32 +57,35 @@
 
   // Camera angle prompts for Luma AI
   const CAMERA_ANGLE_PROMPTS: Record<string, string> = {
-    auto: `Ultra-stable camera with locked horizon and tripod-level steadiness.
-Extremely slow, controlled motion only: subtle forward dolly OR micro parallax (choose one), no rotation.
-No shaking, no jitter, no wobble, no handheld motion.
-Smooth continuous motion start-to-finish with constant speed and no sudden changes.`,
+    auto: `Ultra-stable camera, locked horizon, tripod-level steadiness.
+Motion: micro parallax only (small), no rotation, no translation.
+No shaking, no jitter, no wobble.
+Constant motion, no acceleration, no sudden changes.`,
 
     "wide-shot": `Locked static wide establishing shot.
 Tripod-mounted, completely motionless.
 No panning, no tilting, no zooming, no movement at all.
 Horizon perfectly level, vertical lines perfectly straight.`,
 
-    "zoom-in": `Ultra-stable slow push-in (dolly-in) toward the center focal point.
-Camera moves forward ONLY on a straight slider path.
+    "zoom-in": `Ultra-stable slow push-in (dolly-in) toward center focal point.
+Push-in distance budget: small (subtle).
+Forward movement ONLY on a straight slider path.
 No rotation, no pan, no tilt, no vertical movement.
-Constant speed push-in, smooth from start to end.
+Constant speed, no acceleration.
 No shaking, no jitter, no wobble.`,
 
-    "pan-left": `Ultra-stable pan left ONLY.
-Rotation-only motion around a fixed pivot point (tripod fluid head).
-No dolly, no zoom, no tilt, no vertical movement.
-Constant speed rotation, smooth from start to end.
+    "pan-left": `Ultra-stable pan to left ONLY.
+Pan angle budget: small (about 4–6 degrees total).
+Rotation-only around a fixed pivot point (tripod fluid head).
+No dolly, no zoom, no tilt, no vertical movement, no forward/backward movement.
+Constant speed, no acceleration.
 No shaking, no jitter, no wobble.`,
 
-    "pan-right": `Ultra-stable pan right ONLY.
-Rotation-only motion around a fixed pivot point (tripod fluid head).
-No dolly, no zoom, no tilt, no vertical movement.
-Constant speed rotation, smooth from start to end.
+    "pan-right": `Ultra-stable pan to right ONLY.
+Pan angle budget: small (about 4–6 degrees total).
+Rotation-only around a fixed pivot point (tripod fluid head).
+No dolly, no zoom, no tilt, no vertical movement, no forward/backward movement.
+Constant speed, no acceleration.
 No shaking, no jitter, no wobble.`,
   };
 
