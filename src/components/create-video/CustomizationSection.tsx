@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, Settings, Mic, Music, Palette, Play, SkipForward } from "lucide-react";
+import { ChevronDown, Settings, Mic, Music, Palette, Play } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -67,9 +67,10 @@ interface CustomizationSectionProps {
 
 export function CustomizationSection({ settings, onChange }: CustomizationSectionProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [isPreviewingVoice, setIsPreviewingVoice] = useState(false);
+  const [isPreviewingMusic, setIsPreviewingMusic] = useState(false);
   const [voiceAudio, setVoiceAudio] = useState<HTMLAudioElement | null>(null);
+  const [musicAudio, setMusicAudio] = useState<HTMLAudioElement | null>(null);
 
   const currentTracks = musicTracks[settings.musicStyle] || [];
 
@@ -130,6 +131,42 @@ export function CustomizationSection({ settings, onChange }: CustomizationSectio
       console.error("Voice preview error:", error);
       setIsPreviewingVoice(false);
       alert("Failed to preview voice. Please try again.");
+    }
+  };
+
+  const handlePreviewMusic = async () => {
+    if (isPreviewingMusic) {
+      // Stop current preview
+      if (musicAudio) {
+        musicAudio.pause();
+        musicAudio.currentTime = 0;
+      }
+      setIsPreviewingMusic(false);
+      return;
+    }
+
+    setIsPreviewingMusic(true);
+
+    try {
+      // Get the first track for the selected music style
+      const firstTrack = currentTracks[0];
+      if (!firstTrack) {
+        throw new Error("No music track available for this style");
+      }
+
+      // For now, we'll use a placeholder URL
+      // TODO: Upload actual music files to Supabase Storage and use real URLs
+      console.log("Would play music:", settings.musicStyle, "-", firstTrack);
+
+      // Simulate loading
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      setIsPreviewingMusic(false);
+      alert("Music preview coming soon! Please select your preferred style and we'll include it in your video.");
+    } catch (error) {
+      console.error("Music preview error:", error);
+      setIsPreviewingMusic(false);
+      alert("Music preview not yet available.");
     }
   };
 
@@ -241,49 +278,16 @@ export function CustomizationSection({ settings, onChange }: CustomizationSectio
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">Track</Label>
-                <Select
-                  value={settings.musicTrack}
-                  onValueChange={(value) => onChange({ ...settings, musicTrack: value })}
-                >
-                  <SelectTrigger className="h-10">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {currentTracks.map((track) => (
-                      <SelectItem key={track} value={track}>
-                        {track}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => setIsPlaying(!isPlaying)}
-                >
-                  <Play className={`w-3 h-3 ${isPlaying ? "text-primary" : ""}`} />
-                  {isPlaying ? "Playing..." : "Play"}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => {
-                    const currentIndex = currentTracks.indexOf(settings.musicTrack);
-                    const nextIndex = (currentIndex + 1) % currentTracks.length;
-                    onChange({ ...settings, musicTrack: currentTracks[nextIndex] });
-                  }}
-                >
-                  <SkipForward className="w-3 h-3" />
-                  Next Track
-                </Button>
-              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={handlePreviewMusic}
+                disabled={isPreviewingMusic}
+              >
+                <Play className={`w-3 h-3 ${isPreviewingMusic ? "text-primary animate-pulse" : ""}`} />
+                {isPreviewingMusic ? "Loading..." : "Preview Music"}
+              </Button>
             </div>
           </div>
 
