@@ -7,6 +7,60 @@
 
   const LUMA_API_KEY = Deno.env.get("LUMA_API_KEY");
 
+  // Duration-aware motion intensity modifiers
+  function getMotionModifier(duration: number): string {
+    switch (duration) {
+      case 3:
+        return `Motion intensity: slow and controlled. Clearly visible but stable movement.`;
+      case 3.5:
+        return `Motion intensity: very slow and controlled. Subtle movement, premium feel.`;
+      case 4:
+        return `Motion intensity: very slow, nearly static. Reduce movement to prevent drift.`;
+      case 4.5:
+        return `Motion intensity: ultra-slow micro-motion only. Minimal parallax, almost static.`;
+      case 5:
+        return `Motion intensity: almost completely static. Micro parallax only to avoid jitter.`;
+      default:
+        return `Motion intensity: very slow and controlled. Subtle movement, premium feel.`;
+    }
+  }
+
+  // Pan angle budgets based on duration
+  function getPanAngleBudget(duration: number): string {
+    switch (duration) {
+      case 3:
+        return `Pan angle budget: small pan (about 7–8 degrees total).`;
+      case 3.5:
+        return `Pan angle budget: small pan (about 5–6 degrees total).`;
+      case 4:
+        return `Pan angle budget: micro pan (about 4–5 degrees total).`;
+      case 4.5:
+        return `Pan angle budget: very small micro pan (about 3–4 degrees total).`;
+      case 5:
+        return `Pan angle budget: minimal micro pan only (about 2–3 degrees total).`;
+      default:
+        return `Pan angle budget: small pan (about 5–6 degrees total).`;
+    }
+  }
+
+  // Push-in distance budgets based on duration
+  function getPushInBudget(duration: number): string {
+    switch (duration) {
+      case 3:
+        return `Push-in distance: subtle but visible forward movement.`;
+      case 3.5:
+        return `Push-in distance: small and controlled forward movement.`;
+      case 4:
+        return `Push-in distance: very small forward movement only.`;
+      case 4.5:
+        return `Push-in distance: micro forward movement only.`;
+      case 5:
+        return `Push-in distance: almost static, barely perceptible forward movement.`;
+      default:
+        return `Push-in distance: small and controlled forward movement.`;
+    }
+  }
+
   // Camera angle prompts for Luma AI
   const CAMERA_ANGLE_PROMPTS: Record<string, string> = {
     auto: `Ultra-stable camera with locked horizon and tripod-level steadiness.
@@ -70,11 +124,27 @@ Photorealistic, clean, stable, professional property marketing video.
           console.log(`Creating generation ${index + 1}/${imageMetadata.length} for image:`, imageUrl);
           console.log(`Camera angle: ${cameraAngle}, Duration: ${duration}s`);
 
-          // Build custom prompt based on camera angle
+          // Build custom prompt based on camera angle and duration
           const anglePrompt = CAMERA_ANGLE_PROMPTS[cameraAngle] || CAMERA_ANGLE_PROMPTS["auto"];
+          const motionModifier = getMotionModifier(duration);
+
+          // Add specific angle budgets for pan and zoom
+          const panBudget = (cameraAngle === "pan-left" || cameraAngle === "pan-right")
+            ? getPanAngleBudget(duration)
+            : "";
+
+          const pushInBudget = (cameraAngle === "zoom-in")
+            ? getPushInBudget(duration)
+            : "";
+
           const fullPrompt = `High-end cinematic real estate video of ${propertyAddress}.
+${motionModifier}
+${panBudget}
+${pushInBudget}
 ${anglePrompt}
-${BASE_PROMPT_SUFFIX}`;
+${BASE_PROMPT_SUFFIX}`.trim();
+
+          console.log(`Full prompt for clip ${index + 1}:`, fullPrompt);
 
           // Luma API v1
           const response = await fetch("https://api.lumalabs.ai/dream-machine/v1/generations", {
