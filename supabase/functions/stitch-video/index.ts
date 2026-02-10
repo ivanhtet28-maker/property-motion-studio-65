@@ -316,9 +316,9 @@
                         text-align: center;
                         padding: 60px;
                       ">
-                        ${agentPhotoUrl ? `
+                        ${agentInfo.photo ? `
                           <img
-                            src="${agentPhotoUrl}"
+                            src="${agentInfo.photo}"
                             style="
                               width: 180px;
                               height: 180px;
