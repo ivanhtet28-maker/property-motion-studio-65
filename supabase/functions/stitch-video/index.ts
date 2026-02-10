@@ -279,7 +279,7 @@
               ],
             },
 
-            // Agent outro background - Blurred first clip (Track 3 or 2)
+            // Agent outro background - First clip with reduced opacity (Track 3 or 2)
             ...(agentInfo && agentInfo.name ? [{
               clips: [
                 {
@@ -289,7 +289,7 @@
                   },
                   start: videoClipsDuration,
                   length: agentCardDuration,
-                  filter: "blur",
+                  opacity: 0.5,
                 },
               ],
             }] : []),
