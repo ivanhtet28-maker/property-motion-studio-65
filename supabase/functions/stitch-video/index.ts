@@ -105,6 +105,9 @@
     clipDurations?: number[]; // Array of durations for each clip
     propertyData: {
       address: string;
+      streetAddress?: string;
+      suburb?: string;
+      state?: string;
       price: string;
       beds: number;
       baths: number;
@@ -301,7 +304,12 @@
                         color: white;
                       ">
                         ${style && TEMPLATE_NAMES[style] ? `<div style="font-size: 52px; font-weight: 900; margin-bottom: 28px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${TEMPLATE_NAMES[style]}</div>` : ''}
-                        <div style="font-size: 42px; font-weight: 700; margin-bottom: 22px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${propertyData.address}</div>
+                        ${propertyData.streetAddress && propertyData.suburb && propertyData.state ? `
+                          <div style="font-size: 42px; font-weight: 700; margin-bottom: 8px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${propertyData.streetAddress},</div>
+                          <div style="font-size: 42px; font-weight: 700; margin-bottom: 22px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${propertyData.suburb}, ${propertyData.state}</div>
+                        ` : `
+                          <div style="font-size: 42px; font-weight: 700; margin-bottom: 22px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${propertyData.address}</div>
+                        `}
                         <div style="font-size: 38px; font-weight: 900; margin-bottom: 18px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">$${propertyData.price}</div>
                         <div style="font-size: 32px; line-height: 1.7; text-shadow: 3px 3px 6px rgba(0,0,0,1); font-weight: 600; color: white;">
                           <div>${propertyData.beds} Bedroom${propertyData.beds !== 1 ? 's' : ''} | ${propertyData.baths} Bathroom${propertyData.baths !== 1 ? 's' : ''}</div>
@@ -348,7 +356,12 @@
       };
 
       console.log("Sending stitch job to Shotstack...");
-      console.log("Property Address Text:", propertyData.address);
+      if (propertyData.streetAddress && propertyData.suburb && propertyData.state) {
+        console.log("Property Address Line 1:", `${propertyData.streetAddress},`);
+        console.log("Property Address Line 2:", `${propertyData.suburb}, ${propertyData.state}`);
+      } else {
+        console.log("Property Address Text:", propertyData.address);
+      }
       console.log("Property Specs Text:", `${propertyData.beds} BED • ${propertyData.baths} BATH${propertyData.carSpaces ? ` • ${propertyData.carSpaces} CAR` : ""}${propertyData.landSize ? ` • ${propertyData.landSize}m²` : ""}`);
       console.log("Edit payload tracks count:", edit.timeline.tracks.length);
       console.log("Full Shotstack edit payload:", JSON.stringify(edit, null, 2));

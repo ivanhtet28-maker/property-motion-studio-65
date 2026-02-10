@@ -366,6 +366,9 @@ Contact us today for a private inspection.`;
 
       const propertyDataPayload = {
         address: `${propertyDetails.streetAddress}, ${propertyDetails.suburb}, ${propertyDetails.state}`,
+        streetAddress: propertyDetails.streetAddress,
+        suburb: propertyDetails.suburb,
+        state: propertyDetails.state,
         price: propertyDetails.price,
         beds: propertyDetails.bedrooms,
         baths: propertyDetails.bathrooms,
