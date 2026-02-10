@@ -248,26 +248,32 @@
                         color: white;
                       ">
                         ${agentInfo.photo ? `
-                          <img
-                            src="${agentInfo.photo}"
-                            style="
-                              width: 120px;
-                              height: 120px;
-                              border-radius: 50%;
-                              border: 4px solid white;
-                              object-fit: cover;
-                              margin-bottom: 30px;
-                              box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-                            "
-                          />
+                          <div class="agent-photo">
+                            <img src="${agentInfo.photo}" />
+                          </div>
                         ` : ''}
                         <div style="font-size: 42px; font-weight: 700; margin-bottom: 15px; letter-spacing: 1px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.name}</div>
-                        ${agentInfo.phone ? `<div style="font-size: 28px; margin-bottom: 10px; font-weight: 400; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.phone}</div>` : ''}
-                        ${agentInfo.email ? `<div style="font-size: 24px; font-weight: 300; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.email}</div>` : ''}
-                        <div style="margin-top: 40px; font-size: 20px; font-weight: 300; letter-spacing: 2px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">CONTACT ME TODAY</div>
+                        ${agentInfo.phone ? `<div style="font-size: 38px; margin-bottom: 10px; font-weight: 400; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.phone}</div>` : ''}
+                        ${agentInfo.email ? `<div style="font-size: 38px; font-weight: 400; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.email}</div>` : ''}
+                        <div style="margin-top: 40px; font-size: 42px; font-weight: 700; letter-spacing: 2px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">CONTACT ME TODAY</div>
                       </div>
                     `,
-                    css: "",
+                    css: `
+                      .agent-photo {
+                        width: 120px;
+                        height: 120px;
+                        border-radius: 50%;
+                        overflow: hidden;
+                        margin-bottom: 30px;
+                        border: 4px solid white;
+                        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+                      }
+                      .agent-photo img {
+                        width: 100%;
+                        height: 100%;
+                        object-fit: cover;
+                      }
+                    `,
                     width: 1080,
                     height: 1920,
                   },
