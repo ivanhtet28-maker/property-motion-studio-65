@@ -305,10 +305,9 @@
                       ">
                         ${style && TEMPLATE_NAMES[style] ? `<div style="font-size: 52px; font-weight: 900; margin-bottom: 28px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${TEMPLATE_NAMES[style]}</div>` : ''}
                         ${propertyData.streetAddress && propertyData.suburb && propertyData.state ? `
-                          <div style="font-size: 42px; font-weight: 700; margin-bottom: 8px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${propertyData.streetAddress},</div>
-                          <div style="font-size: 42px; font-weight: 700; margin-bottom: 22px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${propertyData.suburb}, ${propertyData.state}</div>
+                          <div style="font-size: 22px; font-weight: 700; margin-bottom: 22px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${propertyData.streetAddress}, ${propertyData.suburb}, ${propertyData.state}</div>
                         ` : `
-                          <div style="font-size: 42px; font-weight: 700; margin-bottom: 22px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${propertyData.address}</div>
+                          <div style="font-size: 22px; font-weight: 700; margin-bottom: 22px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${propertyData.address}</div>
                         `}
                         <div style="font-size: 38px; font-weight: 900; margin-bottom: 18px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">$${propertyData.price}</div>
                         <div style="font-size: 32px; line-height: 1.7; text-shadow: 3px 3px 6px rgba(0,0,0,1); font-weight: 600; color: white;">
