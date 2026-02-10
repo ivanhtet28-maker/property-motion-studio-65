@@ -241,9 +241,9 @@
                   length: agentCardDuration - 0.1,
                   position: "top",
                   offset: {
-                    y: -0.12, 
+                    y: -0.22, 
                   },
-                  scale: 0.149, // 140px at 1080px width
+                  scale: 0.149, // 160px at 1080px width
                 },
               ],
             }] : []),

@@ -119,18 +119,25 @@ Contact us today for a private inspection.`;
   };
 
   // Handle download with subscription check
-  const handleDownload = () => {
+  const handleDownload = async () => {
+    console.log("Download button clicked");
+    console.log("Subscription status:", subscriptionStatus);
+    console.log("User ID:", user?.id);
+
     if (!videoUrl) {
+      console.log("No video URL available");
       return;
     }
 
     // Check if user has active subscription
     if (subscriptionStatus !== "active") {
+      console.log("No active subscription, redirecting to pricing");
       // Redirect to landing page pricing section
       navigate("/#pricing");
       return;
     }
 
+    console.log("Active subscription found, allowing download");
     // Allow download
     window.open(videoUrl, "_blank");
   };
