@@ -287,8 +287,8 @@
                     type: "video",
                     src: videoUrls[0], // Use first Luma clip
                   },
-                  start: videoClipsDuration + 0.1,
-                  length: agentCardDuration - 0.1,
+                  start: videoClipsDuration,
+                  length: agentCardDuration,
                   filter: "blur",
                 },
               ],
