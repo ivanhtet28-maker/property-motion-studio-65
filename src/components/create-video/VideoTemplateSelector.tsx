@@ -1,5 +1,6 @@
-import { Check } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export interface VideoTemplate {
   id: string;
@@ -57,6 +58,19 @@ export function VideoTemplateSelector({
   selectedTemplate,
   onSelectTemplate,
 }: VideoTemplateSelectorProps) {
+  const currentIndex = templates.findIndex(t => t.id === selectedTemplate);
+  const currentTemplate = templates[currentIndex] || templates[0];
+
+  const handlePrevious = () => {
+    const newIndex = currentIndex > 0 ? currentIndex - 1 : templates.length - 1;
+    onSelectTemplate(templates[newIndex].id);
+  };
+
+  const handleNext = () => {
+    const newIndex = currentIndex < templates.length - 1 ? currentIndex + 1 : 0;
+    onSelectTemplate(templates[newIndex].id);
+  };
+
   return (
     <div className="space-y-3">
       <div>
@@ -68,56 +82,95 @@ export function VideoTemplateSelector({
         </p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        {templates.map((template) => (
-          <button
-            key={template.id}
-            onClick={() => onSelectTemplate(template.id)}
-            className={cn(
-              "relative flex flex-col items-center p-3 rounded-xl border-2 transition-all hover:border-primary/50",
-              selectedTemplate === template.id
-                ? "border-primary bg-primary/5"
-                : "border-border bg-secondary/30 hover:bg-secondary/50"
-            )}
-          >
-            {/* Checkmark overlay */}
-            {selectedTemplate === template.id && (
-              <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                <Check className="w-3 h-3 text-primary-foreground" />
-              </div>
-            )}
+      {/* Carousel Container */}
+      <div className="relative">
+        {/* Navigation Buttons */}
+        <Button
+          variant="outline"
+          size="icon"
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-background/80 backdrop-blur-sm"
+          onClick={handlePrevious}
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </Button>
 
-            {/* Template preview with title and address */}
-            <div className="w-full aspect-video rounded-lg bg-gradient-to-br from-slate-600 to-slate-800 mb-2 flex flex-col items-center justify-center relative overflow-hidden p-2">
-              <div
-                className="absolute inset-0 opacity-20"
-                style={{
-                  backgroundImage: "url('data:image/svg+xml,%3Csvg width=\"100\" height=\"100\" viewBox=\"0 0 100 100\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3Cpath d=\"M0 0h50v50H0z\" fill=\"%23fff\" opacity=\".1\"/%3E%3C/svg%3E')",
-                  backgroundSize: "20px 20px"
-                }}
-              />
-              <div className="z-10 text-center space-y-1.5">
-                <div className="text-lg font-bold text-white" style={{ textShadow: "2px 2px 4px rgba(0,0,0,0.8)" }}>
-                  {template.name}
-                </div>
-                <div className="text-[11px] font-semibold text-white leading-tight" style={{ textShadow: "1px 1px 3px rgba(0,0,0,0.8)" }}>
-                  123 Sample Street,<br />Suburb, State
-                </div>
+        <Button
+          variant="outline"
+          size="icon"
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-8 h-8 rounded-full bg-background/80 backdrop-blur-sm"
+          onClick={handleNext}
+        >
+          <ChevronRight className="w-4 h-4" />
+        </Button>
+
+        {/* Template Preview Card */}
+        <div className="relative rounded-xl border-2 border-primary bg-primary/5 p-4">
+          {/* Checkmark */}
+          <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary flex items-center justify-center z-10">
+            <Check className="w-4 h-4 text-primary-foreground" />
+          </div>
+
+          {/* Large Template Preview with Property Details */}
+          <div className="w-full aspect-[9/16] max-h-[400px] rounded-lg bg-gradient-to-br from-slate-600 to-slate-800 flex flex-col items-center justify-center relative overflow-hidden p-6">
+            <div
+              className="absolute inset-0 opacity-20"
+              style={{
+                backgroundImage: "url('data:image/svg+xml,%3Csvg width=\"100\" height=\"100\" viewBox=\"0 0 100 100\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3Cpath d=\"M0 0h50v50H0z\" fill=\"%23fff\" opacity=\".1\"/%3E%3C/svg%3E')",
+                backgroundSize: "20px 20px"
+              }}
+            />
+            <div className="z-10 text-center space-y-2">
+              <div className="text-2xl font-bold text-white mb-3" style={{ textShadow: "2px 2px 4px rgba(0,0,0,0.8)" }}>
+                {currentTemplate.name}
+              </div>
+              <div className="text-sm font-semibold text-white leading-tight" style={{ textShadow: "1px 1px 3px rgba(0,0,0,0.8)" }}>
+                123 Sample Street,
+              </div>
+              <div className="text-sm font-semibold text-white mb-2" style={{ textShadow: "1px 1px 3px rgba(0,0,0,0.8)" }}>
+                Suburb, State
+              </div>
+              <div className="text-lg font-bold text-white mb-2" style={{ textShadow: "1px 1px 3px rgba(0,0,0,0.8)" }}>
+                $750,000
+              </div>
+              <div className="text-xs font-medium text-white" style={{ textShadow: "1px 1px 3px rgba(0,0,0,0.8)" }}>
+                3 Bedrooms | 2 Bathrooms
+              </div>
+              <div className="text-xs font-medium text-white" style={{ textShadow: "1px 1px 3px rgba(0,0,0,0.8)" }}>
+                2 Car Spaces | 450m² Land Size
               </div>
             </div>
+          </div>
 
-            {/* Template info */}
-            <span className="text-sm font-medium text-foreground">
-              {template.name}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {template.description}
-            </span>
-            <span className="text-xs text-primary/70 mt-0.5">
-              {template.duration}
-            </span>
-          </button>
-        ))}
+          {/* Template Info Below Preview */}
+          <div className="mt-4 text-center space-y-1">
+            <p className="text-sm font-medium text-foreground">
+              {currentTemplate.name}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {currentTemplate.description}
+            </p>
+            <p className="text-xs text-primary/70">
+              {currentTemplate.duration}
+            </p>
+          </div>
+        </div>
+
+        {/* Dots Indicator */}
+        <div className="flex justify-center gap-1.5 mt-3">
+          {templates.map((template, index) => (
+            <button
+              key={template.id}
+              onClick={() => onSelectTemplate(template.id)}
+              className={cn(
+                "w-2 h-2 rounded-full transition-all",
+                index === currentIndex
+                  ? "bg-primary w-6"
+                  : "bg-muted-foreground/30 hover:bg-muted-foreground/50"
+              )}
+              aria-label={`Select ${template.name}`}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
