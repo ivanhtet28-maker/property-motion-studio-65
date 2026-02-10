@@ -229,7 +229,26 @@
               ],
             }] : []),
 
-            // Agent branding card - Track 1 (TOP - renders on top)
+            // Agent photo - Track 1 (TOP - separate image asset, Shotstack HTML doesn't support images)
+            ...(agentInfo?.photo ? [{
+              clips: [
+                {
+                  asset: {
+                    type: "image",
+                    src: agentPhotoUrl || agentInfo.photo, // Use storage URL if available, fallback to base64
+                  },
+                  start: videoClipsDuration + 0.1,
+                  length: agentCardDuration - 0.1,
+                  position: "center",
+                  offset: {
+                    y: -0.30, // Position above center for text below
+                  },
+                  scale: 0.065, // 70px at 1080px width
+                },
+              ],
+            }] : []),
+
+            // Agent text details - Track 2 (HTML for text only, no images)
             ...(agentInfo && agentInfo.name ? [{
               clips: [
                 {
@@ -246,12 +265,8 @@
                         text-align: center;
                         font-family: Arial, sans-serif;
                         color: white;
+                        padding-top: 100px;
                       ">
-                        ${agentInfo.photo ? `
-                          <div style="width: 70px; height: 70px; border-radius: 50%; overflow: hidden; margin: 0 auto 30px auto; border: 4px solid white; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);">
-                            <img src="${agentInfo.photo}" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
-                          </div>
-                        ` : ''}
                         <div style="font-size: 42px; font-weight: 700; margin-bottom: 15px; letter-spacing: 1px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.name}</div>
                         ${agentInfo.phone ? `<div style="font-size: 38px; margin-bottom: 10px; font-weight: 600; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.phone}</div>` : ''}
                         ${agentInfo.email ? `<div style="font-size: 38px; font-weight: 600; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.email}</div>` : ''}
