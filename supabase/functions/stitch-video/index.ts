@@ -308,14 +308,13 @@
                   scale: 0.2,
                   position: "top",
                   offset: {
-                    x: 0,
-                    y: 0.05,
+                    y: -0.18,
                   },
                 },
               ],
             }] : []),
 
-            // Agent text details - Track 5 or 4
+            // Agent text details with photo background - Track 5 or 4
             ...(agentInfo && agentInfo.name ? [{
               clips: [
                 {
@@ -332,7 +331,8 @@
                         font-family: Arial, sans-serif;
                         color: white;
                         text-align: center;
-                        padding-top: ${agentPhotoUrl ? '100px' : '0'};
+                        padding-top: ${agentPhotoUrl ? '140px' : '0'};
+                        ${agentPhotoUrl ? `background-image: url('${agentPhotoUrl}'); background-size: 220px 220px; background-repeat: no-repeat; background-position: top 80px center;` : ''}
                       ">
                         <div style="font-size: 48px; font-weight: bold; margin-bottom: 20px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.name}</div>
                         <div style="font-size: 38px; margin-bottom: 15px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.phone}</div>
