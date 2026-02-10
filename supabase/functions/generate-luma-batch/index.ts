@@ -9,44 +9,42 @@
 
   // Camera angle prompts for Luma AI
   const CAMERA_ANGLE_PROMPTS: Record<string, string> = {
-    auto: `High-end cinematic real estate video.
-Ultra-stable camera with locked horizon and tripod-level steadiness.
-Extremely slow, controlled camera motion only — subtle forward dolly or micro parallax, no rotation.
-Camera behaves as if mounted on a professional gimbal or tripod head.
+    auto: `Ultra-stable camera with locked horizon and tripod-level steadiness.
+Extremely slow, controlled motion only: subtle forward dolly OR micro parallax (choose one), no rotation.
 No shaking, no jitter, no wobble, no handheld motion.
-Smooth continuous motion from start to end with no sudden changes.`,
+Smooth continuous motion start-to-finish with constant speed and no sudden changes.`,
 
-    "wide-shot": `Locked static wide establishing shot, no camera movement whatsoever.
-Camera mounted on heavy-duty tripod, completely motionless.
-Architectural photography style with perfect straight verticals.
-No panning, no tilting, no zooming, no motion at all.
-Ultra-stable locked camera position from start to finish.`,
+    "wide-shot": `Locked static wide establishing shot.
+Tripod-mounted, completely motionless.
+No panning, no tilting, no zooming, no movement at all.
+Horizon perfectly level, vertical lines perfectly straight.`,
 
-    "zoom-in": `Slow smooth cinematic zoom toward center focal point.
-Stabilized gimbal camera on professional slider.
-Subtle forward dolly movement, gentle push-in effect.
-No shake, no wobble, perfectly smooth zoom motion.
-Revealing property details with elegant forward movement.`,
+    "zoom-in": `Ultra-stable slow push-in (dolly-in) toward the center focal point.
+Camera moves forward ONLY on a straight slider path.
+No rotation, no pan, no tilt, no vertical movement.
+Constant speed push-in, smooth from start to end.
+No shaking, no jitter, no wobble.`,
 
-    "pan-left": `Camera slowly turns left across the scene.
-Stabilized gimbal camera on fluid head tripod.
-Elegant sweeping motion revealing property features.
-No vertical movement, smooth horizontal rotation only.
-Controlled cinematic movement with consistent speed.`,
+    "pan-left": `Ultra-stable pan left ONLY.
+Rotation-only motion around a fixed pivot point (tripod fluid head).
+No dolly, no zoom, no tilt, no vertical movement.
+Constant speed rotation, smooth from start to end.
+No shaking, no jitter, no wobble.`,
 
-    "pan-right": `Camera slowly turns right across the scene.
-Stabilized gimbal camera on fluid head tripod.
-Elegant sweeping motion revealing property features.
-No vertical movement, smooth horizontal rotation only.
-Controlled cinematic movement with consistent speed.`,
+    "pan-right": `Ultra-stable pan right ONLY.
+Rotation-only motion around a fixed pivot point (tripod fluid head).
+No dolly, no zoom, no tilt, no vertical movement.
+Constant speed rotation, smooth from start to end.
+No shaking, no jitter, no wobble.`,
   };
 
   const BASE_PROMPT_SUFFIX = `Maintain strict architectural accuracy and straight vertical lines.
-Golden hour natural lighting, soft shadows, realistic reflections.
+Consistent exposure, no flicker, no warping.
+Natural interior/exterior lighting (match the input image), soft realistic shadows and reflections.
 Luxury real estate cinematography, calm and elegant mood.
-Photorealistic, consistent exposure, natural color grading.
-No people, no vehicles, no text, no camera artifacts.
-720p quality, clean, stable, professional property marketing video.`;
+No people, no vehicles, no text, no watermarks, no UI, no camera artifacts.
+Photorealistic, clean, stable, professional property marketing video.
+4K quality.`;
 
   Deno.serve(async (req) => {
     if (req.method === "OPTIONS") {
