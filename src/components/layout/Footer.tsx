@@ -12,7 +12,7 @@ export function Footer() {
               <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
                 <Video className="w-5 h-5 text-primary-foreground" />
               </div>
-              <span className="text-xl font-bold text-foreground">Listing Flow</span>
+              <span className="text-xl font-bold text-foreground">Property Motion</span>
             </Link>
             <p className="text-muted-foreground max-w-sm">
               Turn any Australian property listing into a professional video in 60 seconds. 
@@ -63,7 +63,7 @@ export function Footer() {
         {/* Bottom Section */}
         <div className="mt-12 pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-muted-foreground text-sm">
-            © 2025 Listing Flow. Built for Australian Real Estate Agents.
+            © 2025 Property Motion. Built for Australian Real Estate Agents.
           </p>
           <div className="flex items-center gap-4">
             <a
