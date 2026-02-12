@@ -479,7 +479,7 @@ Contact us today for a private inspection.`;
             <Video className="w-5 h-5 text-primary-foreground" />
           </div>
           <span className="text-xl font-bold text-foreground hidden sm:block tracking-tight">
-            PropertyVideos<span className="text-primary">.ai</span>
+            Property Motion
           </span>
         </Link>
 

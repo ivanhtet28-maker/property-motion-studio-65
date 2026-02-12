@@ -115,7 +115,7 @@ Contact us today for a private inspection.`;
   const currentScript = isEditingScript ? script : generateScript();
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText("https://propertyvideos.ai/share/abc123");
+    navigator.clipboard.writeText("https://propertymotion.app/share/abc123");
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
