@@ -31,13 +31,15 @@ export function Navbar() {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
       <div className="container mx-auto px-6">
-        <div className="flex h-16 items-center justify-between">
+        <div className="flex h-24 items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <Video className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold text-foreground">Property Motion</span>
+          <Link to="/" className="flex items-center">
+            <img
+              src="/logo-with-text.jpeg"
+              alt="Property Motion"
+              className="h-24 w-auto"
+              style={{ mixBlendMode: 'multiply' }}
+            />
           </Link>
 
           {/* Desktop Navigation */}

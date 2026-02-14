@@ -44,37 +44,37 @@
     switch (duration) {
       case 3:
       case 3.5:
-        return `Push-in distance: subtle but visible forward movement.`;
+        return `Push-in distance: SUBTLE but VISIBLE FORWARD movement.`;
       case 4:
       case 4.5:
-        return `Push-in distance: very small forward movement only.`;
+        return `Push-in distance: VERY SMALL FORWARD MOVEMENT ONLY.`;
       case 5:
-        return `Push-in distance: micro forward movement only.`;
+        return `Push-in distance: MICRO FORWARD MOVEMENT ONLY.`;
       default:
-        return `Push-in distance: subtle but visible forward movement.`;
+        return `Push-in distance: SUBTLE but VISIBLE FORWARD movement.`;
     }
   }
 
   // Camera angle prompts for Luma AI
   const CAMERA_ANGLE_PROMPTS: Record<string, string> = {
-    auto: `Ultra-stable camera, locked horizon, tripod-level steadiness.
+    auto: `ULTRA-STABLE camera, locked horizon, tripod-level steadiness.
 Motion: micro parallax only (small), no rotation, no translation.
 No shaking, no jitter, no wobble.
 Constant motion, no acceleration, no sudden changes.`,
 
-    "wide-shot": `Locked static wide establishing shot.
+    "wide-shot": `Locked STATIC WIDE ESTABLISHING SHOT.
 Tripod-mounted, completely motionless.
 No panning, no tilting, no zooming, no movement at all.
 Horizon perfectly level, vertical lines perfectly straight.`,
 
-    "zoom-in": `Ultra-stable slow push-in (dolly-in) toward center focal point.
+    "zoom-in": `ULTRA-STABLE SLOW PUSH-IN (DOLLY-IN) TOWARD CENTER focal point.
 Push-in distance budget: small (subtle).
 Forward movement ONLY on a straight slider path.
 No rotation, no pan, no tilt, no vertical movement.
 Constant speed, no acceleration.
 No shaking, no jitter, no wobble.`,
 
-    "pan-left": `Ultra-stable YAW ROTATION to LEFT ONLY.
+    "pan-left": `ULTRA-STABLE YAW ROTATION to LEFT ONLY.
 Pan angle budget: small (about 4–6 degrees total).
 Rotation-only around a fixed pivot point (tripod fluid head).
 No dolly, no zoom, no tilt, no vertical movement, no forward/backward movement.
