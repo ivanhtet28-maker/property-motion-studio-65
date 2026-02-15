@@ -235,7 +235,7 @@
             // Agent photo - Track 1 (TOP - separate image asset, Shotstack HTML doesn't support images)
             ...(agentInfo?.photo ? [{
               clips: [
-                // Circular luma matte (must come first) - Using custom SQUARE matte
+                // Circular luma matte (must come first) - Make it MUCH LARGER
                 {
                   asset: {
                     type: "luma",
@@ -247,7 +247,7 @@
                   offset: {
                     y: -0.22,
                   },
-                  scale: 0.149,
+                  scale: 0.35, // Much larger to cover the agent photo
                 },
                 // Agent photo (masked by luma matte above)
                 {
