@@ -235,7 +235,7 @@
             // Agent photo - Track 1 (TOP - separate image asset, Shotstack HTML doesn't support images)
             ...(agentInfo?.photo ? [{
               clips: [
-                // Custom square circle luma matte (1:1 aspect ratio - no stretching!)
+                // Circular luma matte (must come first) - Using custom SQUARE matte
                 {
                   asset: {
                     type: "luma",
@@ -253,7 +253,7 @@
                 {
                   asset: {
                     type: "image",
-                    src: agentPhotoUrl || agentInfo.photo,
+                    src: agentPhotoUrl || agentInfo.photo, // Use storage URL if available, fallback to base64
                   },
                   start: videoClipsDuration + 0.1,
                   length: agentCardDuration - 0.1,
@@ -261,8 +261,7 @@
                   offset: {
                     y: -0.22,
                   },
-                  scale: 0.149,
-                  fit: "crop",
+                  scale: 0.149, // 160px at 1080px width
                 },
               ],
             }] : []),
