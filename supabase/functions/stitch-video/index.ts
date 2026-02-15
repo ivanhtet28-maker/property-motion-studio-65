@@ -261,7 +261,7 @@
                   offset: {
                     y: -0.22,
                   },
-                  scale: 0.149, // 160px at 1080px width
+                  scale: 0.35, // Match luma matte scale for proper masking
                 },
               ],
             }] : []),
