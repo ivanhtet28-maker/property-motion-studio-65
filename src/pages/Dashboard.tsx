@@ -65,15 +65,7 @@ export default function Dashboard() {
     try {
       const { data, error } = await supabase
         .from("videos")
-        .select(`
-          *,
-          property:property_id (
-            address,
-            suburb,
-            state,
-            postcode
-          )
-        `)
+        .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
@@ -81,9 +73,7 @@ export default function Dashboard() {
 
       // Transform data for UI
       const transformedVideos: VideoItem[] = (data || []).map((v) => {
-        const propertyAddress = v.property?.address
-          ? `${v.property.address}${v.property.suburb ? `, ${v.property.suburb}` : ''}${v.property.state ? ` ${v.property.state}` : ''}`
-          : "Unknown Address";
+        const propertyAddress = v.property_address || "Unknown Address";
 
         // Calculate time ago
         const createdDate = new Date(v.created_at);
@@ -115,8 +105,6 @@ export default function Dashboard() {
         return {
           id: v.id,
           address: propertyAddress,
-          suburb: v.property?.suburb || "",
-          state: v.property?.state || "",
           status: status,
           createdAt: createdAt,
           videoUrl: v.video_url,
