@@ -168,12 +168,17 @@ ${BASE_PROMPT_SUFFIX}`.trim();
 
           if (!response.ok) {
             const errorText = await response.text();
-            console.error(`Luma API error for image ${index + 1}:`, errorText);
+            console.error(`Luma API error for image ${index + 1}:`, {
+              status: response.status,
+              statusText: response.statusText,
+              error: errorText,
+              imageUrl: imageUrl,
+            });
             return {
               imageUrl,
               generationId: null,
               status: "error" as const,
-              error: `Luma API error: ${errorText}`,
+              error: `Luma API ${response.status}: ${errorText}`,
             };
           }
 
@@ -204,7 +209,14 @@ ${BASE_PROMPT_SUFFIX}`.trim();
       console.log(`Batch generation complete: ${successful.length} queued, ${failed.length} failed`);
 
       if (successful.length === 0) {
-        throw new Error("All generations failed");
+        // Log detailed error information
+        console.error("All generations failed. Error details:");
+        failed.forEach((result, index) => {
+          console.error(`Image ${index + 1} error:`, result.error);
+        });
+
+        const firstError = failed[0]?.error || "Unknown error";
+        throw new Error(`All Luma generations failed. First error: ${firstError}`);
       }
 
       return new Response(
