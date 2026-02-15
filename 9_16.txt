@@ -1,0 +1,404 @@
+Applying Shotstack Masks and Luma Mattes for 9:16 Portrait Video
+Executive Summary
+Portrait (9:16) work in Shotstack is primarily controlled by the Output object, which defines the render “canvas” (pixel dimensions + aspect ratio + fps/quality). In practice, a 9:16 canvas is either (a) preset resolution + aspectRatio: "9:16" or (b) an explicit custom size: { width, height } (custom sizes must be divisible by 2 and have documented max dimensions for video). 
+
+For masking/compositing, Shotstack supports two distinct patterns:
+
+Luma mattes via asset.type: "luma" placed as a clip that overlaps the clip(s) to be masked in the same track (track-matte behavior). 
+Alpha-based “masking” by layering a PNG (or other alpha-bearing asset) above content—this is not a luma matte but is often the simplest way to create windows/frames/borders. 
+For portrait workflows, most “mask alignment” problems come from mismatched aspect ratios and different fit/scale/position/offset/width/height settings being applied to the matte versus the content. A rigorous approach is to treat both the matte and the content as being transformed into the same viewport/bounding-box coordinate space, and to enforce identical geometry settings on both clips (or intentionally different ones, when you want content to move behind a static window). 
+
+Canvas size and aspect ratio in Shotstack
+Shotstack’s concept of “canvas” is operationally the render viewport defined by output. The Edit API Output schema exposes:
+
+format (e.g., mp4) 
+resolution presets (including sd, hd, 1080, 4k) with documented pixel dimensions at default aspect 
+aspectRatio presets (including 9:16) intended for social outputs 
+size for explicit custom width/height (must be divisible by 2; max video width/height documented) 
+fps (default 25; can override, useful for mobile-recorded 30fps footage) 
+quality tiers (verylow → veryhigh) affecting file size and render speed tradeoffs 
+range, poster, thumbnail which are useful for testing/validation without rendering full-length output 
+Within that viewport, clips behave like this:
+
+By default, a clip “fills the viewport”; you can constrain its on-canvas rectangle using clip-level width and height (bounding box), overriding the “fill” behavior. 
+fit controls how an asset is scaled into that viewport/bounding box (crop, contain, cover, none). 
+scale is a fraction of the viewport size (picture-in-picture, etc.). 
+position is one of nine anchors; offset shifts relative to the viewport with the offset distance defined relative to viewport width (important in portrait math). 
+Setting a 9:16 canvas
+You have two robust strategies.
+
+Strategy A: Preset resolution + aspectRatio: "9:16"
+Use this when you want Shotstack to choose the correct portrait dimensions for a given preset resolution family. The API explicitly supports aspectRatio: "9:16" and standard resolution presets up to 4k. 
+
+Strategy B: Explicit size: { width, height }
+Use this when you need an exact pixel size (and you are within the documented dimension limits). For custom size, the API instructs you to omit resolution and aspectRatio. 
+
+Common 9:16 pixel dimensions requested
+The table below focuses on exact portrait sizes you asked for and the most reliable Shotstack configuration method.
+
+Target 9:16 output	Exact ratio check	How to set in Shotstack Output	Feasibility notes
+720×1280	720/1280 = 9/16	output.size = { "width": 720, "height": 1280 }	Supported as custom video size (divisible by 2; under max 1920). 
+1080×1920	1080/1920 = 9/16	output.size = { "width": 1080, "height": 1920 }	Supported as custom video size (hits documented max video height 1920). 
+1440×2560	1440/2560 = 9/16	Not supported as custom video size per max video height 1920	The Output Size object documents max video height 1920, so 2560 is expected to fail if submitted as custom size. Consider rendering a higher preset (e.g., resolution: "4k" + aspectRatio: "9:16") and downscaling externally. 
+
+Key nuance: the Edit API supports a 4k resolution preset in Output. 
+ If you truly need a 2560px-tall deliverable and Shotstack enforces the custom-size max height, the “render 4k portrait then downscale” pipeline is the most defensible path, even though it is more expensive in time/bytes.
+
+How masks and luma mattes are applied in Shotstack timelines
+Track/clip/asset mechanics relevant to masking
+Masking in Shotstack is expressed in JSON through the same primitives as all other edits:
+
+timeline.tracks[] layer visually: tracks earlier/higher in the stack render over tracks below (this is explicit in Studio guidance and consistent with track-based compositing). 
+Each track contains clips[]; each clip wraps an asset and includes timing (start, length) plus geometry and effects (fit, scale, position, offset, etc.). 
+This matters because luma mattes are not a property on the target clip; instead, they are implemented by placing a dedicated luma clip in the same track during an overlap interval. 
+
+Luma mattes in JSON
+In the API reference, a luma matte is represented as asset.type: "luma" with a publicly accessible src. 
+ The luma-transition tutorial and masking guidance both show the luma asset being placed as a clip in a track next to/overlapping other clips. 
+
+Important evidence about how luma values map to transparency:
+
+Studio documentation states: white areas create transparency and black areas are solid. 
+The standard “circle” matte asset provided by Shotstack is visually a black circle on a white field, which aligns with “black solid / white transparent” for a typical circular window mask. 
+Some parts of the API reference text describe the inverse (“black transparent, white solid”), which conflicts with the above real asset + template behavior. 
+In other words, do not rely on a single sentence in one document for inversion; treat the “white transparent / black opaque” mapping as the better-supported operational model because it is consistent with: (a) Studio guidance and (b) official template assets. 
+
+Practical mitigation if you discover inversion in your own masks: invert the matte in your asset pipeline (e.g., invert levels in your graphics tool), or test whether applying a “negative” filter to the luma clip is accepted in your account/version (clip filters exist in the Clip schema, but you should test if they affect luma clips as desired). 
+
+Alpha “mask” overlays using PNG transparency
+Shotstack also supports using images/svgs with alpha to layer graphics above content. Studio documentation describes using PNGs with transparency for shapes/graphics. 
+
+A concrete Shotstack template demonstrates a PNG border with a transparent “window” placed above a moving image to create a framed effect—functionally a mask window even though it is not a luma matte. 
+
+This pattern becomes essential when you want the window to remain fixed while the background moves, because luma mattes often behave like a track/clip matte that moves with the composited elements (the Shotstack community discussion recommends a PNG window overlay as a workaround in exactly this scenario). 
+
+Portrait-specific positioning, scaling, and matte alignment strategies
+This section focuses on rigorous alignment: how to make sure what you think is happening is what happens when the canvas is portrait.
+
+Establish the coordinate space you are masking in
+Shotstack gives you (at least) two practical coordinate spaces for masking:
+
+Full-canvas (viewport) masking
+You omit clip width/height so the clip fills the viewport by default. 
+
+This is the most stable approach for portrait social outputs.
+
+Bounding-box masking
+You set clip-level width and height (pixels) to constrain the clip rectangle. 
+
+This is useful for picture-in-picture, circular cutouts, or small masked regions.
+
+Rule for alignment: if the mask and the masked content are supposed to align pixel-for-pixel, then they must share the same geometry settings: at minimum width, height, fit, scale, position, offset, and any transforms such as rotation. 
+
+Use fit systematically
+The fit property is the main reason mattes appear “shifted” or “wrong shape” when you move to portrait:
+
+crop (default) maintains aspect ratio but crops to fill the target rectangle. 
+contain maintains aspect ratio and letterboxes/pillarboxes, preserving the entire asset. 
+cover stretches to fill (can distort). 
+none preserves original dimensions (no scaling). 
+Portrait guidance for mattes:
+
+If your matte asset is authored in 9:16, use the same fit on both the matte and the content (often crop) and you avoid most surprises. 
+If your matte asset is authored in 16:9 but the output is 9:16, then:
+crop will remove parts of the matte (likely unacceptable if the matte encodes a precise shape), and
+contain will preserve the matte but introduce transparent/unused areas that change where the mask applies. 
+
+In this case, the most robust fix is to re-author the matte in 9:16.
+Portrait math: offset is relative to viewport width
+Shotstack’s Clip schema states that offset is relative to viewport width (example: x: 0.5 moves half the viewport width). 
+
+That has a specific implication in portrait:
+
+If your output is 1080×1920, viewport width is 1080.
+A vertical offset of y = 0.10 corresponds to ~108px, not ~192px (because width, not height, is the unit). 
+A disciplined way to compute offsets is:
+
+offset.x = desiredPixelShiftX / viewportWidth
+offset.y = desiredPixelShiftY / viewportWidth (yes, width—per spec)
+Ensuring alignment when source media and mask have different aspect ratios
+A rigorous alignment approach is:
+
+Step 1: Decide the target rectangle (viewport or bounding box). 
+Step 2: Normalize both the content and the matte into that rectangle with identical fit. 
+Step 3: Apply identical scale/position/offset/transform to both clips. 
+Step 4: If you need a fixed window with moving content behind it, prefer a PNG window overlay approach (window stays in its own track above, content moves below). 
+Export orientation, metadata, performance, and testing
+Exporting correct portrait orientation for mobile platforms
+Within Shotstack, “correct orientation” is best achieved by rendering a portrait canvas (height > width) using:
+
+output.aspectRatio: "9:16" with a preset resolution, or
+explicit output.size such as 1080×1920. 
+To match common mobile recording frame rates, set output.fps to 30 (or match your source). The Output schema explicitly supports overriding fps and calls out mobile-recorded footage as a motivation. 
+
+If your source video contains smartphone rotation metadata that causes unexpected orientation, Shotstack’s Ingest renditions include fixRotation, described as resetting rotation based on orientation metadata and explicitly noting smartphone footage and the Edit API as affected. 
+
+This suggests a robust pipeline: ingest + fixRotation → edit/render.
+
+Recommended bitrate/codec settings table for 9:16 deliverables
+Shotstack’s Edit Output schema does not expose explicit codec or bitrate controls; it exposes format, fps, and a quality tier, but codec/bitrate are implementation details (i.e., unspecified in the public Output schema). 
+
+Therefore, if you must hit measurable bitrate/codec targets, use a post-process transcode step (or a controlled ingest/transcode step where applicable).
+
+For practical upload guidance, YouTube publishes recommended MP4/H.264 upload settings and bitrate targets by resolution. These bitrates are resolution-driven and apply equally to portrait video with the same pixel count. 
+
+9:16 output (portrait)	Equivalent “resolution class”	Container / codec (recommended)	24–30fps bitrate guidance	48–60fps bitrate guidance	Notes
+720×1280	~720p class	MP4 + H.264 + AAC-LC	~5 Mbps 
+~7.5 Mbps 
+YouTube also recommends progressive scan, High Profile, 4:2:0, and VBR. 
+1080×1920	~1080p class	MP4 + H.264 + AAC-LC	~8 Mbps 
+~12 Mbps 
+Same guidance; for strict mobile previews, “fast start” (moov atom front) is a common requirement. 
+1440×2560	~1440p class	MP4 + H.264 + AAC-LC	~16 Mbps 
+~24 Mbps 
+This size may require rendering higher and downscaling due to Shotstack custom-size max height. 
+
+If you need to verify what Shotstack actually produced (codec, bitrate, rotation, etc.), Shotstack provides a “probe endpoint” described as a media inspector based on ffprobe that returns metadata such as dimensions and other properties. 
+
+Performance considerations and limits
+Rendering constraints and planning guidance from Shotstack’s limitations doc:
+
+Rendering is ~20 seconds per minute of video, and additional effects/filters/transitions increase render time. 
+Sandbox (stage) has a maximum render duration of 10 minutes and adds a watermark. 
+Disk limits: individual source files max 5GB; “source footage + output video” must not exceed 10GB total. 
+Practical implications for 9:16 masks/luma work:
+
+Mattes and overlays increase compositing work, so expect slower renders than simple single-track edits. 
+If you are layering multiple high-res assets, plan around the 10GB combined storage constraint. 
+If you are dealing with variable frame rate (VFR) smartphone sources and see sync issues, ingest renditions offer fixOffset to attempt to correct audio/video sync problems, referencing VFR as a cause. 
+Testing tips for portrait masking correctness
+A “fast, rigorous” validation loop is:
+
+Render only a short segment using output.range (or generate a single test frame by outputting jpg at a specific capture time) to confirm alignment without burning full credits/time. 
+Generate poster and thumbnail assets to quickly check orientation framing and mask placement. 
+Use the probe/media inspector to confirm the output file is truly 1080×1920 (and not a rotated 1920×1080 with rotation metadata). 
+Concrete 9:16 JSON request examples and diagrams
+The following examples are written as request bodies for the Shotstack Edit API render endpoint (exact endpoint URL/environment is outside scope; no programming language assumed). They illustrate:
+(1) luma matte (animated MP4), (2) “mask” via PNG alpha transparency, (3) luma matte from a grayscale image.
+
+Timeline structure diagram
+mermaid
+Copy
+flowchart TB
+  A[Output: 1080x1920 (9:16)] --> B[Timeline]
+  B --> C[Track 1 (top layer)]
+  B --> D[Track 2 (below)]
+  C --> C1[Clip: Luma matte (type=luma)]
+  C --> C2[Clip: Foreground media (video/image)]
+  D --> D1[Clip: Background media]
+  C1 -.overlap time-> C2
+  C2 -.alpha created by luma-> D1
+This reflects the documented concept of using a luma asset as a clip in the same track to create a matte/transition effect. 
+
+Processing flowchart for portrait + masking
+rotation metadata?
+
+Pick final 9:16 output size
+
+Set output: size or resolution+aspectRatio
+
+Probe source media dimensions/rotation
+
+Optional: Ingest rendition fixRotation
+
+Choose fit strategy: crop/contain/cover/none
+
+Create/choose mask: luma grayscale or alpha PNG
+
+Apply identical geometry to mask + target clip
+
+Test with range/poster/thumbnail
+
+Full render
+
+Verify output metadata
+
+
+
+Show code
+This flow uses official Output/Clip semantics, ingest fixRotation, and test-friendly output fields. 
+
+Example 9:16 request for animated luma matte on video
+Goal: a foreground clip becomes transparent per an animated luma MP4, revealing a background track beneath (classic luma transition behavior). 
+
+json
+Copy
+{
+  "timeline": {
+    "background": "#000000",
+    "tracks": [
+      {
+        "clips": [
+          {
+            "asset": {
+              "type": "luma",
+              "src": "https://shotstack-assets.s3-ap-southeast-2.amazonaws.com/examples/luma-mattes/paint-left.mp4"
+            },
+            "start": 0.0,
+            "length": 2.0,
+            "fit": "crop"
+          },
+          {
+            "asset": {
+              "type": "video",
+              "src": "https://shotstack-assets.s3-ap-southeast-2.amazonaws.com/footage/table-mountain.mp4"
+            },
+            "start": 0.0,
+            "length": 6.0,
+            "fit": "crop"
+          }
+        ]
+      },
+      {
+        "clips": [
+          {
+            "asset": {
+              "type": "video",
+              "src": "https://shotstack-assets.s3-ap-southeast-2.amazonaws.com/footage/road.mp4"
+            },
+            "start": 0.0,
+            "length": 6.0,
+            "fit": "crop"
+          }
+        ]
+      }
+    ]
+  },
+  "output": {
+    "format": "mp4",
+    "size": {
+      "width": 1080,
+      "height": 1920
+    },
+    "fps": 30,
+    "quality": "high"
+  }
+}
+Why this is portrait-safe and analytically stable:
+
+Output is explicitly set to 1080×1920, avoiding ambiguity in preset aspect handling. 
+Both the luma clip and the masked video share fit: "crop" (the most common cause of matte drift is inconsistent fit). 
+Luma as a clip in the same track matches official luma transition examples. 
+Common pitfall to test immediately: inversion (white vs black behavior). Use a short output.range test render if results look reversed. 
+
+Example 9:16 request using an external PNG “mask” with transparency
+Goal: use a PNG border/window with alpha transparency above a video or image to simulate a fixed mask window. This is the “PNG window” approach shown in Shotstack’s border template. 
+
+json
+Copy
+{
+  "timeline": {
+    "background": "#000000",
+    "tracks": [
+      {
+        "clips": [
+          {
+            "asset": {
+              "type": "image",
+              "src": "https://shotstack-assets.s3.ap-southeast-2.amazonaws.com/borders/80s-acid-pink-square.png"
+            },
+            "start": 0,
+            "length": 6,
+            "fit": "contain",
+            "position": "center",
+            "scale": 0.95
+          }
+        ]
+      },
+      {
+        "clips": [
+          {
+            "asset": {
+              "type": "video",
+              "src": "https://shotstack-assets.s3-ap-southeast-2.amazonaws.com/footage/night-sky.mp4"
+            },
+            "start": 0,
+            "length": 6,
+            "fit": "crop",
+            "effect": "slideLeftSlow"
+          }
+        ]
+      }
+    ]
+  },
+  "output": {
+    "format": "mp4",
+    "size": {
+      "width": 1080,
+      "height": 1920
+    },
+    "fps": 30,
+    "quality": "high"
+  }
+}
+Why this solves problems luma mattes sometimes can’t:
+
+The border/window is on its own top track, so it stays visually fixed while the background moves. This is the same strategy recommended in the Shotstack community when a luma matte moves undesirably with other clip motion. 
+The border PNG is a known template asset with a transparent area. 
+Portrait-specific note: use contain on the border/window to avoid cropping the frame; then tune scale so it fits inside 1080×1920. 
+
+Example 9:16 request using a grayscale image as a luma matte
+Goal: apply a static grayscale luma image as a matte to mask an image/video into a shape. Shotstack provides a static luma image used in the circle mask template (circle-sd.jpg). 
+
+json
+Copy
+{
+  "timeline": {
+    "background": "#000000",
+    "tracks": [
+      {
+        "clips": [
+          {
+            "asset": {
+              "type": "luma",
+              "src": "https://shotstack-assets.s3-ap-southeast-2.amazonaws.com/luma-mattes/static/circle-sd.jpg"
+            },
+            "start": 0,
+            "length": 5,
+            "fit": "contain",
+            "position": "center",
+            "scale": 0.9
+          },
+          {
+            "asset": {
+              "type": "image",
+              "src": "https://shotstack-assets.s3-ap-southeast-2.amazonaws.com/images/earth.jpg"
+            },
+            "start": 0,
+            "length": 5,
+            "fit": "crop",
+            "position": "center",
+            "scale": 0.9
+          }
+        ]
+      }
+    ]
+  },
+  "output": {
+    "format": "mp4",
+    "size": {
+      "width": 1080,
+      "height": 1920
+    },
+    "fps": 30,
+    "quality": "high"
+  }
+}
+Key alignment decision here: both the luma clip and the image clip use the same scale and position, and the matte uses contain to preserve the matte’s shape without cropping. 
+
+Because the provided circle matte image is black-on-white, it is a good sanity check for which tonal region becomes transparent vs solid in your environment/version. 
+
+Key Shotstack references and links
+The most load-bearing official references used in this report (links included as requested):
+
+text
+Copy
+Shotstack API Reference (v1): https://shotstack.io/docs/api/
+Masking with Luma Mattes guide: https://shotstack.io/docs/guide/architecting-an-application/masks-luma-mattes/
+Luma matte transitions tutorial: https://shotstack.io/learn/luma-matte-transitions/
+Fit property guidance: https://shotstack.io/learn/image-video-fit-property/
+Crop/resize & aspect ratio guide: https://shotstack.io/learn/crop-resize-videos/
+Limitations (render time, sandbox, disk limits): https://shotstack.io/docs/guide/architecting-an-application/limitations/
+Circle mask template (uses static luma image): https://shotstack.io/templates/cicle-mask-luma-matte-effect/
+Moving image with border template (PNG window overlay): https://shotstack.io/templates/moving-image-border-text/
+These references define the Output/Clip schema, luma matte usage patterns, fit behavior, and operational limits used throughout. 

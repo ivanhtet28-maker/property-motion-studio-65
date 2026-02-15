@@ -24,7 +24,7 @@ async function updateVideoRecord(
     const updateData: {
       status: string;
       progress: number;
-      video_url?: string;
+      download_url?: string;
       completed_at?: string;
       error_message?: string;
     } = {
@@ -33,7 +33,7 @@ async function updateVideoRecord(
     };
 
     if (videoUrl) {
-      updateData.video_url = videoUrl;
+      updateData.download_url = videoUrl;
     }
 
     if (status === "completed") {

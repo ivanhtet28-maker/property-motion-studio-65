@@ -170,6 +170,18 @@
         console.log("Using filename:", fileName);
         agentPhotoUrl = await uploadBase64ToStorage(agentInfo.photo, fileName, "agent-photos");
         console.log("Agent photo URL:", agentPhotoUrl);
+
+        // Update video record with agent photo URL
+        if (agentPhotoUrl && videoId) {
+          const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+          const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+          const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+          await supabase
+            .from("videos")
+            .update({ agent_photo_url: agentPhotoUrl })
+            .eq("id", videoId);
+        }
       } else {
         console.log("No agent photo provided in agentInfo");
       }
@@ -216,6 +228,14 @@
             effect: "fadeInFadeOut",
             volume: 0.3,
           } : undefined,
+          fonts: [
+            {
+              src: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/fonts/Helvetica.ttf"
+            },
+            {
+              src: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/fonts/Helvetica-Bold.ttf"
+            }
+          ],
           tracks: [
             // Voiceover track (Track 0)
             ...(audioUrl ? [{
@@ -235,11 +255,11 @@
             // Agent photo - Track 1 (TOP - separate image asset, Shotstack HTML doesn't support images)
             ...(agentInfo?.photo ? [{
               clips: [
-                // Circular luma matte - Custom 1:1 square with correct inversion (black on white)
+                // Circular luma matte (must come first)
                 {
                   asset: {
                     type: "luma",
-                    src: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/luma-mattes/circle-square.png",
+                    src: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/luma-mattes/circle_square_white.png",
                   },
                   start: videoClipsDuration + 0.1,
                   length: agentCardDuration - 0.1,
@@ -247,14 +267,15 @@
                   offset: {
                     y: -0.22,
                   },
-                  scale: 0.25,
-                  fit: "contain", // Preserve circular shape without cropping
+                  scale: 0.35,
+                  fit: "contain"
                 },
                 // Agent photo (masked by luma matte above)
+
                 {
                   asset: {
                     type: "image",
-                    src: agentPhotoUrl || agentInfo.photo,
+                    src: agentPhotoUrl || agentInfo.photo, // Use storage URL if available, fallback to base64
                   },
                   start: videoClipsDuration + 0.1,
                   length: agentCardDuration - 0.1,
@@ -262,8 +283,8 @@
                   offset: {
                     y: -0.22,
                   },
-                  scale: 0.25, // Match luma matte scale
-                  fit: "crop", // Fill the circular mask area
+                  scale: 0.35, // Match luma matte scale exactly
+                  fit: "contain", // Match luma matte fit parameter
                 },
               ],
             }] : []),
@@ -283,7 +304,7 @@
                         align-items: center;
                         justify-content: center;
                         text-align: center;
-                        font-family: Arial, sans-serif;
+                        font-family: Helvetica, Arial, sans-serif;
                         color: white;
                         padding-top: 100px;
                       ">
@@ -317,7 +338,7 @@
                         flex-direction: column;
                         padding-top: 80px;
                         text-align: center;
-                        font-family: Arial, sans-serif;
+                        font-family: Helvetica, Arial, sans-serif;
                         color: white;
                       ">
                         ${style && TEMPLATE_NAMES[style] ? `<div style="font-size: 52px; font-weight: 900; margin-bottom: 28px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${TEMPLATE_NAMES[style]}</div>` : ''}
