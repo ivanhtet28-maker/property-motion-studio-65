@@ -235,11 +235,11 @@
             // Agent photo - Track 1 (TOP - separate image asset, Shotstack HTML doesn't support images)
             ...(agentInfo?.photo ? [{
               clips: [
-                // Circular luma matte (must come first) - Make it MUCH LARGER
+                // Circular luma matte - Following Shotstack best practices for 9:16
                 {
                   asset: {
                     type: "luma",
-                    src: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/luma-mattes/circle-square.png",
+                    src: "https://shotstack-assets.s3-ap-southeast-2.amazonaws.com/luma-mattes/static/circle-sd.jpg",
                   },
                   start: videoClipsDuration + 0.1,
                   length: agentCardDuration - 0.1,
@@ -247,13 +247,14 @@
                   offset: {
                     y: -0.22,
                   },
-                  scale: 0.35, // Much larger to cover the agent photo
+                  scale: 0.25,
+                  fit: "contain", // Preserve circular shape without cropping
                 },
                 // Agent photo (masked by luma matte above)
                 {
                   asset: {
                     type: "image",
-                    src: agentPhotoUrl || agentInfo.photo, // Use storage URL if available, fallback to base64
+                    src: agentPhotoUrl || agentInfo.photo,
                   },
                   start: videoClipsDuration + 0.1,
                   length: agentCardDuration - 0.1,
@@ -261,7 +262,8 @@
                   offset: {
                     y: -0.22,
                   },
-                  scale: 0.35, // Match luma matte scale for proper masking
+                  scale: 0.25, // Match luma matte scale
+                  fit: "crop", // Fill the circular mask area
                 },
               ],
             }] : []),
