@@ -246,8 +246,7 @@
                         display: flex;
                         justify-content: center;
                         align-items: flex-start;
-                        padding-top: 250px;
-                        background: transparent;
+                        padding-top: 320px;
                       ">
                         <div style="
                           width: 220px;
@@ -257,7 +256,11 @@
                         ">
                           <img
                             src="${agentPhotoUrl || agentInfo.photo}"
-                            style="width: 100%; height: 100%; object-fit: cover;"
+                            style="
+                              width: 100%;
+                              height: 100%;
+                              object-fit: cover;
+                            "
                           />
                         </div>
                       </div>
