@@ -248,7 +248,7 @@
                     y: -0.22,
                   },
                   scale: 0.4, // Larger circular mask
-                  fit: "contain", // Maintain circular aspect ratio
+                  // No fit parameter - use default crop behavior
                 },
                 // Agent photo (masked by luma matte above) - SAME SIZE
                 {
@@ -263,7 +263,7 @@
                     y: -0.22,
                   },
                   scale: 0.298, // Keep photo at same size
-                  fit: "contain", // Maintain aspect ratio
+                  // No fit parameter - use default crop behavior
                 },
               ],
             }] : []),
