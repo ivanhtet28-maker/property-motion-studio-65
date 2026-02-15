@@ -235,11 +235,11 @@
             // Agent photo - Track 1 (TOP - separate image asset, Shotstack HTML doesn't support images)
             ...(agentInfo?.photo ? [{
               clips: [
-                // Circular luma matte - Following Shotstack best practices for 9:16
+                // Circular luma matte - Custom 1:1 square with correct inversion (black on white)
                 {
                   asset: {
                     type: "luma",
-                    src: "https://shotstack-assets.s3-ap-southeast-2.amazonaws.com/luma-mattes/static/circle-sd.jpg",
+                    src: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/luma-mattes/circle-square.png",
                   },
                   start: videoClipsDuration + 0.1,
                   length: agentCardDuration - 0.1,
