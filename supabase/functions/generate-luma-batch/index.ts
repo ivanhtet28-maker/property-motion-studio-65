@@ -216,6 +216,16 @@ ${BASE_PROMPT_SUFFIX}`.trim();
         });
 
         const firstError = failed[0]?.error || "Unknown error";
+
+        // Check for common error types
+        if (firstError.includes("Insufficient credits")) {
+          throw new Error("Luma AI account has insufficient credits. Please add credits at https://lumalabs.ai/billing");
+        } else if (firstError.includes("401")) {
+          throw new Error("Invalid Luma API key. Please check your LUMA_API_KEY secret.");
+        } else if (firstError.includes("403")) {
+          throw new Error("Luma API access forbidden. Please check your account status.");
+        }
+
         throw new Error(`All Luma generations failed. First error: ${firstError}`);
       }
 
