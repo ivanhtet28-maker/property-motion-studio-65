@@ -247,7 +247,7 @@
                   offset: {
                     y: -0.22,
                   },
-                  scale: 0.149,
+                  scale: 0.298, // 2x bigger (was 0.149)
                   fit: "contain", // Maintain circular aspect ratio
                 },
                 // Agent photo (masked by luma matte above)
@@ -262,7 +262,7 @@
                   offset: {
                     y: -0.22,
                   },
-                  scale: 0.149, // 160px at 1080px width
+                  scale: 0.298, // 2x bigger - 320px at 1080px width (was 0.149)
                   fit: "contain", // Maintain aspect ratio matching luma matte
                 },
               ],
