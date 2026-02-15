@@ -47,7 +47,7 @@ export function LeftSidebar({ onNewVideo, selectedTemplate, onSelectTemplate, re
     try {
       const { data, error } = await supabase
         .from("videos")
-        .select("id, created_at, thumbnail_url, video_url, property_address")
+        .select("id, created_at, thumbnail_url, download_url, property_address")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(3);
@@ -63,7 +63,7 @@ export function LeftSidebar({ onNewVideo, selectedTemplate, onSelectTemplate, re
           year: 'numeric'
         }),
         thumbnail: v.thumbnail_url || "https://picsum.photos/120/80?random=1",
-        videoUrl: v.video_url,
+        videoUrl: v.download_url,
       }));
 
       setRecentVideos(transformedVideos);

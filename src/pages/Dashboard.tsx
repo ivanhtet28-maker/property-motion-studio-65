@@ -107,7 +107,7 @@ export default function Dashboard() {
           address: propertyAddress,
           status: status,
           createdAt: createdAt,
-          videoUrl: v.video_url,
+          videoUrl: v.download_url,
           thumbnailUrl: v.thumbnail_url,
         };
       });
