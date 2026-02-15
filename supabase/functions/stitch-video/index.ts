@@ -235,7 +235,7 @@
             // Agent photo - Track 1 (TOP - separate image asset, Shotstack HTML doesn't support images)
             ...(agentInfo?.photo ? [{
               clips: [
-                // Circular luma matte (must come first)
+                // Circular luma matte (must come first) - BIGGER MASK
                 {
                   asset: {
                     type: "luma",
@@ -247,10 +247,10 @@
                   offset: {
                     y: -0.22,
                   },
-                  scale: 0.298, // 2x bigger (was 0.149)
+                  scale: 0.4, // Larger circular mask
                   fit: "contain", // Maintain circular aspect ratio
                 },
-                // Agent photo (masked by luma matte above)
+                // Agent photo (masked by luma matte above) - SAME SIZE
                 {
                   asset: {
                     type: "image",
@@ -262,8 +262,8 @@
                   offset: {
                     y: -0.22,
                   },
-                  scale: 0.298, // 2x bigger - 320px at 1080px width (was 0.149)
-                  fit: "contain", // Maintain aspect ratio matching luma matte
+                  scale: 0.298, // Keep photo at same size
+                  fit: "contain", // Maintain aspect ratio
                 },
               ],
             }] : []),
