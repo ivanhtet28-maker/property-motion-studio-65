@@ -235,8 +235,21 @@
             // Agent photo - Track 1 (TOP - separate image asset, Shotstack HTML doesn't support images)
             ...(agentInfo?.photo ? [{
               clips: [
-                // For now, use rectangular photo without circle mask
-                // TODO: Upload square circle luma matte to Supabase Storage
+                // Custom square circle luma matte (1:1 aspect ratio - no stretching!)
+                {
+                  asset: {
+                    type: "luma",
+                    src: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/luma-mattes/circle-square.png",
+                  },
+                  start: videoClipsDuration + 0.1,
+                  length: agentCardDuration - 0.1,
+                  position: "top",
+                  offset: {
+                    y: -0.22,
+                  },
+                  scale: 0.149,
+                },
+                // Agent photo (masked by luma matte above)
                 {
                   asset: {
                     type: "image",
@@ -249,6 +262,7 @@
                     y: -0.22,
                   },
                   scale: 0.149,
+                  fit: "crop",
                 },
               ],
             }] : []),
