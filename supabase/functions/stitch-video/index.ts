@@ -247,8 +247,13 @@
                   offset: {
                     y: -0.22,
                   },
-                  scale: 0.4, // Larger circular mask
-                  // No fit parameter - use default crop behavior
+                  scale: 0.149,
+                  crop: {
+                    top: 0.22, // Crop top and bottom to create square aspect ratio
+                    bottom: 0.22,
+                    left: 0,
+                    right: 0
+                  }
                 },
                 // Agent photo (masked by luma matte above) - SAME SIZE
                 {
@@ -262,7 +267,7 @@
                   offset: {
                     y: -0.22,
                   },
-                  scale: 0.298, // Keep photo at same size
+                  scale: 0.149, // Keep photo at same size
                   // No fit parameter - use default crop behavior
                 },
               ],
