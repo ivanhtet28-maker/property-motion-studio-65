@@ -235,6 +235,21 @@
             // Agent photo - Track 1 (TOP - separate image asset, Shotstack HTML doesn't support images)
             ...(agentInfo?.photo ? [{
               clips: [
+                // Circular luma matte (must come first)
+                {
+                  asset: {
+                    type: "luma",
+                    src: "https://shotstack-assets.s3-ap-southeast-2.amazonaws.com/luma-mattes/static/circle-sd.jpg",
+                  },
+                  start: videoClipsDuration + 0.1,
+                  length: agentCardDuration - 0.1,
+                  position: "top",
+                  offset: {
+                    y: -0.22,
+                  },
+                  scale: 0.149,
+                },
+                // Agent photo (masked by luma matte above)
                 {
                   asset: {
                     type: "image",
@@ -244,7 +259,7 @@
                   length: agentCardDuration - 0.1,
                   position: "top",
                   offset: {
-                    y: -0.22, 
+                    y: -0.22,
                   },
                   scale: 0.149, // 160px at 1080px width
                 },
