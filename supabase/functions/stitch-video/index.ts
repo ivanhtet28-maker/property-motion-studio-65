@@ -248,6 +248,7 @@
                     y: -0.22,
                   },
                   scale: 0.149,
+                  fit: "contain", // Maintain circular aspect ratio
                 },
                 // Agent photo (masked by luma matte above)
                 {
@@ -262,6 +263,7 @@
                     y: -0.22,
                   },
                   scale: 0.149, // 160px at 1080px width
+                  fit: "contain", // Maintain aspect ratio matching luma matte
                 },
               ],
             }] : []),
