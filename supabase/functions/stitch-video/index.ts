@@ -235,46 +235,36 @@
             // Agent photo - Track 1 (TOP - separate image asset, Shotstack HTML doesn't support images)
             ...(agentInfo?.photo ? [{
               clips: [
-                // Circular luma matte (must come first)
+                // Circular agent photo using HTML/CSS
                 {
                   asset: {
-                    type: "luma",
-                    src: "https://shotstack-assets.s3-ap-southeast-2.amazonaws.com/luma-mattes/static/circle-sd.jpg",
+                    type: "html",
+                    html: `
+                      <div style="
+                        width: 100%;
+                        height: 100%;
+                        display: flex;
+                        justify-content: center;
+                        align-items: flex-start;
+                        padding-top: 250px;
+                        background: transparent;
+                      ">
+                        <div style="
+                          width: 220px;
+                          height: 220px;
+                          border-radius: 50%;
+                          overflow: hidden;
+                        ">
+                          <img
+                            src="${agentPhotoUrl || agentInfo.photo}"
+                            style="width: 100%; height: 100%; object-fit: cover;"
+                          />
+                        </div>
+                      </div>
+                    `,
                   },
                   start: videoClipsDuration + 0.1,
                   length: agentCardDuration - 0.1,
-                  position: "top",
-                  offset: {
-                    y: -0.22,
-                  },
-                  scale: 0.151, // Slightly bigger than photo to avoid edge artifacts
-                  crop: {
-                    top: 0.21875,    // Precise crop for 9:16 → 1:1 square
-                    bottom: 0.21875, // (1920-1080)/1920 / 2 = 0.21875
-                    left: 0,
-                    right: 0
-                  }
-                },
-                // Agent photo (masked by luma matte above)
-                {
-                  asset: {
-                    type: "image",
-                    src: agentPhotoUrl || agentInfo.photo, // Use storage URL if available, fallback to base64
-                  },
-                  start: videoClipsDuration + 0.1,
-                  length: agentCardDuration - 0.1,
-                  position: "top",
-                  offset: {
-                    y: -0.22,
-                  },
-                  scale: 0.149,
-                  fit: "crop", // Explicit crop behavior
-                  crop: {
-                    top: 0.21875,    // Same square crop as luma matte
-                    bottom: 0.21875,
-                    left: 0,
-                    right: 0
-                  }
                 },
               ],
             }] : []),
