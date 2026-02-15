@@ -235,34 +235,40 @@
             // Agent photo - Track 1 (TOP - separate image asset, Shotstack HTML doesn't support images)
             ...(agentInfo?.photo ? [{
               clips: [
-                // Square circle luma matte - MUST be 1:1 aspect ratio to avoid oval stretching
+                // Use HTML/CSS for perfect static circular mask
                 {
                   asset: {
-                    type: "luma",
-                    src: "https://templates.shotstack.io/basic/asset/video/luma/circles/center-double.mp4",
+                    type: "html",
+                    html: `
+                      <div style="
+                        width: 100%;
+                        height: 100%;
+                        display: flex;
+                        justify-content: center;
+                        align-items: flex-start;
+                        padding-top: 320px;
+                      ">
+                        <div style="
+                          width: 220px;
+                          height: 220px;
+                          border-radius: 50%;
+                          overflow: hidden;
+                          background: transparent;
+                        ">
+                          <img
+                            src="${agentPhotoUrl || agentInfo.photo}"
+                            style="
+                              width: 100%;
+                              height: 100%;
+                              object-fit: cover;
+                            "
+                          />
+                        </div>
+                      </div>
+                    `,
                   },
                   start: videoClipsDuration + 0.1,
                   length: agentCardDuration - 0.1,
-                  position: "top",
-                  offset: {
-                    y: -0.22,
-                  },
-                  scale: 0.149,
-                },
-                // Agent photo (masked by luma matte above)
-                {
-                  asset: {
-                    type: "image",
-                    src: agentPhotoUrl || agentInfo.photo,
-                  },
-                  start: videoClipsDuration + 0.1,
-                  length: agentCardDuration - 0.1,
-                  position: "top",
-                  offset: {
-                    y: -0.22,
-                  },
-                  scale: 0.149,
-                  fit: "crop",
                 },
               ],
             }] : []),
