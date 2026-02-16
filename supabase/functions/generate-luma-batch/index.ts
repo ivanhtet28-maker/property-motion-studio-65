@@ -16,7 +16,7 @@ Maintain strict architectural accuracy and straight vertical lines.
 Consistent exposure, no flicker, no warping.
 Natural interior/exterior lighting, soft realistic shadows and reflections.
 Luxury real estate cinematography, calm and elegant mood.
-No people, no vehicles, no text, no watermarks, no UI, no camera artifacts, NO SHAKING, NO CAMERA SHAKE, NO JITTER, NO WOBBLE, NO VIBRATION.
+No people, no vehicles, no text, no watermarks, no UI, no camera artifacts.
 Photorealistic, clean, stable, professional property marketing video.
 4K quality.`;
 
@@ -50,8 +50,8 @@ Photorealistic, clean, stable, professional property marketing video.
       console.log(`Original dimensions: ${originalWidth}x${originalHeight}`);
 
       // Calculate crop dimensions (90% of original = 10% crop)
-      const cropWidth = Math.round(originalWidth * 0.8);
-      const cropHeight = Math.round(originalHeight * 0.8);
+      const cropWidth = Math.round(originalWidth * 0.9);
+      const cropHeight = Math.round(originalHeight * 0.9);
 
       let cropX: number;
       let cropY: number;
@@ -76,7 +76,13 @@ Photorealistic, clean, stable, professional property marketing video.
           break;
       }
 
-      console.log(`Cropping: ${cropWidth}x${cropHeight} at (${cropX}, ${cropY})`);
+      // Add subtle random jitter to avoid robotic motion (AutoReel-style)
+      const jitterX = Math.round(Math.random() * 6 - 3);
+      const jitterY = Math.round(Math.random() * 6 - 3);
+      cropX = Math.max(0, Math.min(cropX + jitterX, originalWidth - cropWidth));
+      cropY = Math.max(0, Math.min(cropY + jitterY, originalHeight - cropHeight));
+
+      console.log(`Cropping: ${cropWidth}x${cropHeight} at (${cropX}, ${cropY}) [jitter: ${jitterX}, ${jitterY}]`);
 
       // Crop the image
       const cropped = image.crop(cropX, cropY, cropWidth, cropHeight);

@@ -214,7 +214,7 @@ export function PropertySourceSelector({
             imageMetadata={imageMetadata}
             onMetadataChange={onMetadataChange}
             minPhotos={3}
-            maxPhotos={6}
+            maxPhotos={10}
           />
         </TabsContent>
 

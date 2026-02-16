@@ -104,9 +104,9 @@
         );
       }
 
-      if (imageUrls.length > 6) {
+      if (imageUrls.length > 10) {
         return new Response(
-          JSON.stringify({ error: "Maximum 6 images allowed for 15-30 second video (5 seconds per clip)" }),
+          JSON.stringify({ error: "Maximum 10 images allowed" }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
