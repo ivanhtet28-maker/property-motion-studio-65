@@ -1,4 +1,4 @@
-// Edge function for video generation using Runway Gen-3 Alpha Turbo
+// Edge function for video generation using Luma AI completely
   /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
   import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -78,7 +78,7 @@
     return MUSIC_LIBRARY[musicId] || null;
   };
 
-  interface RunwayGeneration {
+  interface LumaGeneration {
     imageUrl: string;
     generationId: string;
     status: "queued" | "error";
@@ -93,7 +93,7 @@
     try {
       const { imageUrls, imageMetadata, propertyData, style, voice, music, userId, propertyId, script, source, agentInfo }: GenerateVideoRequest = await req.json();
 
-      console.log("=== RUNWAY VIDEO GENERATION ===");
+      console.log("=== LUMA AI VIDEO GENERATION ===");
       console.log("Total images:", imageUrls?.length || 0);
       console.log("Property:", propertyData?.address);
 
@@ -237,17 +237,17 @@
         }
       }
 
-      console.log("Starting Runway batch generation for", imageUrls.length, "images...");
+      console.log("Starting Luma batch generation for", imageUrls.length, "images...");
 
       // Prepare image metadata (use provided metadata or create default)
-      const metadataForRunway = imageMetadata || imageUrls.map(url => ({
+      const metadataForLuma = imageMetadata || imageUrls.map(url => ({
         url,
         cameraAngle: "auto",
-        duration: 10
+        duration: 3.5
       }));
 
-      const runwayResponse = await fetch(
-        `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-runway-batch`,
+      const lumaResponse = await fetch(
+        `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-luma-batch`,
         {
           method: "POST",
           headers: {
@@ -255,22 +255,22 @@
             "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
           },
           body: JSON.stringify({
-            imageMetadata: metadataForRunway,
+            imageMetadata: metadataForLuma,
             propertyAddress: propertyData.address,
           }),
         }
       );
 
-      const runwayData = await runwayResponse.json();
+      const lumaData = await lumaResponse.json();
 
-      if (!runwayData.success) {
-        throw new Error(runwayData.error || "Failed to start Runway batch generation");
+      if (!lumaData.success) {
+        throw new Error(lumaData.error || "Failed to start Luma batch generation");
       }
 
-      const generations = (runwayData.generations as RunwayGeneration[]).filter((g) => g.status === "queued");
+      const generations = (lumaData.generations as LumaGeneration[]).filter((g) => g.status === "queued");
       const generationIds = generations.map((g) => g.generationId);
 
-      console.log(`Started ${generations.length} Runway generations`);
+      console.log(`Started ${generations.length} Luma generations`);
       console.log("Generation IDs:", generationIds);
 
       // Save generation context to DB so Dashboard can resume polling if user navigates away
@@ -280,7 +280,7 @@
           const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
           const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-          const clipDurations = (imageMetadata || metadataForRunway).map(m => m.duration);
+          const clipDurations = (imageMetadata || metadataForLuma).map(m => m.duration);
 
           await supabaseAdmin
             .from("videos")
@@ -306,13 +306,13 @@
       return new Response(
         JSON.stringify({
           success: true,
-          provider: "runway",
+          provider: "luma",
           videoId: videoRecordId,
           generationIds: generationIds,
           totalClips: generationIds.length,
           estimatedDuration: expectedDuration,
           estimatedTime: generationIds.length * 45,
-          message: `Started ${generationIds.length} Runway generations. Use check-runway-batch to poll status.`,
+          message: `Started ${generationIds.length} Luma AI generations. Use check-luma-batch to poll status.`,
           audioUrl: audioUrl,
           musicUrl: musicUrl,
           agentInfo: agentInfo,
