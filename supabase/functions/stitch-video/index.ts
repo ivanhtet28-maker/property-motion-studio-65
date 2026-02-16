@@ -573,7 +573,7 @@
                   length: agentCardDuration - 0.1,
                   position: "top",
                   offset: {
-                    y: -0.22,
+                    y: -0.15,
                   },
                   scale: 0.35, // Match luma matte scale exactly
                   fit: "contain", // Match luma matte fit parameter
@@ -598,7 +598,7 @@
                         text-align: center;
                         font-family: Helvetica, Arial, sans-serif;
                         color: white;
-                        padding-top: 250px;
+                        padding-top: 100px;
                       ">
                         <div style="font-size: 42px; font-weight: 700; margin-bottom: 15px; letter-spacing: 1px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.name}</div>
                         ${agentInfo.phone ? `<div style="font-size: 38px; margin-bottom: 10px; font-weight: 600; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.phone}</div>` : ''}

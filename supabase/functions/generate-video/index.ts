@@ -120,7 +120,9 @@
         }
       }
 
-      const expectedDuration = imageUrls.length * 5;
+      // Calculate expected duration from clamped per-clip durations (Runway: 5-10s)
+      const metadataSource = imageMetadata || imageUrls.map(url => ({ url, cameraAngle: "auto", duration: 10 }));
+      const expectedDuration = metadataSource.reduce((sum: number, m: { duration?: number }) => sum + Math.min(Math.max(m.duration ?? 6, 2), 10), 0);
       console.log("Expected video duration:", expectedDuration, "seconds");
 
       let audioUrl: string | null = null;
@@ -280,7 +282,8 @@
           const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
           const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-          const clipDurations = (imageMetadata || metadataForRunway).map(m => m.duration);
+          // Clamp durations to match what Runway actually produces (5-10s)
+          const clipDurations = (imageMetadata || metadataForRunway).map(m => Math.min(Math.max(m.duration ?? 6, 2), 10));
 
           await supabaseAdmin
             .from("videos")
