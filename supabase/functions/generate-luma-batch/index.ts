@@ -1,5 +1,8 @@
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
+  import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+  import { Image } from "https://deno.land/x/imagescript@1.3.0/mod.ts";
+
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -7,95 +10,116 @@
 
   const LUMA_API_KEY = Deno.env.get("LUMA_API_KEY");
 
-  // Duration-aware motion intensity modifiers
-  function getMotionModifier(duration: number): string {
-    switch (duration) {
-      case 3:
-      case 3.5:
-        return `Motion intensity: slow and controlled. Clearly visible but stable movement.`;
-      case 4:
-      case 4.5:
-        return `Motion intensity: very slow, nearly static. Reduce movement to prevent drift.`;
-      case 5:
-        return `Motion intensity: ultra-slow micro-motion only. Minimal parallax, almost static.`;
-      default:
-        return `Motion intensity: slow and controlled. Clearly visible but stable movement.`;
-    }
-  }
-
-  // Pan angle budgets based on duration
-  function getPanAngleBudget(duration: number): string {
-    switch (duration) {
-      case 3:
-      case 3.5:
-        return `Pan angle budget: small pan (about 7–8 degrees total).`;
-      case 4:
-      case 4.5:
-        return `Pan angle budget: micro pan (about 4–5 degrees total).`;
-      case 5:
-        return `Pan angle budget: very small micro pan (about 3–4 degrees total).`;
-      default:
-        return `Pan angle budget: small pan (about 7–8 degrees total).`;
-    }
-  }
-
-  // Push-in distance budgets based on duration
-  function getPushInBudget(duration: number): string {
-    switch (duration) {
-      case 3:
-      case 3.5:
-        return `Push-in distance: SUBTLE but VISIBLE FORWARD movement.`;
-      case 4:
-      case 4.5:
-        return `Push-in distance: VERY SMALL FORWARD MOVEMENT ONLY.`;
-      case 5:
-        return `Push-in distance: MICRO FORWARD MOVEMENT ONLY.`;
-      default:
-        return `Push-in distance: SUBTLE but VISIBLE FORWARD movement.`;
-    }
-  }
-
-  // Camera angle prompts for Luma AI
-  const CAMERA_ANGLE_PROMPTS: Record<string, string> = {
-    auto: `ULTRA-STABLE camera, locked horizon, tripod-level steadiness.
-Motion: micro parallax only (small), no rotation, no translation.
-No shaking, no jitter, no wobble.
-Constant motion, no acceleration, no sudden changes.`,
-
-    "wide-shot": `Locked STATIC WIDE ESTABLISHING SHOT.
-Tripod-mounted, completely motionless.
-No panning, no tilting, no zooming, no movement at all.
-Horizon perfectly level, vertical lines perfectly straight.`,
-
-    "zoom-in": `ULTRA-STABLE SLOW PUSH-IN (DOLLY-IN) TOWARD CENTER focal point.
-Push-in distance budget: small (subtle).
-Forward movement ONLY on a straight slider path.
-No rotation, no pan, no tilt, no vertical movement.
-Constant speed, no acceleration.
-No shaking, no jitter, no wobble.`,
-
-    "pan-left": `ULTRA-STABLE YAW ROTATION to LEFT ONLY.
-Pan angle budget: small (about 4–6 degrees total).
-Rotation-only around a fixed pivot point (tripod fluid head).
-No dolly, no zoom, no tilt, no vertical movement, no forward/backward movement.
-Constant speed, no acceleration.
-No shaking, no jitter, no wobble.`,
-
-    "pan-right": `Ultra-stable YAW ROTATION to RIGHT ONLY.
-Pan angle budget: small (about 4–6 degrees total).
-Rotation-only around a fixed pivot point (tripod fluid head).
-No dolly, no zoom, no tilt, no vertical movement, no forward/backward movement.
-Constant speed, no acceleration.
-No shaking, no jitter, no wobble.`,
-  };
-
-  const BASE_PROMPT_SUFFIX = `Maintain strict architectural accuracy and straight vertical lines.
+  // Stability prompt - replaces verbose motion prompts since end-frames handle motion
+  const STABILITY_PROMPT = `ULTRA-STABLE architecture, no morphing, no distortion, locked walls and furniture.
+Maintain strict architectural accuracy and straight vertical lines.
 Consistent exposure, no flicker, no warping.
-Natural interior/exterior lighting (match the input image), soft realistic shadows and reflections.
+Natural interior/exterior lighting, soft realistic shadows and reflections.
 Luxury real estate cinematography, calm and elegant mood.
-No people, no vehicles, no text, no watermarks, no UI, no camera artifacts.
+No people, no vehicles, no text, no watermarks, no UI, no camera artifacts, NO SHAKING, NO CAMERA SHAKE, NO JITTER, NO WOBBLE, NO VIBRATION.
 Photorealistic, clean, stable, professional property marketing video.
 4K quality.`;
+
+  /**
+   * Create an end-frame by cropping 10% from the original image and resizing back.
+   * This forces the AI to create a smooth zoom/pan path between start and end frames.
+   *
+   * Crop strategies:
+   * - zoom-in/auto: 10% center crop (simulates dolly-in)
+   * - pan-right: 10% crop aligned to right edge
+   * - pan-left: 10% crop aligned to left edge
+   */
+  async function createEndFrame(
+    imageUrl: string,
+    cameraAngle: string
+  ): Promise<string | null> {
+    try {
+      console.log(`Creating end frame for: ${imageUrl} (angle: ${cameraAngle})`);
+
+      // Fetch the original image
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+      }
+
+      const imageBuffer = new Uint8Array(await response.arrayBuffer());
+      const image = await Image.decode(imageBuffer);
+
+      const originalWidth = image.width;
+      const originalHeight = image.height;
+      console.log(`Original dimensions: ${originalWidth}x${originalHeight}`);
+
+      // Calculate crop dimensions (90% of original = 10% crop)
+      const cropWidth = Math.round(originalWidth * 0.8);
+      const cropHeight = Math.round(originalHeight * 0.8);
+
+      let cropX: number;
+      let cropY: number;
+
+      switch (cameraAngle) {
+        case "pan-right":
+          // Crop aligned to right edge
+          cropX = originalWidth - cropWidth;
+          cropY = Math.round((originalHeight - cropHeight) / 2);
+          break;
+        case "pan-left":
+          // Crop aligned to left edge
+          cropX = 0;
+          cropY = Math.round((originalHeight - cropHeight) / 2);
+          break;
+        case "zoom-in":
+        case "auto":
+        default:
+          // Center crop (simulates zoom-in)
+          cropX = Math.round((originalWidth - cropWidth) / 2);
+          cropY = Math.round((originalHeight - cropHeight) / 2);
+          break;
+      }
+
+      console.log(`Cropping: ${cropWidth}x${cropHeight} at (${cropX}, ${cropY})`);
+
+      // Crop the image
+      const cropped = image.crop(cropX, cropY, cropWidth, cropHeight);
+
+      // Resize back to original dimensions (forces the AI to see a zoom path)
+      cropped.resize(originalWidth, originalHeight);
+
+      console.log(`End frame created: ${originalWidth}x${originalHeight}`);
+
+      // Encode as JPEG
+      const endFrameBuffer = await cropped.encodeJPEG(85);
+
+      // Upload to Supabase Storage
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+      const fileName = `end-frame-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+      const filePath = `end-frames/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("video-assets")
+        .upload(filePath, endFrameBuffer, {
+          contentType: "image/jpeg",
+          upsert: true,
+        });
+
+      if (uploadError) {
+        console.error("Failed to upload end frame:", uploadError);
+        return null;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("video-assets")
+        .getPublicUrl(filePath);
+
+      console.log("End frame uploaded:", urlData.publicUrl);
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error("Error creating end frame:", error);
+      return null;
+    }
+  }
 
   Deno.serve(async (req) => {
     if (req.method === "OPTIONS") {
@@ -113,37 +137,57 @@ Photorealistic, clean, stable, professional property marketing video.
         throw new Error("LUMA_API_KEY not configured");
       }
 
-      console.log(`Starting batch generation for ${imageMetadata.length} images...`);
+      console.log(`=== END-FRAME LOGIC: Batch generation for ${imageMetadata.length} images ===`);
 
       const generationPromises = imageMetadata.map(async (metadata: { url: string; cameraAngle: string; duration: number }, index) => {
         const { url: imageUrl, cameraAngle, duration } = metadata;
         try {
-          console.log(`Creating generation ${index + 1}/${imageMetadata.length} for image:`, imageUrl);
+          console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
+          console.log(`Image: ${imageUrl}`);
           console.log(`Camera angle: ${cameraAngle}, Duration: ${duration}s`);
 
-          // Build custom prompt based on camera angle and duration
-          const anglePrompt = CAMERA_ANGLE_PROMPTS[cameraAngle] || CAMERA_ANGLE_PROMPTS["auto"];
-          const motionModifier = getMotionModifier(duration);
+          // Step 1: Create end frame (10% cropped version)
+          const endFrameUrl = await createEndFrame(imageUrl, cameraAngle);
 
-          // Add specific angle budgets for pan and zoom
-          const panBudget = (cameraAngle === "pan-left" || cameraAngle === "pan-right")
-            ? getPanAngleBudget(duration)
-            : "";
+          if (!endFrameUrl) {
+            console.warn(`Failed to create end frame for clip ${index + 1}, falling back to start-frame-only`);
+          }
 
-          const pushInBudget = (cameraAngle === "zoom-in")
-            ? getPushInBudget(duration)
-            : "";
+          // Step 2: Build simplified prompt (end-frames handle motion, prompt handles quality)
+          const motionDescription = cameraAngle === "zoom-in" || cameraAngle === "auto"
+            ? "Smooth subtle zoom into the scene."
+            : cameraAngle === "pan-right"
+              ? "Smooth subtle pan to the right."
+              : cameraAngle === "pan-left"
+                ? "Smooth subtle pan to the left."
+                : "Smooth subtle camera movement.";
 
           const fullPrompt = `High-end cinematic real estate video of ${propertyAddress}.
-${motionModifier}
-${panBudget}
-${pushInBudget}
-${anglePrompt}
-${BASE_PROMPT_SUFFIX}`.trim();
+${motionDescription}
+${STABILITY_PROMPT}`.trim();
 
-          console.log(`Full prompt for clip ${index + 1}:`, fullPrompt);
+          console.log(`Prompt: ${fullPrompt.substring(0, 100)}...`);
 
-          // Luma API v1
+          // Step 3: Build keyframes (start + end frame if available)
+          const keyframes: Record<string, { type: string; url: string }> = {
+            frame0: {
+              type: "image",
+              url: imageUrl,
+            },
+          };
+
+          // Add end frame if successfully created (THE KEY IMPROVEMENT)
+          if (endFrameUrl) {
+            keyframes.frame1 = {
+              type: "image",
+              url: endFrameUrl,
+            };
+            console.log(`Using END-FRAME approach: frame0 (original) + frame1 (10% crop)`);
+          } else {
+            console.log(`Using START-FRAME only (fallback)`);
+          }
+
+          // Step 4: Call Luma API with both keyframes
           const response = await fetch("https://api.lumalabs.ai/dream-machine/v1/generations", {
             method: "POST",
             headers: {
@@ -153,16 +197,12 @@ ${BASE_PROMPT_SUFFIX}`.trim();
             body: JSON.stringify({
               model: "ray-2",
               prompt: fullPrompt,
-              keyframes: {
-                frame0: {
-                  type: "image",
-                  url: imageUrl,
-                },
-              },
+              keyframes: keyframes,
               aspect_ratio: "9:16",
               loop: false,
-              // Note: Luma AI may not support custom durations yet
-              // If supported in future, use: duration: duration
+              duration: "9s",
+              negative_prompt: "morphing, room distortion, melting walls, wavy floors, changing furniture, flickering, structural changes, hallucination, blurry architecture, zooming into darkness, changing light sources, shifting shadows, shaking, camera shake, jitter, wobble, vibration, handheld, unstable",
+              motion_bucket_id: 3,
             }),
           });
 
@@ -183,7 +223,7 @@ ${BASE_PROMPT_SUFFIX}`.trim();
           }
 
           const data = await response.json();
-          console.log(`Generation ${index + 1} started:`, data.id);
+          console.log(`Generation ${index + 1} started: ${data.id}`);
 
           return {
             imageUrl,
@@ -206,10 +246,9 @@ ${BASE_PROMPT_SUFFIX}`.trim();
       const successful = results.filter((r) => r.status === "queued");
       const failed = results.filter((r) => r.status === "error");
 
-      console.log(`Batch generation complete: ${successful.length} queued, ${failed.length} failed`);
+      console.log(`\n=== Batch complete: ${successful.length} queued, ${failed.length} failed ===`);
 
       if (successful.length === 0) {
-        // Log detailed error information
         console.error("All generations failed. Error details:");
         failed.forEach((result, index) => {
           console.error(`Image ${index + 1} error:`, result.error);
@@ -217,7 +256,6 @@ ${BASE_PROMPT_SUFFIX}`.trim();
 
         const firstError = failed[0]?.error || "Unknown error";
 
-        // Check for common error types
         if (firstError.includes("Insufficient credits")) {
           throw new Error("Luma AI account has insufficient credits. Please add credits at https://lumalabs.ai/billing");
         } else if (firstError.includes("401")) {

@@ -125,297 +125,7 @@
       photo?: string | null;
     };
     style?: string;
-    layout?: string; // "minimal-focus" | "bold-banner" | "modern-luxe"
-    customTitle?: string; // Custom title text (e.g., "Just Sold", "Open House")
     videoId?: string;
-  }
-
-  // ============================================================
-  // LAYOUT GENERATORS - Property details overlay HTML templates
-  // Uses absolute positioning (Shotstack doesn't support flex well)
-  // ============================================================
-
-  // Format price with commas (e.g., 2500000 → "2,500,000")
-  function formatPrice(price: string): string {
-    const num = parseInt(price.replace(/[^0-9]/g, ""));
-    if (isNaN(num)) return price;
-    return num.toLocaleString("en-US");
-  }
-
-  /**
-   * Layout 1: Minimal Focus
-   * Centered dark semi-transparent box with title, address, and specs below.
-   */
-  function generateMinimalFocusLayout(
-    title: string,
-    propertyData: StitchVideoRequest["propertyData"]
-  ): string {
-    const address = propertyData.streetAddress && propertyData.suburb && propertyData.state
-      ? `${propertyData.streetAddress}, ${propertyData.suburb}, ${propertyData.state}`
-      : propertyData.address;
-
-    return `
-      <div style="
-        position: relative;
-        width: 100%;
-        height: 100%;
-        font-family: Helvetica, Arial, sans-serif;
-        color: white;
-      ">
-        <div style="
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          background: rgba(0, 0, 0, 0.55);
-          padding: 40px 60px;
-          border-radius: 8px;
-          text-align: center;
-          width: 85%;
-          box-sizing: border-box;
-        ">
-          <div style="font-size: 48px; font-weight: 800; letter-spacing: 3px; margin-bottom: 16px; text-transform: uppercase;">${title}</div>
-          <div style="font-size: 24px; font-weight: 500; opacity: 0.9;">${address}</div>
-        </div>
-      </div>
-    `;
-  }
-
-  /**
-   * Layout 2: Bold Banner
-   * Dark banner at the bottom with title, price, address.
-   * Uses absolute positioning for reliable Shotstack rendering.
-   */
-  function generateBoldBannerLayout(
-    title: string,
-    propertyData: StitchVideoRequest["propertyData"]
-  ): string {
-    const address = propertyData.streetAddress && propertyData.suburb && propertyData.state
-      ? `${propertyData.streetAddress}, ${propertyData.suburb}, ${propertyData.state}`
-      : propertyData.address;
-
-    const formattedPrice = formatPrice(propertyData.price);
-
-    return `
-      <div style="
-        position: relative;
-        width: 100%;
-        height: 100%;
-        font-family: Helvetica, Arial, sans-serif;
-        color: white;
-      ">
-        <div style="
-          position: absolute;
-          bottom: 80px;
-          left: 0;
-          right: 0;
-          background: linear-gradient(to top, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.4));
-          padding: 32px 40px;
-        ">
-          <div style="font-size: 40px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px;">${title}</div>
-          <div style="font-size: 36px; font-weight: 800; margin-bottom: 12px;">$${formattedPrice}</div>
-          <div style="font-size: 22px; font-weight: 500; opacity: 0.9;">${address}</div>
-        </div>
-      </div>
-    `;
-  }
-
-  /**
-   * Layout 3: Modern Luxe
-   * Large centered title, address in dark pill, price at bottom-right.
-   * Uses absolute positioning for reliable Shotstack rendering.
-   */
-  function generateModernLuxeLayout(
-    title: string,
-    propertyData: StitchVideoRequest["propertyData"]
-  ): string {
-    const address = propertyData.streetAddress && propertyData.suburb && propertyData.state
-      ? `${propertyData.streetAddress}, ${propertyData.suburb}, ${propertyData.state}`
-      : propertyData.address;
-
-    const formattedPrice = formatPrice(propertyData.price);
-
-    return `
-      <div style="
-        position: relative;
-        width: 100%;
-        height: 100%;
-        font-family: Helvetica, Arial, sans-serif;
-        color: white;
-      ">
-        <div style="
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          text-align: center;
-          width: 90%;
-        ">
-          <div style="font-size: 64px; font-weight: 900; margin-bottom: 24px; text-shadow: 3px 3px 8px rgba(0,0,0,0.8); letter-spacing: 1px;">${title}</div>
-          <div style="
-            display: inline-block;
-            background: rgba(0, 0, 0, 0.45);
-            padding: 12px 28px;
-            border-radius: 6px;
-            font-size: 22px;
-            font-weight: 600;
-          ">${address}</div>
-        </div>
-        <div style="
-          position: absolute;
-          bottom: 80px;
-          right: 40px;
-          font-size: 32px;
-          font-weight: 800;
-          text-shadow: 2px 2px 6px rgba(0,0,0,0.8);
-        ">$${formattedPrice}</div>
-      </div>
-    `;
-  }
-
-  /**
-   * Get the property overlay HTML based on selected layout
-   */
-  function getPropertyOverlayHtml(
-    layout: string,
-    customTitle: string | undefined,
-    style: string | undefined,
-    propertyData: StitchVideoRequest["propertyData"]
-  ): string {
-    // Use custom title if provided, otherwise fall back to template name, then "Modern Luxe"
-    const title = customTitle || (style && TEMPLATE_NAMES[style]) || "Modern Luxe";
-
-    switch (layout) {
-      case "minimal-focus":
-        return generateMinimalFocusLayout(title, propertyData);
-      case "bold-banner":
-        return generateBoldBannerLayout(title, propertyData);
-      case "modern-luxe":
-      default:
-        return generateModernLuxeLayout(title, propertyData);
-    }
-  }
-
-  // Shotstack icon image URLs
-  const ICON_URLS = {
-    bed: "https://templates.shotstack.io/basic/asset/image/icon/slimline/white/26px/bed.png",
-    bath: "https://templates.shotstack.io/basic/asset/image/icon/slimline/white/26px/bath.png",
-    car: "https://templates.shotstack.io/basic/asset/image/icon/slimline/white/26px/car.png",
-  };
-
-  /**
-   * Generate separate Shotstack clips for property spec icons (bed, bath, car).
-   * Uses real image assets instead of emoji text for a professional look.
-   * Returns an array of clips to be placed in their own track.
-   */
-  function generatePropertySpecsClips(
-    layout: string,
-    propertyData: StitchVideoRequest["propertyData"],
-    start: number,
-    length: number
-  ): any[] {
-    const clips: any[] = [];
-
-    // Collect specs that have values
-    const specs: { icon: string; value: string }[] = [];
-    if (propertyData.beds) specs.push({ icon: "bed", value: String(propertyData.beds) });
-    if (propertyData.baths) specs.push({ icon: "bath", value: String(propertyData.baths) });
-    if (propertyData.carSpaces) specs.push({ icon: "car", value: String(propertyData.carSpaces) });
-
-    if (specs.length === 0) return clips;
-
-    // Position config based on layout
-    let baseY: number;
-    let baseX: number;
-    const iconSpacing = 0.08; // Space between each icon+number pair
-
-    if (layout === "minimal-focus") {
-      // Centered below the dark box
-      baseY = -0.08; // Below center where the dark box is
-      // Calculate starting X to center the specs group
-      const totalWidth = specs.length * iconSpacing;
-      baseX = 0.5 - (totalWidth / 2);
-    } else {
-      // Bottom area for Bold Banner and Modern Luxe (above the very bottom to avoid player controls)
-      baseY = -0.36;
-      baseX = 0.055;
-    }
-
-    specs.forEach((spec, index) => {
-      const iconX = baseX + (index * iconSpacing);
-      const textX = iconX + 0.035; // Text sits right of icon
-
-      // Icon image clip
-      clips.push({
-        asset: {
-          type: "image",
-          src: ICON_URLS[spec.icon as keyof typeof ICON_URLS],
-        },
-        start,
-        length,
-        fit: "none",
-        position: "left",
-        offset: {
-          x: iconX,
-          y: baseY,
-        },
-        transition: {
-          in: "fade",
-          out: "fade",
-        },
-      });
-
-      // Count text clip
-      clips.push({
-        asset: {
-          type: "html",
-          html: `<p>${spec.value}</p>`,
-          css: `p { font-family: "Helvetica"; color: #ffffff; font-size: 22px; text-align: left; }`,
-          width: 40,
-          height: 30,
-          position: "center",
-        },
-        start,
-        length,
-        position: "left",
-        offset: {
-          x: textX,
-          y: baseY,
-        },
-        transition: {
-          in: "fade",
-          out: "fade",
-        },
-      });
-    });
-
-    // Add land size as text (no icon for this)
-    if (propertyData.landSize) {
-      const landX = baseX + (specs.length * iconSpacing);
-      clips.push({
-        asset: {
-          type: "html",
-          html: `<p>${propertyData.landSize}m²</p>`,
-          css: `p { font-family: "Helvetica"; color: #ffffff; font-size: 20px; text-align: left; }`,
-          width: 120,
-          height: 30,
-          position: "center",
-        },
-        start,
-        length,
-        position: "left",
-        offset: {
-          x: landX,
-          y: baseY,
-        },
-        transition: {
-          in: "fade",
-          out: "fade",
-        },
-      });
-    }
-
-    return clips;
   }
 
   Deno.serve(async (req) => {
@@ -424,7 +134,7 @@
     }
 
     try {
-      const { videoUrls, clipDurations, propertyData, audioUrl, musicUrl, agentInfo, style, layout, customTitle, videoId }: StitchVideoRequest = await req.json();
+      const { videoUrls, clipDurations, propertyData, audioUrl, musicUrl, agentInfo, style, videoId }: StitchVideoRequest = await req.json();
 
       if (!videoUrls || videoUrls.length === 0) {
         throw new Error("No video URLs provided for stitching");
@@ -432,8 +142,6 @@
 
       console.log("=== SHOTSTACK VIDEO STITCHING ===");
       console.log("Stitching", videoUrls.length, "Luma AI clips");
-      console.log("Layout:", layout || "modern-luxe (default)");
-      console.log("Custom Title:", customTitle || "(using template name)");
       console.log("Property Data Received:", JSON.stringify(propertyData, null, 2));
       console.log("Agent Info Received:", agentInfo ? {
         name: agentInfo.name,
@@ -598,7 +306,7 @@
                         text-align: center;
                         font-family: Helvetica, Arial, sans-serif;
                         color: white;
-                        padding-top: 250px;
+                        padding-top: 100px;
                       ">
                         <div style="font-size: 42px; font-weight: 700; margin-bottom: 15px; letter-spacing: 1px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.name}</div>
                         ${agentInfo.phone ? `<div style="font-size: 38px; margin-bottom: 10px; font-weight: 600; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.phone}</div>` : ''}
@@ -616,13 +324,36 @@
               ],
             }] : []),
 
-            // Property details HTML overlay - Layout-based (Track 2)
+            // Property details HTML overlay (Track 2)
             {
               clips: [
                 {
                   asset: {
                     type: "html",
-                    html: getPropertyOverlayHtml(layout || "modern-luxe", customTitle, style, propertyData),
+                    html: `
+                      <div style="
+                        width: 100%;
+                        height: 100%;
+                        display: flex;
+                        flex-direction: column;
+                        padding-top: 80px;
+                        text-align: center;
+                        font-family: Helvetica, Arial, sans-serif;
+                        color: white;
+                      ">
+                        ${style && TEMPLATE_NAMES[style] ? `<div style="font-size: 52px; font-weight: 900; margin-bottom: 28px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${TEMPLATE_NAMES[style]}</div>` : ''}
+                        ${propertyData.streetAddress && propertyData.suburb && propertyData.state ? `
+                          <div style="font-size: 28px; font-weight: 700; margin-bottom: 22px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${propertyData.streetAddress}, ${propertyData.suburb}, ${propertyData.state}</div>
+                        ` : `
+                          <div style="font-size: 28px; font-weight: 700; margin-bottom: 22px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">${propertyData.address}</div>
+                        `}
+                        <div style="font-size: 38px; font-weight: 900; margin-bottom: 18px; text-shadow: 3px 3px 6px rgba(0,0,0,1); color: white;">$${propertyData.price}</div>
+                        <div style="font-size: 32px; line-height: 1.7; text-shadow: 3px 3px 6px rgba(0,0,0,1); font-weight: 600; color: white;">
+                          <div>${propertyData.beds} Bedroom${propertyData.beds !== 1 ? 's' : ''} | ${propertyData.baths} Bathroom${propertyData.baths !== 1 ? 's' : ''}</div>
+                          <div>${propertyData.carSpaces ? `${propertyData.carSpaces} Car Space${propertyData.carSpaces !== 1 ? 's' : ''}` : ''}${propertyData.carSpaces && propertyData.landSize ? ' | ' : ''}${propertyData.landSize ? `${propertyData.landSize}m² Land Size` : ''}</div>
+                        </div>
+                      </div>
+                    `,
                     css: "",
                     width: 1080,
                     height: 1920,
@@ -631,16 +362,6 @@
                   length: durations[0] - 0.1, // Match first clip duration (minus 0.1s offset)
                 },
               ],
-            },
-
-            // Property specs icons track (bed, bath, car image icons)
-            {
-              clips: generatePropertySpecsClips(
-                layout || "modern-luxe",
-                propertyData,
-                0.1,
-                durations[0] - 0.1
-              ),
             },
 
             // Agent outro background - First clip blurred (Track 3)

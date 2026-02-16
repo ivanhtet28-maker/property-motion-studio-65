@@ -34,11 +34,13 @@ interface VideoItem {
   id: string;
   address: string;
   createdAt: string;
-  status: "ready" | "processing";
+  status: "ready" | "processing" | "failed";
   thumbnailUrl?: string;
   videoUrl?: string;
   suburb?: string;
   state?: string;
+  renderId?: string;
+  generationContext?: string; // JSON string with Luma generation IDs + polling data
 }
 
 export default function Dashboard() {
@@ -95,9 +97,11 @@ export default function Dashboard() {
         }
 
         // Map status
-        let status: "ready" | "processing";
+        let status: "ready" | "processing" | "failed";
         if (v.status === "completed" || v.status === "done") {
           status = "ready";
+        } else if (v.status === "failed") {
+          status = "failed";
         } else {
           status = "processing";
         }
@@ -109,6 +113,8 @@ export default function Dashboard() {
           createdAt: createdAt,
           videoUrl: v.download_url,
           thumbnailUrl: v.thumbnail_url,
+          renderId: v.render_id || undefined,
+          generationContext: v.photos || undefined,
         };
       });
 
@@ -124,6 +130,76 @@ export default function Dashboard() {
   useEffect(() => {
     loadVideos();
   }, [loadVideos]);
+
+  // Auto-check stuck "processing" videos that have recovery data
+  useEffect(() => {
+    const processingVideos = videos.filter(v => v.status === "processing" && (v.renderId || v.generationContext));
+    if (processingVideos.length === 0) return;
+
+    let cancelled = false;
+
+    const checkStuckVideos = async () => {
+      for (const video of processingVideos) {
+        if (cancelled) break;
+        try {
+          let body: Record<string, unknown>;
+
+          if (video.renderId) {
+            // Video is in Shotstack stitching stage - poll with render_id
+            body = {
+              stitchJobId: video.renderId,
+              videoId: video.id,
+            };
+          } else if (video.generationContext) {
+            // Video is still in Luma generation stage - resume full polling
+            const ctx = JSON.parse(video.generationContext);
+            body = {
+              generationIds: ctx.generationIds,
+              videoId: video.id,
+              audioUrl: ctx.audioUrl,
+              musicUrl: ctx.musicUrl,
+              agentInfo: ctx.agentInfo,
+              propertyData: ctx.propertyData,
+              style: ctx.style,
+              layout: ctx.layout || "modern-luxe",
+              customTitle: ctx.customTitle || "",
+              clipDurations: ctx.clipDurations,
+            };
+          } else {
+            continue;
+          }
+
+          const { data, error } = await supabase.functions.invoke("video-status", {
+            body,
+          });
+
+          if (error) {
+            console.error("Error checking stuck video:", video.id, error);
+            continue;
+          }
+
+          if (data.status === "done" || data.status === "failed") {
+            // Video finished or failed - reload the list
+            loadVideos();
+            break;
+          }
+        } catch (err) {
+          console.error("Error polling stuck video:", err);
+        }
+      }
+    };
+
+    // Check immediately
+    checkStuckVideos();
+
+    // Then poll every 10 seconds
+    const interval = setInterval(checkStuckVideos, 10000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [videos, loadVideos]);
 
   // Load subscription status
   useEffect(() => {
@@ -260,6 +336,7 @@ export default function Dashboard() {
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="ready">Ready</SelectItem>
                 <SelectItem value="processing">Processing</SelectItem>
+                <SelectItem value="failed">Failed</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -299,10 +376,12 @@ export default function Dashboard() {
                       className={`absolute top-3 right-3 px-2 py-1 rounded-full text-xs font-medium ${
                         video.status === "ready"
                           ? "bg-success text-success-foreground"
+                          : video.status === "failed"
+                          ? "bg-destructive text-destructive-foreground"
                           : "bg-warning text-warning-foreground"
                       }`}
                     >
-                      {video.status === "ready" ? "Ready" : "Processing"}
+                      {video.status === "ready" ? "Ready" : video.status === "failed" ? "Failed" : "Processing"}
                     </span>
 
                     {/* Action Buttons (visible on hover) */}

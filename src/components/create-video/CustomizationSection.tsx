@@ -33,6 +33,8 @@ export interface CustomizationSettings {
   musicStyle: string;
   musicTrack: string;
   selectedTemplate: string;
+  selectedLayout: string; // "minimal-focus" | "bold-banner" | "modern-luxe"
+  customTitle: string; // Custom title text (e.g., "Just Sold", "Open House")
   agentInfo: AgentInfo;
 }
 
@@ -65,9 +67,19 @@ interface CustomizationSectionProps {
   settings: CustomizationSettings;
   onChange: (settings: CustomizationSettings) => void;
   previewImageUrl?: string;
+  propertyDetails?: {
+    streetAddress: string;
+    suburb: string;
+    state: string;
+    price: string;
+    bedrooms: number;
+    bathrooms: number;
+    carSpaces?: number;
+    landSize?: string;
+  };
 }
 
-export function CustomizationSection({ settings, onChange, previewImageUrl }: CustomizationSectionProps) {
+export function CustomizationSection({ settings, onChange, previewImageUrl, propertyDetails }: CustomizationSectionProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isPreviewingVoice, setIsPreviewingVoice] = useState(false);
   const [isPreviewingMusic, setIsPreviewingMusic] = useState(false);
@@ -225,7 +237,16 @@ export function CustomizationSection({ settings, onChange, previewImageUrl }: Cu
               onSelectTemplate={(templateId) =>
                 onChange({ ...settings, selectedTemplate: templateId })
               }
+              selectedLayout={settings.selectedLayout}
+              onSelectLayout={(layoutId) =>
+                onChange({ ...settings, selectedLayout: layoutId })
+              }
+              customTitle={settings.customTitle}
+              onCustomTitleChange={(title) =>
+                onChange({ ...settings, customTitle: title })
+              }
               previewImageUrl={previewImageUrl}
+              propertyDetails={propertyDetails}
             />
           </div>
 

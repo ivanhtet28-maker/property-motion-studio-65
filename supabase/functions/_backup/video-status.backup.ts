@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { generationIds, videoId, audioUrl, musicUrl, agentInfo, propertyData, style, layout, customTitle, stitchJobId, clipDurations } = body;
+    const { generationIds, videoId, audioUrl, musicUrl, agentInfo, propertyData, style, stitchJobId, clipDurations } = body;
 
     // If stitchJobId is provided, we're polling Shotstack stitching job instead of Luma
     if (stitchJobId) {
@@ -194,14 +194,12 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify({
           videoUrls: videoUrls,
-          clipDurations: clipDurations,
+          clipDurations: clipDurations, // Pass custom durations for each clip
           audioUrl: audioUrl,
           musicUrl: musicUrl,
           agentInfo: agentInfo,
           propertyData: propertyData,
-          style: style || "modern-luxe",
-          layout: layout || "modern-luxe",
-          customTitle: customTitle || null,
+          style: style || "modern-luxe", // Pass template style for video overlays
           videoId: videoId,
         }),
       }
@@ -220,22 +218,6 @@ Deno.serve(async (req) => {
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
-    }
-
-    // Save Shotstack render_id to DB so we can recover if polling is interrupted
-    if (videoId && stitchData.jobId) {
-      try {
-        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-        const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
-        await supabase
-          .from("videos")
-          .update({ render_id: stitchData.jobId })
-          .eq("id", videoId);
-        console.log("Saved render_id to DB:", stitchData.jobId);
-      } catch (err) {
-        console.error("Failed to save render_id:", err);
-      }
     }
 
     // Shotstack job started - now poll for the stitch job

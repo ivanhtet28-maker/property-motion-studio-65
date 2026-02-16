@@ -51,6 +51,8 @@ export default function CreateVideo() {
     musicStyle: "Cinematic & Epic",
     musicTrack: "Horizon - Epic Journey",
     selectedTemplate: "modern-luxe",
+    selectedLayout: "modern-luxe",
+    customTitle: "",
     agentInfo: {
       photo: null,
       name: "",
@@ -110,6 +112,8 @@ export default function CreateVideo() {
       description: string;
     },
     style: string,
+    layout: string,
+    customTitle: string,
     clipDurations: number[]
   ) => {
     const maxAttempts = 120; // 10 minutes max (120 * 5 seconds) - Luma takes longer
@@ -145,9 +149,11 @@ export default function CreateVideo() {
             musicUrl,
             agentInfo,
             propertyData,
-            style: style, // Pass template style
-            stitchJobId: currentStitchJobId, // Pass stitchJobId if we're in stitching phase
-            clipDurations: clipDurations, // Pass custom clip durations
+            style: style,
+            layout: layout,
+            customTitle: customTitle,
+            stitchJobId: currentStitchJobId,
+            clipDurations: clipDurations,
           },
         });
 
@@ -406,6 +412,7 @@ Contact us today for a private inspection.`;
           music: musicId,
           userId: user?.id,
           script: videoScript,
+          source: scrapedImageUrls.length > 0 ? "scrape" : "upload",
           agentInfo: {
             name: customization.agentInfo.name,
             phone: customization.agentInfo.phone,
@@ -452,8 +459,10 @@ Contact us today for a private inspection.`;
           data.musicUrl,
           data.agentInfo,
           propertyDataPayload,
-          customization.selectedTemplate, // Pass template style
-          clipDurations // Pass clip durations
+          customization.selectedTemplate,
+          customization.selectedLayout,
+          customization.customTitle,
+          clipDurations
         );
       } else {
         throw new Error(data.error || "Video generation failed");
@@ -595,6 +604,7 @@ Contact us today for a private inspection.`;
                     ? URL.createObjectURL(photos[0])
                     : undefined
                 }
+                propertyDetails={propertyDetails}
               />
             </div>
 

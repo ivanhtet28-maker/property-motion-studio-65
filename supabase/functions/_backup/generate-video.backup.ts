@@ -37,7 +37,6 @@
     userId?: string;
     propertyId?: string;
     script?: string;
-    source?: string; // "upload" | "scrape"
     agentInfo?: {
       name: string;
       phone: string;
@@ -91,7 +90,7 @@
     }
 
     try {
-      const { imageUrls, imageMetadata, propertyData, style, voice, music, userId, propertyId, script, source, agentInfo }: GenerateVideoRequest = await req.json();
+      const { imageUrls, imageMetadata, propertyData, style, voice, music, userId, propertyId, script, agentInfo }: GenerateVideoRequest = await req.json();
 
       console.log("=== LUMA AI VIDEO GENERATION ===");
       console.log("Total images:", imageUrls?.length || 0);
@@ -208,7 +207,6 @@
             .from("videos")
             .insert({
               user_id: userId,
-              source: source || "upload",
               property_address: propertyData.address || "Unknown Property",
               price: propertyData.price || null,
               bedrooms: propertyData.beds || null,
@@ -272,36 +270,6 @@
 
       console.log(`Started ${generations.length} Luma generations`);
       console.log("Generation IDs:", generationIds);
-
-      // Save generation context to DB so Dashboard can resume polling if user navigates away
-      if (videoRecordId) {
-        try {
-          const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-          const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-          const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-
-          const clipDurations = (imageMetadata || metadataForLuma).map(m => m.duration);
-
-          await supabaseAdmin
-            .from("videos")
-            .update({
-              photos: JSON.stringify({
-                generationIds,
-                audioUrl,
-                musicUrl,
-                clipDurations,
-                agentInfo: agentInfo || null,
-                propertyData: propertyData,
-                style: style,
-              }),
-            })
-            .eq("id", videoRecordId);
-
-          console.log("Saved generation context to DB for recovery");
-        } catch (err) {
-          console.error("Failed to save generation context:", err);
-        }
-      }
 
       return new Response(
         JSON.stringify({
