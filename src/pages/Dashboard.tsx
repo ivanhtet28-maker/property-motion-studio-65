@@ -26,6 +26,7 @@ import {
   Play,
   Plus,
   ChevronUp,
+  X,
 } from "lucide-react";
 import { SubscriptionModal } from "@/components/SubscriptionModal";
 import { useToast } from "@/hooks/use-toast";
@@ -53,6 +54,7 @@ export default function Dashboard() {
   const [dateFilter, setDateFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [playingVideoUrl, setPlayingVideoUrl] = useState<string | null>(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
   const videosUsed = videos.length;
   const videosLimit = 30;
@@ -368,7 +370,7 @@ export default function Dashboard() {
                     <div className="absolute inset-0 flex items-center justify-center">
                       {video.status === "ready" ? (
                         <button
-                          onClick={() => video.videoUrl && window.open(video.videoUrl, "_blank")}
+                          onClick={() => video.videoUrl && setPlayingVideoUrl(video.videoUrl)}
                           className="w-14 h-14 rounded-full bg-primary/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                         >
                           <Play className="w-6 h-6 text-primary-foreground ml-1" />
@@ -444,6 +446,29 @@ export default function Dashboard() {
           )}
         </div>
       </main>
+
+      {/* Video Player Modal */}
+      {playingVideoUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center"
+          onClick={() => setPlayingVideoUrl(null)}
+        >
+          <button
+            onClick={() => setPlayingVideoUrl(null)}
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+          >
+            <X className="w-6 h-6 text-white" />
+          </button>
+          <div onClick={(e) => e.stopPropagation()} className="max-h-[90vh] max-w-[90vw]">
+            <video
+              src={playingVideoUrl}
+              controls
+              autoPlay
+              className="max-h-[90vh] max-w-[90vw] rounded-lg"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Subscription Modal */}
       <SubscriptionModal
