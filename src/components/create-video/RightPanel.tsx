@@ -175,6 +175,8 @@ Contact us today for a private inspection.`;
               <video
                 src={videoUrl}
                 controls
+                controlsList="nodownload"
+                onContextMenu={(e) => e.preventDefault()}
                 className="w-full h-full object-cover video-no-menu"
                 autoPlay
                 playsInline
