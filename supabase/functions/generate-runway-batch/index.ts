@@ -9,20 +9,27 @@ const RUNWAY_API_KEY = Deno.env.get("RUNWAY_API_KEY");
 const RUNWAY_API_URL = "https://api.dev.runwayml.com/v1/image_to_video";
 const RUNWAY_VERSION = "2024-11-06";
 
-async function fetchWithRetry(url: string, options: RequestInit, retries = 2): Promise<Response> {
+async function fetchWithRetry(url: string, options: RequestInit, retries = 2, attempt = 1): Promise<Response> {
   try {
     const response = await fetch(url, options);
+    if (response.status === 429 && retries > 0) {
+      // Rate limit — exponential backoff: 15s, 30s, 60s
+      const waitSec = 15 * Math.pow(2, attempt - 1);
+      console.warn(`Rate limited (429), waiting ${waitSec}s before retry (${retries} retries left)...`);
+      await new Promise(r => setTimeout(r, waitSec * 1000));
+      return fetchWithRetry(url, options, retries - 1, attempt + 1);
+    }
     if (response.status >= 500 && retries > 0) {
       console.warn(`Server error ${response.status}, retrying in 2s (${retries} retries left)...`);
       await new Promise(r => setTimeout(r, 2000));
-      return fetchWithRetry(url, options, retries - 1);
+      return fetchWithRetry(url, options, retries - 1, attempt + 1);
     }
     return response;
   } catch (err) {
     if (retries === 0) throw err;
     console.warn(`Fetch failed, retrying in 2s (${retries} retries left)...`);
     await new Promise(r => setTimeout(r, 2000));
-    return fetchWithRetry(url, options, retries - 1);
+    return fetchWithRetry(url, options, retries - 1, attempt + 1);
   }
 }
 
@@ -31,6 +38,22 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2): P
  * Positive phrasing only — negative phrasing causes opposite results.
  * Stability cues keep architecture rigid and furniture still.
  */
+function getCameraControl(cameraAngle: string): Record<string, number> | null {
+  switch (cameraAngle) {
+    case "pan-right":
+      return { horizontal: 8, pan: 6 };
+    case "pan-left":
+      return { horizontal: -8, pan: -6 };
+    case "zoom-in":
+      return { zoom: 8 };
+    case "wide-shot":
+      return null; // static
+    case "auto":
+    default:
+      return { zoom: 5 };
+  }
+}
+
 function getMotionPrompt(cameraAngle: string): string {
   switch (cameraAngle) {
     case "pan-right":
@@ -77,9 +100,23 @@ Deno.serve(async (req) => {
 
         // Motion prompt + scene preservation. Positive phrasing only.
         const motionPrompt = getMotionPrompt(cameraAngle);
-        const promptText = `${motionPrompt} Preserve exactly what is visible in the photograph. Only the camera moves.`;
+        const promptText = `${motionPrompt} Preserve exactly what is visible in the photograph. Only the camera moves. Cinematic, warm-toned.`;
+        const cameraControl = getCameraControl(cameraAngle);
 
         console.log(`Prompt (${promptText.length} chars): ${promptText}`);
+        console.log(`Camera control:`, cameraControl);
+
+        const requestBody: Record<string, unknown> = {
+          model: "gen4_turbo",
+          promptImage: imageUrl,
+          promptText: promptText,
+          ratio: "720:1280",
+          duration: clipDuration,
+        };
+
+        if (cameraControl) {
+          requestBody.camera_control = cameraControl;
+        }
 
         const response = await fetchWithRetry(RUNWAY_API_URL, {
           method: "POST",
@@ -88,13 +125,7 @@ Deno.serve(async (req) => {
             "Content-Type": "application/json",
             "X-Runway-Version": RUNWAY_VERSION,
           },
-          body: JSON.stringify({
-            model: "gen4_turbo",
-            promptImage: imageUrl,
-            promptText: promptText,
-            ratio: "720:1280",
-            duration: clipDuration,
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         if (!response.ok) {
