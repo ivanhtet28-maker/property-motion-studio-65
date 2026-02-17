@@ -28,23 +28,22 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2): P
 
 /**
  * Motion-only prompts using specific cinematography terms.
- * The input image defines visuals — the prompt defines ONLY motion.
- * All phrasing is positive (no "no warping", "no distortion").
- * Based on Runway's tested templates for architectural content.
+ * Positive phrasing only — negative phrasing causes opposite results.
+ * Stability cues keep architecture rigid and furniture still.
  */
 function getMotionPrompt(cameraAngle: string): string {
   switch (cameraAngle) {
     case "pan-right":
-      return "Smooth pan from left to right across the full space. Steady, continuous motion. Warm ambient light.";
+      return "Sweeping camera pan from left to right, traveling across the entire room. Continuous steady motion throughout. Rigid architecture, stable furniture, steady environment.";
     case "pan-left":
-      return "Smooth pan from right to left across the full space. Steady, continuous motion. Warm ambient light.";
+      return "Sweeping camera pan from right to left, traveling across the entire room. Continuous steady motion throughout. Rigid architecture, stable furniture, steady environment.";
     case "zoom-in":
-      return "Smooth dolly forward into the room. Steady forward momentum. Natural light streams through, casting soft shadows across the floor.";
+      return "Steady dolly forward pushing deep into the scene, moving through the space toward the far wall. Strong forward momentum throughout. Rigid architecture, stable furniture, steady environment.";
     case "wide-shot":
-      return "Static camera with subtle environmental motion. Warm, steady lighting. Perfectly stable frame.";
+      return "Static camera, perfectly stable frame. Rigid architecture, stable furniture. Warm, steady lighting.";
     case "auto":
     default:
-      return "Slow dolly forward through the space. Smooth, cinematic movement. Soft natural light fills the room.";
+      return "Smooth dolly forward through the space, steadily advancing deeper into the room. Clear visible forward movement. Rigid architecture, stable furniture, steady environment.";
   }
 }
 
@@ -76,9 +75,9 @@ Deno.serve(async (req) => {
         const clipDuration = Math.min(Math.max(duration ?? 5, 2), 10);
         console.log(`Camera angle: ${cameraAngle}, Duration: ${clipDuration}s`);
 
-        // Prompt = motion only. Image defines visuals. Positive phrasing only.
+        // Motion + stability + scene preservation. Positive phrasing only.
         const motionPrompt = getMotionPrompt(cameraAngle);
-        const promptText = `${motionPrompt} Cinematic, warm-toned.`;
+        const promptText = `${motionPrompt} Preserve exactly what is visible in the photograph. Only the camera moves. Cinematic, warm-toned.`;
 
         console.log(`Prompt (${promptText.length} chars): ${promptText}`);
 

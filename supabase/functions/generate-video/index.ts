@@ -224,6 +224,7 @@
               agent_phone: agentInfo?.phone || null,
               agent_email: agentInfo?.email || null,
               is_free_trial: isFreeTrial,
+              thumbnail_url: imageUrls[0] || null,
             })
             .select()
             .single();

@@ -358,6 +358,13 @@ export default function Dashboard() {
                 >
                   {/* Thumbnail */}
                   <div className="aspect-video bg-secondary relative">
+                    {video.thumbnailUrl && (
+                      <img
+                        src={video.thumbnailUrl}
+                        alt={video.address}
+                        className="absolute inset-0 w-full h-full object-cover"
+                      />
+                    )}
                     <div className="absolute inset-0 flex items-center justify-center">
                       {video.status === "ready" ? (
                         <div className="w-14 h-14 rounded-full bg-primary/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">

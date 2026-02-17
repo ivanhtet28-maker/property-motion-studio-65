@@ -11,7 +11,7 @@ async function updateVideoRecord(
   videoId: string | undefined,
   status: "processing" | "completed" | "failed",
   videoUrl: string | null = null,
-  progress: number = 0,
+  _progress: number = 0,
   errorMessage: string | null = null
 ) {
   if (!videoId) return;
@@ -23,13 +23,11 @@ async function updateVideoRecord(
 
     const updateData: {
       status: string;
-      progress: number;
       download_url?: string;
       completed_at?: string;
       error_message?: string;
     } = {
       status,
-      progress,
     };
 
     if (videoUrl) {
@@ -52,7 +50,7 @@ async function updateVideoRecord(
     if (error) {
       console.error("Failed to update video record:", error);
     } else {
-      console.log("Video record updated:", videoId, "status:", status, "progress:", progress);
+      console.log("Video record updated:", videoId, "status:", status);
     }
   } catch (err) {
     console.error("Error updating video record:", err);
@@ -220,22 +218,6 @@ Deno.serve(async (req) => {
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
-    }
-
-    // Save Shotstack render_id to DB so we can recover if polling is interrupted
-    if (videoId && stitchData.jobId) {
-      try {
-        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-        const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
-        await supabase
-          .from("videos")
-          .update({ render_id: stitchData.jobId })
-          .eq("id", videoId);
-        console.log("Saved render_id to DB:", stitchData.jobId);
-      } catch (err) {
-        console.error("Failed to save render_id:", err);
-      }
     }
 
     // Shotstack job started - now poll for the stitch job
