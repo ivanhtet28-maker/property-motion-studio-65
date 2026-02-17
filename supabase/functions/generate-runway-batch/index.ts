@@ -12,7 +12,6 @@ const RUNWAY_VERSION = "2024-11-06";
 async function fetchWithRetry(url: string, options: RequestInit, retries = 2): Promise<Response> {
   try {
     const response = await fetch(url, options);
-    // Retry on 5xx server errors (Runway sometimes flakes)
     if (response.status >= 500 && retries > 0) {
       console.warn(`Server error ${response.status}, retrying in 2s (${retries} retries left)...`);
       await new Promise(r => setTimeout(r, 2000));
@@ -28,39 +27,24 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2): P
 }
 
 /**
- * Map camera angle to a prompt-based motion description.
- * Gen4 Turbo doesn't have a camera_control parameter —
- * motion is controlled via promptText.
+ * Motion-only prompts using specific cinematography terms.
+ * The input image defines visuals — the prompt defines ONLY motion.
+ * All phrasing is positive (no "no warping", "no distortion").
+ * Based on Runway's tested templates for architectural content.
  */
 function getMotionPrompt(cameraAngle: string): string {
   switch (cameraAngle) {
     case "pan-right":
-      return `
-Confident steady camera pan to the right, clearly revealing the full space.
-Smooth continuous motion throughout the shot.
-      `;
+      return "Smooth pan from left to right across the full space. Steady, continuous motion. Warm ambient light.";
     case "pan-left":
-      return `
-Confident steady camera pan to the left, clearly revealing the full space.
-Smooth continuous motion throughout the shot.
-      `;
+      return "Smooth pan from right to left across the full space. Steady, continuous motion. Warm ambient light.";
     case "zoom-in":
-      return `
-Smooth dolly forward into the scene, pushing steadily toward the focal point.
-Clear forward momentum throughout the shot.
-      `;
+      return "Smooth dolly forward into the room. Steady forward momentum. Natural light streams through, casting soft shadows across the floor.";
     case "wide-shot":
-      return `
-Locked tripod shot.
-Absolutely no camera movement.
-Perfectly stable frame.
-      `;
+      return "Static camera with subtle environmental motion. Warm, steady lighting. Perfectly stable frame.";
     case "auto":
     default:
-      return `
-Gentle cinematic camera glide through the space.
-Steady continuous drift with clear visible movement.
-      `;
+      return "Slow dolly forward through the space. Smooth, cinematic movement. Soft natural light fills the room.";
   }
 }
 
@@ -82,97 +66,74 @@ Deno.serve(async (req) => {
 
     console.log(`=== RUNWAY GEN4 TURBO BATCH: Generating ${imageMetadata.length} clips ===`);
 
-    const MAX_CONCURRENT = 1;
-    const results: { imageUrl: string; generationId: string | null; status: "queued" | "error"; error?: string }[] = [];
+    // Submit all at once — Runway queues excess tasks with THROTTLED status.
+    // No requests-per-minute rate limit; no concurrency cap needed client-side.
+    const generationPromises = imageMetadata.map(async (metadata: { url: string; cameraAngle: string; duration: number }, index: number) => {
+      const { url: imageUrl, cameraAngle, duration } = metadata;
+      try {
+        console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
+        console.log(`Image: ${imageUrl}`);
+        const clipDuration = Math.min(Math.max(duration ?? 5, 2), 10);
+        console.log(`Camera angle: ${cameraAngle}, Duration: ${clipDuration}s`);
 
-    for (let i = 0; i < imageMetadata.length; i += MAX_CONCURRENT) {
-      const slice = imageMetadata.slice(i, i + MAX_CONCURRENT);
-      console.log(`\n=== Processing batch ${Math.floor(i / MAX_CONCURRENT) + 1} (${slice.length} clips) ===`);
+        // Prompt = motion only. Image defines visuals. Positive phrasing only.
+        const motionPrompt = getMotionPrompt(cameraAngle);
+        const promptText = `${motionPrompt} Cinematic, warm-toned.`;
 
-      const batchResults = await Promise.all(slice.map(async (metadata: { url: string; cameraAngle: string; duration: number }, sliceIndex: number) => {
-        const index = i + sliceIndex;
-        const { url: imageUrl, cameraAngle, duration } = metadata;
-        try {
-          console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
-          console.log(`Image: ${imageUrl}`);
-          const clipDuration = Math.min(Math.max(duration ?? 6, 2), 10);
-          console.log(`Camera angle: ${cameraAngle}, Duration: ${clipDuration}s`);
+        console.log(`Prompt (${promptText.length} chars): ${promptText}`);
 
-          const motionPrompt = getMotionPrompt(cameraAngle);
+        const response = await fetchWithRetry(RUNWAY_API_URL, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${RUNWAY_API_KEY}`,
+            "Content-Type": "application/json",
+            "X-Runway-Version": RUNWAY_VERSION,
+          },
+          body: JSON.stringify({
+            model: "gen4_turbo",
+            promptImage: imageUrl,
+            promptText: promptText,
+            ratio: "720:1280",
+            duration: clipDuration,
+          }),
+        });
 
-          const structuralGuardrails = `
-No warping, no bending walls, no perspective distortion.
-Architecture remains perfectly rigid and realistic.
-`;
-
-          const promptText = `
-High-end cinematic real estate video of ${propertyAddress}.
-${motionPrompt}
-${structuralGuardrails}
-Consistent natural lighting, soft realistic shadows.
-Ultra-clean photorealistic footage.
-No film grain, no motion blur artifacts.
-Professional luxury property marketing.
-Bright, airy, calm atmosphere.
-`.trim();
-
-          console.log(`Prompt: ${promptText.substring(0, 120)}...`);
-
-          const response = await fetchWithRetry(RUNWAY_API_URL, {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${RUNWAY_API_KEY}`,
-              "Content-Type": "application/json",
-              "X-Runway-Version": RUNWAY_VERSION,
-            },
-            body: JSON.stringify({
-              model: "gen4_turbo",
-              promptImage: [{ uri: imageUrl, position: "first" }],
-              promptText: promptText,
-              ratio: "720:1280",
-              duration: clipDuration,
-            }),
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Runway API error for image ${index + 1}:`, {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorText,
+            imageUrl: imageUrl,
           });
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`Runway API error for image ${index + 1}:`, {
-              status: response.status,
-              statusText: response.statusText,
-              error: errorText,
-              imageUrl: imageUrl,
-              promptLength: promptText.length,
-              duration: clipDuration,
-            });
-            return {
-              imageUrl,
-              generationId: null,
-              status: "error" as const,
-              error: `Runway API ${response.status}: ${errorText}`,
-            };
-          }
-
-          const data = await response.json();
-          console.log(`Generation ${index + 1} started: ${data.id}`);
-
-          return {
-            imageUrl,
-            generationId: data.id,
-            status: "queued" as const,
-          };
-        } catch (error) {
-          console.error(`Error creating generation for image ${index + 1}:`, error);
           return {
             imageUrl,
             generationId: null,
             status: "error" as const,
-            error: error instanceof Error ? error.message : "Unknown error",
+            error: `Runway API ${response.status}: ${errorText}`,
           };
         }
-      }));
 
-      results.push(...batchResults);
-    }
+        const data = await response.json();
+        console.log(`Generation ${index + 1} started: ${data.id}`);
+
+        return {
+          imageUrl,
+          generationId: data.id,
+          status: "queued" as const,
+        };
+      } catch (error) {
+        console.error(`Error creating generation for image ${index + 1}:`, error);
+        return {
+          imageUrl,
+          generationId: null,
+          status: "error" as const,
+          error: error instanceof Error ? error.message : "Unknown error",
+        };
+      }
+    });
+
+    const results = await Promise.all(generationPromises);
 
     const successful = results.filter((r) => r.status === "queued");
     const failed = results.filter((r) => r.status === "error");

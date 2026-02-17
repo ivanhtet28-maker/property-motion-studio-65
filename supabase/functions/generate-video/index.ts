@@ -121,8 +121,8 @@
       }
 
       // Calculate expected duration from clamped per-clip durations (Runway: 5-10s)
-      const metadataSource = imageMetadata || imageUrls.map(url => ({ url, cameraAngle: "auto", duration: 10 }));
-      const expectedDuration = metadataSource.reduce((sum: number, m: { duration?: number }) => sum + Math.min(Math.max(m.duration ?? 6, 2), 10), 0);
+      const metadataSource = imageMetadata || imageUrls.map(url => ({ url, cameraAngle: "auto", duration: 5 }));
+      const expectedDuration = metadataSource.reduce((sum: number, m: { duration?: number }) => sum + Math.min(Math.max(m.duration ?? 5, 2), 10), 0);
       console.log("Expected video duration:", expectedDuration, "seconds");
 
       let audioUrl: string | null = null;
@@ -245,7 +245,7 @@
       const metadataForRunway = imageMetadata || imageUrls.map(url => ({
         url,
         cameraAngle: "auto",
-        duration: 10
+        duration: 5
       }));
 
       const runwayResponse = await fetch(
@@ -283,7 +283,7 @@
           const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
           // Clamp durations to match what Runway actually produces (5-10s)
-          const clipDurations = (imageMetadata || metadataForRunway).map(m => Math.min(Math.max(m.duration ?? 6, 2), 10));
+          const clipDurations = (imageMetadata || metadataForRunway).map(m => Math.min(Math.max(m.duration ?? 5, 2), 10));
 
           await supabaseAdmin
             .from("videos")

@@ -21,7 +21,7 @@ export type CameraAngle = "auto" | "wide-shot" | "zoom-in" | "pan-left" | "pan-r
 export interface ImageMetadata {
   file: File;
   cameraAngle: CameraAngle;
-  duration: number; // 2-10 seconds (Runway Gen4 Turbo)
+  duration: number; // 2-5 seconds (Runway Gen4 Turbo)
 }
 
 interface PhotoUploadProps {
@@ -76,7 +76,7 @@ export function PhotoUpload({
       return existing || {
         file,
         cameraAngle: "auto" as CameraAngle,
-        duration: 6,
+        duration: 5,
       };
     });
 
@@ -393,13 +393,13 @@ export function PhotoUpload({
                           value={[metadata.duration]}
                           onValueChange={(values) => updateImageDuration(index, values[0])}
                           min={2}
-                          max={10}
+                          max={5}
                           step={1}
                           className="w-full"
                         />
                         <div className="flex justify-between text-xs text-muted-foreground">
                           <span>2s</span>
-                          <span>10s</span>
+                          <span>5s</span>
                         </div>
                       </div>
                     </div>
