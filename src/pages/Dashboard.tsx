@@ -452,6 +452,7 @@ export default function Dashboard() {
         <div
           className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center"
           onClick={() => setPlayingVideoUrl(null)}
+          onContextMenu={(e) => e.preventDefault()}
         >
           <button
             onClick={() => setPlayingVideoUrl(null)}
@@ -464,6 +465,8 @@ export default function Dashboard() {
               src={playingVideoUrl}
               controls
               autoPlay
+              controlsList="nodownload"
+              onContextMenu={(e) => e.preventDefault()}
               className="max-h-[90vh] max-w-[90vw] rounded-lg"
             />
           </div>
