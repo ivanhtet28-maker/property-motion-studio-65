@@ -75,9 +75,9 @@ Deno.serve(async (req) => {
         const clipDuration = Math.min(Math.max(duration ?? 5, 2), 10);
         console.log(`Camera angle: ${cameraAngle}, Duration: ${clipDuration}s`);
 
-        // Motion + stability + scene preservation. Positive phrasing only.
+        // Motion prompt + scene preservation. Positive phrasing only.
         const motionPrompt = getMotionPrompt(cameraAngle);
-        const promptText = `${motionPrompt} Preserve exactly what is visible in the photograph. Only the camera moves. Cinematic, warm-toned.`;
+        const promptText = `${motionPrompt} Preserve exactly what is visible in the photograph. Only the camera moves.`;
 
         console.log(`Prompt (${promptText.length} chars): ${promptText}`);
 

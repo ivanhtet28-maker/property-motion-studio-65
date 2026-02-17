@@ -167,15 +167,11 @@
           top: 50%;
           left: 50%;
           transform: translate(-50%, -50%);
-          background: rgba(0, 0, 0, 0.55);
-          padding: 40px 60px;
-          border-radius: 8px;
           text-align: center;
           width: 85%;
-          box-sizing: border-box;
         ">
-          <div style="font-size: 48px; font-weight: 800; letter-spacing: 3px; margin-bottom: 16px; text-transform: uppercase;">${title}</div>
-          <div style="font-size: 24px; font-weight: 500; opacity: 0.9;">${address}</div>
+          <div style="font-size: 48px; font-weight: 800; letter-spacing: 3px; margin-bottom: 16px; text-transform: uppercase; text-shadow: 3px 3px 8px rgba(0,0,0,0.8);">${title}</div>
+          <div style="font-size: 24px; font-weight: 500; opacity: 0.9; text-shadow: 2px 2px 6px rgba(0,0,0,0.8);">${address}</div>
         </div>
       </div>
     `;
@@ -252,18 +248,17 @@
           width: 90%;
         ">
           <div style="font-size: 64px; font-weight: 900; margin-bottom: 24px; text-shadow: 3px 3px 8px rgba(0,0,0,0.8); letter-spacing: 1px;">${title}</div>
-          <div style="
-            display: inline-block;
+          <table style="margin: 0 auto;"><tr><td style="
             background: rgba(0, 0, 0, 0.45);
-            padding: 12px 28px;
-            border-radius: 6px;
+            padding: 18px 40px;
+            border-radius: 8px;
             font-size: 22px;
             font-weight: 600;
-          ">${address}</div>
+          ">${address}</td></tr></table>
         </div>
         <div style="
           position: absolute;
-          bottom: 80px;
+          bottom: 120px;
           right: 40px;
           font-size: 32px;
           font-weight: 800;
@@ -336,8 +331,8 @@
       const totalWidth = specs.length * iconSpacing;
       baseX = 0.5 - (totalWidth / 2);
     } else {
-      // Bottom area for Bold Banner and Modern Luxe (above the very bottom to avoid player controls)
-      baseY = -0.36;
+      // Bottom-left for Bold Banner and Modern Luxe (raised above player controls)
+      baseY = -0.32;
       baseX = 0.055;
     }
 
@@ -354,6 +349,7 @@
         start,
         length,
         fit: "none",
+        scale: 1.3,
         position: "left",
         offset: {
           x: iconX,
@@ -370,9 +366,9 @@
         asset: {
           type: "html",
           html: `<p>${spec.value}</p>`,
-          css: `p { font-family: "Helvetica"; color: #ffffff; font-size: 22px; text-align: left; }`,
-          width: 40,
-          height: 30,
+          css: `p { font-family: "Helvetica"; color: #ffffff; font-size: 28px; text-align: left; }`,
+          width: 50,
+          height: 40,
           position: "center",
         },
         start,
@@ -396,9 +392,9 @@
         asset: {
           type: "html",
           html: `<p>${propertyData.landSize}m²</p>`,
-          css: `p { font-family: "Helvetica"; color: #ffffff; font-size: 20px; text-align: left; }`,
-          width: 120,
-          height: 30,
+          css: `p { font-family: "Helvetica"; color: #ffffff; font-size: 26px; text-align: left; }`,
+          width: 140,
+          height: 40,
           position: "center",
         },
         start,

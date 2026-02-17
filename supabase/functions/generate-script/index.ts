@@ -76,6 +76,7 @@ Requirements:
 - Use vivid, descriptive language
 - Format: 2 short sentences
 - Focus on the most compelling feature and lifestyle benefit
+- Do NOT use asterisks or markdown formatting — plain text only. Dashes are okay for pauses.
 
 Write only the script, no preamble or explanations.`;
 
@@ -110,7 +111,7 @@ Write only the script, no preamble or explanations.`;
     }
 
     const data = await response.json();
-    const script = data.content[0]?.text?.trim();
+    const script = data.content[0]?.text?.trim().replace(/\*/g, "");
 
     if (!script) {
       throw new Error("No script generated from Claude Sonnet 4.5");

@@ -162,11 +162,11 @@ function MinimalFocusPreview({ title, previewImageUrl, property }: PreviewProps)
           <div className="absolute inset-0 bg-black/30" />
         </>
       )}
-      <div className="z-10 bg-black/55 px-8 py-5 rounded-lg text-center flex flex-col items-center">
-        <div className="text-lg font-bold text-white uppercase tracking-wider" style={{ textShadow: "1px 1px 3px rgba(0,0,0,0.5)" }}>
+      <div className="z-10 px-8 py-5 text-center flex flex-col items-center">
+        <div className="text-lg font-bold text-white uppercase tracking-wider" style={{ textShadow: "3px 3px 8px rgba(0,0,0,0.8)" }}>
           {title}
         </div>
-        <div className="text-[10px] text-white/80 mt-1">
+        <div className="text-[10px] text-white/90 mt-1" style={{ textShadow: "2px 2px 6px rgba(0,0,0,0.8)" }}>
           {getAddress(property)}
         </div>
         <PropertySpecs property={property} className="mt-2" />
