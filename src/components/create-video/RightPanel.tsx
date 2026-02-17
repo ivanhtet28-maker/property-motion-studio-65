@@ -166,29 +166,26 @@ Contact us today for a private inspection.`;
     <aside className="w-[340px] bg-gradient-to-b from-card via-card to-secondary/20 border-l border-border/50 flex flex-col h-full overflow-hidden">
       {/* Video Preview Frame */}
       <div className="p-4 pb-0 flex justify-center">
-        <div className="relative w-[190px] aspect-[9/16] bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl overflow-hidden shadow-2xl">
+        <div className="relative w-[190px] aspect-[9/16] bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl overflow-hidden shadow-2xl" onContextMenu={(e) => e.preventDefault()}>
           {/* Monitor Frame Effect */}
           <div className="absolute inset-0 border-4 border-gray-700 rounded-xl pointer-events-none" />
 
           {videoReady && videoUrl ? (
-            <div className="relative w-full h-full">
+            <div
+              className="relative w-full h-full cursor-pointer"
+              onContextMenu={(e) => e.preventDefault()}
+              onClick={(e) => {
+                const video = e.currentTarget.querySelector("video");
+                if (video) video.paused ? video.play() : video.pause();
+              }}
+            >
               <video
                 src={videoUrl}
-                controls
-                controlsList="nodownload"
-                onContextMenu={(e) => e.preventDefault()}
-                className="w-full h-full object-cover video-no-menu"
+                className="w-full h-full object-cover"
                 autoPlay
+                loop
                 playsInline
               />
-              <style>{`
-                .video-no-menu::-webkit-media-controls-overflow-button {
-                  display: none;
-                }
-                .video-no-menu::-webkit-media-controls-panel-container button:last-child {
-                  display: none;
-                }
-              `}</style>
             </div>
           ) : (
             <>

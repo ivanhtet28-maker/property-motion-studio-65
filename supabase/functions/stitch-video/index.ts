@@ -322,13 +322,14 @@
     // Position config based on layout
     let baseY: number;
     let baseX: number;
-    const iconSpacing = 0.08; // Space between each icon+number pair
+    const iconSpacing = 0.095; // Space between each icon+number pair
 
     if (layout === "minimal-focus") {
-      // Centered below the dark box
-      baseY = -0.08; // Below center where the dark box is
-      // Calculate starting X to center the specs group
-      const totalWidth = specs.length * iconSpacing;
+      // Centered below the title/address
+      baseY = -0.08;
+      // Calculate starting X to center the full specs group (icons + land size)
+      const hasLand = !!propertyData.landSize;
+      const totalWidth = (specs.length * iconSpacing) + (hasLand ? 0.07 : 0);
       baseX = 0.5 - (totalWidth / 2);
     } else {
       // Bottom-left for Bold Banner and Modern Luxe (raised above player controls)
@@ -338,7 +339,7 @@
 
     specs.forEach((spec, index) => {
       const iconX = baseX + (index * iconSpacing);
-      const textX = iconX + 0.035; // Text sits right of icon
+      const textX = iconX + 0.038; // Text sits right of icon
 
       // Icon image clip
       clips.push({

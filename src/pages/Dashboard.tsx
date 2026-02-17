@@ -460,13 +460,17 @@ export default function Dashboard() {
           >
             <X className="w-6 h-6 text-white" />
           </button>
-          <div onClick={(e) => e.stopPropagation()} className="max-h-[90vh] max-w-[90vw]">
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              const video = e.currentTarget.querySelector("video");
+              if (video) video.paused ? video.play() : video.pause();
+            }}
+            className="max-h-[90vh] max-w-[90vw] cursor-pointer"
+          >
             <video
               src={playingVideoUrl}
-              controls
               autoPlay
-              controlsList="nodownload"
-              onContextMenu={(e) => e.preventDefault()}
               className="max-h-[90vh] max-w-[90vw] rounded-lg"
             />
           </div>
