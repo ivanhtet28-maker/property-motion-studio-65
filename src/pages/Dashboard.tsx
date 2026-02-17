@@ -367,9 +367,12 @@ export default function Dashboard() {
                     )}
                     <div className="absolute inset-0 flex items-center justify-center">
                       {video.status === "ready" ? (
-                        <div className="w-14 h-14 rounded-full bg-primary/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                        <button
+                          onClick={() => video.videoUrl && window.open(video.videoUrl, "_blank")}
+                          className="w-14 h-14 rounded-full bg-primary/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                        >
                           <Play className="w-6 h-6 text-primary-foreground ml-1" />
-                        </div>
+                        </button>
                       ) : (
                         <div className="flex items-center gap-2 text-muted-foreground">
                           <Video className="w-6 h-6 animate-pulse" />
