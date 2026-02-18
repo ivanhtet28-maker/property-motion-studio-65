@@ -38,35 +38,19 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2, at
  * Positive phrasing only — negative phrasing causes opposite results.
  * Stability cues keep architecture rigid and furniture still.
  */
-function getCameraControl(cameraAngle: string): Record<string, number> | null {
-  switch (cameraAngle) {
-    case "pan-right":
-      return { horizontal: 8, pan: 6 };
-    case "pan-left":
-      return { horizontal: -8, pan: -6 };
-    case "zoom-in":
-      return { zoom: 8 };
-    case "wide-shot":
-      return null; // static
-    case "auto":
-    default:
-      return { zoom: 5 };
-  }
-}
-
 function getMotionPrompt(cameraAngle: string): string {
   switch (cameraAngle) {
     case "pan-right":
-      return "Sweeping camera pan from left to right, traveling across the entire room. Continuous steady motion throughout. Rigid architecture, stable furniture, steady environment.";
+      return "camera pans right across the room. Rigid architecture, stable furniture, steady environment.";
     case "pan-left":
-      return "Sweeping camera pan from right to left, traveling across the entire room. Continuous steady motion throughout. Rigid architecture, stable furniture, steady environment.";
+      return "camera pans left across the room. Rigid architecture, stable furniture, steady environment.";
     case "zoom-in":
-      return "Steady dolly forward pushing deep into the scene, moving through the space toward the far wall. Strong forward momentum throughout. Rigid architecture, stable furniture, steady environment.";
+      return "camera zooms into the room. Rigid architecture, stable furniture, steady environment.";
     case "wide-shot":
       return "Static camera, perfectly stable frame. Rigid architecture, stable furniture. Warm, steady lighting.";
     case "auto":
     default:
-      return "Smooth dolly forward through the space, steadily advancing deeper into the room. Clear visible forward movement. Rigid architecture, stable furniture, steady environment.";
+      return "camera slightly zooms. natural motion. Rigid architecture, stable furniture, steady environment.";
   }
 }
 
@@ -101,22 +85,8 @@ Deno.serve(async (req) => {
         // Motion prompt + scene preservation. Positive phrasing only.
         const motionPrompt = getMotionPrompt(cameraAngle);
         const promptText = `${motionPrompt} Preserve exactly what is visible in the photograph. Only the camera moves. Cinematic, warm-toned.`;
-        const cameraControl = getCameraControl(cameraAngle);
 
         console.log(`Prompt (${promptText.length} chars): ${promptText}`);
-        console.log(`Camera control:`, cameraControl);
-
-        const requestBody: Record<string, unknown> = {
-          model: "gen4_turbo",
-          promptImage: imageUrl,
-          promptText: promptText,
-          ratio: "720:1280",
-          duration: clipDuration,
-        };
-
-        if (cameraControl) {
-          requestBody.camera_control = cameraControl;
-        }
 
         const response = await fetchWithRetry(RUNWAY_API_URL, {
           method: "POST",
@@ -125,7 +95,13 @@ Deno.serve(async (req) => {
             "Content-Type": "application/json",
             "X-Runway-Version": RUNWAY_VERSION,
           },
-          body: JSON.stringify(requestBody),
+          body: JSON.stringify({
+            model: "gen4_turbo",
+            promptImage: imageUrl,
+            promptText: promptText,
+            ratio: "720:1280",
+            duration: clipDuration,
+          }),
         });
 
         if (!response.ok) {
