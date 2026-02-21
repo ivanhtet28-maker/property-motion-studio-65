@@ -40,22 +40,35 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2, at
 
 /**
  * Motion-only prompts using specific cinematography terms.
- * Positive phrasing only — negative phrasing causes opposite results.
- * Stability cues keep architecture rigid and furniture still.
+ * Positive phrasing only — Runway Gen4 has no negative_prompt field.
+ * All stability cues are stated as facts ("walls remain flat") not avoidances.
+ * This prevents: melting walls, morphing furniture, warped architecture,
+ * floating objects, flickering, distortion, and hallucinated people/text.
  */
 function getMotionPrompt(cameraAngle: string): string {
+  // Shared stability block appended to every prompt
+  const stability = [
+    "Walls remain perfectly flat and solid.",
+    "Floor and ceiling stay fixed in place.",
+    "All furniture remains completely still.",
+    "Architecture is rigid and undistorted.",
+    "Materials and textures are photorealistic and unchanged.",
+    "Lighting is steady and consistent throughout.",
+    "The room contains no people, no text, no watermarks.",
+  ].join(" ");
+
   switch (cameraAngle) {
     case "pan-right":
-      return "camera pans right across the room. Rigid architecture, stable furniture, steady environment.";
+      return `Smooth cinematic camera pan to the right, revealing the room. Only the camera moves. ${stability}`;
     case "pan-left":
-      return "camera pans left across the room. Rigid architecture, stable furniture, steady environment.";
+      return `Smooth cinematic camera pan to the left, revealing the room. Only the camera moves. ${stability}`;
     case "zoom-in":
-      return "camera zooms into the room. Rigid architecture, stable furniture, steady environment.";
+      return `Slow cinematic camera dolly forward into the room. Only the camera moves. ${stability}`;
     case "wide-shot":
-      return "Static camera, perfectly stable frame. Rigid architecture, stable furniture. Warm, steady lighting.";
+      return `Static wide-angle shot, camera locked in place. The scene is completely still. ${stability}`;
     case "auto":
     default:
-      return "camera slightly zooms. natural motion. Rigid architecture, stable furniture, steady environment.";
+      return `Gentle cinematic push-in, camera eases slowly forward. Only the camera moves. ${stability}`;
   }
 }
 
@@ -90,9 +103,9 @@ Deno.serve(async (req) => {
         const clipDuration = toValidRunwayDuration(duration ?? 5);
         console.log(`Camera angle: ${cameraAngle}, Duration: ${clipDuration}s (gen4_turbo only supports 5 or 10s)`);
 
-        // Motion prompt + scene preservation. Positive phrasing only.
+        // Motion prompt + scene preservation. Positive phrasing only — no negative_prompt field in Runway API.
         const motionPrompt = getMotionPrompt(cameraAngle);
-        const promptText = `${motionPrompt} Preserve exactly what is visible in the photograph. Only the camera moves. Cinematic, warm-toned.`;
+        const promptText = `${motionPrompt} The scene is a precise photographic reproduction. Every surface, material, and spatial relationship is preserved exactly as photographed. Professional real estate cinematography. Warm, natural tones.`;
 
         console.log(`Prompt (${promptText.length} chars): ${promptText}`);
 
