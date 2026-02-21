@@ -16,7 +16,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-export type CameraAngle = "auto" | "wide-shot" | "zoom-in" | "pan-left" | "pan-right";
+export type CameraAngle = "auto" | "wide-shot" | "push-in" | "push-out" | "orbit-left" | "orbit-right";
 
 export interface ImageMetadata {
   file: File;
@@ -35,24 +35,28 @@ interface PhotoUploadProps {
 
 const CAMERA_ANGLE_OPTIONS: Record<CameraAngle, { label: string; description: string }> = {
   auto: {
-    label: "Auto (AI Decides)",
+    label: "Auto (Recommended)",
     description: "AI automatically chooses the best camera movement for this image",
   },
   "wide-shot": {
     label: "Wide Shot",
     description: "Static locked camera, no movement - architectural style",
   },
-  "zoom-in": {
-    label: "Zoom In",
-    description: "Slow smooth zoom toward center focal point - cinematic reveal",
+  "push-in": {
+    label: "Push In",
+    description: "Camera slowly moves forward toward the focal point",
   },
-  "pan-left": {
-    label: "Pan Left",
-    description: "Smooth horizontal pan from right to left - revealing scene",
+  "push-out": {
+    label: "Push Out",
+    description: "Camera slowly pulls back away from the scene",
   },
-  "pan-right": {
-    label: "Pan Right",
-    description: "Smooth horizontal pan from left to right - revealing scene",
+  "orbit-right": {
+    label: "Orbit Right",
+    description: "Camera orbits clockwise around the focal point - dynamic 3D effect",
+  },
+  "orbit-left": {
+    label: "Orbit Left",
+    description: "Camera orbits counter-clockwise around the focal point - dynamic 3D effect",
   },
 };
 

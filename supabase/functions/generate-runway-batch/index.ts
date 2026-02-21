@@ -53,12 +53,15 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2, at
  */
 function getMotionPrompt(cameraAngle: string): string {
   switch (cameraAngle) {
-    case "pan-right":
-      return "The camera pans smoothly to the right. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
-    case "pan-left":
-      return "The camera pans smoothly to the left. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
-    case "zoom-in":
-      return "The camera slowly dollies forward. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
+    case "orbit-right":
+      return "The camera slowly orbits clockwise around the room. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
+    case "orbit-left":
+      return "The camera slowly orbits counter-clockwise around the room. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
+    case "push-in":
+    case "zoom-in": // legacy alias
+      return "The camera slowly dollies forward into the room. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
+    case "push-out":
+      return "The camera slowly pulls back away from the room. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
     case "wide-shot":
       return "The locked-off camera remains perfectly still. The entire scene is motionless. Continuous, seamless shot.";
     case "auto":

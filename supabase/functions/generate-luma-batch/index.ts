@@ -22,12 +22,13 @@ Photorealistic, clean, stable, professional property marketing video.
 
   /**
    * Create an end-frame by cropping 10% from the original image and resizing back.
-   * This forces the AI to create a smooth zoom/pan path between start and end frames.
+   * This forces the AI to create a smooth movement path between start and end frames.
    *
    * Crop strategies:
-   * - zoom-in/auto: 10% center crop (simulates dolly-in)
-   * - pan-right: 10% crop aligned to right edge
-   * - pan-left: 10% crop aligned to left edge
+   * - push-in/auto: 10% center crop (simulates dolly-in)
+   * - push-out: 10% outer crop (simulates pull-back — crops opposite corner, AI fills center)
+   * - orbit-right: 10% crop aligned to right edge (focal point shifts right)
+   * - orbit-left: 10% crop aligned to left edge (focal point shifts left)
    */
   async function createEndFrame(
     imageUrl: string,
@@ -57,20 +58,26 @@ Photorealistic, clean, stable, professional property marketing video.
       let cropY: number;
 
       switch (cameraAngle) {
-        case "pan-right":
-          // Crop aligned to right edge
+        case "orbit-right":
+          // End frame shifted right — focal point moves right, simulates orbit right
           cropX = originalWidth - cropWidth;
           cropY = Math.round((originalHeight - cropHeight) / 2);
           break;
-        case "pan-left":
-          // Crop aligned to left edge
+        case "orbit-left":
+          // End frame shifted left — focal point moves left, simulates orbit left
           cropX = 0;
           cropY = Math.round((originalHeight - cropHeight) / 2);
           break;
-        case "zoom-in":
+        case "push-out":
+          // End frame shifted to top-left corner — AI interpolates a pull-back effect
+          cropX = 0;
+          cropY = 0;
+          break;
+        case "push-in":
+        case "zoom-in": // legacy alias
         case "auto":
         default:
-          // Center crop (simulates zoom-in)
+          // Center crop (simulates push-in / dolly forward)
           cropX = Math.round((originalWidth - cropWidth) / 2);
           cropY = Math.round((originalHeight - cropHeight) / 2);
           break;
@@ -160,13 +167,16 @@ Photorealistic, clean, stable, professional property marketing video.
           }
 
           // Step 2: Build simplified prompt (end-frames handle motion, prompt handles quality)
-          const motionDescription = cameraAngle === "zoom-in" || cameraAngle === "auto"
-            ? "Smooth subtle zoom into the scene."
-            : cameraAngle === "pan-right"
-              ? "Smooth subtle pan to the right."
-              : cameraAngle === "pan-left"
-                ? "Smooth subtle pan to the left."
-                : "Smooth subtle camera movement.";
+          const motionDescription =
+            cameraAngle === "push-in" || cameraAngle === "zoom-in" || cameraAngle === "auto"
+              ? "Smooth subtle push-in toward the focal point."
+              : cameraAngle === "push-out"
+                ? "Smooth subtle pull-back away from the scene."
+                : cameraAngle === "orbit-right"
+                  ? "Smooth subtle orbit clockwise around the focal point."
+                  : cameraAngle === "orbit-left"
+                    ? "Smooth subtle orbit counter-clockwise around the focal point."
+                    : "Smooth subtle camera movement.";
 
           const fullPrompt = `High-end cinematic real estate video of ${propertyAddress}.
 ${motionDescription}
