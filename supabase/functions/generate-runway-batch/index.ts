@@ -65,6 +65,7 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log("=== generate-runway-batch INVOKED ===");
     const { imageMetadata, propertyAddress } = await req.json();
 
     if (!imageMetadata || !Array.isArray(imageMetadata) || imageMetadata.length === 0) {
@@ -72,10 +73,12 @@ Deno.serve(async (req) => {
     }
 
     if (!RUNWAY_API_KEY) {
+      console.error("RUNWAY_API_KEY is NOT set in secrets!");
       throw new Error("RUNWAY_API_KEY not configured");
     }
 
     console.log(`=== RUNWAY GEN4 TURBO BATCH: Generating ${imageMetadata.length} clips ===`);
+    console.log(`RUNWAY_API_KEY present: ${!!RUNWAY_API_KEY}, length: ${RUNWAY_API_KEY.length}, prefix: ${RUNWAY_API_KEY.substring(0, 8)}...`);
 
     // Submit all at once — Runway queues excess tasks with THROTTLED status.
     // No requests-per-minute rate limit; no concurrency cap needed client-side.
@@ -116,6 +119,8 @@ Deno.serve(async (req) => {
             statusText: response.statusText,
             error: errorText,
             imageUrl: imageUrl,
+            apiUrl: RUNWAY_API_URL,
+            apiVersion: RUNWAY_VERSION,
           });
           return {
             imageUrl,
