@@ -39,36 +39,29 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2, at
 }
 
 /**
- * Motion-only prompts using specific cinematography terms.
- * Positive phrasing only — Runway Gen4 has no negative_prompt field.
- * All stability cues are stated as facts ("walls remain flat") not avoidances.
- * This prevents: melting walls, morphing furniture, warped architecture,
- * floating objects, flickering, distortion, and hallucinated people/text.
+ * Motion-only prompts following official Runway Gen-4 prompting guide:
+ * https://help.runwayml.com/hc/en-us/articles/39789879462419
+ *
+ * Rules:
+ * 1. Focus ONLY on camera/scene motion — the input image handles all visual description.
+ * 2. Keep prompts short and concrete. Long descriptive blocks cause unwanted animations.
+ * 3. Use "locked-off camera remains perfectly still" for static scenes (Runway's own wording).
+ * 4. "Continuous, seamless shot" prevents unwanted cuts.
+ * 5. "The scene remains completely still, only the camera moves" is the key stability phrase.
  */
 function getMotionPrompt(cameraAngle: string): string {
-  // Shared stability block appended to every prompt
-  const stability = [
-    "Walls remain perfectly flat and solid.",
-    "Floor and ceiling stay fixed in place.",
-    "All furniture remains completely still.",
-    "Architecture is rigid and undistorted.",
-    "Materials and textures are photorealistic and unchanged.",
-    "Lighting is steady and consistent throughout.",
-    "The room contains no people, no text, no watermarks.",
-  ].join(" ");
-
   switch (cameraAngle) {
     case "pan-right":
-      return `Smooth cinematic camera pan to the right, revealing the room. Only the camera moves. ${stability}`;
+      return "The camera pans smoothly to the right. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
     case "pan-left":
-      return `Smooth cinematic camera pan to the left, revealing the room. Only the camera moves. ${stability}`;
+      return "The camera pans smoothly to the left. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
     case "zoom-in":
-      return `Slow cinematic camera dolly forward into the room. Only the camera moves. ${stability}`;
+      return "The camera slowly dollies forward. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
     case "wide-shot":
-      return `Static wide-angle shot, camera locked in place. The scene is completely still. ${stability}`;
+      return "The locked-off camera remains perfectly still. The entire scene is motionless. Continuous, seamless shot.";
     case "auto":
     default:
-      return `Gentle cinematic push-in, camera eases slowly forward. Only the camera moves. ${stability}`;
+      return "The camera gently eases forward with a slow push-in. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
   }
 }
 
@@ -103,9 +96,11 @@ Deno.serve(async (req) => {
         const clipDuration = toValidRunwayDuration(duration ?? 5);
         console.log(`Camera angle: ${cameraAngle}, Duration: ${clipDuration}s (gen4_turbo only supports 5 or 10s)`);
 
-        // Motion prompt + scene preservation. Positive phrasing only — no negative_prompt field in Runway API.
+        // Per Runway's official guide: prompt should focus exclusively on motion.
+        // The input image already communicates scene, style, lighting, and composition.
+        // Adding scene description competes with image data and causes unwanted animations.
         const motionPrompt = getMotionPrompt(cameraAngle);
-        const promptText = `${motionPrompt} The scene is a precise photographic reproduction. Every surface, material, and spatial relationship is preserved exactly as photographed. Professional real estate cinematography. Warm, natural tones.`;
+        const promptText = `${motionPrompt} Cinematic real estate video.`;
 
         console.log(`Prompt (${promptText.length} chars): ${promptText}`);
 
