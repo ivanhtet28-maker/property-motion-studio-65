@@ -22,51 +22,49 @@ const plans = [
   {
     id: "starter",
     name: "Starter",
-    price: "$299",
+    price: "A$79",
     period: "month",
-    videos: 10,
+    videos: 8,
     icon: Sparkles,
     features: [
-      "10 videos per month",
-      "All camera angles",
-      "Custom durations",
-      "Agent branding",
+      "8 videos per month",
+      "Up to 10 photos per video",
+      "Agent branding & logo",
       "Background music",
-      "AI voiceovers",
+      "AI voiceover",
+      "1080p quality",
     ],
     priceId: "price_1Syaj2GkPU4YhgKfafjlmn2s",
   },
   {
     id: "growth",
-    name: "Growth",
-    price: "$499",
+    name: "Pro",
+    price: "A$149",
     period: "month",
-    videos: 30,
+    videos: 25,
     icon: Zap,
-    badge: "⭐ RECOMMENDED",
+    badge: "⭐ MOST POPULAR",
     features: [
-      "30 videos per month",
+      "25 videos per month",
+      "Everything in Starter",
       "Priority processing",
-      "All Starter features",
-      "Faster rendering",
+      "Credits roll over 3 months",
       "Email support",
-      "Custom templates",
     ],
     priceId: "price_1SyajHGkPU4YhgKfesr95mxL",
   },
   {
     id: "enterprise",
-    name: "Enterprise",
-    price: "Custom",
-    period: "",
-    videos: -1,
+    name: "Agency",
+    price: "A$299",
+    period: "month",
+    videos: 70,
     icon: Crown,
     features: [
-      "Unlimited videos",
+      "70 videos per month",
+      "Everything in Pro",
+      "3 team members",
       "Dedicated support",
-      "Custom branding",
-      "API access",
-      "Team collaboration",
       "White-label option",
     ],
   },
@@ -86,13 +84,8 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
     }
 
     if (planId === "enterprise") {
-      // For enterprise, close modal and navigate to contact
-      onOpenChange(false);
-      toast({
-        title: "Contact Us",
-        description: "We'll be in touch about Enterprise pricing",
-      });
-      return;
+      // Agency plan goes through same Stripe checkout flow
+      // priceId will be set when Stripe product is created for Agency tier
     }
 
     setIsSubscribing(true);
@@ -178,7 +171,7 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
                     <span className="text-muted-foreground">/{plan.period}</span>
                   )}
                   <p className="text-sm text-muted-foreground mt-1">
-                    {plan.videos === -1 ? "Unlimited videos" : `${plan.videos} videos/month`}
+                    {`${plan.videos} videos/month`}
                   </p>
                 </div>
 
@@ -203,7 +196,7 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
                       Processing...
                     </>
                   ) : plan.id === "enterprise" ? (
-                    "Contact Sales"
+                    `Subscribe to ${plan.name}`
                   ) : (
                     `Subscribe to ${plan.name}`
                   )}
@@ -215,7 +208,7 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
 
         <div className="mt-6 p-4 bg-secondary/50 rounded-lg text-center">
           <p className="text-sm text-muted-foreground">
-            ✨ <strong>Your free trial video is ready!</strong> Subscribe now to download it and continue creating amazing property videos.
+            ✨ <strong>Your free trial video is ready!</strong> All prices in AUD. Subscribe now to download it and keep creating cinematic property videos.
           </p>
         </div>
       </DialogContent>
