@@ -270,11 +270,23 @@
         throw new Error(runwayData.error || "Failed to start Runway batch generation");
       }
 
-      const generations = (runwayData.generations as RunwayGeneration[]).filter((g) => g.status === "queued");
-      const generationIds = generations.map((g) => g.generationId);
+      if (!Array.isArray(runwayData.generations)) {
+        throw new Error(`Unexpected response from generate-runway-batch: ${JSON.stringify(runwayData)}`);
+      }
+
+      const generations = (runwayData.generations as RunwayGeneration[]).filter(
+        (g) => g.status === "queued" && g.generationId
+      );
+      const generationIds = generations.map((g) => g.generationId).filter(Boolean) as string[];
 
       console.log(`Started ${generations.length} Runway generations`);
       console.log("Generation IDs:", generationIds);
+
+      if (generationIds.length === 0) {
+        const failedGenerations = (runwayData.generations as RunwayGeneration[]).filter((g) => g.status === "error");
+        const errors = failedGenerations.map((g) => g.error).join("; ");
+        throw new Error(`No valid Runway generation IDs returned. All ${runwayData.generations?.length ?? 0} submissions failed. Errors: ${errors || "unknown"}`);
+      }
 
       // Save generation context to DB so Dashboard can resume polling if user navigates away
       if (videoRecordId) {

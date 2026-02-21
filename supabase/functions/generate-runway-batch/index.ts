@@ -9,6 +9,11 @@ const RUNWAY_API_KEY = Deno.env.get("RUNWAY_API_KEY");
 const RUNWAY_API_URL = "https://api.dev.runwayml.com/v1/image_to_video";
 const RUNWAY_VERSION = "2024-11-06";
 
+// Gen4 Turbo only supports 5 or 10 second durations
+function toValidRunwayDuration(duration: number): 5 | 10 {
+  return duration <= 7 ? 5 : 10;
+}
+
 async function fetchWithRetry(url: string, options: RequestInit, retries = 2, attempt = 1): Promise<Response> {
   try {
     const response = await fetch(url, options);
@@ -79,8 +84,8 @@ Deno.serve(async (req) => {
       try {
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
         console.log(`Image: ${imageUrl}`);
-        const clipDuration = Math.min(Math.max(duration ?? 5, 2), 10);
-        console.log(`Camera angle: ${cameraAngle}, Duration: ${clipDuration}s`);
+        const clipDuration = toValidRunwayDuration(duration ?? 5);
+        console.log(`Camera angle: ${cameraAngle}, Duration: ${clipDuration}s (gen4_turbo only supports 5 or 10s)`);
 
         // Motion prompt + scene preservation. Positive phrasing only.
         const motionPrompt = getMotionPrompt(cameraAngle);
@@ -121,6 +126,18 @@ Deno.serve(async (req) => {
         }
 
         const data = await response.json();
+        console.log(`Generation ${index + 1} response:`, JSON.stringify(data));
+
+        if (!data.id) {
+          console.error(`Runway API returned 200 but no task ID for image ${index + 1}:`, data);
+          return {
+            imageUrl,
+            generationId: null,
+            status: "error" as const,
+            error: `Runway API returned no task ID. Response: ${JSON.stringify(data)}`,
+          };
+        }
+
         console.log(`Generation ${index + 1} started: ${data.id}`);
 
         return {
