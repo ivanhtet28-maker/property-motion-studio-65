@@ -9,7 +9,7 @@ const RUNWAY_API_KEY = Deno.env.get("RUNWAY_API_KEY");
 const RUNWAY_API_URL = "https://api.dev.runwayml.com/v1/image_to_video";
 const RUNWAY_VERSION = "2024-11-06";
 
-// Gen4 Turbo only supports 5 or 10 second durations
+// Both gen3a_turbo and gen4_turbo only support 5 or 10 second durations
 function toValidRunwayDuration(duration: number): 5 | 10 {
   return duration <= 7 ? 5 : 10;
 }
@@ -39,29 +39,65 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2, at
 }
 
 /**
- * Motion-only prompts following official Runway Gen-4 prompting guide:
- * https://help.runwayml.com/hc/en-us/articles/39789879462419
+ * Camera motion config for Gen-3 Alpha Turbo.
  *
- * Rules:
- * 1. Focus ONLY on camera/scene motion — the input image handles all visual description.
- * 2. Keep prompts short and concrete. Long descriptive blocks cause unwanted animations.
- * 3. Use "locked-off camera remains perfectly still" for static scenes (Runway's own wording).
- * 4. "Continuous, seamless shot" prevents unwanted cuts.
- * 5. "The scene remains completely still, only the camera moves" is the key stability phrase.
+ * WHY gen3a_turbo instead of gen4_turbo:
+ *   gen3a_turbo supports explicit numeric camera control parameters (cameraMotion)
+ *   with values from -10 to 10. This gives precise, deterministic camera movement.
+ *   gen4_turbo only supports text-based camera description, which the model interprets
+ *   unpredictably — causing unwanted scene animations alongside camera movement.
+ *
+ * cameraMotion axes:
+ *   horizontal: lateral slide — negative = left, positive = right
+ *   pan:        rotational yaw — negative = left, positive = right
+ *   zoom:       dolly — negative = out, positive = in
+ *   vertical:   vertical slide — negative = down, positive = up
+ *   tilt:       rotational pitch — negative = down, positive = up
+ *   roll:       camera rotation around its own axis
+ *
+ * Combining horizontal + pan creates smooth cinematic pans (Runway's own recommendation).
+ * Text prompt is kept minimal — it complements the cameraMotion, not replaces it.
  */
-function getMotionPrompt(cameraAngle: string): string {
+interface CameraMotionConfig {
+  cameraMotion?: {
+    horizontal?: number;
+    vertical?: number;
+    pan?: number;
+    tilt?: number;
+    zoom?: number;
+    roll?: number;
+  };
+  promptText: string;
+}
+
+function getCameraConfig(cameraAngle: string): CameraMotionConfig {
   switch (cameraAngle) {
     case "pan-right":
-      return "The camera pans smoothly to the right. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
+      return {
+        cameraMotion: { horizontal: 5, pan: 3 },
+        promptText: "Smooth camera pan right. The scene is completely still.",
+      };
     case "pan-left":
-      return "The camera pans smoothly to the left. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
+      return {
+        cameraMotion: { horizontal: -5, pan: -3 },
+        promptText: "Smooth camera pan left. The scene is completely still.",
+      };
     case "zoom-in":
-      return "The camera slowly dollies forward. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
+      return {
+        cameraMotion: { zoom: 5 },
+        promptText: "Slow camera zoom in. The scene is completely still.",
+      };
     case "wide-shot":
-      return "The locked-off camera remains perfectly still. The entire scene is motionless. Continuous, seamless shot.";
+      return {
+        // No cameraMotion — all axes default to 0 (locked-off shot)
+        promptText: "Locked-off static shot. The entire scene is completely motionless.",
+      };
     case "auto":
     default:
-      return "The camera gently eases forward with a slow push-in. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
+      return {
+        cameraMotion: { zoom: 3 },
+        promptText: "Gentle slow push-in. The scene is completely still.",
+      };
   }
 }
 
@@ -83,7 +119,7 @@ Deno.serve(async (req) => {
       throw new Error("RUNWAY_API_KEY not configured");
     }
 
-    console.log(`=== RUNWAY GEN4 TURBO BATCH: Generating ${imageMetadata.length} clips ===`);
+    console.log(`=== RUNWAY GEN3A TURBO BATCH: Generating ${imageMetadata.length} clips ===`);
     console.log(`RUNWAY_API_KEY present: ${!!RUNWAY_API_KEY}, length: ${RUNWAY_API_KEY.length}, prefix: ${RUNWAY_API_KEY.substring(0, 8)}...`);
 
     // Submit all at once — Runway queues excess tasks with THROTTLED status.
@@ -94,15 +130,27 @@ Deno.serve(async (req) => {
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
         console.log(`Image: ${imageUrl}`);
         const clipDuration = toValidRunwayDuration(duration ?? 5);
-        console.log(`Camera angle: ${cameraAngle}, Duration: ${clipDuration}s (gen4_turbo only supports 5 or 10s)`);
+        console.log(`Camera angle: ${cameraAngle}, Duration: ${clipDuration}s`);
 
-        // Per Runway's official guide: prompt should focus exclusively on motion.
-        // The input image already communicates scene, style, lighting, and composition.
-        // Adding scene description competes with image data and causes unwanted animations.
-        const motionPrompt = getMotionPrompt(cameraAngle);
-        const promptText = `${motionPrompt} Cinematic real estate video.`;
+        const { cameraMotion, promptText } = getCameraConfig(cameraAngle);
+        console.log(`Prompt: ${promptText}`);
+        if (cameraMotion) {
+          console.log(`cameraMotion: ${JSON.stringify(cameraMotion)}`);
+        }
 
-        console.log(`Prompt (${promptText.length} chars): ${promptText}`);
+        // gen3a_turbo uses 768:1280 for portrait (vs gen4_turbo's 720:1280)
+        const requestBody: Record<string, unknown> = {
+          model: "gen3a_turbo",
+          promptImage: imageUrl,
+          promptText: promptText,
+          ratio: "768:1280",
+          duration: clipDuration,
+        };
+
+        // Only include cameraMotion when there is actual camera movement
+        if (cameraMotion) {
+          requestBody.cameraMotion = cameraMotion;
+        }
 
         const response = await fetchWithRetry(RUNWAY_API_URL, {
           method: "POST",
@@ -111,13 +159,7 @@ Deno.serve(async (req) => {
             "Content-Type": "application/json",
             "X-Runway-Version": RUNWAY_VERSION,
           },
-          body: JSON.stringify({
-            model: "gen4_turbo",
-            promptImage: imageUrl,
-            promptText: promptText,
-            ratio: "720:1280",
-            duration: clipDuration,
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         if (!response.ok) {
