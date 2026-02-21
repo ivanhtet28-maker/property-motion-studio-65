@@ -39,65 +39,31 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2, at
 }
 
 /**
- * Camera motion config for Gen-3 Alpha Turbo.
+ * Motion-only prompts for Runway Gen-4 Turbo (text-only camera control).
  *
- * WHY gen3a_turbo instead of gen4_turbo:
- *   gen3a_turbo supports explicit numeric camera control parameters (cameraMotion)
- *   with values from -10 to 10. This gives precise, deterministic camera movement.
- *   gen4_turbo only supports text-based camera description, which the model interprets
- *   unpredictably — causing unwanted scene animations alongside camera movement.
+ * NOTE: Runway's developer API has NO camera_motion parameter for any model.
+ * Camera controls shown in the Runway UI are not exposed through the REST API.
+ * The only lever we have is prompt_text — so prompts are kept short and focused
+ * exclusively on camera movement (Runway's official recommendation).
  *
- * cameraMotion axes:
- *   horizontal: lateral slide — negative = left, positive = right
- *   pan:        rotational yaw — negative = left, positive = right
- *   zoom:       dolly — negative = out, positive = in
- *   vertical:   vertical slide — negative = down, positive = up
- *   tilt:       rotational pitch — negative = down, positive = up
- *   roll:       camera rotation around its own axis
- *
- * Combining horizontal + pan creates smooth cinematic pans (Runway's own recommendation).
- * Text prompt is kept minimal — it complements the cameraMotion, not replaces it.
+ * gen4_turbo is used (not gen3a_turbo) because:
+ *   - Both models are text-only through the API
+ *   - gen4_turbo produces higher quality output
+ *   - gen3a_turbo ratio is 768:1280 vs gen4_turbo 720:1280 (minor difference)
  */
-interface CameraMotionConfig {
-  cameraMotion?: {
-    horizontal?: number;
-    vertical?: number;
-    pan?: number;
-    tilt?: number;
-    zoom?: number;
-    roll?: number;
-  };
-  promptText: string;
-}
-
-function getCameraConfig(cameraAngle: string): CameraMotionConfig {
+function getMotionPrompt(cameraAngle: string): string {
   switch (cameraAngle) {
     case "pan-right":
-      return {
-        cameraMotion: { horizontal: 5, pan: 3 },
-        promptText: "Smooth camera pan right. The scene is completely still.",
-      };
+      return "The camera pans smoothly to the right. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
     case "pan-left":
-      return {
-        cameraMotion: { horizontal: -5, pan: -3 },
-        promptText: "Smooth camera pan left. The scene is completely still.",
-      };
+      return "The camera pans smoothly to the left. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
     case "zoom-in":
-      return {
-        cameraMotion: { zoom: 5 },
-        promptText: "Slow camera zoom in. The scene is completely still.",
-      };
+      return "The camera slowly dollies forward. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
     case "wide-shot":
-      return {
-        // No cameraMotion — all axes default to 0 (locked-off shot)
-        promptText: "Locked-off static shot. The entire scene is completely motionless.",
-      };
+      return "The locked-off camera remains perfectly still. The entire scene is motionless. Continuous, seamless shot.";
     case "auto":
     default:
-      return {
-        cameraMotion: { zoom: 3 },
-        promptText: "Gentle slow push-in. The scene is completely still.",
-      };
+      return "The camera gently eases forward with a slow push-in. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
   }
 }
 
@@ -119,7 +85,7 @@ Deno.serve(async (req) => {
       throw new Error("RUNWAY_API_KEY not configured");
     }
 
-    console.log(`=== RUNWAY GEN3A TURBO BATCH: Generating ${imageMetadata.length} clips ===`);
+    console.log(`=== RUNWAY GEN4 TURBO BATCH: Generating ${imageMetadata.length} clips ===`);
     console.log(`RUNWAY_API_KEY present: ${!!RUNWAY_API_KEY}, length: ${RUNWAY_API_KEY.length}, prefix: ${RUNWAY_API_KEY.substring(0, 8)}...`);
 
     // Submit all at once — Runway queues excess tasks with THROTTLED status.
@@ -130,27 +96,18 @@ Deno.serve(async (req) => {
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
         console.log(`Image: ${imageUrl}`);
         const clipDuration = toValidRunwayDuration(duration ?? 5);
-        console.log(`Camera angle: ${cameraAngle}, Duration: ${clipDuration}s`);
+        console.log(`Camera angle: ${cameraAngle}, Duration: ${clipDuration}s (gen4_turbo only supports 5 or 10s)`);
 
-        const { cameraMotion, promptText } = getCameraConfig(cameraAngle);
-        console.log(`Prompt: ${promptText}`);
-        if (cameraMotion) {
-          console.log(`cameraMotion: ${JSON.stringify(cameraMotion)}`);
-        }
+        const promptText = getMotionPrompt(cameraAngle);
+        console.log(`Prompt (${promptText.length} chars): ${promptText}`);
 
-        // gen3a_turbo uses 768:1280 for portrait (vs gen4_turbo's 720:1280)
-        const requestBody: Record<string, unknown> = {
-          model: "gen3a_turbo",
+        const requestBody = {
+          model: "gen4_turbo",
           promptImage: imageUrl,
           promptText: promptText,
-          ratio: "768:1280",
+          ratio: "720:1280",
           duration: clipDuration,
         };
-
-        // Only include cameraMotion when there is actual camera movement
-        if (cameraMotion) {
-          requestBody.cameraMotion = cameraMotion;
-        }
 
         const response = await fetchWithRetry(RUNWAY_API_URL, {
           method: "POST",
