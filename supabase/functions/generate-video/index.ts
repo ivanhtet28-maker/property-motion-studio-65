@@ -32,6 +32,8 @@
     imageMetadata?: ImageMetadata[];
     propertyData: PropertyData;
     style: string;
+    layout?: string;
+    customTitle?: string;
     voice: string;
     music: string;
     userId?: string;
@@ -44,6 +46,8 @@
       email: string;
       photo: string | null;
     };
+    // When provided, skip Runway and go straight to Shotstack stitching
+    preGeneratedVideoUrls?: string[];
   }
 
   // Music library mapping - updated IDs to match frontend
@@ -91,7 +95,7 @@
     }
 
     try {
-      const { imageUrls, imageMetadata, propertyData, style, voice, music, userId, propertyId, script, source, agentInfo }: GenerateVideoRequest = await req.json();
+      const { imageUrls, imageMetadata, propertyData, style, layout, customTitle, voice, music, userId, propertyId, script, source, agentInfo, preGeneratedVideoUrls }: GenerateVideoRequest = await req.json();
 
       console.log("=== RUNWAY VIDEO GENERATION ===");
       console.log("Total images:", imageUrls?.length || 0);
@@ -240,6 +244,66 @@
         }
       }
 
+      // --- Canvas flow: pre-generated video clips supplied by client ---
+      if (preGeneratedVideoUrls && preGeneratedVideoUrls.length > 0) {
+        console.log("Canvas flow: skipping Runway, stitching", preGeneratedVideoUrls.length, "pre-generated clips directly");
+
+        const clipDurations = (imageMetadata || imageUrls.map(() => ({ duration: 5 }))).map(
+          (m: { duration?: number }) => m.duration ?? 5
+        );
+
+        const stitchResponse = await fetch(
+          `${Deno.env.get("SUPABASE_URL")}/functions/v1/stitch-video`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+            },
+            body: JSON.stringify({
+              videoUrls: preGeneratedVideoUrls,
+              clipDurations,
+              audioUrl,
+              musicUrl,
+              agentInfo,
+              propertyData,
+              style,
+              layout: layout || style,
+              customTitle: customTitle || "",
+            }),
+          }
+        );
+
+        const stitchData = await stitchResponse.json();
+
+        if (!stitchData.success || !stitchData.jobId) {
+          throw new Error(stitchData.error || "Failed to start Shotstack stitching");
+        }
+
+        console.log("Shotstack stitch job started:", stitchData.jobId);
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            provider: "canvas",
+            videoId: videoRecordId,
+            stitchJobId: stitchData.jobId,
+            generationIds: [],
+            totalClips: preGeneratedVideoUrls.length,
+            estimatedDuration: expectedDuration,
+            estimatedTime: 60,
+            message: `Canvas clips generated. Stitching ${preGeneratedVideoUrls.length} clips with Shotstack.`,
+            audioUrl,
+            musicUrl,
+            agentInfo,
+            propertyData,
+            style,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // --- Runway flow ---
       console.log("Starting Runway batch generation for", imageUrls.length, "images...");
 
       // Prepare image metadata (use provided metadata or create default)

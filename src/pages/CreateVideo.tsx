@@ -17,6 +17,8 @@ import {
 } from "@/components/create-video";
 import { ScriptGeneratorSection } from "@/components/create-video/ScriptGeneratorSection";
 import { uploadImagesToStorage } from "@/utils/uploadToStorage";
+import { uploadVideoToStorage } from "@/utils/uploadVideoToStorage";
+import { generateCanvasVideo } from "@/utils/generateCanvasVideo";
 import { getMusicId } from "@/config/musicMapping";
 import { getVoiceId } from "@/config/voiceMapping";
 import { ImageMetadata } from "@/components/create-video/PhotoUpload";
@@ -97,7 +99,7 @@ export default function CreateVideo() {
     setGenerationData(null);
   };
 
-  // Poll for video status (Luma batch workflow)
+  // Poll for video status
   const pollVideoStatus = async (
     generationIds: string[],
     videoId: string | null,
@@ -114,12 +116,14 @@ export default function CreateVideo() {
     style: string,
     layout: string,
     customTitle: string,
-    clipDurations: number[]
+    clipDurations: number[],
+    initialStitchJobId?: string | null
   ) => {
-    const maxAttempts = 120; // 10 minutes max (120 * 5 seconds) - Luma takes longer
+    const maxAttempts = 120; // 10 minutes max (120 * 5 seconds)
     let attempts = 0;
     let consecutiveErrors = 0;
-    let currentStitchJobId: string | null = null; // Track stitching job ID
+    // For canvas flow, start with the stitchJobId returned by generate-video
+    let currentStitchJobId: string | null = initialStitchJobId || null;
 
     const poll = async (): Promise<void> => {
       if (attempts >= maxAttempts) {
@@ -369,8 +373,33 @@ Contact us today for a private inspection.`;
         }
       }
 
-      // Step 3: Call generate-video using Supabase client (Luma AI workflow)
-      console.log("Calling generate-video API (Luma AI)...");
+      // Step 3: Generate canvas video clips client-side (mathematical transforms, zero AI)
+      console.log("Generating canvas video clips client-side...");
+      setGeneratingProgress(32);
+
+      const canvasFolder = `canvas-${Date.now()}`;
+      const canvasVideoUrls: string[] = [];
+
+      for (let i = 0; i < imageUrls.length; i++) {
+        const meta = imageMetadata[i];
+        const url = imageUrls[i];
+        const cameraAngle = meta?.cameraAngle || "auto";
+        const duration = meta?.duration || 5;
+
+        console.log(`Generating clip ${i + 1}/${imageUrls.length}: ${cameraAngle} @ ${duration}s`);
+
+        const blob = await generateCanvasVideo(url, cameraAngle, duration);
+        const videoUrl = await uploadVideoToStorage(blob, canvasFolder, `clip-${i + 1}`);
+        canvasVideoUrls.push(videoUrl);
+
+        setGeneratingProgress(32 + Math.round(((i + 1) / imageUrls.length) * 38)); // 32–70%
+      }
+
+      console.log("Canvas clips generated and uploaded:", canvasVideoUrls.length);
+      setGeneratingProgress(70);
+
+      // Step 4: Call generate-video with pre-generated clips (skips Runway, goes straight to Shotstack)
+      console.log("Calling generate-video API (canvas flow)...");
 
       const propertyDataPayload = {
         address: `${propertyDetails.streetAddress}, ${propertyDetails.suburb}, ${propertyDetails.state}`,
@@ -406,8 +435,11 @@ Contact us today for a private inspection.`;
         body: {
           imageUrls: imageUrls,
           imageMetadata: imageMetadataPayload,
+          preGeneratedVideoUrls: canvasVideoUrls,
           propertyData: propertyDataPayload,
           style: customization.selectedTemplate,
+          layout: customization.selectedLayout,
+          customTitle: customization.customTitle,
           voice: voiceId,
           music: musicId,
           userId: user?.id,
@@ -428,42 +460,64 @@ Contact us today for a private inspection.`;
 
       // Handle the response
       if (data.success) {
-        // Validate required data
-        if (!data.generationIds || data.generationIds.length === 0) {
-          throw new Error("No generation IDs returned from server. Check edge function logs.");
-        }
-
-        setGenerationIds(data.generationIds);
         if (data.videoId) {
           setVideoRecordId(data.videoId);
           console.log("Video record created:", data.videoId);
         }
         setGenerationData(data);
-        console.log(`Started ${data.totalClips} Luma AI generations`);
-        console.log("Generation data received:", data);
 
-        const estimatedMinutes = Math.ceil(data.estimatedTime / 60);
-        toast({
-          title: "Video Generation Started",
-          description: `Generating ${data.totalClips} cinematic clips with Luma AI... this may take ${estimatedMinutes}-${estimatedMinutes + 2} minutes.`,
-        });
+        const clipDurations = imageMetadataPayload.map((meta: { duration: number }) => meta.duration);
 
-        // Extract clip durations for stitching
-        const clipDurations = imageMetadataPayload.map(meta => meta.duration);
+        if (data.provider === "canvas" && data.stitchJobId) {
+          // Canvas flow: clips are already generated, Shotstack stitching has started
+          console.log("Canvas flow: stitching started immediately, job:", data.stitchJobId);
+          setStitchJobId(data.stitchJobId);
+          setGeneratingProgress(80);
+          toast({
+            title: "Stitching Video",
+            description: `Canvas clips ready! Assembling your video now...`,
+          });
+          // Poll video-status starting directly at the stitch phase
+          pollVideoStatus(
+            [],
+            data.videoId,
+            data.audioUrl,
+            data.musicUrl,
+            data.agentInfo,
+            propertyDataPayload,
+            customization.selectedTemplate,
+            customization.selectedLayout,
+            customization.customTitle,
+            clipDurations,
+            data.stitchJobId
+          );
+        } else {
+          // Runway flow: poll generationIds until Runway finishes
+          if (!data.generationIds || data.generationIds.length === 0) {
+            throw new Error("No generation IDs returned from server. Check edge function logs.");
+          }
+          setGenerationIds(data.generationIds);
+          console.log(`Started ${data.totalClips} Runway generations`);
 
-        // Start polling for video status
-        pollVideoStatus(
-          data.generationIds,
-          data.videoId,
-          data.audioUrl,
-          data.musicUrl,
-          data.agentInfo,
-          propertyDataPayload,
-          customization.selectedTemplate,
-          customization.selectedLayout,
-          customization.customTitle,
-          clipDurations
-        );
+          const estimatedMinutes = Math.ceil(data.estimatedTime / 60);
+          toast({
+            title: "Video Generation Started",
+            description: `Generating ${data.totalClips} cinematic clips with Runway... this may take ${estimatedMinutes}-${estimatedMinutes + 2} minutes.`,
+          });
+
+          pollVideoStatus(
+            data.generationIds,
+            data.videoId,
+            data.audioUrl,
+            data.musicUrl,
+            data.agentInfo,
+            propertyDataPayload,
+            customization.selectedTemplate,
+            customization.selectedLayout,
+            customization.customTitle,
+            clipDurations
+          );
+        }
       } else {
         throw new Error(data.error || "Video generation failed");
       }
