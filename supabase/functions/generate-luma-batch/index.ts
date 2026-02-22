@@ -18,7 +18,7 @@
 Maintain strict architectural accuracy and straight vertical lines.
 Consistent exposure, no flicker, no warping.
 Natural interior/exterior lighting, soft realistic shadows and reflections.
-Luxury real estate cinematography, calm and elegant mood.
+High-energy luxury real estate cinematography, dynamic and impactful.
 No people, no vehicles, no text, no watermarks, no UI, no camera artifacts.
 Photorealistic, clean, stable, professional property marketing video.
 4K quality.`;
@@ -110,9 +110,9 @@ Photorealistic, clean, stable, professional property marketing video.
       const workWidth = workImage.width;
       const workHeight = workImage.height;
 
-      // Crop 10% inward — resizing back creates a zoom path from real pixels
-      const cropWidth = Math.round(workWidth * 0.9);
-      const cropHeight = Math.round(workHeight * 0.9);
+      // Crop 18% inward — resizing back creates a zoom path from real pixels
+      const cropWidth = Math.round(workWidth * 0.82);
+      const cropHeight = Math.round(workHeight * 0.82);
 
       let cropX: number;
       let cropY: number;
@@ -216,14 +216,14 @@ Photorealistic, clean, stable, professional property marketing video.
           // Step 2: Build motion prompt
           const motionDescription =
             cameraAngle === "push-in" || cameraAngle === "zoom-in" || cameraAngle === "auto"
-              ? "Smooth subtle push-in toward the focal point."
+              ? "Fast aggressive cinematic push-in toward the focal point, high-velocity forward camera drive."
               : cameraAngle === "push-out"
-                ? "Smooth subtle pull-back away from the scene."
+                ? "Fast aggressive cinematic pull-back from the scene, rapid dramatic reveal."
                 : cameraAngle === "orbit-right"
-                  ? "Smooth subtle orbit clockwise around the focal point."
+                  ? "Fast aggressive cinematic sweep right, rapid horizontal camera drive across the space."
                   : cameraAngle === "orbit-left"
-                    ? "Smooth subtle orbit counter-clockwise around the focal point."
-                    : "Smooth subtle camera movement.";
+                    ? "Fast aggressive cinematic sweep left, rapid horizontal camera drive across the space."
+                    : "Fast aggressive cinematic camera movement, high-velocity drive.";
 
           const fullPrompt = `High-end cinematic real estate video of ${propertyAddress}.
 ${motionDescription}
@@ -254,7 +254,7 @@ ${STABILITY_PROMPT}`.trim();
               keyframes: keyframes,
               aspect_ratio: "9:16",
               loop: false,
-              duration: "9s",
+              duration: "5s",
               negative_prompt: NEGATIVE_PROMPT,
               motion_bucket_id: 3,
             }),
