@@ -82,7 +82,7 @@
     return MUSIC_LIBRARY[musicId] || null;
   };
 
-  interface RunwayGeneration {
+  interface LumaGeneration {
     imageUrl: string;
     generationId: string;
     status: "queued" | "error";
@@ -97,7 +97,7 @@
     try {
       const { imageUrls, imageMetadata, propertyData, style, layout, customTitle, voice, music, userId, propertyId, script, source, agentInfo, preGeneratedVideoUrls }: GenerateVideoRequest = await req.json();
 
-      console.log("=== RUNWAY VIDEO GENERATION ===");
+      console.log("=== LUMA VIDEO GENERATION ===");
       console.log("Total images:", imageUrls?.length || 0);
       console.log("Property:", propertyData?.address);
 
@@ -303,18 +303,18 @@
         );
       }
 
-      // --- Runway flow ---
-      console.log("Starting Runway batch generation for", imageUrls.length, "images...");
+      // --- Luma flow ---
+      console.log("Starting Luma batch generation for", imageUrls.length, "images...");
 
       // Prepare image metadata (use provided metadata or create default)
-      const metadataForRunway = imageMetadata || imageUrls.map(url => ({
+      const metadataForLuma = imageMetadata || imageUrls.map(url => ({
         url,
         cameraAngle: "auto",
         duration: 5
       }));
 
-      const runwayResponse = await fetch(
-        `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-runway-batch`,
+      const lumaResponse = await fetch(
+        `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-luma-batch`,
         {
           method: "POST",
           headers: {
@@ -322,34 +322,34 @@
             "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
           },
           body: JSON.stringify({
-            imageMetadata: metadataForRunway,
+            imageMetadata: metadataForLuma,
             propertyAddress: propertyData.address,
           }),
         }
       );
 
-      const runwayData = await runwayResponse.json();
+      const lumaData = await lumaResponse.json();
 
-      if (!runwayData.success) {
-        throw new Error(runwayData.error || "Failed to start Runway batch generation");
+      if (!lumaData.success) {
+        throw new Error(lumaData.error || "Failed to start Luma batch generation");
       }
 
-      if (!Array.isArray(runwayData.generations)) {
-        throw new Error(`Unexpected response from generate-runway-batch: ${JSON.stringify(runwayData)}`);
+      if (!Array.isArray(lumaData.generations)) {
+        throw new Error(`Unexpected response from generate-luma-batch: ${JSON.stringify(lumaData)}`);
       }
 
-      const generations = (runwayData.generations as RunwayGeneration[]).filter(
+      const generations = (lumaData.generations as LumaGeneration[]).filter(
         (g) => g.status === "queued" && g.generationId
       );
       const generationIds = generations.map((g) => g.generationId).filter(Boolean) as string[];
 
-      console.log(`Started ${generations.length} Runway generations`);
+      console.log(`Started ${generations.length} Luma generations`);
       console.log("Generation IDs:", generationIds);
 
       if (generationIds.length === 0) {
-        const failedGenerations = (runwayData.generations as RunwayGeneration[]).filter((g) => g.status === "error");
+        const failedGenerations = (lumaData.generations as LumaGeneration[]).filter((g) => g.status === "error");
         const errors = failedGenerations.map((g) => g.error).join("; ");
-        throw new Error(`No valid Runway generation IDs returned. All ${runwayData.generations?.length ?? 0} submissions failed. Errors: ${errors || "unknown"}`);
+        throw new Error(`No valid Luma generation IDs returned. All ${lumaData.generations?.length ?? 0} submissions failed. Errors: ${errors || "unknown"}`);
       }
 
       // Save generation context to DB so Dashboard can resume polling if user navigates away
@@ -359,8 +359,7 @@
           const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
           const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-          // Clamp durations to match what Runway actually produces (5-10s)
-          const clipDurations = (imageMetadata || metadataForRunway).map(m => Math.min(Math.max(m.duration ?? 5, 2), 10));
+          const clipDurations = (imageMetadata || metadataForLuma).map(m => m.duration ?? 5);
 
           await supabaseAdmin
             .from("videos")
@@ -386,18 +385,18 @@
       return new Response(
         JSON.stringify({
           success: true,
-          provider: "runway",
+          provider: "luma",
           videoId: videoRecordId,
           generationIds: generationIds,
           totalClips: generationIds.length,
           estimatedDuration: expectedDuration,
           estimatedTime: generationIds.length * 45,
-          message: `Started ${generationIds.length} Runway generations. Use check-runway-batch to poll status.`,
+          message: `Started ${generationIds.length} Luma generations. Use check-luma-batch to poll status.`,
           audioUrl: audioUrl,
           musicUrl: musicUrl,
           agentInfo: agentInfo,
           propertyData: propertyData,
-          style: style, // Pass template style for video overlays
+          style: style,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
