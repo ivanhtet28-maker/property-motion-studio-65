@@ -492,7 +492,7 @@ Contact us today for a private inspection.`;
       console.log("Canvas clips generated and uploaded:", canvasVideoUrls.length);
       setGeneratingProgress(70);
 
-      // Step 4: Call generate-video with pre-generated clips (skips Runway, goes straight to Shotstack)
+      // Step 4: Call generate-video with pre-generated clips (skips Luma, goes straight to Shotstack)
       console.log("Calling generate-video API (canvas flow)...");
 
       const propertyDataPayload = {
@@ -590,17 +590,17 @@ Contact us today for a private inspection.`;
             data.stitchJobId
           );
         } else {
-          // Runway flow: poll generationIds until Runway finishes
+          // Luma flow: poll generationIds until Luma finishes
           if (!data.generationIds || data.generationIds.length === 0) {
             throw new Error("No generation IDs returned from server. Check edge function logs.");
           }
           setGenerationIds(data.generationIds);
-          console.log(`Started ${data.totalClips} Runway generations`);
+          console.log(`Started ${data.totalClips} Luma generations`);
 
           const estimatedMinutes = Math.ceil(data.estimatedTime / 60);
           toast({
             title: "Video Generation Started",
-            description: `Generating ${data.totalClips} cinematic clips with Runway... this may take ${estimatedMinutes}-${estimatedMinutes + 2} minutes.`,
+            description: `Generating ${data.totalClips} cinematic clips with Luma... this may take ${estimatedMinutes}-${estimatedMinutes + 2} minutes.`,
           });
 
           pollVideoStatus(
