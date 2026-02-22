@@ -105,11 +105,13 @@ export async function generateCanvasVideo(
         baseY = (canvas.height - baseH) / 2;
       }
 
-      const totalFrames = Math.round(durationSeconds * fps);
-      let frameIndex = 0;
+      const durationMs = durationSeconds * 1000;
+      const startTime = performance.now();
 
       function drawFrame() {
-        const progress = Math.min(frameIndex / totalFrames, 1);
+        // Time-based progress — correct regardless of display refresh rate (60Hz, 120Hz, etc.)
+        const elapsed = performance.now() - startTime;
+        const progress = Math.min(elapsed / durationMs, 1);
         const { scale, offsetX, offsetY } = getTransform(
           cameraAngle as CameraAngle,
           progress
@@ -127,11 +129,11 @@ export async function generateCanvasVideo(
         ctx.drawImage(img, baseX, baseY, baseW, baseH);
         ctx.restore();
 
-        frameIndex++;
-        if (frameIndex <= totalFrames) {
+        if (progress < 1) {
           requestAnimationFrame(drawFrame);
         } else {
-          recorder.stop();
+          // Hold the final frame for one more tick so MediaRecorder captures it
+          setTimeout(() => recorder.stop(), 200);
         }
       }
 
