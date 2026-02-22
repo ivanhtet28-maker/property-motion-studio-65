@@ -36,7 +36,7 @@ interface PhotoUploadProps {
 const CAMERA_ANGLE_OPTIONS: Record<CameraAngle, { label: string; description: string }> = {
   auto: {
     label: "Auto (Recommended)",
-    description: "AI automatically chooses the best camera movement for this image",
+    description: "Smooth push-in zoom — best all-round movement for any shot",
   },
   "wide-shot": {
     label: "Wide Shot",

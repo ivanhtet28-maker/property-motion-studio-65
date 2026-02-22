@@ -154,13 +154,13 @@ Contact us today for a private inspection.`;
 
   const getProgressStatus = () => {
     if (generatingProgress < 20) return "Uploading photos...";
-    if (generatingProgress < 80) return "Generating cinematic clips with Luma AI...";
-    if (generatingProgress < 90) return "Clips ready, starting stitching...";
+    if (generatingProgress < 70) return "Generating cinematic clips...";
+    if (generatingProgress < 80) return "Clips ready, assembling video...";
     if (generatingProgress < 95) return "Stitching clips with Shotstack...";
     return "Finalizing your video...";
   };
 
-  const remainingSeconds = Math.max(0, Math.round(300 - (generatingProgress / 100) * 300)); // 5 minutes for Luma
+  const remainingSeconds = Math.max(0, Math.round(120 - (generatingProgress / 100) * 120)); // ~2 minutes total
 
   return (
     <aside className="w-[340px] bg-gradient-to-b from-card via-card to-secondary/20 border-l border-border/50 flex flex-col h-full overflow-hidden">
