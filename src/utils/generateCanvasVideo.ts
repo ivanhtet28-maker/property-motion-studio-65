@@ -29,24 +29,23 @@ function getTransform(angle: CameraAngle, progress: number): Transform {
   switch (angle) {
     case "push-in":
     case "auto": {
-      // Camera pushes forward into the scene — easeOut so it arrives fast then settles
+      // Gentle forward push — 6% zoom so the full room stays visible
       const t = easeOut(progress);
-      return { scale: 1 + 0.25 * t, offsetX: 0, offsetY: 0 };
+      return { scale: 1 + 0.06 * t, offsetX: 0, offsetY: 0 };
     }
     case "push-out": {
-      // Camera pulls back to reveal — starts tight (1.25×), accelerates away with easeIn
+      // Pull back from slight zoom — reverse of push-in
       const t = easeIn(progress);
-      return { scale: 1.25 - 0.25 * t, offsetX: 0, offsetY: 0 };
+      return { scale: 1.06 - 0.06 * t, offsetX: 0, offsetY: 0 };
     }
     case "orbit-right": {
-      // Camera arcs right around subject: aggressive lateral sweep + slight zoom
-      // easeOut: camera commits to the direction immediately, no hesitation
+      // Arc right: subtle zoom + lateral pan to reveal room edge
       const t = easeOut(progress);
-      return { scale: 1 + 0.12 * t, offsetX: -0.18 * t, offsetY: 0 };
+      return { scale: 1 + 0.06 * t, offsetX: -0.06 * t, offsetY: 0 };
     }
     case "orbit-left": {
       const t = easeOut(progress);
-      return { scale: 1 + 0.12 * t, offsetX: 0.18 * t, offsetY: 0 };
+      return { scale: 1 + 0.06 * t, offsetX: 0.06 * t, offsetY: 0 };
     }
     case "wide-shot":
     default:
@@ -100,20 +99,36 @@ export async function generateCanvasVideo(
 
       recorder.start(100); // emit chunks every 100ms
 
-      // Pre-compute object-fit: cover dimensions
+      // Determine fit strategy based on image vs canvas aspect ratio
       const imgAspect = img.naturalWidth / img.naturalHeight;
-      const canvasAspect = canvas.width / canvas.height;
+      const canvasAspect = canvas.width / canvas.height; // 0.5625 for 9:16
+      const isLandscape = imgAspect > canvasAspect;
+
+      // object-fit: contain — preserves the full image composition
+      // Landscape photos: fit to canvas width, letterbox top/bottom
+      // Portrait photos: fit to canvas height, letterbox left/right
       let baseW: number, baseH: number, baseX: number, baseY: number;
-      if (imgAspect > canvasAspect) {
-        baseH = canvas.height;
-        baseW = baseH * imgAspect;
-        baseX = (canvas.width - baseW) / 2;
-        baseY = 0;
-      } else {
+      if (isLandscape) {
         baseW = canvas.width;
-        baseH = baseW / imgAspect;
+        baseH = canvas.width / imgAspect;
         baseX = 0;
         baseY = (canvas.height - baseH) / 2;
+      } else {
+        baseH = canvas.height;
+        baseW = canvas.height * imgAspect;
+        baseX = (canvas.width - baseW) / 2;
+        baseY = 0;
+      }
+
+      // Cover-mode coords for blurred background (fills letterbox areas for landscape shots)
+      let bgW: number, bgH: number, bgX: number, bgY: number;
+      if (isLandscape) {
+        bgH = canvas.height;
+        bgW = bgH * imgAspect;
+        bgX = (canvas.width - bgW) / 2;
+        bgY = 0;
+      } else {
+        bgW = baseW; bgH = baseH; bgX = baseX; bgY = baseY;
       }
 
       const durationMs = durationSeconds * 1000;
@@ -129,8 +144,20 @@ export async function generateCanvasVideo(
         );
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Blurred, darkened background for landscape images.
+        // Fills the letterbox areas (top/bottom) and provides a cinematic
+        // backdrop when orbits pan the main image slightly off-center.
+        if (isLandscape) {
+          ctx.save();
+          ctx.filter = "blur(30px) brightness(0.35)";
+          ctx.drawImage(img, bgX, bgY, bgW, bgH);
+          ctx.filter = "none";
+          ctx.restore();
+        }
+
+        // Main image with camera transform
         ctx.save();
-        // Transform from center so zoom/orbit is centered
         ctx.translate(
           canvas.width / 2 + offsetX * canvas.width,
           canvas.height / 2 + offsetY * canvas.height
