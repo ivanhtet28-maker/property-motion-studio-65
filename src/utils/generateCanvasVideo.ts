@@ -46,7 +46,7 @@ function getTransform(angle: CameraAngle, progress: number): Transform {
 export async function generateCanvasVideo(
   imageUrl: string,
   cameraAngle: string,
-  durationSeconds: number = 5,
+  durationSeconds: number = 3.5,
   fps: number = 30
 ): Promise<Blob> {
   return new Promise(async (resolve, reject) => {
