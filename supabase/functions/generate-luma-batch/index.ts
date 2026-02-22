@@ -11,7 +11,7 @@ const STABILITY_PROMPT = `ULTRA-STABLE architecture, no morphing, no distortion,
 Maintain strict architectural accuracy and straight vertical lines.
 Consistent exposure, no flicker, no warping.
 Natural interior/exterior lighting, soft realistic shadows and reflections.
-High-energy luxury real estate cinematography, dynamic and impactful.
+Luxury real estate cinematography, slow and elegant, sophisticated and composed.
 No people, no vehicles, no text, no watermarks, no UI, no camera artifacts.
 Photorealistic, clean, stable, professional property marketing video.
 4K quality.`;
@@ -21,6 +21,7 @@ const NEGATIVE_PROMPT = [
   "structural changes, hallucination, blurry architecture, zooming into darkness",
   "changing light sources, shifting shadows, surreal elements, AI artifacts, unnatural colors",
   "camera shake, jitter, wobble, vibration, handheld, unstable, shaking",
+  "fast motion, rapid movement, rushed camera, aggressive movement, speed ramp, hyperactive",
   "aspect ratio distortion, stretching, squishing, letterbox, pillarbox, black bars",
   "warped perspective, fisheye, wide angle distortion, content outside original frame",
   "generated background, padding, cropped borders, image borders",
@@ -50,16 +51,18 @@ Deno.serve(async (req) => {
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
         console.log(`Image: ${imageUrl}, angle: ${cameraAngle}`);
 
+        // Professional real estate videography: slow, smooth, gimbal-stabilised movements.
+        // Each description mirrors how an experienced property videographer would physically move the camera.
         const motionDescription =
           cameraAngle === "push-in" || cameraAngle === "zoom-in" || cameraAngle === "auto"
-            ? "Fast aggressive cinematic push-in toward the focal point, high-velocity forward camera drive."
+            ? "Slow, smooth gimbal dolly push-in: the camera glides steadily forward toward the focal point at a relaxed, deliberate walking pace — as if a professional videographer is on a slider. Buttery smooth, zero shake, constant speed throughout."
             : cameraAngle === "push-out"
-              ? "Fast aggressive cinematic pull-back from the scene, rapid dramatic reveal."
+              ? "Slow, smooth cinematic pull-back: the camera glides steadily backward at a relaxed, deliberate pace, gradually revealing the full depth and grandeur of the space. Graceful and unhurried, buttery smooth, zero shake."
               : cameraAngle === "orbit-right"
-                ? "Fast aggressive cinematic sweep right, rapid horizontal camera drive across the space."
+                ? "Slow, smooth pan right: the camera sweeps steadily from left to right across the space at an even, unhurried pace — as if a professional videographer is slowly rotating the tripod head to reveal the full width of the room. Pure horizontal camera rotation, no zoom, no vertical drift, buttery smooth."
                 : cameraAngle === "orbit-left"
-                  ? "Fast aggressive cinematic sweep left, rapid horizontal camera drive across the space."
-                  : "Fast aggressive cinematic camera movement, high-velocity drive.";
+                  ? "Slow, smooth pan left: the camera sweeps steadily from right to left across the space at an even, unhurried pace — as if a professional videographer is slowly rotating the tripod head to reveal the full width of the room. Pure horizontal camera rotation, no zoom, no vertical drift, buttery smooth."
+                  : "Slow, smooth cinematic camera glide through the space, deliberate and unhurried.";
 
         const fullPrompt = `High-end cinematic real estate video of ${propertyAddress}.
 ${motionDescription}

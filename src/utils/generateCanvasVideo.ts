@@ -25,27 +25,36 @@ function easeIn(t: number): number {
   return t * t * t; // cubic: slow deliberate start, accelerates away
 }
 
+// Smooth symmetric ease used for pans — mirrors how a videographer
+// gently starts a tripod rotation, holds a steady rate, then decelerates.
+function easeInOut(t: number): number {
+  return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+}
+
 function getTransform(angle: CameraAngle, progress: number): Transform {
   switch (angle) {
     case "push-in":
     case "auto": {
-      // Gentle forward push — 6% zoom so the full room stays visible
+      // Gentle dolly forward — 4% zoom keeps the full room in frame
       const t = easeOut(progress);
-      return { scale: 1 + 0.06 * t, offsetX: 0, offsetY: 0 };
+      return { scale: 1 + 0.04 * t, offsetX: 0, offsetY: 0 };
     }
     case "push-out": {
-      // Pull back from slight zoom — reverse of push-in
+      // Slow pull-back reveal — reverse of push-in
       const t = easeIn(progress);
-      return { scale: 1.06 - 0.06 * t, offsetX: 0, offsetY: 0 };
+      return { scale: 1.04 - 0.04 * t, offsetX: 0, offsetY: 0 };
     }
     case "orbit-right": {
-      // Arc right: subtle zoom + lateral pan to reveal room edge
-      const t = easeOut(progress);
-      return { scale: 1 + 0.06 * t, offsetX: -0.06 * t, offsetY: 0 };
+      // Pure pan right: NO simultaneous zoom — that's what makes it feel natural.
+      // A real videographer rotates the tripod head steadily with no focal-length change.
+      // 12% horizontal offset reveals the far side of a wide-angle room shot.
+      const t = easeInOut(progress);
+      return { scale: 1, offsetX: -0.12 * t, offsetY: 0 };
     }
     case "orbit-left": {
-      const t = easeOut(progress);
-      return { scale: 1 + 0.06 * t, offsetX: 0.06 * t, offsetY: 0 };
+      // Pure pan left — mirror of orbit-right.
+      const t = easeInOut(progress);
+      return { scale: 1, offsetX: 0.12 * t, offsetY: 0 };
     }
     case "wide-shot":
     default:
