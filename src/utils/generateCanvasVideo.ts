@@ -57,7 +57,8 @@ export async function generateCanvasVideo(
   imageUrl: string,
   cameraAngle: string,
   durationSeconds: number = 3.5,
-  fps: number = 30
+  fps: number = 30,
+  format: "portrait" | "landscape" = "portrait"
 ): Promise<Blob> {
   return new Promise(async (resolve, reject) => {
     try {
@@ -71,10 +72,16 @@ export async function generateCanvasVideo(
         img.src = imageUrl;
       });
 
-      // 9:16 portrait canvas — matches the video output format
       const canvas = document.createElement("canvas");
-      canvas.width = 720;
-      canvas.height = 1280;
+      if (format === "landscape") {
+        // 16:9 landscape — full room composition, standard widescreen
+        canvas.width = 1280;
+        canvas.height = 720;
+      } else {
+        // 9:16 portrait — social media / mobile format
+        canvas.width = 720;
+        canvas.height = 1280;
+      }
       const ctx = canvas.getContext("2d")!;
 
       // Pick best available codec
@@ -99,36 +106,53 @@ export async function generateCanvasVideo(
 
       recorder.start(100); // emit chunks every 100ms
 
-      // Determine fit strategy based on image vs canvas aspect ratio
       const imgAspect = img.naturalWidth / img.naturalHeight;
-      const canvasAspect = canvas.width / canvas.height; // 0.5625 for 9:16
-      const isLandscape = imgAspect > canvasAspect;
+      const canvasAspect = canvas.width / canvas.height;
 
-      // object-fit: contain — preserves the full image composition
-      // Landscape photos: fit to canvas width, letterbox top/bottom
-      // Portrait photos: fit to canvas height, letterbox left/right
       let baseW: number, baseH: number, baseX: number, baseY: number;
-      if (isLandscape) {
-        baseW = canvas.width;
-        baseH = canvas.width / imgAspect;
-        baseX = 0;
-        baseY = (canvas.height - baseH) / 2;
-      } else {
-        baseH = canvas.height;
-        baseW = canvas.height * imgAspect;
-        baseX = (canvas.width - baseW) / 2;
-        baseY = 0;
-      }
+      let bgW = 0, bgH = 0, bgX = 0, bgY = 0;
+      let needsBlurredBackground = false;
 
-      // Cover-mode coords for blurred background (fills letterbox areas for landscape shots)
-      let bgW: number, bgH: number, bgX: number, bgY: number;
-      if (isLandscape) {
-        bgH = canvas.height;
-        bgW = bgH * imgAspect;
-        bgX = (canvas.width - bgW) / 2;
-        bgY = 0;
+      if (format === "landscape") {
+        // Landscape 16:9 canvas — use cover mode.
+        // Property photos are typically 3:2 or wider (1.5–1.78:1), fitting naturally
+        // into 16:9 with only minor top/bottom crop (< 10%).
+        if (imgAspect >= canvasAspect) {
+          // Photo wider than 16:9: fit to height, slight left/right crop
+          baseH = canvas.height;
+          baseW = baseH * imgAspect;
+          baseX = (canvas.width - baseW) / 2;
+          baseY = 0;
+        } else {
+          // Photo narrower than 16:9: fit to width, slight top/bottom crop
+          baseW = canvas.width;
+          baseH = baseW / imgAspect;
+          baseX = 0;
+          baseY = (canvas.height - baseH) / 2;
+        }
       } else {
-        bgW = baseW; bgH = baseH; bgX = baseX; bgY = baseY;
+        // Portrait 9:16 canvas — use contain mode to preserve the full room.
+        // Landscape property photos letterbox in portrait; blurred background fills the bars.
+        const isLandscape = imgAspect > canvasAspect;
+        if (isLandscape) {
+          // Fit to canvas width — shows full image width, letterbox top/bottom
+          baseW = canvas.width;
+          baseH = canvas.width / imgAspect;
+          baseX = 0;
+          baseY = (canvas.height - baseH) / 2;
+          // Cover coords for blurred background layer
+          bgH = canvas.height;
+          bgW = bgH * imgAspect;
+          bgX = (canvas.width - bgW) / 2;
+          bgY = 0;
+          needsBlurredBackground = true;
+        } else {
+          // Portrait image: fit to canvas height
+          baseH = canvas.height;
+          baseW = canvas.height * imgAspect;
+          baseX = (canvas.width - baseW) / 2;
+          baseY = 0;
+        }
       }
 
       const durationMs = durationSeconds * 1000;
@@ -145,10 +169,9 @@ export async function generateCanvasVideo(
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Blurred, darkened background for landscape images.
-        // Fills the letterbox areas (top/bottom) and provides a cinematic
-        // backdrop when orbits pan the main image slightly off-center.
-        if (isLandscape) {
+        // Blurred, darkened background for portrait landscape shots.
+        // Fills the letterbox areas (top/bottom) with a cinematic backdrop.
+        if (needsBlurredBackground) {
           ctx.save();
           ctx.filter = "blur(30px) brightness(0.35)";
           ctx.drawImage(img, bgX, bgY, bgW, bgH);

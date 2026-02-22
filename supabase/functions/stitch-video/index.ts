@@ -128,6 +128,7 @@
     layout?: string; // "minimal-focus" | "bold-banner" | "modern-luxe"
     customTitle?: string; // Custom title text (e.g., "Just Sold", "Open House")
     videoId?: string;
+    outputFormat?: "portrait" | "landscape"; // "portrait" = 9:16 (default), "landscape" = 16:9
   }
 
   // ============================================================
@@ -421,7 +422,7 @@
     }
 
     try {
-      const { videoUrls, clipDurations, propertyData, audioUrl, musicUrl, agentInfo, style, layout, customTitle, videoId }: StitchVideoRequest = await req.json();
+      const { videoUrls, clipDurations, propertyData, audioUrl, musicUrl, agentInfo, style, layout, customTitle, videoId, outputFormat }: StitchVideoRequest = await req.json();
 
       if (!videoUrls || videoUrls.length === 0) {
         throw new Error("No video URLs provided for stitching");
@@ -658,7 +659,7 @@
         output: {
           format: "mp4",
           resolution: "hd",
-          aspectRatio: "9:16",
+          aspectRatio: outputFormat === "landscape" ? "16:9" : "9:16",
         },
       };
 

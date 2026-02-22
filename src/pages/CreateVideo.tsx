@@ -82,7 +82,11 @@ export default function CreateVideo() {
     agentInfo: CustomizationSettings['agentInfo'];
     propertyData: Record<string, unknown>;
     style: string;
+    layout: string;
+    customTitle: string;
   } | null>(null);
+  const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]); // source image URLs for landscape re-render
+  const [isDownloadingLandscape, setIsDownloadingLandscape] = useState(false);
   const [refreshSidebarTrigger, setRefreshSidebarTrigger] = useState(0);
 
   // Reset video generation state to create another video
@@ -97,6 +101,93 @@ export default function CreateVideo() {
     setVideoUrls([]);
     setStitchJobId(null);
     setGenerationData(null);
+    setUploadedImageUrls([]);
+  };
+
+  // On-demand landscape (16:9) re-render for download.
+  // Re-generates canvas clips at 1280×720, submits a new Shotstack job, polls, then downloads.
+  const handleDownloadLandscape = async () => {
+    if (!uploadedImageUrls.length || !generationData) return;
+
+    setIsDownloadingLandscape(true);
+    try {
+      toast({ title: "Rendering landscape version...", description: "Generating 16:9 video — this takes about a minute." });
+
+      // Step 1: Re-generate canvas clips at 1280×720 (landscape)
+      const landscapeFolder = `landscape-${Date.now()}`;
+      const landscapeClipUrls: string[] = [];
+
+      for (let i = 0; i < uploadedImageUrls.length; i++) {
+        const meta = imageMetadata[i];
+        const blob = await generateCanvasVideo(
+          uploadedImageUrls[i],
+          meta?.cameraAngle || "auto",
+          meta?.duration || 3.5,
+          30,
+          "landscape"
+        );
+        const clipUrl = await uploadVideoToStorage(blob, landscapeFolder, `clip-${i + 1}`);
+        landscapeClipUrls.push(clipUrl);
+      }
+
+      // Step 2: Submit a landscape Shotstack stitch job
+      const clipDurations = imageMetadata.map(m => m?.duration || 3.5);
+      const { data: stitchData, error: stitchError } = await supabase.functions.invoke("stitch-video", {
+        body: {
+          videoUrls: landscapeClipUrls,
+          clipDurations,
+          audioUrl: generationData.audioUrl,
+          musicUrl: generationData.musicUrl,
+          agentInfo: generationData.agentInfo,
+          propertyData: generationData.propertyData,
+          style: generationData.style,
+          layout: generationData.layout,
+          customTitle: generationData.customTitle,
+          outputFormat: "landscape",
+        },
+      });
+
+      if (stitchError) throw new Error(stitchError.message || "Landscape stitch failed");
+
+      const landscapeJobId = stitchData.jobId;
+
+      // Step 3: Poll for completion (video-status skips DB update when videoId is null)
+      let landscapeVideoUrl: string | null = null;
+      for (let attempt = 0; attempt < 60 && !landscapeVideoUrl; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        const { data: statusData } = await supabase.functions.invoke("video-status", {
+          body: {
+            generationIds: [],
+            videoId: null,
+            stitchJobId: landscapeJobId,
+            clipDurations,
+            audioUrl: null,
+            musicUrl: null,
+            agentInfo: null,
+            propertyData: generationData.propertyData,
+            style: generationData.style,
+          },
+        });
+        if (statusData?.status === "done" && statusData?.videoUrl) {
+          landscapeVideoUrl = statusData.videoUrl;
+        } else if (statusData?.status === "failed") {
+          throw new Error("Landscape render failed on Shotstack");
+        }
+      }
+
+      if (!landscapeVideoUrl) throw new Error("Landscape render timed out");
+
+      window.open(landscapeVideoUrl, "_blank");
+      toast({ title: "Landscape video ready!", description: "Your 16:9 video is downloading." });
+    } catch (err) {
+      toast({
+        title: "Landscape render failed",
+        description: err instanceof Error ? err.message : "Could not render landscape video.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDownloadingLandscape(false);
+    }
   };
 
   // Poll for video status
@@ -351,6 +442,9 @@ export default function CreateVideo() {
         setGeneratingProgress(30);
       }
 
+      // Store image URLs so landscape re-render can reuse them without re-uploading
+      setUploadedImageUrls(imageUrls);
+
       // Step 2: Generate script if empty (use same logic as RightPanel)
       let videoScript = script;
 
@@ -464,7 +558,11 @@ Contact us today for a private inspection.`;
           setVideoRecordId(data.videoId);
           console.log("Video record created:", data.videoId);
         }
-        setGenerationData(data);
+        setGenerationData({
+          ...data,
+          layout: customization.selectedLayout,
+          customTitle: customization.customTitle,
+        });
 
         const clipDurations = imageMetadataPayload.map((meta: { duration: number }) => meta.duration);
 
@@ -717,6 +815,8 @@ Contact us today for a private inspection.`;
             videoUrl={videoUrl}
             videoUrls={videoUrls}
             agentInfoValid={!!customization.agentInfo.name.trim() && !!customization.agentInfo.phone.trim()}
+            onDownloadLandscape={handleDownloadLandscape}
+            isDownloadingLandscape={isDownloadingLandscape}
           />
         </div>
       </div>
