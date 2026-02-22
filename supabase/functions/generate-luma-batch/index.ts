@@ -256,7 +256,6 @@ ${STABILITY_PROMPT}`.trim();
               loop: false,
               duration: "5s",
               negative_prompt: NEGATIVE_PROMPT,
-              motion_bucket_id: 3,
             }),
           });
 
