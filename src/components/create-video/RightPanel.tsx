@@ -51,6 +51,8 @@ interface RightPanelProps {
   videoUrl?: string | null;
   videoUrls?: string[];
   agentInfoValid?: boolean;
+  onDownloadLandscape?: () => void;
+  isDownloadingLandscape?: boolean;
 }
 
 export function RightPanel({
@@ -65,6 +67,8 @@ export function RightPanel({
   videoUrl,
   videoUrls = [],
   agentInfoValid = true,
+  onDownloadLandscape,
+  isDownloadingLandscape = false,
 }: RightPanelProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -154,13 +158,13 @@ Contact us today for a private inspection.`;
 
   const getProgressStatus = () => {
     if (generatingProgress < 20) return "Uploading photos...";
-    if (generatingProgress < 80) return "Generating cinematic clips with Luma AI...";
-    if (generatingProgress < 90) return "Clips ready, starting stitching...";
+    if (generatingProgress < 70) return "Generating cinematic clips...";
+    if (generatingProgress < 80) return "Clips ready, assembling video...";
     if (generatingProgress < 95) return "Stitching clips with Shotstack...";
     return "Finalizing your video...";
   };
 
-  const remainingSeconds = Math.max(0, Math.round(300 - (generatingProgress / 100) * 300)); // 5 minutes for Luma
+  const remainingSeconds = Math.max(0, Math.round(120 - (generatingProgress / 100) * 120)); // ~2 minutes total
 
   return (
     <aside className="w-[340px] bg-gradient-to-b from-card via-card to-secondary/20 border-l border-border/50 flex flex-col h-full overflow-hidden">
@@ -347,16 +351,31 @@ Contact us today for a private inspection.`;
               Generate Another Video
             </Button>
 
-            {/* Download & Share */}
-            <Button
-              variant="hero"
-              className="w-full gap-2 shadow-lg shadow-primary/25"
-              onClick={handleDownload}
-              disabled={!videoUrl}
-            >
-              <Download className="w-4 h-4" />
-              Download MP4
-            </Button>
+            {/* Download — Portrait (9:16) and Landscape (16:9) */}
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="hero"
+                className="gap-1.5 shadow-lg shadow-primary/25"
+                onClick={handleDownload}
+                disabled={!videoUrl}
+              >
+                <Download className="w-4 h-4" />
+                Portrait
+              </Button>
+              <Button
+                variant="outline"
+                className="gap-1.5 border-2 border-primary/30 hover:bg-primary/10"
+                onClick={onDownloadLandscape}
+                disabled={!videoUrl || isDownloadingLandscape || !onDownloadLandscape}
+              >
+                {isDownloadingLandscape ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                Landscape
+              </Button>
+            </div>
 
             <div className="grid grid-cols-3 gap-2">
               <Button variant="outline" size="sm" className="gap-1.5 text-xs">

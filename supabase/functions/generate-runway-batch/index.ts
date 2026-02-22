@@ -9,6 +9,11 @@ const RUNWAY_API_KEY = Deno.env.get("RUNWAY_API_KEY");
 const RUNWAY_API_URL = "https://api.dev.runwayml.com/v1/image_to_video";
 const RUNWAY_VERSION = "2024-11-06";
 
+// Both gen3a_turbo and gen4_turbo only support 5 or 10 second durations
+function toValidRunwayDuration(duration: number): 5 | 10 {
+  return duration <= 7 ? 5 : 10;
+}
+
 async function fetchWithRetry(url: string, options: RequestInit, retries = 2, attempt = 1): Promise<Response> {
   try {
     const response = await fetch(url, options);
@@ -34,23 +39,34 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2, at
 }
 
 /**
- * Motion-only prompts using specific cinematography terms.
- * Positive phrasing only — negative phrasing causes opposite results.
- * Stability cues keep architecture rigid and furniture still.
+ * Motion-only prompts for Runway Gen-4 Turbo (text-only camera control).
+ *
+ * NOTE: Runway's developer API has NO camera_motion parameter for any model.
+ * Camera controls shown in the Runway UI are not exposed through the REST API.
+ * The only lever we have is prompt_text — so prompts are kept short and focused
+ * exclusively on camera movement (Runway's official recommendation).
+ *
+ * gen4_turbo is used (not gen3a_turbo) because:
+ *   - Both models are text-only through the API
+ *   - gen4_turbo produces higher quality output
+ *   - gen3a_turbo ratio is 768:1280 vs gen4_turbo 720:1280 (minor difference)
  */
 function getMotionPrompt(cameraAngle: string): string {
   switch (cameraAngle) {
-    case "pan-right":
-      return "camera pans right across the room. Rigid architecture, stable furniture, steady environment.";
-    case "pan-left":
-      return "camera pans left across the room. Rigid architecture, stable furniture, steady environment.";
-    case "zoom-in":
-      return "camera zooms into the room. Rigid architecture, stable furniture, steady environment.";
+    case "orbit-right":
+      return "The camera slowly orbits clockwise around the room. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
+    case "orbit-left":
+      return "The camera slowly orbits counter-clockwise around the room. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
+    case "push-in":
+    case "zoom-in": // legacy alias
+      return "The camera slowly dollies forward into the room. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
+    case "push-out":
+      return "The camera slowly pulls back away from the room. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
     case "wide-shot":
-      return "Static camera, perfectly stable frame. Rigid architecture, stable furniture. Warm, steady lighting.";
+      return "The locked-off camera remains perfectly still. The entire scene is motionless. Continuous, seamless shot.";
     case "auto":
     default:
-      return "camera slightly zooms. natural motion. Rigid architecture, stable furniture, steady environment.";
+      return "The camera gently eases forward with a slow push-in. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
   }
 }
 
@@ -60,6 +76,7 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log("=== generate-runway-batch INVOKED ===");
     const { imageMetadata, propertyAddress } = await req.json();
 
     if (!imageMetadata || !Array.isArray(imageMetadata) || imageMetadata.length === 0) {
@@ -67,10 +84,12 @@ Deno.serve(async (req) => {
     }
 
     if (!RUNWAY_API_KEY) {
+      console.error("RUNWAY_API_KEY is NOT set in secrets!");
       throw new Error("RUNWAY_API_KEY not configured");
     }
 
     console.log(`=== RUNWAY GEN4 TURBO BATCH: Generating ${imageMetadata.length} clips ===`);
+    console.log(`RUNWAY_API_KEY present: ${!!RUNWAY_API_KEY}, length: ${RUNWAY_API_KEY.length}, prefix: ${RUNWAY_API_KEY.substring(0, 8)}...`);
 
     // Submit all at once — Runway queues excess tasks with THROTTLED status.
     // No requests-per-minute rate limit; no concurrency cap needed client-side.
@@ -79,14 +98,19 @@ Deno.serve(async (req) => {
       try {
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
         console.log(`Image: ${imageUrl}`);
-        const clipDuration = Math.min(Math.max(duration ?? 5, 2), 10);
-        console.log(`Camera angle: ${cameraAngle}, Duration: ${clipDuration}s`);
+        const clipDuration = toValidRunwayDuration(duration ?? 5);
+        console.log(`Camera angle: ${cameraAngle}, Duration: ${clipDuration}s (gen4_turbo only supports 5 or 10s)`);
 
-        // Motion prompt + scene preservation. Positive phrasing only.
-        const motionPrompt = getMotionPrompt(cameraAngle);
-        const promptText = `${motionPrompt} Preserve exactly what is visible in the photograph. Only the camera moves. Cinematic, warm-toned.`;
-
+        const promptText = getMotionPrompt(cameraAngle);
         console.log(`Prompt (${promptText.length} chars): ${promptText}`);
+
+        const requestBody = {
+          model: "gen4_turbo",
+          promptImage: imageUrl,
+          promptText: promptText,
+          ratio: "720:1280",
+          duration: clipDuration,
+        };
 
         const response = await fetchWithRetry(RUNWAY_API_URL, {
           method: "POST",
@@ -95,13 +119,7 @@ Deno.serve(async (req) => {
             "Content-Type": "application/json",
             "X-Runway-Version": RUNWAY_VERSION,
           },
-          body: JSON.stringify({
-            model: "gen4_turbo",
-            promptImage: imageUrl,
-            promptText: promptText,
-            ratio: "720:1280",
-            duration: clipDuration,
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         if (!response.ok) {
@@ -111,6 +129,8 @@ Deno.serve(async (req) => {
             statusText: response.statusText,
             error: errorText,
             imageUrl: imageUrl,
+            apiUrl: RUNWAY_API_URL,
+            apiVersion: RUNWAY_VERSION,
           });
           return {
             imageUrl,
@@ -121,6 +141,18 @@ Deno.serve(async (req) => {
         }
 
         const data = await response.json();
+        console.log(`Generation ${index + 1} response:`, JSON.stringify(data));
+
+        if (!data.id) {
+          console.error(`Runway API returned 200 but no task ID for image ${index + 1}:`, data);
+          return {
+            imageUrl,
+            generationId: null,
+            status: "error" as const,
+            error: `Runway API returned no task ID. Response: ${JSON.stringify(data)}`,
+          };
+        }
+
         console.log(`Generation ${index + 1} started: ${data.id}`);
 
         return {

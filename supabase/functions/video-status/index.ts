@@ -118,16 +118,16 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Otherwise, check Runway generation status
+    // Otherwise, check Luma generation status
     if (!generationIds || !Array.isArray(generationIds) || generationIds.length === 0) {
       throw new Error("generationIds array is required");
     }
 
-    console.log("Checking status for", generationIds.length, "Runway generations");
+    console.log("Checking status for", generationIds.length, "Luma generations");
 
     // Check batch status
     const statusResponse = await fetch(
-      `${Deno.env.get("SUPABASE_URL")}/functions/v1/check-runway-batch`,
+      `${Deno.env.get("SUPABASE_URL")}/functions/v1/check-luma-batch`,
       {
         method: "POST",
         headers: {
@@ -141,19 +141,19 @@ Deno.serve(async (req) => {
     const statusData = await statusResponse.json();
 
     if (!statusData.success) {
-      throw new Error("Failed to check Runway batch status");
+      throw new Error("Failed to check Luma batch status");
     }
 
     const { allCompleted, anyFailed, summary, videoUrls } = statusData;
 
     // Calculate progress based on completed clips
-    const progressPercent = Math.round((summary.completed / summary.total) * 80); // 0-80% for Runway generation
+    const progressPercent = Math.round((summary.completed / summary.total) * 80); // 0-80% for Luma generation
 
     await updateVideoRecord(videoId, "processing", null, progressPercent);
 
     // If any failed, return error
     if (anyFailed && summary.completed === 0) {
-      await updateVideoRecord(videoId, "failed", null, 0, "All Runway generations failed");
+      await updateVideoRecord(videoId, "failed", null, 0, "All Luma generations failed");
       return new Response(
         JSON.stringify({
           status: "failed",
@@ -178,7 +178,7 @@ Deno.serve(async (req) => {
     }
 
     // All complete - start Shotstack stitching
-    console.log("All Runway clips ready! Starting Shotstack stitching...");
+    console.log("All Luma clips ready! Starting Shotstack stitching...");
 
     await updateVideoRecord(videoId, "processing", null, 85, "Stitching video clips...");
 

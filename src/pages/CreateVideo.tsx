@@ -17,6 +17,8 @@ import {
 } from "@/components/create-video";
 import { ScriptGeneratorSection } from "@/components/create-video/ScriptGeneratorSection";
 import { uploadImagesToStorage } from "@/utils/uploadToStorage";
+import { uploadVideoToStorage } from "@/utils/uploadVideoToStorage";
+import { generateCanvasVideo } from "@/utils/generateCanvasVideo";
 import { getMusicId } from "@/config/musicMapping";
 import { getVoiceId } from "@/config/voiceMapping";
 import { ImageMetadata } from "@/components/create-video/PhotoUpload";
@@ -80,7 +82,11 @@ export default function CreateVideo() {
     agentInfo: CustomizationSettings['agentInfo'];
     propertyData: Record<string, unknown>;
     style: string;
+    layout: string;
+    customTitle: string;
   } | null>(null);
+  const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]); // source image URLs for landscape re-render
+  const [isDownloadingLandscape, setIsDownloadingLandscape] = useState(false);
   const [refreshSidebarTrigger, setRefreshSidebarTrigger] = useState(0);
 
   // Reset video generation state to create another video
@@ -95,9 +101,96 @@ export default function CreateVideo() {
     setVideoUrls([]);
     setStitchJobId(null);
     setGenerationData(null);
+    setUploadedImageUrls([]);
   };
 
-  // Poll for video status (Luma batch workflow)
+  // On-demand landscape (16:9) re-render for download.
+  // Re-generates canvas clips at 1280×720, submits a new Shotstack job, polls, then downloads.
+  const handleDownloadLandscape = async () => {
+    if (!uploadedImageUrls.length || !generationData) return;
+
+    setIsDownloadingLandscape(true);
+    try {
+      toast({ title: "Rendering landscape version...", description: "Generating 16:9 video — this takes about a minute." });
+
+      // Step 1: Re-generate canvas clips at 1280×720 (landscape)
+      const landscapeFolder = `landscape-${Date.now()}`;
+      const landscapeClipUrls: string[] = [];
+
+      for (let i = 0; i < uploadedImageUrls.length; i++) {
+        const meta = imageMetadata[i];
+        const blob = await generateCanvasVideo(
+          uploadedImageUrls[i],
+          meta?.cameraAngle || "auto",
+          meta?.duration || 3.5,
+          30,
+          "landscape"
+        );
+        const clipUrl = await uploadVideoToStorage(blob, landscapeFolder, `clip-${i + 1}`);
+        landscapeClipUrls.push(clipUrl);
+      }
+
+      // Step 2: Submit a landscape Shotstack stitch job
+      const clipDurations = imageMetadata.map(m => m?.duration || 3.5);
+      const { data: stitchData, error: stitchError } = await supabase.functions.invoke("stitch-video", {
+        body: {
+          videoUrls: landscapeClipUrls,
+          clipDurations,
+          audioUrl: generationData.audioUrl,
+          musicUrl: generationData.musicUrl,
+          agentInfo: generationData.agentInfo,
+          propertyData: generationData.propertyData,
+          style: generationData.style,
+          layout: generationData.layout,
+          customTitle: generationData.customTitle,
+          outputFormat: "landscape",
+        },
+      });
+
+      if (stitchError) throw new Error(stitchError.message || "Landscape stitch failed");
+
+      const landscapeJobId = stitchData.jobId;
+
+      // Step 3: Poll for completion (video-status skips DB update when videoId is null)
+      let landscapeVideoUrl: string | null = null;
+      for (let attempt = 0; attempt < 60 && !landscapeVideoUrl; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        const { data: statusData } = await supabase.functions.invoke("video-status", {
+          body: {
+            generationIds: [],
+            videoId: null,
+            stitchJobId: landscapeJobId,
+            clipDurations,
+            audioUrl: null,
+            musicUrl: null,
+            agentInfo: null,
+            propertyData: generationData.propertyData,
+            style: generationData.style,
+          },
+        });
+        if (statusData?.status === "done" && statusData?.videoUrl) {
+          landscapeVideoUrl = statusData.videoUrl;
+        } else if (statusData?.status === "failed") {
+          throw new Error("Landscape render failed on Shotstack");
+        }
+      }
+
+      if (!landscapeVideoUrl) throw new Error("Landscape render timed out");
+
+      window.open(landscapeVideoUrl, "_blank");
+      toast({ title: "Landscape video ready!", description: "Your 16:9 video is downloading." });
+    } catch (err) {
+      toast({
+        title: "Landscape render failed",
+        description: err instanceof Error ? err.message : "Could not render landscape video.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDownloadingLandscape(false);
+    }
+  };
+
+  // Poll for video status
   const pollVideoStatus = async (
     generationIds: string[],
     videoId: string | null,
@@ -114,12 +207,14 @@ export default function CreateVideo() {
     style: string,
     layout: string,
     customTitle: string,
-    clipDurations: number[]
+    clipDurations: number[],
+    initialStitchJobId?: string | null
   ) => {
-    const maxAttempts = 120; // 10 minutes max (120 * 5 seconds) - Luma takes longer
+    const maxAttempts = 120; // 10 minutes max (120 * 5 seconds)
     let attempts = 0;
     let consecutiveErrors = 0;
-    let currentStitchJobId: string | null = null; // Track stitching job ID
+    // For canvas flow, start with the stitchJobId returned by generate-video
+    let currentStitchJobId: string | null = initialStitchJobId || null;
 
     const poll = async (): Promise<void> => {
       if (attempts >= maxAttempts) {
@@ -347,6 +442,9 @@ export default function CreateVideo() {
         setGeneratingProgress(30);
       }
 
+      // Store image URLs so landscape re-render can reuse them without re-uploading
+      setUploadedImageUrls(imageUrls);
+
       // Step 2: Generate script if empty (use same logic as RightPanel)
       let videoScript = script;
 
@@ -369,8 +467,33 @@ Contact us today for a private inspection.`;
         }
       }
 
-      // Step 3: Call generate-video using Supabase client (Luma AI workflow)
-      console.log("Calling generate-video API (Luma AI)...");
+      // Step 3: Generate canvas video clips client-side (mathematical transforms, zero AI)
+      console.log("Generating canvas video clips client-side...");
+      setGeneratingProgress(32);
+
+      const canvasFolder = `canvas-${Date.now()}`;
+      const canvasVideoUrls: string[] = [];
+
+      for (let i = 0; i < imageUrls.length; i++) {
+        const meta = imageMetadata[i];
+        const url = imageUrls[i];
+        const cameraAngle = meta?.cameraAngle || "auto";
+        const duration = meta?.duration || 5;
+
+        console.log(`Generating clip ${i + 1}/${imageUrls.length}: ${cameraAngle} @ ${duration}s`);
+
+        const blob = await generateCanvasVideo(url, cameraAngle, duration);
+        const videoUrl = await uploadVideoToStorage(blob, canvasFolder, `clip-${i + 1}`);
+        canvasVideoUrls.push(videoUrl);
+
+        setGeneratingProgress(32 + Math.round(((i + 1) / imageUrls.length) * 38)); // 32–70%
+      }
+
+      console.log("Canvas clips generated and uploaded:", canvasVideoUrls.length);
+      setGeneratingProgress(70);
+
+      // Step 4: Call generate-video with pre-generated clips (skips Luma, goes straight to Shotstack)
+      console.log("Calling generate-video API (canvas flow)...");
 
       const propertyDataPayload = {
         address: `${propertyDetails.streetAddress}, ${propertyDetails.suburb}, ${propertyDetails.state}`,
@@ -406,8 +529,12 @@ Contact us today for a private inspection.`;
         body: {
           imageUrls: imageUrls,
           imageMetadata: imageMetadataPayload,
+          preGeneratedVideoUrls: canvasVideoUrls,
+          useKenBurns: true, // Use Shotstack Ken Burns effects (no AI generation)
           propertyData: propertyDataPayload,
           style: customization.selectedTemplate,
+          layout: customization.selectedLayout,
+          customTitle: customization.customTitle,
           voice: voiceId,
           music: musicId,
           userId: user?.id,
@@ -428,42 +555,68 @@ Contact us today for a private inspection.`;
 
       // Handle the response
       if (data.success) {
-        // Validate required data
-        if (!data.generationIds || data.generationIds.length === 0) {
-          throw new Error("No generation IDs returned from server. Check edge function logs.");
-        }
-
-        setGenerationIds(data.generationIds);
         if (data.videoId) {
           setVideoRecordId(data.videoId);
           console.log("Video record created:", data.videoId);
         }
-        setGenerationData(data);
-        console.log(`Started ${data.totalClips} Luma AI generations`);
-        console.log("Generation data received:", data);
-
-        const estimatedMinutes = Math.ceil(data.estimatedTime / 60);
-        toast({
-          title: "Video Generation Started",
-          description: `Generating ${data.totalClips} cinematic clips with Luma AI... this may take ${estimatedMinutes}-${estimatedMinutes + 2} minutes.`,
+        setGenerationData({
+          ...data,
+          layout: customization.selectedLayout,
+          customTitle: customization.customTitle,
         });
 
-        // Extract clip durations for stitching
-        const clipDurations = imageMetadataPayload.map(meta => meta.duration);
+        const clipDurations = imageMetadataPayload.map((meta: { duration: number }) => meta.duration);
 
-        // Start polling for video status
-        pollVideoStatus(
-          data.generationIds,
-          data.videoId,
-          data.audioUrl,
-          data.musicUrl,
-          data.agentInfo,
-          propertyDataPayload,
-          customization.selectedTemplate,
-          customization.selectedLayout,
-          customization.customTitle,
-          clipDurations
-        );
+        if (data.provider === "canvas" && data.stitchJobId) {
+          // Canvas flow: clips are already generated, Shotstack stitching has started
+          console.log("Canvas flow: stitching started immediately, job:", data.stitchJobId);
+          setStitchJobId(data.stitchJobId);
+          setGeneratingProgress(80);
+          toast({
+            title: "Stitching Video",
+            description: `Canvas clips ready! Assembling your video now...`,
+          });
+          // Poll video-status starting directly at the stitch phase
+          pollVideoStatus(
+            [],
+            data.videoId,
+            data.audioUrl,
+            data.musicUrl,
+            data.agentInfo,
+            propertyDataPayload,
+            customization.selectedTemplate,
+            customization.selectedLayout,
+            customization.customTitle,
+            clipDurations,
+            data.stitchJobId
+          );
+        } else {
+          // Luma flow: poll generationIds until Luma finishes
+          if (!data.generationIds || data.generationIds.length === 0) {
+            throw new Error("No generation IDs returned from server. Check edge function logs.");
+          }
+          setGenerationIds(data.generationIds);
+          console.log(`Started ${data.totalClips} Luma generations`);
+
+          const estimatedMinutes = Math.ceil(data.estimatedTime / 60);
+          toast({
+            title: "Video Generation Started",
+            description: `Generating ${data.totalClips} cinematic clips with Luma... this may take ${estimatedMinutes}-${estimatedMinutes + 2} minutes.`,
+          });
+
+          pollVideoStatus(
+            data.generationIds,
+            data.videoId,
+            data.audioUrl,
+            data.musicUrl,
+            data.agentInfo,
+            propertyDataPayload,
+            customization.selectedTemplate,
+            customization.selectedLayout,
+            customization.customTitle,
+            clipDurations
+          );
+        }
       } else {
         throw new Error(data.error || "Video generation failed");
       }
@@ -663,6 +816,8 @@ Contact us today for a private inspection.`;
             videoUrl={videoUrl}
             videoUrls={videoUrls}
             agentInfoValid={!!customization.agentInfo.name.trim() && !!customization.agentInfo.phone.trim()}
+            onDownloadLandscape={handleDownloadLandscape}
+            isDownloadingLandscape={isDownloadingLandscape}
           />
         </div>
       </div>

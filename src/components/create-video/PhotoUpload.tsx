@@ -7,7 +7,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -16,12 +15,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-export type CameraAngle = "auto" | "wide-shot" | "zoom-in" | "pan-left" | "pan-right";
+export type CameraAngle = "auto" | "wide-shot" | "push-in" | "push-out" | "orbit-left" | "orbit-right";
+
+const CLIP_DURATION = 3.5; // seconds — fixed for consistent professional pacing
 
 export interface ImageMetadata {
   file: File;
   cameraAngle: CameraAngle;
-  duration: number; // 2-5 seconds (Runway Gen4 Turbo)
+  duration: number;
 }
 
 interface PhotoUploadProps {
@@ -35,24 +36,28 @@ interface PhotoUploadProps {
 
 const CAMERA_ANGLE_OPTIONS: Record<CameraAngle, { label: string; description: string }> = {
   auto: {
-    label: "Auto (AI Decides)",
-    description: "AI automatically chooses the best camera movement for this image",
+    label: "Auto (Recommended)",
+    description: "Smooth push-in zoom — best all-round movement for any shot",
   },
   "wide-shot": {
     label: "Wide Shot",
     description: "Static locked camera, no movement - architectural style",
   },
-  "zoom-in": {
-    label: "Zoom In",
-    description: "Slow smooth zoom toward center focal point - cinematic reveal",
+  "push-in": {
+    label: "Push In",
+    description: "Camera slowly moves forward toward the focal point",
   },
-  "pan-left": {
-    label: "Pan Left",
-    description: "Smooth horizontal pan from right to left - revealing scene",
+  "push-out": {
+    label: "Push Out",
+    description: "Camera slowly pulls back away from the scene",
   },
-  "pan-right": {
+  "orbit-right": {
     label: "Pan Right",
-    description: "Smooth horizontal pan from left to right - revealing scene",
+    description: "Camera pans right — smooth horizontal sweep with gentle zoom",
+  },
+  "orbit-left": {
+    label: "Pan Left",
+    description: "Camera pans left — smooth horizontal sweep with gentle zoom",
   },
 };
 
@@ -76,7 +81,7 @@ export function PhotoUpload({
       return existing || {
         file,
         cameraAngle: "auto" as CameraAngle,
-        duration: 5,
+        duration: CLIP_DURATION,
       };
     });
 
@@ -148,21 +153,10 @@ export function PhotoUpload({
     onMetadataChange(newMetadata);
   };
 
-  const updateImageDuration = (index: number, duration: number) => {
-    if (!onMetadataChange) return;
-    const newMetadata = [...imageMetadata];
-    newMetadata[index] = { ...newMetadata[index], duration };
-    onMetadataChange(newMetadata);
-  };
-
   const setAllAngles = (angle: CameraAngle) => {
     if (!onMetadataChange) return;
     const newMetadata = imageMetadata.map(meta => ({ ...meta, cameraAngle: angle }));
     onMetadataChange(newMetadata);
-  };
-
-  const getTotalDuration = () => {
-    return imageMetadata.reduce((sum, meta) => sum + meta.duration, 0) + 3.5; // +3.5 for outro
   };
 
   const photoPreviews = photos.map((file) => URL.createObjectURL(file));
@@ -270,7 +264,7 @@ export function PhotoUpload({
             </p>
             {onMetadataChange && imageMetadata.length > 0 && (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Total: {getTotalDuration().toFixed(1)}s</span>
+                <span className="text-xs text-muted-foreground">{(photos.length * CLIP_DURATION).toFixed(1)}s total</span>
                 <Select value="" onValueChange={(value) => setAllAngles(value as CameraAngle)}>
                   <SelectTrigger className="h-7 text-xs w-[140px]">
                     <SelectValue placeholder="Set all to..." />
@@ -383,25 +377,6 @@ export function PhotoUpload({
                         </Select>
                       </div>
 
-                      {/* Duration Slider */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs font-medium text-muted-foreground">Duration</label>
-                          <span className="text-xs font-semibold text-foreground">{metadata.duration}s</span>
-                        </div>
-                        <Slider
-                          value={[metadata.duration]}
-                          onValueChange={(values) => updateImageDuration(index, values[0])}
-                          min={2}
-                          max={5}
-                          step={1}
-                          className="w-full"
-                        />
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>2s</span>
-                          <span>5s</span>
-                        </div>
-                      </div>
                     </div>
                   )}
                 </div>

@@ -101,7 +101,9 @@
   }
 
   interface StitchVideoRequest {
-    videoUrls: string[];
+    videoUrls?: string[];     // AI-generated video clips (Luma/Runway mode)
+    imageUrls?: string[];     // Raw property photos (Ken Burns mode)
+    imageEffects?: string[];  // Per-image Shotstack effect (Ken Burns mode only)
     clipDurations?: number[]; // Array of durations for each clip
     propertyData: {
       address: string;
@@ -128,6 +130,7 @@
     layout?: string; // "minimal-focus" | "bold-banner" | "modern-luxe"
     customTitle?: string; // Custom title text (e.g., "Just Sold", "Open House")
     videoId?: string;
+    outputFormat?: "portrait" | "landscape"; // "portrait" = 9:16 (default), "landscape" = 16:9
   }
 
   // ============================================================
@@ -421,14 +424,20 @@
     }
 
     try {
-      const { videoUrls, clipDurations, propertyData, audioUrl, musicUrl, agentInfo, style, layout, customTitle, videoId }: StitchVideoRequest = await req.json();
+      const { videoUrls, imageUrls, imageEffects, clipDurations, propertyData, audioUrl, musicUrl, agentInfo, style, layout, customTitle, videoId, outputFormat }: StitchVideoRequest = await req.json();
 
-      if (!videoUrls || videoUrls.length === 0) {
-        throw new Error("No video URLs provided for stitching");
+      // Ken Burns mode: raw property photos + Shotstack effects
+      // AI mode: pre-generated video clips from Luma/Runway
+      const isKenBurns = !!(imageUrls && imageUrls.length > 0);
+      const sourceUrls = isKenBurns ? imageUrls! : (videoUrls || []);
+
+      if (sourceUrls.length === 0) {
+        throw new Error("No video or image URLs provided for stitching");
       }
 
       console.log("=== SHOTSTACK VIDEO STITCHING ===");
-      console.log("Stitching", videoUrls.length, "Luma AI clips");
+      console.log("Mode:", isKenBurns ? "Ken Burns (still images)" : "AI video clips");
+      console.log("Stitching", sourceUrls.length, isKenBurns ? "photos" : "AI clips");
       console.log("Layout:", layout || "modern-luxe (default)");
       console.log("Custom Title:", customTitle || "(using template name)");
       console.log("Property Data Received:", JSON.stringify(propertyData, null, 2));
@@ -476,7 +485,7 @@
       }
 
       // Use provided clip durations or default to 5 seconds each
-      const durations = clipDurations || videoUrls.map(() => 5);
+      const durations = clipDurations || sourceUrls.map(() => 5);
 
       // Calculate total duration
       const videoClipsDuration = durations.reduce((sum, duration) => sum + duration, 0);
@@ -487,24 +496,22 @@
       console.log("Video clips duration:", videoClipsDuration);
       console.log("Total duration:", totalDuration);
 
-      // Build video track with all Luma clips in sequence
+      // Build main clip track
       let currentStart = 0;
-      const videoClips = videoUrls.map((url, index) => {
+      const videoClips = sourceUrls.map((url, index) => {
         const clipDuration = durations[index];
-        const clip = {
-          asset: {
-            type: "video",
-            src: url,
-          },
+        const clip: any = {
+          asset: isKenBurns
+            ? { type: "image", src: url }   // Ken Burns: still photo
+            : { type: "video", src: url },  // AI mode: generated video
           start: currentStart,
           length: clipDuration,
-          // Reduce opacity on first clip to make text more visible
-          opacity: index === 0 ? 0.7 : 1.0,
-          transition: index > 0 ? {
-            in: "fade",
-            out: "fade",
-          } : undefined,
         };
+        // Ken Burns: apply the per-clip Shotstack effect and smooth crossfades
+        if (isKenBurns) {
+          clip.effect = imageEffects?.[index] || "zoomInSlow";
+          clip.transition = { in: "fade", out: "fade" };
+        }
         currentStart += clipDuration;
         return clip;
       });
@@ -640,14 +647,13 @@
               ),
             },
 
-            // Agent outro background - First clip blurred (Track 3)
+            // Agent outro background - First clip/photo blurred (Track 3)
             ...(agentInfo && agentInfo.name ? [{
               clips: [
                 {
-                  asset: {
-                    type: "video",
-                    src: videoUrls[0], // Use first Luma clip
-                  },
+                  asset: isKenBurns
+                    ? { type: "image", src: imageUrls![0] }  // Ken Burns: use first photo
+                    : { type: "video", src: videoUrls![0] }, // AI mode: use first video clip
                   start: videoClipsDuration,
                   length: agentCardDuration,
                   filter: "blur",
@@ -664,7 +670,7 @@
         output: {
           format: "mp4",
           resolution: "hd",
-          aspectRatio: "9:16",
+          aspectRatio: outputFormat === "landscape" ? "16:9" : "9:16",
         },
       };
 
@@ -709,7 +715,7 @@
           jobId: jobId,
           message: "Video stitching started with Shotstack",
           estimatedTime: 60,
-          totalClips: videoUrls.length,
+          totalClips: sourceUrls.length,
           duration: totalDuration,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

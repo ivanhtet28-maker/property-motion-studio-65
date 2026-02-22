@@ -32,6 +32,8 @@
     imageMetadata?: ImageMetadata[];
     propertyData: PropertyData;
     style: string;
+    layout?: string;
+    customTitle?: string;
     voice: string;
     music: string;
     userId?: string;
@@ -44,6 +46,26 @@
       email: string;
       photo: string | null;
     };
+    // When provided, skip Runway and go straight to Shotstack stitching
+    preGeneratedVideoUrls?: string[];
+    // When true, skip ALL AI generation and use Shotstack Ken Burns effects on raw photos
+    useKenBurns?: boolean;
+  }
+
+  // Map user camera angle selections to Shotstack Ken Burns effect names.
+  // Ken Burns mode applies these as mathematical transforms directly to still images —
+  // no AI generation, no hallucination, identical output every run.
+  function toShotstackEffect(cameraAngle: string): string {
+    switch (cameraAngle) {
+      case "push-out":    return "zoomOutSlow";
+      case "orbit-right": return "slideLeftSlow";  // image moves left = camera pans right
+      case "orbit-left":  return "slideRightSlow"; // image moves right = camera pans left
+      case "push-in":
+      case "zoom-in":
+      case "wide-shot":
+      case "auto":
+      default:            return "zoomInSlow";
+    }
   }
 
   // Music library mapping - updated IDs to match frontend
@@ -78,7 +100,7 @@
     return MUSIC_LIBRARY[musicId] || null;
   };
 
-  interface RunwayGeneration {
+  interface LumaGeneration {
     imageUrl: string;
     generationId: string;
     status: "queued" | "error";
@@ -91,9 +113,10 @@
     }
 
     try {
-      const { imageUrls, imageMetadata, propertyData, style, voice, music, userId, propertyId, script, source, agentInfo }: GenerateVideoRequest = await req.json();
+      const { imageUrls, imageMetadata, propertyData, style, layout, customTitle, voice, music, userId, propertyId, script, source, agentInfo, preGeneratedVideoUrls, useKenBurns }: GenerateVideoRequest = await req.json();
 
-      console.log("=== RUNWAY VIDEO GENERATION ===");
+      console.log("=== VIDEO GENERATION ===");
+      console.log("Mode:", useKenBurns ? "Ken Burns (Shotstack direct)" : "Luma AI");
       console.log("Total images:", imageUrls?.length || 0);
       console.log("Property:", propertyData?.address);
 
@@ -240,17 +263,141 @@
         }
       }
 
-      console.log("Starting Runway batch generation for", imageUrls.length, "images...");
+      // --- Ken Burns flow: skip AI entirely, use Shotstack effects on raw photos ---
+      // This is how all professional real estate video tools (AutoReel, Box Brownie, etc.)
+      // work: mathematical zoom/pan transforms on the original photos — zero hallucination.
+      if (useKenBurns) {
+        console.log("Ken Burns flow: bypassing AI generation, applying Shotstack effects to photos");
+
+        const imageEffects = metadataSource.map((m: ImageMetadata) => toShotstackEffect(m.cameraAngle || "auto"));
+        const clipDurations = metadataSource.map((m: ImageMetadata) => m.duration ?? 5);
+
+        console.log("Effects:", imageEffects);
+
+        const stitchResponse = await fetch(
+          `${Deno.env.get("SUPABASE_URL")}/functions/v1/stitch-video`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+            },
+            body: JSON.stringify({
+              imageUrls,
+              imageEffects,
+              clipDurations,
+              audioUrl,
+              musicUrl,
+              agentInfo,
+              propertyData,
+              style,
+              layout: layout || style,
+              customTitle: customTitle || "",
+              videoId: videoRecordId,
+            }),
+          }
+        );
+
+        const stitchData = await stitchResponse.json();
+
+        if (!stitchData.success || !stitchData.jobId) {
+          throw new Error(stitchData.error || "Failed to start Shotstack Ken Burns render");
+        }
+
+        console.log("Ken Burns Shotstack job started:", stitchData.jobId);
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            provider: "ken-burns",
+            videoId: videoRecordId,
+            stitchJobId: stitchData.jobId,
+            generationIds: [],
+            totalClips: imageUrls.length,
+            estimatedDuration: expectedDuration,
+            estimatedTime: 45,
+            message: `Ken Burns render started for ${imageUrls.length} photos. No AI generation needed.`,
+            audioUrl,
+            musicUrl,
+            agentInfo,
+            propertyData,
+            style,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // --- Canvas flow: pre-generated video clips supplied by client ---
+      if (preGeneratedVideoUrls && preGeneratedVideoUrls.length > 0) {
+        console.log("Canvas flow: skipping Runway, stitching", preGeneratedVideoUrls.length, "pre-generated clips directly");
+
+        const clipDurations = (imageMetadata || imageUrls.map(() => ({ duration: 5 }))).map(
+          (m: { duration?: number }) => m.duration ?? 5
+        );
+
+        const stitchResponse = await fetch(
+          `${Deno.env.get("SUPABASE_URL")}/functions/v1/stitch-video`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+            },
+            body: JSON.stringify({
+              videoUrls: preGeneratedVideoUrls,
+              clipDurations,
+              audioUrl,
+              musicUrl,
+              agentInfo,
+              propertyData,
+              style,
+              layout: layout || style,
+              customTitle: customTitle || "",
+            }),
+          }
+        );
+
+        const stitchData = await stitchResponse.json();
+
+        if (!stitchData.success || !stitchData.jobId) {
+          throw new Error(stitchData.error || "Failed to start Shotstack stitching");
+        }
+
+        console.log("Shotstack stitch job started:", stitchData.jobId);
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            provider: "canvas",
+            videoId: videoRecordId,
+            stitchJobId: stitchData.jobId,
+            generationIds: [],
+            totalClips: preGeneratedVideoUrls.length,
+            estimatedDuration: expectedDuration,
+            estimatedTime: 60,
+            message: `Canvas clips generated. Stitching ${preGeneratedVideoUrls.length} clips with Shotstack.`,
+            audioUrl,
+            musicUrl,
+            agentInfo,
+            propertyData,
+            style,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // --- Luma flow ---
+      console.log("Starting Luma batch generation for", imageUrls.length, "images...");
 
       // Prepare image metadata (use provided metadata or create default)
-      const metadataForRunway = imageMetadata || imageUrls.map(url => ({
+      const metadataForLuma = imageMetadata || imageUrls.map(url => ({
         url,
         cameraAngle: "auto",
         duration: 5
       }));
 
-      const runwayResponse = await fetch(
-        `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-runway-batch`,
+      const lumaResponse = await fetch(
+        `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-luma-batch`,
         {
           method: "POST",
           headers: {
@@ -258,23 +405,35 @@
             "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
           },
           body: JSON.stringify({
-            imageMetadata: metadataForRunway,
+            imageMetadata: metadataForLuma,
             propertyAddress: propertyData.address,
           }),
         }
       );
 
-      const runwayData = await runwayResponse.json();
+      const lumaData = await lumaResponse.json();
 
-      if (!runwayData.success) {
-        throw new Error(runwayData.error || "Failed to start Runway batch generation");
+      if (!lumaData.success) {
+        throw new Error(lumaData.error || "Failed to start Luma batch generation");
       }
 
-      const generations = (runwayData.generations as RunwayGeneration[]).filter((g) => g.status === "queued");
-      const generationIds = generations.map((g) => g.generationId);
+      if (!Array.isArray(lumaData.generations)) {
+        throw new Error(`Unexpected response from generate-luma-batch: ${JSON.stringify(lumaData)}`);
+      }
 
-      console.log(`Started ${generations.length} Runway generations`);
+      const generations = (lumaData.generations as LumaGeneration[]).filter(
+        (g) => g.status === "queued" && g.generationId
+      );
+      const generationIds = generations.map((g) => g.generationId).filter(Boolean) as string[];
+
+      console.log(`Started ${generations.length} Luma generations`);
       console.log("Generation IDs:", generationIds);
+
+      if (generationIds.length === 0) {
+        const failedGenerations = (lumaData.generations as LumaGeneration[]).filter((g) => g.status === "error");
+        const errors = failedGenerations.map((g) => g.error).join("; ");
+        throw new Error(`No valid Luma generation IDs returned. All ${lumaData.generations?.length ?? 0} submissions failed. Errors: ${errors || "unknown"}`);
+      }
 
       // Save generation context to DB so Dashboard can resume polling if user navigates away
       if (videoRecordId) {
@@ -283,8 +442,7 @@
           const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
           const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-          // Clamp durations to match what Runway actually produces (5-10s)
-          const clipDurations = (imageMetadata || metadataForRunway).map(m => Math.min(Math.max(m.duration ?? 5, 2), 10));
+          const clipDurations = (imageMetadata || metadataForLuma).map(m => m.duration ?? 5);
 
           await supabaseAdmin
             .from("videos")
@@ -310,18 +468,18 @@
       return new Response(
         JSON.stringify({
           success: true,
-          provider: "runway",
+          provider: "luma",
           videoId: videoRecordId,
           generationIds: generationIds,
           totalClips: generationIds.length,
           estimatedDuration: expectedDuration,
           estimatedTime: generationIds.length * 45,
-          message: `Started ${generationIds.length} Runway generations. Use check-runway-batch to poll status.`,
+          message: `Started ${generationIds.length} Luma generations. Use check-luma-batch to poll status.`,
           audioUrl: audioUrl,
           musicUrl: musicUrl,
           agentInfo: agentInfo,
           propertyData: propertyData,
-          style: style, // Pass template style for video overlays
+          style: style,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
