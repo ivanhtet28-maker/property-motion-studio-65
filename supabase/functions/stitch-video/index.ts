@@ -498,12 +498,6 @@
           },
           start: currentStart,
           length: clipDuration,
-          // Reduce opacity on first clip to make text more visible
-          opacity: index === 0 ? 0.7 : 1.0,
-          transition: index > 0 ? {
-            in: "fade",
-            out: "fade",
-          } : undefined,
         };
         currentStart += clipDuration;
         return clip;
