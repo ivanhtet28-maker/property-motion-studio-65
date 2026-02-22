@@ -530,6 +530,7 @@ Contact us today for a private inspection.`;
           imageUrls: imageUrls,
           imageMetadata: imageMetadataPayload,
           preGeneratedVideoUrls: canvasVideoUrls,
+          useKenBurns: true, // Use Shotstack Ken Burns effects (no AI generation)
           propertyData: propertyDataPayload,
           style: customization.selectedTemplate,
           layout: customization.selectedLayout,
