@@ -39,34 +39,33 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2, at
 }
 
 /**
- * Motion-only prompts for Runway Gen-4 Turbo (text-only camera control).
+ * Camera motion presets for Runway Gen-3 Alpha Turbo.
  *
- * NOTE: Runway's developer API has NO camera_motion parameter for any model.
- * Camera controls shown in the Runway UI are not exposed through the REST API.
- * The only lever we have is prompt_text — so prompts are kept short and focused
- * exclusively on camera movement (Runway's official recommendation).
+ * gen3a_turbo exposes numeric camera_motion sliders (-10 to +10) via the REST API.
+ * Values of ±5 give a noticeable, smooth, controlled movement — the professional
+ * real estate sweet spot. Higher values (7–10) are intense/cinematic action style.
  *
- * gen4_turbo is used (not gen3a_turbo) because:
- *   - Both models are text-only through the API
- *   - gen4_turbo produces higher quality output
- *   - gen3a_turbo ratio is 768:1280 vs gen4_turbo 720:1280 (minor difference)
+ * Axis guide:
+ *   zoom       — forward/backward depth (push-in / push-out)
+ *   horizontal — lateral slide (orbit left/right)
+ *   pan        — rotational yaw (complements horizontal for arc feel)
+ *   tilt / vertical / roll — 0 for standard real estate shots
  */
-function getMotionPrompt(cameraAngle: string): string {
+function getCameraMotion(cameraAngle: string): Record<string, number> {
   switch (cameraAngle) {
-    case "orbit-right":
-      return "The camera slowly orbits clockwise around the room. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
-    case "orbit-left":
-      return "The camera slowly orbits counter-clockwise around the room. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
     case "push-in":
     case "zoom-in": // legacy alias
-      return "The camera slowly dollies forward into the room. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
-    case "push-out":
-      return "The camera slowly pulls back away from the room. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
-    case "wide-shot":
-      return "The locked-off camera remains perfectly still. The entire scene is motionless. Continuous, seamless shot.";
     case "auto":
+      return { zoom: 5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 };
+    case "push-out":
+      return { zoom: -5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 };
+    case "orbit-right":
+      return { zoom: 0, horizontal: 5, pan: 2, tilt: 0, vertical: 0, roll: 0 };
+    case "orbit-left":
+      return { zoom: 0, horizontal: -5, pan: -2, tilt: 0, vertical: 0, roll: 0 };
+    case "wide-shot":
     default:
-      return "The camera gently eases forward with a slow push-in. The scene remains completely still, only the camera moves. Continuous, seamless shot.";
+      return { zoom: 0, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 };
   }
 }
 
@@ -88,7 +87,7 @@ Deno.serve(async (req) => {
       throw new Error("RUNWAY_API_KEY not configured");
     }
 
-    console.log(`=== RUNWAY GEN4 TURBO BATCH: Generating ${imageMetadata.length} clips ===`);
+    console.log(`=== RUNWAY GEN3A TURBO BATCH: Generating ${imageMetadata.length} clips ===`);
     console.log(`RUNWAY_API_KEY present: ${!!RUNWAY_API_KEY}, length: ${RUNWAY_API_KEY.length}, prefix: ${RUNWAY_API_KEY.substring(0, 8)}...`);
 
     // Submit all at once — Runway queues excess tasks with THROTTLED status.
@@ -99,16 +98,17 @@ Deno.serve(async (req) => {
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
         console.log(`Image: ${imageUrl}`);
         const clipDuration = toValidRunwayDuration(duration ?? 5);
-        console.log(`Camera angle: ${cameraAngle}, Duration: ${clipDuration}s (gen4_turbo only supports 5 or 10s)`);
+        console.log(`Camera angle: ${cameraAngle}, Duration: ${clipDuration}s (gen3a_turbo only supports 5 or 10s)`);
 
-        const promptText = getMotionPrompt(cameraAngle);
-        console.log(`Prompt (${promptText.length} chars): ${promptText}`);
+        const cameraMotion = getCameraMotion(cameraAngle);
+        console.log(`Camera motion:`, JSON.stringify(cameraMotion));
 
         const requestBody = {
-          model: "gen4_turbo",
+          model: "gen3a_turbo",
           promptImage: imageUrl,
-          promptText: promptText,
-          ratio: "720:1280",
+          promptText: "Cinematic real estate interior. Stable walls and furniture. Professional photography.",
+          camera_motion: cameraMotion,
+          ratio: "768:1280",
           duration: clipDuration,
         };
 

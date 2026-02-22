@@ -208,7 +208,8 @@ export default function CreateVideo() {
     layout: string,
     customTitle: string,
     clipDurations: number[],
-    initialStitchJobId?: string | null
+    initialStitchJobId?: string | null,
+    provider?: string
   ) => {
     const maxAttempts = 120; // 10 minutes max (120 * 5 seconds)
     let attempts = 0;
@@ -249,6 +250,7 @@ export default function CreateVideo() {
             customTitle: customTitle,
             stitchJobId: currentStitchJobId,
             clipDurations: clipDurations,
+            provider: provider || "luma",
           },
         });
 
@@ -509,7 +511,7 @@ Contact us today for a private inspection.`;
         body: {
           imageUrls: imageUrls,
           imageMetadata: imageMetadataPayload,
-          useKenBurns: true, // Shotstack applies Ken Burns effects directly on raw photos
+          useKenBurns: false, // Use Runway Gen-3a AI generation with camera_motion sliders
           propertyData: propertyDataPayload,
           style: customization.selectedTemplate,
           layout: customization.selectedLayout,
@@ -570,17 +572,17 @@ Contact us today for a private inspection.`;
             data.stitchJobId
           );
         } else {
-          // Luma flow: poll generationIds until Luma finishes
+          // AI generation flow (Runway Gen-3a): poll generationIds until clips are ready
           if (!data.generationIds || data.generationIds.length === 0) {
             throw new Error("No generation IDs returned from server. Check edge function logs.");
           }
           setGenerationIds(data.generationIds);
-          console.log(`Started ${data.totalClips} Luma generations`);
+          console.log(`Started ${data.totalClips} Runway Gen-3a generations`);
 
           const estimatedMinutes = Math.ceil(data.estimatedTime / 60);
           toast({
             title: "Video Generation Started",
-            description: `Generating ${data.totalClips} cinematic clips with Luma... this may take ${estimatedMinutes}-${estimatedMinutes + 2} minutes.`,
+            description: `Generating ${data.totalClips} cinematic clips with Runway... this may take ${estimatedMinutes}-${estimatedMinutes + 2} minutes.`,
           });
 
           pollVideoStatus(
@@ -593,7 +595,9 @@ Contact us today for a private inspection.`;
             customization.selectedTemplate,
             customization.selectedLayout,
             customization.customTitle,
-            clipDurations
+            clipDurations,
+            null,
+            data.provider
           );
         }
       } else {

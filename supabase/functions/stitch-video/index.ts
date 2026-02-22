@@ -527,10 +527,11 @@
             };
           } else if (angle === "push-out") {
             clip.effect = "zoomOutSlow";
-          } else {
-            // push-in, auto, wide-shot, default
+          } else if (angle === "push-in") {
             clip.effect = "zoomInSlow";
           }
+          // auto, wide-shot, default — no zoom effect; smooth static fades only.
+          // Applying zoomInSlow to every default clip is repetitive and aggressive at 3.5s.
 
           clip.transition = { in: "fade", out: "fade" };
         }
