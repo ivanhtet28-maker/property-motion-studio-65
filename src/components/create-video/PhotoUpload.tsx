@@ -51,12 +51,12 @@ const CAMERA_ANGLE_OPTIONS: Record<CameraAngle, { label: string; description: st
     description: "Camera slowly pulls back away from the scene",
   },
   "orbit-right": {
-    label: "Orbit Right",
-    description: "Camera orbits clockwise around the focal point - dynamic 3D effect",
+    label: "Pan Right",
+    description: "Camera pans right — smooth horizontal sweep with gentle zoom",
   },
   "orbit-left": {
-    label: "Orbit Left",
-    description: "Camera orbits counter-clockwise around the focal point - dynamic 3D effect",
+    label: "Pan Left",
+    description: "Camera pans left — smooth horizontal sweep with gentle zoom",
   },
 };
 

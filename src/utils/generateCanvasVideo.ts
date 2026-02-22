@@ -30,9 +30,13 @@ function getTransform(angle: CameraAngle, progress: number): Transform {
     case "push-out":
       return { scale: 1.12 - 0.12 * t, offsetX: 0, offsetY: 0 };
     case "orbit-right":
-      return { scale: 1 + 0.04 * t, offsetX: -0.07 * t, offsetY: 0 };
+      // Pan image left (camera moves right). Scale must cover canvas at all times:
+      // (1 + scale)/2 + offsetX >= 1  →  scale >= 1 - 2*offsetX = 1 + 0.14
+      // Using 1.15 gives a small safety margin for non-square images.
+      return { scale: 1 + 0.15 * t, offsetX: -0.07 * t, offsetY: 0 };
     case "orbit-left":
-      return { scale: 1 + 0.04 * t, offsetX: 0.07 * t, offsetY: 0 };
+      // Pan image right (camera moves left). Mirror of orbit-right.
+      return { scale: 1 + 0.15 * t, offsetX: 0.07 * t, offsetY: 0 };
     case "wide-shot":
     default:
       return { scale: 1, offsetX: 0, offsetY: 0 };
