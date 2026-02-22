@@ -39,33 +39,121 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2, at
 }
 
 /**
- * Camera motion presets for Runway Gen-3 Alpha Turbo.
+ * Cinematic Engine — Option B: Shot List with pre-calibrated cinematography physics.
  *
- * gen3a_turbo exposes numeric camera_motion sliders (-10 to +10) via the REST API.
- * Values of ±5 give a noticeable, smooth, controlled movement — the professional
- * real estate sweet spot. Higher values (7–10) are intense/cinematic action style.
+ * Each room_type has:
+ *   - camera_motion: numeric sliders calibrated to the space scale
+ *     (bathroom uses low magnitudes — camera doesn't punch through walls;
+ *      exterior uses high magnitudes — drone scale requires faster movement to look right)
+ *   - promptText: room-specific scene description that anchors the AI's geometry model
+ *     (Telling the AI "stable cabinetry and countertops" prevents kitchen hallucination
+ *      better than a generic "stable walls" prompt)
+ *   - duration: always 5s (Runway minimum; 10s available for future hero shots)
  *
- * Axis guide:
- *   zoom       — forward/backward depth (push-in / push-out)
- *   horizontal — lateral slide (orbit left/right)
- *   pan        — rotational yaw (complements horizontal for arc feel)
- *   tilt / vertical / roll — 0 for standard real estate shots
+ * This replaces user-selected generic angles (push-in, orbit-right, etc.) with
+ * professionally directed presets — "ghostwriting the cinematography."
  */
-function getCameraMotion(cameraAngle: string): Record<string, number> {
+
+interface CinematicPreset {
+  camera_motion: Record<string, number>;
+  promptText: string;
+  duration: 5 | 10;
+}
+
+const CINEMATIC_PRESETS: Record<string, CinematicPreset> = {
+  // ── Exterior ──────────────────────────────────────────────────────────────
+  "exterior-arrival": {
+    camera_motion: { zoom: 8, horizontal: 0, pan: 0, tilt: -2, vertical: 0, roll: 0 },
+    promptText: "Cinematic aerial drone push toward luxury property exterior. Stable architecture, fixed roofline, no distortion.",
+    duration: 5,
+  },
+  "front-door": {
+    camera_motion: { zoom: 5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
+    promptText: "Professional real estate push toward front entrance. Stable door frame, fixed walls, no geometry change.",
+    duration: 5,
+  },
+
+  // ── Interior common areas ─────────────────────────────────────────────────
+  "entry-foyer": {
+    camera_motion: { zoom: 3, horizontal: 4, pan: 2, tilt: 0, vertical: 0, roll: 0 },
+    promptText: "Elegant entryway orbit reveal. Stable walls and flooring. No architectural distortion.",
+    duration: 5,
+  },
+  "living-room-wide": {
+    camera_motion: { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
+    promptText: "Spacious living room slow push. Fixed walls, stable furniture. Professional real estate.",
+    duration: 5,
+  },
+  "living-room-orbit": {
+    camera_motion: { zoom: 0, horizontal: 6, pan: 3, tilt: 0, vertical: 0, roll: 0 },
+    promptText: "Living room cinematic orbit. Stable interior architecture, fixed wall positions. Professional real estate.",
+    duration: 5,
+  },
+
+  // ── Kitchen ───────────────────────────────────────────────────────────────
+  "kitchen-orbit": {
+    camera_motion: { zoom: 0, horizontal: 5, pan: 2, tilt: 0, vertical: 0, roll: 0 },
+    promptText: "Gourmet kitchen orbit. Stable cabinetry and countertops. Fixed island position. Professional real estate.",
+    duration: 5,
+  },
+  "kitchen-push": {
+    camera_motion: { zoom: 5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
+    promptText: "Kitchen counter detail push-in. Stable stone surfaces, fixed cabinetry. Professional real estate.",
+    duration: 5,
+  },
+
+  // ── Bedrooms ──────────────────────────────────────────────────────────────
+  "master-bedroom": {
+    camera_motion: { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
+    promptText: "Master bedroom sanctuary slow reveal. Fixed walls and ceiling, stable furnishings. Professional real estate.",
+    duration: 5,
+  },
+  "bedroom": {
+    camera_motion: { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
+    promptText: "Bedroom slow push reveal. Stable walls and furniture. Professional real estate.",
+    duration: 5,
+  },
+
+  // ── Bathroom (low magnitude — small space) ────────────────────────────────
+  "bathroom": {
+    camera_motion: { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
+    promptText: "Luxury bathroom slow push. Stable tiles and fixtures, fixed vanity. Professional real estate. No geometry distortion.",
+    duration: 5,
+  },
+
+  // ── Outdoor ───────────────────────────────────────────────────────────────
+  "outdoor-entertaining": {
+    camera_motion: { zoom: -5, horizontal: 0, pan: 0, tilt: 0, vertical: 2, roll: 0 },
+    promptText: "Outdoor entertaining area wide reveal pullback. Stable pavers and structure. Professional real estate.",
+    duration: 5,
+  },
+  "backyard-pool": {
+    camera_motion: { zoom: -6, horizontal: 0, pan: 0, tilt: -2, vertical: 2, roll: 0 },
+    promptText: "Aerial-style backyard pool reveal. Stable landscape, fixed pool edges, stable water surface.",
+    duration: 5,
+  },
+  "view-balcony": {
+    camera_motion: { zoom: -4, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
+    promptText: "Panoramic balcony view reveal. Stable architectural framing, fixed horizon line.",
+    duration: 5,
+  },
+};
+
+// Fallback for legacy cameraAngle inputs — preserves backwards compatibility
+// when room_type is not provided.
+function getCameraMotionLegacy(cameraAngle: string): CinematicPreset {
+  const fallbackPrompt = "Cinematic real estate interior. Stable walls and furniture. Professional photography.";
   switch (cameraAngle) {
-    case "push-in":
-    case "zoom-in": // legacy alias
-    case "auto":
-      return { zoom: 5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 };
+    case "push-in": case "auto": case "zoom-in":
+      return { camera_motion: { zoom: 5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 }, promptText: fallbackPrompt, duration: 5 };
     case "push-out":
-      return { zoom: -5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 };
+      return { camera_motion: { zoom: -5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 }, promptText: fallbackPrompt, duration: 5 };
     case "orbit-right":
-      return { zoom: 0, horizontal: 5, pan: 2, tilt: 0, vertical: 0, roll: 0 };
+      return { camera_motion: { zoom: 0, horizontal: 5, pan: 2, tilt: 0, vertical: 0, roll: 0 }, promptText: fallbackPrompt, duration: 5 };
     case "orbit-left":
-      return { zoom: 0, horizontal: -5, pan: -2, tilt: 0, vertical: 0, roll: 0 };
-    case "wide-shot":
+      return { camera_motion: { zoom: 0, horizontal: -5, pan: -2, tilt: 0, vertical: 0, roll: 0 }, promptText: fallbackPrompt, duration: 5 };
     default:
-      return { zoom: 0, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 };
+      return { camera_motion: { zoom: 0, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 }, promptText: fallbackPrompt, duration: 5 };
   }
 }
 
@@ -92,22 +180,28 @@ Deno.serve(async (req) => {
 
     // Submit all at once — Runway queues excess tasks with THROTTLED status.
     // No requests-per-minute rate limit; no concurrency cap needed client-side.
-    const generationPromises = imageMetadata.map(async (metadata: { url: string; cameraAngle: string; duration: number }, index: number) => {
-      const { url: imageUrl, cameraAngle, duration } = metadata;
+    const generationPromises = imageMetadata.map(async (metadata: { url: string; cameraAngle?: string; room_type?: string; duration?: number }, index: number) => {
+      const { url: imageUrl, cameraAngle, room_type, duration } = metadata;
       try {
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
         console.log(`Image: ${imageUrl}`);
-        const clipDuration = toValidRunwayDuration(duration ?? 5);
-        console.log(`Camera angle: ${cameraAngle}, Duration: ${clipDuration}s (gen3a_turbo only supports 5 or 10s)`);
+        console.log(`room_type: ${room_type || "(none)"}, cameraAngle: ${cameraAngle || "(none)"}`);
 
-        const cameraMotion = getCameraMotion(cameraAngle);
-        console.log(`Camera motion:`, JSON.stringify(cameraMotion));
+        // Cinematic Engine: room_type takes priority over generic cameraAngle
+        const preset = (room_type && CINEMATIC_PRESETS[room_type])
+          ? CINEMATIC_PRESETS[room_type]
+          : getCameraMotionLegacy(cameraAngle || "auto");
+
+        const clipDuration = toValidRunwayDuration(duration ?? preset.duration);
+        console.log(`Preset: ${room_type || cameraAngle}, Duration: ${clipDuration}s`);
+        console.log(`Camera motion:`, JSON.stringify(preset.camera_motion));
+        console.log(`Prompt: "${preset.promptText}"`);
 
         const requestBody = {
           model: "gen3a_turbo",
           promptImage: imageUrl,
-          promptText: "Cinematic real estate interior. Stable walls and furniture. Professional photography.",
-          camera_motion: cameraMotion,
+          promptText: preset.promptText,
+          camera_motion: preset.camera_motion,
           ratio: "768:1280",
           duration: clipDuration,
         };

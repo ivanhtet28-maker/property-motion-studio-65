@@ -17,11 +17,29 @@ import {
 
 export type CameraAngle = "auto" | "wide-shot" | "push-in" | "push-out" | "orbit-left" | "orbit-right";
 
-const CLIP_DURATION = 3.5; // seconds — fixed for consistent professional pacing
+// Cinematic Engine — Option B: Shot List with pre-calibrated room physics.
+// Each room_type maps to specific camera_motion values in generate-runway-batch.
+export type RoomType =
+  | "exterior-arrival"
+  | "front-door"
+  | "entry-foyer"
+  | "living-room-wide"
+  | "living-room-orbit"
+  | "kitchen-orbit"
+  | "kitchen-push"
+  | "master-bedroom"
+  | "bedroom"
+  | "bathroom"
+  | "outdoor-entertaining"
+  | "backyard-pool"
+  | "view-balcony";
+
+const CLIP_DURATION = 3.5; // seconds — fixed for Ken Burns mode; Runway uses 5s
 
 export interface ImageMetadata {
   file: File;
-  cameraAngle: CameraAngle;
+  room_type: RoomType;
+  cameraAngle: CameraAngle; // kept for backwards compatibility
   duration: number;
 }
 
@@ -35,31 +53,31 @@ interface PhotoUploadProps {
 }
 
 const CAMERA_ANGLE_OPTIONS: Record<CameraAngle, { label: string; description: string }> = {
-  auto: {
-    label: "Auto (Recommended)",
-    description: "Smooth push-in zoom — best all-round movement for any shot",
-  },
-  "wide-shot": {
-    label: "Wide Shot",
-    description: "Static locked camera, no movement - architectural style",
-  },
-  "push-in": {
-    label: "Push In",
-    description: "Camera slowly moves forward toward the focal point",
-  },
-  "push-out": {
-    label: "Push Out",
-    description: "Camera slowly pulls back away from the scene",
-  },
-  "orbit-right": {
-    label: "Pan Right",
-    description: "Camera pans right — smooth horizontal sweep with gentle zoom",
-  },
-  "orbit-left": {
-    label: "Pan Left",
-    description: "Camera pans left — smooth horizontal sweep with gentle zoom",
-  },
+  auto: { label: "Auto (Recommended)", description: "Smooth push-in zoom — best all-round movement for any shot" },
+  "wide-shot": { label: "Wide Shot", description: "Static locked camera, no movement - architectural style" },
+  "push-in": { label: "Push In", description: "Camera slowly moves forward toward the focal point" },
+  "push-out": { label: "Push Out", description: "Camera slowly pulls back away from the scene" },
+  "orbit-right": { label: "Pan Right", description: "Camera pans right — smooth horizontal sweep with gentle zoom" },
+  "orbit-left": { label: "Pan Left", description: "Camera pans left — smooth horizontal sweep with gentle zoom" },
 };
+
+// Shot List — pre-calibrated room types for the Cinematic Engine.
+// Labels are agent-friendly (no technical jargon).
+export const ROOM_TYPE_OPTIONS: { value: RoomType; label: string; description: string }[] = [
+  { value: "exterior-arrival",    label: "Exterior Arrival",     description: "Drone push toward facade" },
+  { value: "front-door",          label: "Front Door",           description: "Architectural entrance push-in" },
+  { value: "entry-foyer",         label: "Entry / Foyer",        description: "Orbit reveal of entry" },
+  { value: "living-room-wide",    label: "Living Room",          description: "Wide slow push" },
+  { value: "living-room-orbit",   label: "Living Room Orbit",    description: "Cinematic sweep" },
+  { value: "kitchen-orbit",       label: "Kitchen Orbit",        description: "Counter orbit" },
+  { value: "kitchen-push",        label: "Kitchen Detail",       description: "Counter push-in" },
+  { value: "master-bedroom",      label: "Master Bedroom",       description: "Sanctuary reveal" },
+  { value: "bedroom",             label: "Bedroom",              description: "Gentle push reveal" },
+  { value: "bathroom",            label: "Bathroom",             description: "Fixture detail push" },
+  { value: "outdoor-entertaining",label: "Outdoor Entertaining", description: "Patio / alfresco reveal" },
+  { value: "backyard-pool",       label: "Backyard / Pool",      description: "Aerial-style reveal" },
+  { value: "view-balcony",        label: "View / Balcony",       description: "Panoramic reveal" },
+];
 
 export function PhotoUpload({
   photos,
@@ -80,6 +98,7 @@ export function PhotoUpload({
       const existing = imageMetadata.find(m => m.file.name === file.name);
       return existing || {
         file,
+        room_type: "living-room-wide" as RoomType,
         cameraAngle: "auto" as CameraAngle,
         duration: CLIP_DURATION,
       };
@@ -146,16 +165,16 @@ export function PhotoUpload({
     }
   };
 
-  const updateImageAngle = (index: number, angle: CameraAngle) => {
+  const updateImageRoomType = (index: number, roomType: RoomType) => {
     if (!onMetadataChange) return;
     const newMetadata = [...imageMetadata];
-    newMetadata[index] = { ...newMetadata[index], cameraAngle: angle };
+    newMetadata[index] = { ...newMetadata[index], room_type: roomType };
     onMetadataChange(newMetadata);
   };
 
-  const setAllAngles = (angle: CameraAngle) => {
+  const setAllRoomTypes = (roomType: RoomType) => {
     if (!onMetadataChange) return;
-    const newMetadata = imageMetadata.map(meta => ({ ...meta, cameraAngle: angle }));
+    const newMetadata = imageMetadata.map(meta => ({ ...meta, room_type: roomType }));
     onMetadataChange(newMetadata);
   };
 
@@ -265,12 +284,12 @@ export function PhotoUpload({
             {onMetadataChange && imageMetadata.length > 0 && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">{(photos.length * CLIP_DURATION).toFixed(1)}s total</span>
-                <Select value="" onValueChange={(value) => setAllAngles(value as CameraAngle)}>
-                  <SelectTrigger className="h-7 text-xs w-[140px]">
+                <Select value="" onValueChange={(value) => setAllRoomTypes(value as RoomType)}>
+                  <SelectTrigger className="h-7 text-xs w-[160px]">
                     <SelectValue placeholder="Set all to..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(CAMERA_ANGLE_OPTIONS).map(([value, { label }]) => (
+                    {ROOM_TYPE_OPTIONS.map(({ value, label }) => (
                       <SelectItem key={value} value={value} className="text-xs">
                         {label}
                       </SelectItem>
@@ -342,33 +361,35 @@ export function PhotoUpload({
                     )}
                   </div>
 
-                  {/* Camera Angle & Duration Controls */}
+                  {/* Shot Type Controls */}
                   {onMetadataChange && metadata && (
                     <div className="space-y-2">
-                      {/* Camera Angle */}
+                      {/* Shot Type */}
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-1">
-                          <label className="text-xs font-medium text-muted-foreground">Camera Angle</label>
+                          <label className="text-xs font-medium text-muted-foreground">Shot Type</label>
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Info className="w-3 h-3 text-muted-foreground" />
                               </TooltipTrigger>
                               <TooltipContent className="max-w-xs">
-                                <p className="text-xs">{CAMERA_ANGLE_OPTIONS[metadata.cameraAngle].description}</p>
+                                <p className="text-xs">
+                                  {ROOM_TYPE_OPTIONS.find(o => o.value === metadata.room_type)?.description ?? "Select the room type for cinematic motion"}
+                                </p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
                         </div>
                         <Select
-                          value={metadata.cameraAngle}
-                          onValueChange={(value) => updateImageAngle(index, value as CameraAngle)}
+                          value={metadata.room_type ?? "living-room-wide"}
+                          onValueChange={(value) => updateImageRoomType(index, value as RoomType)}
                         >
                           <SelectTrigger className="h-8 text-xs">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {Object.entries(CAMERA_ANGLE_OPTIONS).map(([value, { label }]) => (
+                            {ROOM_TYPE_OPTIONS.map(({ value, label }) => (
                               <SelectItem key={value} value={value} className="text-xs">
                                 {label}
                               </SelectItem>
