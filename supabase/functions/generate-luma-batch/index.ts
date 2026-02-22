@@ -7,14 +7,12 @@ const corsHeaders = {
 
 const LUMA_API_KEY = Deno.env.get("LUMA_API_KEY");
 
-const STABILITY_PROMPT = `ULTRA-STABLE architecture, no morphing, no distortion, locked walls and furniture.
-Maintain strict architectural accuracy and straight vertical lines.
-Consistent exposure, no flicker, no warping.
-Natural interior/exterior lighting, soft realistic shadows and reflections.
-Luxury real estate cinematography, slow and elegant, sophisticated and composed.
-No people, no vehicles, no text, no watermarks, no UI, no camera artifacts.
-Photorealistic, clean, stable, professional property marketing video.
-4K quality.`;
+// With frame0+frame1 dual anchoring, this only needs to state what to avoid —
+// the model's content hallucination is already constrained by the end-frame lock.
+const STABILITY_PROMPT = `Photorealistic luxury real estate video.
+Locked architecture, no morphing, no distortion, no flickering.
+Natural lighting, stable exposure.
+No people, no text, no watermarks. 4K quality.`;
 
 const NEGATIVE_PROMPT = [
   "morphing, room distortion, melting walls, wavy floors, changing furniture, flickering",
@@ -51,18 +49,19 @@ Deno.serve(async (req) => {
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
         console.log(`Image: ${imageUrl}, angle: ${cameraAngle}`);
 
-        // Professional real estate videography: slow, smooth, gimbal-stabilised movements.
-        // Each description mirrors how an experienced property videographer would physically move the camera.
+        // Short, direct motion prompts work best with dual-keyframe anchoring.
+        // Long verbose prompts add noise when the model's content freedom is already
+        // constrained by frame0 + frame1 being the same image.
         const motionDescription =
           cameraAngle === "push-in" || cameraAngle === "zoom-in" || cameraAngle === "auto"
-            ? "Slow, smooth gimbal dolly push-in: the camera glides steadily forward toward the focal point at a relaxed, deliberate walking pace — as if a professional videographer is on a slider. Buttery smooth, zero shake, constant speed throughout."
+            ? "Slow smooth push-in, camera glides gently forward."
             : cameraAngle === "push-out"
-              ? "Slow, smooth cinematic pull-back: the camera glides steadily backward at a relaxed, deliberate pace, gradually revealing the full depth and grandeur of the space. Graceful and unhurried, buttery smooth, zero shake."
+              ? "Slow smooth pull-back, camera glides gently backward."
               : cameraAngle === "orbit-right"
-                ? "Slow, smooth pan right: the camera sweeps steadily from left to right across the space at an even, unhurried pace — as if a professional videographer is slowly rotating the tripod head to reveal the full width of the room. Pure horizontal camera rotation, no zoom, no vertical drift, buttery smooth."
+                ? "Slow smooth pan right, camera sweeps left to right."
                 : cameraAngle === "orbit-left"
-                  ? "Slow, smooth pan left: the camera sweeps steadily from right to left across the space at an even, unhurried pace — as if a professional videographer is slowly rotating the tripod head to reveal the full width of the room. Pure horizontal camera rotation, no zoom, no vertical drift, buttery smooth."
-                  : "Slow, smooth cinematic camera glide through the space, deliberate and unhurried.";
+                  ? "Slow smooth pan left, camera sweeps right to left."
+                  : "Slow smooth camera movement.";
 
         const fullPrompt = `High-end cinematic real estate video of ${propertyAddress}.
 ${motionDescription}
@@ -78,7 +77,11 @@ ${STABILITY_PROMPT}`.trim();
             model: "ray-2",
             prompt: fullPrompt,
             keyframes: {
+              // Dual anchor: same image at start AND end.
+              // Forces Luma to start and end at identical frames — content cannot
+              // morph or hallucinate; only camera motion is possible between the two.
               frame0: { type: "image", url: imageUrl },
+              frame1: { type: "image", url: imageUrl },
             },
             aspect_ratio: "9:16",
             loop: false,
