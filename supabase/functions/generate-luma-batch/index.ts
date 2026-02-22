@@ -10,7 +10,10 @@
 
   const LUMA_API_KEY = Deno.env.get("LUMA_API_KEY");
 
-  // Stability prompt - replaces verbose motion prompts since end-frames handle motion
+  // Target output aspect ratio (portrait video)
+  const TARGET_ASPECT = 9 / 16;
+
+  // Stability prompt - end-frames handle motion, this handles quality/realism
   const STABILITY_PROMPT = `ULTRA-STABLE architecture, no morphing, no distortion, locked walls and furniture.
 Maintain strict architectural accuracy and straight vertical lines.
 Consistent exposure, no flicker, no warping.
@@ -20,117 +23,155 @@ No people, no vehicles, no text, no watermarks, no UI, no camera artifacts.
 Photorealistic, clean, stable, professional property marketing video.
 4K quality.`;
 
+  const NEGATIVE_PROMPT = [
+    // Content hallucination
+    "morphing, room distortion, melting walls, wavy floors, changing furniture, flickering",
+    "structural changes, hallucination, blurry architecture, zooming into darkness",
+    "changing light sources, shifting shadows, surreal elements, AI artifacts, unnatural colors",
+    // Camera instability
+    "camera shake, jitter, wobble, vibration, handheld, unstable, shaking",
+    // Aspect ratio / framing distortion — the main cause of landscape hallucinations
+    "aspect ratio distortion, stretching, squishing, letterbox, pillarbox, black bars",
+    "warped perspective, fisheye, wide angle distortion, content outside original frame",
+    "generated background, padding, cropped borders, image borders",
+  ].join(", ");
+
   /**
-   * Create an end-frame by cropping 10% from the original image and resizing back.
-   * This forces the AI to create a smooth movement path between start and end frames.
+   * For a given image URL and camera angle, returns:
+   *   startFrameUrl — portrait-cropped version of the original (uploaded to storage if landscape)
+   *   endFrameUrl   — the motion end frame (10% crop of the portrait start, resized back)
    *
-   * Crop strategies:
-   * - push-in/auto: 10% center crop (simulates dolly-in)
-   * - push-out: 10% outer crop (simulates pull-back — crops opposite corner, AI fills center)
-   * - orbit-right: 10% crop aligned to right edge (focal point shifts right)
-   * - orbit-left: 10% crop aligned to left edge (focal point shifts left)
+   * For landscape inputs the image is first center-cropped to 9:16 so Luma never
+   * has to invent content outside the original frame. Both keyframes are then
+   * derived purely from real pixels.
    */
-  async function createEndFrame(
+  async function createFrames(
     imageUrl: string,
     cameraAngle: string
-  ): Promise<string | null> {
+  ): Promise<{ startFrameUrl: string | null; endFrameUrl: string | null }> {
     try {
-      console.log(`Creating end frame for: ${imageUrl} (angle: ${cameraAngle})`);
+      console.log(`Creating frames for: ${imageUrl} (angle: ${cameraAngle})`);
 
-      // Fetch the original image
-      const response = await fetch(imageUrl);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+      const fetchResponse = await fetch(imageUrl);
+      if (!fetchResponse.ok) {
+        throw new Error(`Failed to fetch image: ${fetchResponse.status} ${fetchResponse.statusText}`);
       }
 
-      const imageBuffer = new Uint8Array(await response.arrayBuffer());
+      const imageBuffer = new Uint8Array(await fetchResponse.arrayBuffer());
       const image = await Image.decode(imageBuffer);
 
       const originalWidth = image.width;
       const originalHeight = image.height;
-      console.log(`Original dimensions: ${originalWidth}x${originalHeight}`);
+      const originalAspect = originalWidth / originalHeight;
+      const isLandscape = originalAspect > TARGET_ASPECT + 0.02; // tolerance for near-square images
 
-      // Calculate crop dimensions (90% of original = 10% crop)
-      const cropWidth = Math.round(originalWidth * 0.9);
-      const cropHeight = Math.round(originalHeight * 0.9);
+      console.log(`Original dimensions: ${originalWidth}x${originalHeight} ratio:${originalAspect.toFixed(3)} (${isLandscape ? "LANDSCAPE — will pre-crop to portrait" : "portrait/square — no pre-crop needed"})`);
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+      // --- Step 1: Portrait normalisation ---
+      // If the image is landscape, center-crop to 9:16 before Luma sees it.
+      // This ensures both keyframes are made of 100% real pixels.
+      let workImage = image;
+      let startFrameUrl: string | null = null; // null means "use the original URL as-is"
+
+      if (isLandscape) {
+        const portraitWidth = Math.round(originalHeight * TARGET_ASPECT);
+        const portraitCropX = Math.round((originalWidth - portraitWidth) / 2);
+
+        console.log(`Portrait crop: ${portraitWidth}x${originalHeight} at x=${portraitCropX}`);
+        workImage = image.crop(portraitCropX, 0, portraitWidth, originalHeight);
+
+        const startFrameBuffer = await workImage.encodeJPEG(90);
+        const startFileName = `start-frame-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+        const startFilePath = `end-frames/${startFileName}`;
+
+        const { error: startUploadError } = await supabase.storage
+          .from("video-assets")
+          .upload(startFilePath, startFrameBuffer, { contentType: "image/jpeg", upsert: true });
+
+        if (startUploadError) {
+          console.error("Failed to upload portrait start frame:", startUploadError);
+          // Fall back to original URL — Luma will still do aspect conversion, but
+          // at least the end-frame crop will be consistent.
+          workImage = image;
+        } else {
+          const { data: urlData } = supabase.storage
+            .from("video-assets")
+            .getPublicUrl(startFilePath);
+          startFrameUrl = urlData.publicUrl;
+          console.log("Portrait start frame uploaded:", startFrameUrl);
+        }
+      }
+
+      // --- Step 2: Motion end-frame crop (applied to portrait workImage) ---
+      const workWidth = workImage.width;
+      const workHeight = workImage.height;
+
+      // Crop 10% inward — resizing back creates a zoom path from real pixels
+      const cropWidth = Math.round(workWidth * 0.9);
+      const cropHeight = Math.round(workHeight * 0.9);
 
       let cropX: number;
       let cropY: number;
 
       switch (cameraAngle) {
         case "orbit-right":
-          // End frame shifted right — focal point moves right, simulates orbit right
-          cropX = originalWidth - cropWidth;
-          cropY = Math.round((originalHeight - cropHeight) / 2);
+          cropX = workWidth - cropWidth;
+          cropY = Math.round((workHeight - cropHeight) / 2);
           break;
         case "orbit-left":
-          // End frame shifted left — focal point moves left, simulates orbit left
           cropX = 0;
-          cropY = Math.round((originalHeight - cropHeight) / 2);
+          cropY = Math.round((workHeight - cropHeight) / 2);
           break;
         case "push-out":
-          // End frame shifted to top-left corner — AI interpolates a pull-back effect
           cropX = 0;
           cropY = 0;
           break;
         case "push-in":
-        case "zoom-in": // legacy alias
+        case "zoom-in":
         case "auto":
         default:
-          // Center crop (simulates push-in / dolly forward)
-          cropX = Math.round((originalWidth - cropWidth) / 2);
-          cropY = Math.round((originalHeight - cropHeight) / 2);
+          cropX = Math.round((workWidth - cropWidth) / 2);
+          cropY = Math.round((workHeight - cropHeight) / 2);
           break;
       }
 
-      // Add subtle random jitter to avoid robotic motion (AutoReel-style)
+      // Subtle jitter to avoid robotic motion
       const jitterX = Math.round(Math.random() * 6 - 3);
       const jitterY = Math.round(Math.random() * 6 - 3);
-      cropX = Math.max(0, Math.min(cropX + jitterX, originalWidth - cropWidth));
-      cropY = Math.max(0, Math.min(cropY + jitterY, originalHeight - cropHeight));
+      cropX = Math.max(0, Math.min(cropX + jitterX, workWidth - cropWidth));
+      cropY = Math.max(0, Math.min(cropY + jitterY, workHeight - cropHeight));
 
-      console.log(`Cropping: ${cropWidth}x${cropHeight} at (${cropX}, ${cropY}) [jitter: ${jitterX}, ${jitterY}]`);
+      console.log(`Motion crop: ${cropWidth}x${cropHeight} at (${cropX}, ${cropY}) [jitter: ${jitterX}, ${jitterY}]`);
 
-      // Crop the image
-      const cropped = image.crop(cropX, cropY, cropWidth, cropHeight);
+      const endFrameImage = workImage.crop(cropX, cropY, cropWidth, cropHeight);
+      endFrameImage.resize(workWidth, workHeight);
 
-      // Resize back to original dimensions (forces the AI to see a zoom path)
-      cropped.resize(originalWidth, originalHeight);
+      const endFrameBuffer = await endFrameImage.encodeJPEG(85);
+      const endFileName = `end-frame-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+      const endFilePath = `end-frames/${endFileName}`;
 
-      console.log(`End frame created: ${originalWidth}x${originalHeight}`);
-
-      // Encode as JPEG
-      const endFrameBuffer = await cropped.encodeJPEG(85);
-
-      // Upload to Supabase Storage
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-      const fileName = `end-frame-${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
-      const filePath = `end-frames/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
+      const { error: endUploadError } = await supabase.storage
         .from("video-assets")
-        .upload(filePath, endFrameBuffer, {
-          contentType: "image/jpeg",
-          upsert: true,
-        });
+        .upload(endFilePath, endFrameBuffer, { contentType: "image/jpeg", upsert: true });
 
-      if (uploadError) {
-        console.error("Failed to upload end frame:", uploadError);
-        return null;
+      if (endUploadError) {
+        console.error("Failed to upload end frame:", endUploadError);
+        return { startFrameUrl, endFrameUrl: null };
       }
 
-      const { data: urlData } = supabase.storage
+      const { data: endUrlData } = supabase.storage
         .from("video-assets")
-        .getPublicUrl(filePath);
+        .getPublicUrl(endFilePath);
 
-      console.log("End frame uploaded:", urlData.publicUrl);
-      return urlData.publicUrl;
+      console.log("End frame uploaded:", endUrlData.publicUrl);
+      return { startFrameUrl, endFrameUrl: endUrlData.publicUrl };
     } catch (error) {
-      console.error("Error creating end frame:", error);
-      return null;
+      console.error("Error creating frames:", error);
+      return { startFrameUrl: null, endFrameUrl: null };
     }
   }
 
@@ -150,7 +191,7 @@ Photorealistic, clean, stable, professional property marketing video.
         throw new Error("LUMA_API_KEY not configured");
       }
 
-      console.log(`=== END-FRAME LOGIC: Batch generation for ${imageMetadata.length} images ===`);
+      console.log(`=== LUMA BATCH: ${imageMetadata.length} images ===`);
 
       const generationPromises = imageMetadata.map(async (metadata: { url: string; cameraAngle: string; duration: number }, index) => {
         const { url: imageUrl, cameraAngle, duration } = metadata;
@@ -159,14 +200,20 @@ Photorealistic, clean, stable, professional property marketing video.
           console.log(`Image: ${imageUrl}`);
           console.log(`Camera angle: ${cameraAngle}, Duration: ${duration}s`);
 
-          // Step 1: Create end frame (10% cropped version)
-          const endFrameUrl = await createEndFrame(imageUrl, cameraAngle);
+          // Step 1: Build portrait start frame + motion end frame from real pixels only
+          const { startFrameUrl, endFrameUrl } = await createFrames(imageUrl, cameraAngle);
 
+          // Use the portrait-normalised start frame if we had to convert from landscape
+          const effectiveStartUrl = startFrameUrl || imageUrl;
+
+          if (startFrameUrl) {
+            console.log(`Landscape detected — using portrait-cropped start frame`);
+          }
           if (!endFrameUrl) {
             console.warn(`Failed to create end frame for clip ${index + 1}, falling back to start-frame-only`);
           }
 
-          // Step 2: Build simplified prompt (end-frames handle motion, prompt handles quality)
+          // Step 2: Build motion prompt
           const motionDescription =
             cameraAngle === "push-in" || cameraAngle === "zoom-in" || cameraAngle === "auto"
               ? "Smooth subtle push-in toward the focal point."
@@ -182,28 +229,19 @@ Photorealistic, clean, stable, professional property marketing video.
 ${motionDescription}
 ${STABILITY_PROMPT}`.trim();
 
-          console.log(`Prompt: ${fullPrompt.substring(0, 100)}...`);
-
-          // Step 3: Build keyframes (start + end frame if available)
+          // Step 3: Build keyframes
           const keyframes: Record<string, { type: string; url: string }> = {
-            frame0: {
-              type: "image",
-              url: imageUrl,
-            },
+            frame0: { type: "image", url: effectiveStartUrl },
           };
 
-          // Add end frame if successfully created (THE KEY IMPROVEMENT)
           if (endFrameUrl) {
-            keyframes.frame1 = {
-              type: "image",
-              url: endFrameUrl,
-            };
-            console.log(`Using END-FRAME approach: frame0 (original) + frame1 (10% crop)`);
+            keyframes.frame1 = { type: "image", url: endFrameUrl };
+            console.log(`Using END-FRAME approach: frame0 (portrait start) + frame1 (motion crop)`);
           } else {
             console.log(`Using START-FRAME only (fallback)`);
           }
 
-          // Step 4: Call Luma API with both keyframes
+          // Step 4: Call Luma API
           const response = await fetch("https://api.lumalabs.ai/dream-machine/v1/generations", {
             method: "POST",
             headers: {
@@ -217,7 +255,7 @@ ${STABILITY_PROMPT}`.trim();
               aspect_ratio: "9:16",
               loop: false,
               duration: "9s",
-              negative_prompt: "morphing, room distortion, melting walls, wavy floors, changing furniture, flickering, structural changes, hallucination, blurry architecture, zooming into darkness, changing light sources, shifting shadows, shaking, camera shake, jitter, wobble, vibration, handheld, unstable",
+              negative_prompt: NEGATIVE_PROMPT,
               motion_bucket_id: 3,
             }),
           });
