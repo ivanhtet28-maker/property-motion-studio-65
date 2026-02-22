@@ -104,6 +104,7 @@
     videoUrls?: string[];     // AI-generated video clips (Luma/Runway mode)
     imageUrls?: string[];     // Raw property photos (Ken Burns mode)
     imageEffects?: string[];  // Per-image Shotstack effect (Ken Burns mode only)
+    cameraAngles?: string[];  // Raw camera angle names — used for orbit offset animation
     clipDurations?: number[]; // Array of durations for each clip
     propertyData: {
       address: string;
@@ -424,7 +425,7 @@
     }
 
     try {
-      const { videoUrls, imageUrls, imageEffects, clipDurations, propertyData, audioUrl, musicUrl, agentInfo, style, layout, customTitle, videoId, outputFormat }: StitchVideoRequest = await req.json();
+      const { videoUrls, imageUrls, imageEffects, cameraAngles, clipDurations, propertyData, audioUrl, musicUrl, agentInfo, style, layout, customTitle, videoId, outputFormat }: StitchVideoRequest = await req.json();
 
       // Ken Burns mode: raw property photos + Shotstack effects
       // AI mode: pre-generated video clips from Luma/Runway
@@ -484,8 +485,8 @@
         console.log("No agent photo provided in agentInfo");
       }
 
-      // Use provided clip durations or default to 5 seconds each
-      const durations = clipDurations || sourceUrls.map(() => 5);
+      // Use provided clip durations or default to 3.5 seconds each
+      const durations = clipDurations || sourceUrls.map(() => 3.5);
 
       // Calculate total duration
       const videoClipsDuration = durations.reduce((sum, duration) => sum + duration, 0);
@@ -507,9 +508,30 @@
           start: currentStart,
           length: clipDuration,
         };
-        // Ken Burns: apply the per-clip Shotstack effect and smooth crossfades
+        // Ken Burns: smooth motion using angle-specific technique
         if (isKenBurns) {
-          clip.effect = imageEffects?.[index] || "zoomInSlow";
+          const angle = cameraAngles?.[index] || "auto";
+
+          if (angle === "orbit-right") {
+            // Gentle 4% pan left (so camera feels like panning right), easeInOut
+            // Replaces slideLeftSlow which pans 15-20% — too aggressive at 3.5s
+            clip.offset = {
+              x: [{ from: 0, to: -0.04, start: 0, length: clipDuration,
+                     interpolation: "bezier", easing: "easeInOutQuart" }]
+            };
+          } else if (angle === "orbit-left") {
+            // Gentle 4% pan right (camera feels like panning left), easeInOut
+            clip.offset = {
+              x: [{ from: 0, to: 0.04, start: 0, length: clipDuration,
+                     interpolation: "bezier", easing: "easeInOutQuart" }]
+            };
+          } else if (angle === "push-out") {
+            clip.effect = "zoomOutSlow";
+          } else {
+            // push-in, auto, wide-shot, default
+            clip.effect = "zoomInSlow";
+          }
+
           clip.transition = { in: "fade", out: "fade" };
         }
         currentStart += clipDuration;

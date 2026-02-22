@@ -467,33 +467,13 @@ Contact us today for a private inspection.`;
         }
       }
 
-      // Step 3: Generate canvas video clips client-side (mathematical transforms, zero AI)
-      console.log("Generating canvas video clips client-side...");
-      setGeneratingProgress(32);
+      // Step 3: Ken Burns mode — Shotstack applies motion server-side on the original photos.
+      // No client-side clip generation needed; skipping directly to Shotstack.
+      setGeneratingProgress(45);
+      console.log("Ken Burns mode: Shotstack handles motion server-side on original photos.");
 
-      const canvasFolder = `canvas-${Date.now()}`;
-      const canvasVideoUrls: string[] = [];
-
-      for (let i = 0; i < imageUrls.length; i++) {
-        const meta = imageMetadata[i];
-        const url = imageUrls[i];
-        const cameraAngle = meta?.cameraAngle || "auto";
-        const duration = meta?.duration || 5;
-
-        console.log(`Generating clip ${i + 1}/${imageUrls.length}: ${cameraAngle} @ ${duration}s`);
-
-        const blob = await generateCanvasVideo(url, cameraAngle, duration);
-        const videoUrl = await uploadVideoToStorage(blob, canvasFolder, `clip-${i + 1}`);
-        canvasVideoUrls.push(videoUrl);
-
-        setGeneratingProgress(32 + Math.round(((i + 1) / imageUrls.length) * 38)); // 32–70%
-      }
-
-      console.log("Canvas clips generated and uploaded:", canvasVideoUrls.length);
-      setGeneratingProgress(70);
-
-      // Step 4: Call generate-video with pre-generated clips (skips Luma, goes straight to Shotstack)
-      console.log("Calling generate-video API (canvas flow)...");
+      // Step 4: Call generate-video (Ken Burns path — goes straight to Shotstack)
+      console.log("Calling generate-video API (Ken Burns flow)...");
 
       const propertyDataPayload = {
         address: `${propertyDetails.streetAddress}, ${propertyDetails.suburb}, ${propertyDetails.state}`,
@@ -529,8 +509,7 @@ Contact us today for a private inspection.`;
         body: {
           imageUrls: imageUrls,
           imageMetadata: imageMetadataPayload,
-          preGeneratedVideoUrls: canvasVideoUrls,
-          useKenBurns: true, // Use Shotstack Ken Burns effects (no AI generation)
+          useKenBurns: true, // Shotstack applies Ken Burns effects directly on raw photos
           propertyData: propertyDataPayload,
           style: customization.selectedTemplate,
           layout: customization.selectedLayout,

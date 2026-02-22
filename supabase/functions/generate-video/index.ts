@@ -270,7 +270,8 @@
         console.log("Ken Burns flow: bypassing AI generation, applying Shotstack effects to photos");
 
         const imageEffects = metadataSource.map((m: ImageMetadata) => toShotstackEffect(m.cameraAngle || "auto"));
-        const clipDurations = metadataSource.map((m: ImageMetadata) => m.duration ?? 5);
+        const cameraAngles = metadataSource.map((m: ImageMetadata) => m.cameraAngle || "auto");
+        const clipDurations = metadataSource.map((m: ImageMetadata) => m.duration ?? 3.5);
 
         console.log("Effects:", imageEffects);
 
@@ -285,6 +286,7 @@
             body: JSON.stringify({
               imageUrls,
               imageEffects,
+              cameraAngles,
               clipDurations,
               audioUrl,
               musicUrl,
