@@ -48,6 +48,24 @@
     };
     // When provided, skip Runway and go straight to Shotstack stitching
     preGeneratedVideoUrls?: string[];
+    // When true, skip ALL AI generation and use Shotstack Ken Burns effects on raw photos
+    useKenBurns?: boolean;
+  }
+
+  // Map user camera angle selections to Shotstack Ken Burns effect names.
+  // Ken Burns mode applies these as mathematical transforms directly to still images —
+  // no AI generation, no hallucination, identical output every run.
+  function toShotstackEffect(cameraAngle: string): string {
+    switch (cameraAngle) {
+      case "push-out":    return "zoomOutSlow";
+      case "orbit-right": return "slideLeftSlow";  // image moves left = camera pans right
+      case "orbit-left":  return "slideRightSlow"; // image moves right = camera pans left
+      case "push-in":
+      case "zoom-in":
+      case "wide-shot":
+      case "auto":
+      default:            return "zoomInSlow";
+    }
   }
 
   // Music library mapping - updated IDs to match frontend
@@ -95,9 +113,10 @@
     }
 
     try {
-      const { imageUrls, imageMetadata, propertyData, style, layout, customTitle, voice, music, userId, propertyId, script, source, agentInfo, preGeneratedVideoUrls }: GenerateVideoRequest = await req.json();
+      const { imageUrls, imageMetadata, propertyData, style, layout, customTitle, voice, music, userId, propertyId, script, source, agentInfo, preGeneratedVideoUrls, useKenBurns }: GenerateVideoRequest = await req.json();
 
-      console.log("=== LUMA VIDEO GENERATION ===");
+      console.log("=== VIDEO GENERATION ===");
+      console.log("Mode:", useKenBurns ? "Ken Burns (Shotstack direct)" : "Luma AI");
       console.log("Total images:", imageUrls?.length || 0);
       console.log("Property:", propertyData?.address);
 
@@ -242,6 +261,70 @@
         } catch (dbErr) {
           console.error("Database error:", dbErr);
         }
+      }
+
+      // --- Ken Burns flow: skip AI entirely, use Shotstack effects on raw photos ---
+      // This is how all professional real estate video tools (AutoReel, Box Brownie, etc.)
+      // work: mathematical zoom/pan transforms on the original photos — zero hallucination.
+      if (useKenBurns) {
+        console.log("Ken Burns flow: bypassing AI generation, applying Shotstack effects to photos");
+
+        const imageEffects = metadataSource.map((m: ImageMetadata) => toShotstackEffect(m.cameraAngle || "auto"));
+        const clipDurations = metadataSource.map((m: ImageMetadata) => m.duration ?? 5);
+
+        console.log("Effects:", imageEffects);
+
+        const stitchResponse = await fetch(
+          `${Deno.env.get("SUPABASE_URL")}/functions/v1/stitch-video`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+            },
+            body: JSON.stringify({
+              imageUrls,
+              imageEffects,
+              clipDurations,
+              audioUrl,
+              musicUrl,
+              agentInfo,
+              propertyData,
+              style,
+              layout: layout || style,
+              customTitle: customTitle || "",
+              videoId: videoRecordId,
+            }),
+          }
+        );
+
+        const stitchData = await stitchResponse.json();
+
+        if (!stitchData.success || !stitchData.jobId) {
+          throw new Error(stitchData.error || "Failed to start Shotstack Ken Burns render");
+        }
+
+        console.log("Ken Burns Shotstack job started:", stitchData.jobId);
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            provider: "ken-burns",
+            videoId: videoRecordId,
+            stitchJobId: stitchData.jobId,
+            generationIds: [],
+            totalClips: imageUrls.length,
+            estimatedDuration: expectedDuration,
+            estimatedTime: 45,
+            message: `Ken Burns render started for ${imageUrls.length} photos. No AI generation needed.`,
+            audioUrl,
+            musicUrl,
+            agentInfo,
+            propertyData,
+            style,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
 
       // --- Canvas flow: pre-generated video clips supplied by client ---
