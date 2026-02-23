@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 const RUNWAY_API_KEY = Deno.env.get("RUNWAY_API_KEY");
-const RUNWAY_API_URL = "https://api.runwayml.com/v1/image_to_video";
+const RUNWAY_API_URL = "https://api.dev.runwayml.com/v1/image_to_video";
 const RUNWAY_VERSION = "2024-11-06";
 
 // Both gen3a_turbo and gen4_turbo only support 5 or 10 second durations
