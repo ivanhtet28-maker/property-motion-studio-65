@@ -9,54 +9,30 @@ const corsHeaders = {
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
 const VALID_ROOM_TYPES = [
-  "exterior-arrival",
-  "front-door",
-  "entry-foyer",
-  "living-room-wide",
-  "living-room-orbit",
-  "kitchen-orbit",
-  "kitchen-push",
-  "master-bedroom",
-  "bedroom",
-  "bathroom",
-  "outdoor-entertaining",
-  "backyard-pool",
-  "view-balcony",
+  "hero-push",
+  "room-flow",
+  "luxury-slide",
+  "detail-orbit",
+  "wide-reveal",
 ] as const;
 
 type RoomType = typeof VALID_ROOM_TYPES[number];
 
-const DETECTION_PROMPT = `Classify this real estate photo. Reply with ONLY one exact value from this list (no other text, no punctuation):
-exterior-arrival
-front-door
-entry-foyer
-living-room-wide
-living-room-orbit
-kitchen-orbit
-kitchen-push
-master-bedroom
-bedroom
-bathroom
-outdoor-entertaining
-backyard-pool
-view-balcony
+const DETECTION_PROMPT = `Classify this real estate photo into one of 5 shot presets. Reply with ONLY one exact value from this list (no other text, no punctuation):
+hero-push
+room-flow
+luxury-slide
+detail-orbit
+wide-reveal
 
 Guidelines:
-- exterior-arrival: outside of the property, driveway, facade, street view
-- front-door: close-up of the entrance door or porch
-- entry-foyer: hallway or entrance interior
-- living-room-wide: lounge, living room, open plan living area
-- living-room-orbit: same but photo taken from an angle suggesting a sweep
-- kitchen-orbit: full kitchen view from the side or angle
-- kitchen-push: close-up of kitchen counter, island, appliances, or detail
-- master-bedroom: largest/primary bedroom, usually has ensuite or larger size
-- bedroom: any other bedroom
-- bathroom: any bathroom, ensuite, powder room, toilet
-- outdoor-entertaining: deck, patio, alfresco, pergola, outdoor dining
-- backyard-pool: swimming pool, spa, backyard with grass/garden
-- view-balcony: balcony, terrace, or scenic view from inside
+- hero-push: exterior of the property, driveway, facade, street view, front door, entrance
+- room-flow: living room, lounge, open plan living area, bedroom, hallway, foyer, entry
+- luxury-slide: kitchen, island, countertops, appliances, dining area, patio, alfresco, pergola
+- detail-orbit: bathroom, ensuite, powder room, toilet, fixtures, vanity, spa bath
+- wide-reveal: backyard, swimming pool, garden, balcony, terrace, scenic view, outdoor space
 
-Reply with only the room type value.`;
+Reply with only the preset value.`;
 
 async function detectSingleRoomType(
   base64: string,
@@ -142,7 +118,7 @@ Deno.serve(async (req) => {
           return { id, room_type };
         } catch (err) {
           console.error(`Image ${id}: detection failed, defaulting to living-room-wide`, err);
-          return { id, room_type: "living-room-wide" as RoomType };
+          return { id, room_type: "room-flow" as RoomType };
         }
       })
     );

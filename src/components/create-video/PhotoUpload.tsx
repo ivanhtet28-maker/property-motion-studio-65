@@ -18,22 +18,14 @@ import {
 
 export type CameraAngle = "auto" | "wide-shot" | "push-in" | "push-out" | "orbit-left" | "orbit-right";
 
-// Cinematic Engine — Option B: Shot List with pre-calibrated room physics.
-// Each room_type maps to specific camera_motion values in generate-runway-batch.
+// Cinematic Engine — 5 axis-locked presets. Each preset moves on one or two
+// axes only; all others are strictly 0 so the AI cannot drift into weird angles.
 export type RoomType =
-  | "exterior-arrival"
-  | "front-door"
-  | "entry-foyer"
-  | "living-room-wide"
-  | "living-room-orbit"
-  | "kitchen-orbit"
-  | "kitchen-push"
-  | "master-bedroom"
-  | "bedroom"
-  | "bathroom"
-  | "outdoor-entertaining"
-  | "backyard-pool"
-  | "view-balcony";
+  | "hero-push"
+  | "room-flow"
+  | "luxury-slide"
+  | "detail-orbit"
+  | "wide-reveal";
 
 const CLIP_DURATION = 3.5; // seconds — fixed for Ken Burns mode; Runway uses 5s
 
@@ -64,22 +56,13 @@ const CAMERA_ANGLE_OPTIONS: Record<CameraAngle, { label: string; description: st
   "orbit-left": { label: "Pan Left", description: "Camera pans left — smooth horizontal sweep with gentle zoom" },
 };
 
-// Shot List — pre-calibrated room types for the Cinematic Engine.
-// Labels are agent-friendly (no technical jargon).
+// Shot List — 5 high-performance presets for the Cinematic Engine.
 export const ROOM_TYPE_OPTIONS: { value: RoomType; label: string; description: string }[] = [
-  { value: "exterior-arrival",    label: "Exterior Arrival",     description: "Drone push toward facade" },
-  { value: "front-door",          label: "Front Door",           description: "Architectural entrance push-in" },
-  { value: "entry-foyer",         label: "Entry / Foyer",        description: "Orbit reveal of entry" },
-  { value: "living-room-wide",    label: "Living Room",          description: "Wide slow push" },
-  { value: "living-room-orbit",   label: "Living Room Orbit",    description: "Cinematic sweep" },
-  { value: "kitchen-orbit",       label: "Kitchen Orbit",        description: "Counter orbit" },
-  { value: "kitchen-push",        label: "Kitchen Detail",       description: "Counter push-in" },
-  { value: "master-bedroom",      label: "Master Bedroom",       description: "Sanctuary reveal" },
-  { value: "bedroom",             label: "Bedroom",              description: "Gentle push reveal" },
-  { value: "bathroom",            label: "Bathroom",             description: "Fixture detail push" },
-  { value: "outdoor-entertaining",label: "Outdoor Entertaining", description: "Patio / alfresco reveal" },
-  { value: "backyard-pool",       label: "Backyard / Pool",      description: "Aerial-style reveal" },
-  { value: "view-balcony",        label: "View / Balcony",       description: "Panoramic reveal" },
+  { value: "hero-push",    label: "Hero Push",     description: "Exterior & arrival push-in" },
+  { value: "room-flow",    label: "Room Flow",     description: "Living room & bedroom reveal" },
+  { value: "luxury-slide", label: "Luxury Slide",  description: "Kitchen & patio cinematic slide" },
+  { value: "detail-orbit", label: "Detail Orbit",  description: "Bathroom & fixture orbit" },
+  { value: "wide-reveal",  label: "Wide Reveal",   description: "Backyard, pool & view pullback" },
 ];
 
 // Resize an image File to a small JPEG base64 string suitable for Claude Vision.
@@ -127,7 +110,7 @@ export function PhotoUpload({
       // New file — mark as detecting so UI shows spinner immediately
       return {
         file,
-        room_type: "living-room-wide" as RoomType,
+        room_type: "room-flow" as RoomType,
         cameraAngle: "auto" as CameraAngle,
         duration: CLIP_DURATION,
         isDetecting: true,
@@ -187,7 +170,7 @@ export function PhotoUpload({
             if (existing) return existing;
             return {
               file,
-              room_type: "living-room-wide" as RoomType,
+              room_type: "room-flow" as RoomType,
               cameraAngle: "auto" as CameraAngle,
               duration: CLIP_DURATION,
               isDetecting: false,
@@ -489,7 +472,7 @@ export function PhotoUpload({
                           </div>
                         ) : (
                           <Select
-                            value={metadata.room_type ?? "living-room-wide"}
+                            value={metadata.room_type ?? "room-flow"}
                             onValueChange={(value) => updateImageRoomType(index, value as RoomType)}
                           >
                             <SelectTrigger className="h-8 text-xs">
