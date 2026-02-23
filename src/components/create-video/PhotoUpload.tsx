@@ -1,5 +1,6 @@
-import { useCallback, useState } from "react";
-import { Upload, X, ImageIcon, GripVertical, Star, Info } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import { Upload, X, ImageIcon, GripVertical, Star, Info, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import {
   Select,
   SelectContent,
@@ -41,6 +42,8 @@ export interface ImageMetadata {
   room_type: RoomType;
   cameraAngle: CameraAngle; // kept for backwards compatibility
   duration: number;
+  isDetecting?: boolean;   // true while Claude Vision is classifying
+  autoDetected?: boolean;  // true after AI has set the room type
 }
 
 interface PhotoUploadProps {
@@ -79,6 +82,28 @@ export const ROOM_TYPE_OPTIONS: { value: RoomType; label: string; description: s
   { value: "view-balcony",        label: "View / Balcony",       description: "Panoramic reveal" },
 ];
 
+// Resize an image File to a small JPEG base64 string suitable for Claude Vision.
+// Keeps payload well under the Supabase Edge Function ~2MB limit.
+function resizeImageForDetection(file: File, maxWidth = 800): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) { reject(new Error("No canvas context")); return; }
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const ratio = Math.min(maxWidth / img.width, 1);
+      canvas.width = Math.round(img.width * ratio);
+      canvas.height = Math.round(img.height * ratio);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", 0.8).split(",")[1]);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Image load failed")); };
+    img.src = url;
+  });
+}
+
 export function PhotoUpload({
   photos,
   onChange,
@@ -89,22 +114,91 @@ export function PhotoUpload({
 }: PhotoUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  // Tracks which file names are currently being detected to avoid duplicate calls
+  const detectingRef = useRef<Set<string>>(new Set());
 
-  // Initialize metadata when photos change
+  // Initialize metadata when photos change, then trigger AI detection for new images
   const syncMetadata = useCallback((newPhotos: File[]) => {
     if (!onMetadataChange) return;
 
-    const newMetadata: ImageMetadata[] = newPhotos.map((file, index) => {
+    const newMetadata: ImageMetadata[] = newPhotos.map((file) => {
       const existing = imageMetadata.find(m => m.file.name === file.name);
-      return existing || {
+      if (existing) return existing;
+      // New file — mark as detecting so UI shows spinner immediately
+      return {
         file,
         room_type: "living-room-wide" as RoomType,
         cameraAngle: "auto" as CameraAngle,
         duration: CLIP_DURATION,
+        isDetecting: true,
+        autoDetected: false,
       };
     });
 
     onMetadataChange(newMetadata);
+
+    // Detect room types for newly added files only
+    const newFiles = newPhotos.filter(
+      f => !imageMetadata.find(m => m.file.name === f.name) && !detectingRef.current.has(f.name)
+    );
+    if (newFiles.length === 0) return;
+
+    newFiles.forEach(f => detectingRef.current.add(f.name));
+
+    (async () => {
+      try {
+        const images = await Promise.all(
+          newFiles.map(async (file) => ({
+            id: file.name,
+            base64: await resizeImageForDetection(file),
+            mimeType: "image/jpeg",
+          }))
+        );
+
+        const { data, error } = await supabase.functions.invoke("detect-room-types", {
+          body: { images },
+        });
+
+        if (error) throw error;
+
+        const results: Array<{ id: string; room_type: string }> = data.results ?? [];
+
+        onMetadataChange(
+          newPhotos.map((file) => {
+            const existing = imageMetadata.find(m => m.file.name === file.name);
+            if (existing) return existing;
+            const detected = results.find(r => r.id === file.name);
+            return {
+              file,
+              room_type: (detected?.room_type ?? "living-room-wide") as RoomType,
+              cameraAngle: "auto" as CameraAngle,
+              duration: CLIP_DURATION,
+              isDetecting: false,
+              autoDetected: !!detected,
+            };
+          })
+        );
+      } catch (err) {
+        console.error("Room type detection failed:", err);
+        // Clear detecting state on failure — leave default room type
+        onMetadataChange(
+          newPhotos.map((file) => {
+            const existing = imageMetadata.find(m => m.file.name === file.name);
+            if (existing) return existing;
+            return {
+              file,
+              room_type: "living-room-wide" as RoomType,
+              cameraAngle: "auto" as CameraAngle,
+              duration: CLIP_DURATION,
+              isDetecting: false,
+              autoDetected: false,
+            };
+          })
+        );
+      } finally {
+        newFiles.forEach(f => detectingRef.current.delete(f.name));
+      }
+    })();
   }, [imageMetadata, onMetadataChange]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -168,7 +262,7 @@ export function PhotoUpload({
   const updateImageRoomType = (index: number, roomType: RoomType) => {
     if (!onMetadataChange) return;
     const newMetadata = [...imageMetadata];
-    newMetadata[index] = { ...newMetadata[index], room_type: roomType };
+    newMetadata[index] = { ...newMetadata[index], room_type: roomType, autoDetected: false };
     onMetadataChange(newMetadata);
   };
 
@@ -368,6 +462,11 @@ export function PhotoUpload({
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-1">
                           <label className="text-xs font-medium text-muted-foreground">Shot Type</label>
+                          {metadata.autoDetected && !metadata.isDetecting && (
+                            <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-medium rounded-full leading-none">
+                              AI
+                            </span>
+                          )}
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -375,27 +474,36 @@ export function PhotoUpload({
                               </TooltipTrigger>
                               <TooltipContent className="max-w-xs">
                                 <p className="text-xs">
-                                  {ROOM_TYPE_OPTIONS.find(o => o.value === metadata.room_type)?.description ?? "Select the room type for cinematic motion"}
+                                  {metadata.isDetecting
+                                    ? "Detecting room type with AI..."
+                                    : ROOM_TYPE_OPTIONS.find(o => o.value === metadata.room_type)?.description ?? "Select the room type for cinematic motion"}
                                 </p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
                         </div>
-                        <Select
-                          value={metadata.room_type ?? "living-room-wide"}
-                          onValueChange={(value) => updateImageRoomType(index, value as RoomType)}
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ROOM_TYPE_OPTIONS.map(({ value, label }) => (
-                              <SelectItem key={value} value={value} className="text-xs">
-                                {label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {metadata.isDetecting ? (
+                          <div className="h-8 flex items-center gap-2 px-3 border border-border rounded-md bg-secondary/30">
+                            <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">Detecting...</span>
+                          </div>
+                        ) : (
+                          <Select
+                            value={metadata.room_type ?? "living-room-wide"}
+                            onValueChange={(value) => updateImageRoomType(index, value as RoomType)}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ROOM_TYPE_OPTIONS.map(({ value, label }) => (
+                                <SelectItem key={value} value={value} className="text-xs">
+                                  {label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
                       </div>
 
                     </div>
