@@ -227,15 +227,15 @@ export default function CreateVideo() {
       attempts++;
 
       try {
-        // Safety check
-        if (!generationIds || generationIds.length === 0) {
+        // Safety check — canvas flow has no generationIds but has a stitchJobId, which is valid
+        if (!currentStitchJobId && (!generationIds || generationIds.length === 0)) {
           console.error("No generation IDs to poll");
           setError("Video generation failed to start. Please try again.");
           setIsGenerating(false);
           return;
         }
 
-        console.log(`Polling attempt ${attempts}/${maxAttempts} for ${generationIds.length} Luma clips`);
+        console.log(`Polling attempt ${attempts}/${maxAttempts} for ${generationIds?.length ?? 0} clips`);
 
         const { data, error: fnError } = await supabase.functions.invoke("video-status", {
           body: {
