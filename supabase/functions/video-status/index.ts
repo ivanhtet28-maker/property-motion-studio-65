@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { generationIds, videoId, audioUrl, musicUrl, agentInfo, propertyData, style, layout, customTitle, stitchJobId, clipDurations } = body;
+    const { generationIds, videoId, audioUrl, musicUrl, agentInfo, propertyData, style, layout, customTitle, stitchJobId, clipDurations, provider } = body;
 
     // If stitchJobId is provided, we're polling Shotstack stitching job instead of Runway
     if (stitchJobId) {
@@ -118,16 +118,18 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Otherwise, check Luma generation status
+    // Otherwise, check AI generation status (Runway or Luma depending on provider)
     if (!generationIds || !Array.isArray(generationIds) || generationIds.length === 0) {
       throw new Error("generationIds array is required");
     }
 
-    console.log("Checking status for", generationIds.length, "Luma generations");
+    const isRunway = provider === "runway";
+    const batchCheckFunction = isRunway ? "check-runway-batch" : "check-luma-batch";
+    console.log(`Checking status for ${generationIds.length} ${isRunway ? "Runway" : "Luma"} generations`);
 
-    // Check batch status
+    // Check batch status via the appropriate provider function
     const statusResponse = await fetch(
-      `${Deno.env.get("SUPABASE_URL")}/functions/v1/check-luma-batch`,
+      `${Deno.env.get("SUPABASE_URL")}/functions/v1/${batchCheckFunction}`,
       {
         method: "POST",
         headers: {
@@ -141,19 +143,19 @@ Deno.serve(async (req) => {
     const statusData = await statusResponse.json();
 
     if (!statusData.success) {
-      throw new Error("Failed to check Luma batch status");
+      throw new Error(`Failed to check ${isRunway ? "Runway" : "Luma"} batch status`);
     }
 
     const { allCompleted, anyFailed, summary, videoUrls } = statusData;
 
     // Calculate progress based on completed clips
-    const progressPercent = Math.round((summary.completed / summary.total) * 80); // 0-80% for Luma generation
+    const progressPercent = Math.round((summary.completed / summary.total) * 80); // 0-80% for AI generation
 
     await updateVideoRecord(videoId, "processing", null, progressPercent);
 
     // If any failed, return error
     if (anyFailed && summary.completed === 0) {
-      await updateVideoRecord(videoId, "failed", null, 0, "All Luma generations failed");
+      await updateVideoRecord(videoId, "failed", null, 0, `All ${isRunway ? "Runway" : "Luma"} generations failed`);
       return new Response(
         JSON.stringify({
           status: "failed",
@@ -178,7 +180,7 @@ Deno.serve(async (req) => {
     }
 
     // All complete - start Shotstack stitching
-    console.log("All Luma clips ready! Starting Shotstack stitching...");
+    console.log(`All ${isRunway ? "Runway" : "Luma"} clips ready! Starting Shotstack stitching...`);
 
     await updateVideoRecord(videoId, "processing", null, 85, "Stitching video clips...");
 

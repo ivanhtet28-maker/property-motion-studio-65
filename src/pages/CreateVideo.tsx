@@ -208,7 +208,8 @@ export default function CreateVideo() {
     layout: string,
     customTitle: string,
     clipDurations: number[],
-    initialStitchJobId?: string | null
+    initialStitchJobId?: string | null,
+    provider?: string
   ) => {
     const maxAttempts = 120; // 10 minutes max (120 * 5 seconds)
     let attempts = 0;
@@ -226,15 +227,15 @@ export default function CreateVideo() {
       attempts++;
 
       try {
-        // Safety check
-        if (!generationIds || generationIds.length === 0) {
+        // Safety check — canvas flow has no generationIds but has a stitchJobId, which is valid
+        if (!currentStitchJobId && (!generationIds || generationIds.length === 0)) {
           console.error("No generation IDs to poll");
           setError("Video generation failed to start. Please try again.");
           setIsGenerating(false);
           return;
         }
 
-        console.log(`Polling attempt ${attempts}/${maxAttempts} for ${generationIds.length} Luma clips`);
+        console.log(`Polling attempt ${attempts}/${maxAttempts} for ${generationIds?.length ?? 0} clips`);
 
         const { data, error: fnError } = await supabase.functions.invoke("video-status", {
           body: {
@@ -249,6 +250,7 @@ export default function CreateVideo() {
             customTitle: customTitle,
             stitchJobId: currentStitchJobId,
             clipDurations: clipDurations,
+            provider: provider || "luma",
           },
         });
 
@@ -467,33 +469,13 @@ Contact us today for a private inspection.`;
         }
       }
 
-      // Step 3: Generate canvas video clips client-side (mathematical transforms, zero AI)
-      console.log("Generating canvas video clips client-side...");
-      setGeneratingProgress(32);
+      // Step 3: Ken Burns mode — Shotstack applies motion server-side on the original photos.
+      // No client-side clip generation needed; skipping directly to Shotstack.
+      setGeneratingProgress(45);
+      console.log("Ken Burns mode: Shotstack handles motion server-side on original photos.");
 
-      const canvasFolder = `canvas-${Date.now()}`;
-      const canvasVideoUrls: string[] = [];
-
-      for (let i = 0; i < imageUrls.length; i++) {
-        const meta = imageMetadata[i];
-        const url = imageUrls[i];
-        const cameraAngle = meta?.cameraAngle || "auto";
-        const duration = meta?.duration || 5;
-
-        console.log(`Generating clip ${i + 1}/${imageUrls.length}: ${cameraAngle} @ ${duration}s`);
-
-        const blob = await generateCanvasVideo(url, cameraAngle, duration);
-        const videoUrl = await uploadVideoToStorage(blob, canvasFolder, `clip-${i + 1}`);
-        canvasVideoUrls.push(videoUrl);
-
-        setGeneratingProgress(32 + Math.round(((i + 1) / imageUrls.length) * 38)); // 32–70%
-      }
-
-      console.log("Canvas clips generated and uploaded:", canvasVideoUrls.length);
-      setGeneratingProgress(70);
-
-      // Step 4: Call generate-video with pre-generated clips (skips Luma, goes straight to Shotstack)
-      console.log("Calling generate-video API (canvas flow)...");
+      // Step 4: Call generate-video (Ken Burns path — goes straight to Shotstack)
+      console.log("Calling generate-video API (Ken Burns flow)...");
 
       const propertyDataPayload = {
         address: `${propertyDetails.streetAddress}, ${propertyDetails.suburb}, ${propertyDetails.state}`,
@@ -515,11 +497,12 @@ Contact us today for a private inspection.`;
       // Convert frontend voice name to backend ID (only if voiceover is enabled)
       const voiceId = customization.includeVoiceover ? getVoiceId(customization.voiceType) : null;
 
-      // Prepare image metadata with camera angles and durations
+      // Prepare image metadata with room types, camera angles and durations
       const imageMetadataPayload = imageUrls.map((url, index) => {
         const metadata = imageMetadata[index];
         return {
           url,
+          room_type: metadata?.room_type || null,
           cameraAngle: metadata?.cameraAngle || "auto",
           duration: metadata?.duration || 3.5,
         };
@@ -529,8 +512,7 @@ Contact us today for a private inspection.`;
         body: {
           imageUrls: imageUrls,
           imageMetadata: imageMetadataPayload,
-          preGeneratedVideoUrls: canvasVideoUrls,
-          useKenBurns: true, // Use Shotstack Ken Burns effects (no AI generation)
+          useKenBurns: false, // Use Runway Gen-3a AI generation with camera_motion sliders
           propertyData: propertyDataPayload,
           style: customization.selectedTemplate,
           layout: customization.selectedLayout,
@@ -591,17 +573,17 @@ Contact us today for a private inspection.`;
             data.stitchJobId
           );
         } else {
-          // Luma flow: poll generationIds until Luma finishes
+          // AI generation flow (Runway Gen-3a): poll generationIds until clips are ready
           if (!data.generationIds || data.generationIds.length === 0) {
             throw new Error("No generation IDs returned from server. Check edge function logs.");
           }
           setGenerationIds(data.generationIds);
-          console.log(`Started ${data.totalClips} Luma generations`);
+          console.log(`Started ${data.totalClips} Runway Gen-3a generations`);
 
           const estimatedMinutes = Math.ceil(data.estimatedTime / 60);
           toast({
             title: "Video Generation Started",
-            description: `Generating ${data.totalClips} cinematic clips with Luma... this may take ${estimatedMinutes}-${estimatedMinutes + 2} minutes.`,
+            description: `Generating ${data.totalClips} cinematic clips with Runway... this may take ${estimatedMinutes}-${estimatedMinutes + 2} minutes.`,
           });
 
           pollVideoStatus(
@@ -614,7 +596,9 @@ Contact us today for a private inspection.`;
             customization.selectedTemplate,
             customization.selectedLayout,
             customization.customTitle,
-            clipDurations
+            clipDurations,
+            null,
+            data.provider
           );
         }
       } else {

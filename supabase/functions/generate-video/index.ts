@@ -270,7 +270,8 @@
         console.log("Ken Burns flow: bypassing AI generation, applying Shotstack effects to photos");
 
         const imageEffects = metadataSource.map((m: ImageMetadata) => toShotstackEffect(m.cameraAngle || "auto"));
-        const clipDurations = metadataSource.map((m: ImageMetadata) => m.duration ?? 5);
+        const cameraAngles = metadataSource.map((m: ImageMetadata) => m.cameraAngle || "auto");
+        const clipDurations = metadataSource.map((m: ImageMetadata) => m.duration ?? 3.5);
 
         console.log("Effects:", imageEffects);
 
@@ -285,6 +286,7 @@
             body: JSON.stringify({
               imageUrls,
               imageEffects,
+              cameraAngles,
               clipDurations,
               audioUrl,
               musicUrl,
@@ -386,18 +388,19 @@
         );
       }
 
-      // --- Luma flow ---
-      console.log("Starting Luma batch generation for", imageUrls.length, "images...");
+      // --- Runway Gen-3a Turbo flow ---
+      // Uses numeric camera_motion sliders for consistent, predictable camera moves.
+      // gen3a_turbo is chosen over gen4_turbo because it exposes camera_motion via the REST API.
+      console.log("Starting Runway Gen-3a batch generation for", imageUrls.length, "images...");
 
-      // Prepare image metadata (use provided metadata or create default)
-      const metadataForLuma = imageMetadata || imageUrls.map(url => ({
+      const metadataForRunway = imageMetadata || imageUrls.map(url => ({
         url,
         cameraAngle: "auto",
         duration: 5
       }));
 
-      const lumaResponse = await fetch(
-        `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-luma-batch`,
+      const runwayResponse = await fetch(
+        `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-runway-batch`,
         {
           method: "POST",
           headers: {
@@ -405,34 +408,34 @@
             "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
           },
           body: JSON.stringify({
-            imageMetadata: metadataForLuma,
+            imageMetadata: metadataForRunway,
             propertyAddress: propertyData.address,
           }),
         }
       );
 
-      const lumaData = await lumaResponse.json();
+      const runwayData = await runwayResponse.json();
 
-      if (!lumaData.success) {
-        throw new Error(lumaData.error || "Failed to start Luma batch generation");
+      if (!runwayData.success) {
+        throw new Error(runwayData.error || "Failed to start Runway batch generation");
       }
 
-      if (!Array.isArray(lumaData.generations)) {
-        throw new Error(`Unexpected response from generate-luma-batch: ${JSON.stringify(lumaData)}`);
+      if (!Array.isArray(runwayData.generations)) {
+        throw new Error(`Unexpected response from generate-runway-batch: ${JSON.stringify(runwayData)}`);
       }
 
-      const generations = (lumaData.generations as LumaGeneration[]).filter(
+      const generations = (runwayData.generations as LumaGeneration[]).filter(
         (g) => g.status === "queued" && g.generationId
       );
       const generationIds = generations.map((g) => g.generationId).filter(Boolean) as string[];
 
-      console.log(`Started ${generations.length} Luma generations`);
+      console.log(`Started ${generations.length} Runway generations`);
       console.log("Generation IDs:", generationIds);
 
       if (generationIds.length === 0) {
-        const failedGenerations = (lumaData.generations as LumaGeneration[]).filter((g) => g.status === "error");
+        const failedGenerations = (runwayData.generations as LumaGeneration[]).filter((g) => g.status === "error");
         const errors = failedGenerations.map((g) => g.error).join("; ");
-        throw new Error(`No valid Luma generation IDs returned. All ${lumaData.generations?.length ?? 0} submissions failed. Errors: ${errors || "unknown"}`);
+        throw new Error(`No valid Runway generation IDs returned. All ${runwayData.generations?.length ?? 0} submissions failed. Errors: ${errors || "unknown"}`);
       }
 
       // Save generation context to DB so Dashboard can resume polling if user navigates away
@@ -442,13 +445,14 @@
           const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
           const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-          const clipDurations = (imageMetadata || metadataForLuma).map(m => m.duration ?? 5);
+          const clipDurations = (imageMetadata || metadataForRunway).map(m => m.duration ?? 5);
 
           await supabaseAdmin
             .from("videos")
             .update({
               photos: JSON.stringify({
                 generationIds,
+                provider: "runway",
                 audioUrl,
                 musicUrl,
                 clipDurations,
@@ -459,7 +463,7 @@
             })
             .eq("id", videoRecordId);
 
-          console.log("Saved generation context to DB for recovery");
+          console.log("Saved Runway generation context to DB for recovery");
         } catch (err) {
           console.error("Failed to save generation context:", err);
         }
@@ -468,13 +472,13 @@
       return new Response(
         JSON.stringify({
           success: true,
-          provider: "luma",
+          provider: "runway",
           videoId: videoRecordId,
           generationIds: generationIds,
           totalClips: generationIds.length,
           estimatedDuration: expectedDuration,
-          estimatedTime: generationIds.length * 45,
-          message: `Started ${generationIds.length} Luma generations. Use check-luma-batch to poll status.`,
+          estimatedTime: generationIds.length * 60,
+          message: `Started ${generationIds.length} Runway Gen-3a generations. Poll video-status to track progress.`,
           audioUrl: audioUrl,
           musicUrl: musicUrl,
           agentInfo: agentInfo,

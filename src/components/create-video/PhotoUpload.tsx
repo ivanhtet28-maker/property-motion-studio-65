@@ -1,5 +1,6 @@
-import { useCallback, useState } from "react";
-import { Upload, X, ImageIcon, GripVertical, Star, Info } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import { Upload, X, ImageIcon, GripVertical, Star, Info, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import {
   Select,
   SelectContent,
@@ -17,12 +18,32 @@ import {
 
 export type CameraAngle = "auto" | "wide-shot" | "push-in" | "push-out" | "orbit-left" | "orbit-right";
 
-const CLIP_DURATION = 3.5; // seconds — fixed for consistent professional pacing
+// Cinematic Engine — Option B: Shot List with pre-calibrated room physics.
+// Each room_type maps to specific camera_motion values in generate-runway-batch.
+export type RoomType =
+  | "exterior-arrival"
+  | "front-door"
+  | "entry-foyer"
+  | "living-room-wide"
+  | "living-room-orbit"
+  | "kitchen-orbit"
+  | "kitchen-push"
+  | "master-bedroom"
+  | "bedroom"
+  | "bathroom"
+  | "outdoor-entertaining"
+  | "backyard-pool"
+  | "view-balcony";
+
+const CLIP_DURATION = 3.5; // seconds — fixed for Ken Burns mode; Runway uses 5s
 
 export interface ImageMetadata {
   file: File;
-  cameraAngle: CameraAngle;
+  room_type: RoomType;
+  cameraAngle: CameraAngle; // kept for backwards compatibility
   duration: number;
+  isDetecting?: boolean;   // true while Claude Vision is classifying
+  autoDetected?: boolean;  // true after AI has set the room type
 }
 
 interface PhotoUploadProps {
@@ -35,31 +56,53 @@ interface PhotoUploadProps {
 }
 
 const CAMERA_ANGLE_OPTIONS: Record<CameraAngle, { label: string; description: string }> = {
-  auto: {
-    label: "Auto (Recommended)",
-    description: "Smooth push-in zoom — best all-round movement for any shot",
-  },
-  "wide-shot": {
-    label: "Wide Shot",
-    description: "Static locked camera, no movement - architectural style",
-  },
-  "push-in": {
-    label: "Push In",
-    description: "Camera slowly moves forward toward the focal point",
-  },
-  "push-out": {
-    label: "Push Out",
-    description: "Camera slowly pulls back away from the scene",
-  },
-  "orbit-right": {
-    label: "Pan Right",
-    description: "Camera pans right — smooth horizontal sweep with gentle zoom",
-  },
-  "orbit-left": {
-    label: "Pan Left",
-    description: "Camera pans left — smooth horizontal sweep with gentle zoom",
-  },
+  auto: { label: "Auto (Recommended)", description: "Smooth push-in zoom — best all-round movement for any shot" },
+  "wide-shot": { label: "Wide Shot", description: "Static locked camera, no movement - architectural style" },
+  "push-in": { label: "Push In", description: "Camera slowly moves forward toward the focal point" },
+  "push-out": { label: "Push Out", description: "Camera slowly pulls back away from the scene" },
+  "orbit-right": { label: "Pan Right", description: "Camera pans right — smooth horizontal sweep with gentle zoom" },
+  "orbit-left": { label: "Pan Left", description: "Camera pans left — smooth horizontal sweep with gentle zoom" },
 };
+
+// Shot List — pre-calibrated room types for the Cinematic Engine.
+// Labels are agent-friendly (no technical jargon).
+export const ROOM_TYPE_OPTIONS: { value: RoomType; label: string; description: string }[] = [
+  { value: "exterior-arrival",    label: "Exterior Arrival",     description: "Drone push toward facade" },
+  { value: "front-door",          label: "Front Door",           description: "Architectural entrance push-in" },
+  { value: "entry-foyer",         label: "Entry / Foyer",        description: "Orbit reveal of entry" },
+  { value: "living-room-wide",    label: "Living Room",          description: "Wide slow push" },
+  { value: "living-room-orbit",   label: "Living Room Orbit",    description: "Cinematic sweep" },
+  { value: "kitchen-orbit",       label: "Kitchen Orbit",        description: "Counter orbit" },
+  { value: "kitchen-push",        label: "Kitchen Detail",       description: "Counter push-in" },
+  { value: "master-bedroom",      label: "Master Bedroom",       description: "Sanctuary reveal" },
+  { value: "bedroom",             label: "Bedroom",              description: "Gentle push reveal" },
+  { value: "bathroom",            label: "Bathroom",             description: "Fixture detail push" },
+  { value: "outdoor-entertaining",label: "Outdoor Entertaining", description: "Patio / alfresco reveal" },
+  { value: "backyard-pool",       label: "Backyard / Pool",      description: "Aerial-style reveal" },
+  { value: "view-balcony",        label: "View / Balcony",       description: "Panoramic reveal" },
+];
+
+// Resize an image File to a small JPEG base64 string suitable for Claude Vision.
+// Keeps payload well under the Supabase Edge Function ~2MB limit.
+function resizeImageForDetection(file: File, maxWidth = 800): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) { reject(new Error("No canvas context")); return; }
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const ratio = Math.min(maxWidth / img.width, 1);
+      canvas.width = Math.round(img.width * ratio);
+      canvas.height = Math.round(img.height * ratio);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", 0.8).split(",")[1]);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Image load failed")); };
+    img.src = url;
+  });
+}
 
 export function PhotoUpload({
   photos,
@@ -71,21 +114,91 @@ export function PhotoUpload({
 }: PhotoUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  // Tracks which file names are currently being detected to avoid duplicate calls
+  const detectingRef = useRef<Set<string>>(new Set());
 
-  // Initialize metadata when photos change
+  // Initialize metadata when photos change, then trigger AI detection for new images
   const syncMetadata = useCallback((newPhotos: File[]) => {
     if (!onMetadataChange) return;
 
-    const newMetadata: ImageMetadata[] = newPhotos.map((file, index) => {
+    const newMetadata: ImageMetadata[] = newPhotos.map((file) => {
       const existing = imageMetadata.find(m => m.file.name === file.name);
-      return existing || {
+      if (existing) return existing;
+      // New file — mark as detecting so UI shows spinner immediately
+      return {
         file,
+        room_type: "living-room-wide" as RoomType,
         cameraAngle: "auto" as CameraAngle,
         duration: CLIP_DURATION,
+        isDetecting: true,
+        autoDetected: false,
       };
     });
 
     onMetadataChange(newMetadata);
+
+    // Detect room types for newly added files only
+    const newFiles = newPhotos.filter(
+      f => !imageMetadata.find(m => m.file.name === f.name) && !detectingRef.current.has(f.name)
+    );
+    if (newFiles.length === 0) return;
+
+    newFiles.forEach(f => detectingRef.current.add(f.name));
+
+    (async () => {
+      try {
+        const images = await Promise.all(
+          newFiles.map(async (file) => ({
+            id: file.name,
+            base64: await resizeImageForDetection(file),
+            mimeType: "image/jpeg",
+          }))
+        );
+
+        const { data, error } = await supabase.functions.invoke("detect-room-types", {
+          body: { images },
+        });
+
+        if (error) throw error;
+
+        const results: Array<{ id: string; room_type: string }> = data.results ?? [];
+
+        onMetadataChange(
+          newPhotos.map((file) => {
+            const existing = imageMetadata.find(m => m.file.name === file.name);
+            if (existing) return existing;
+            const detected = results.find(r => r.id === file.name);
+            return {
+              file,
+              room_type: (detected?.room_type ?? "living-room-wide") as RoomType,
+              cameraAngle: "auto" as CameraAngle,
+              duration: CLIP_DURATION,
+              isDetecting: false,
+              autoDetected: !!detected,
+            };
+          })
+        );
+      } catch (err) {
+        console.error("Room type detection failed:", err);
+        // Clear detecting state on failure — leave default room type
+        onMetadataChange(
+          newPhotos.map((file) => {
+            const existing = imageMetadata.find(m => m.file.name === file.name);
+            if (existing) return existing;
+            return {
+              file,
+              room_type: "living-room-wide" as RoomType,
+              cameraAngle: "auto" as CameraAngle,
+              duration: CLIP_DURATION,
+              isDetecting: false,
+              autoDetected: false,
+            };
+          })
+        );
+      } finally {
+        newFiles.forEach(f => detectingRef.current.delete(f.name));
+      }
+    })();
   }, [imageMetadata, onMetadataChange]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -146,16 +259,16 @@ export function PhotoUpload({
     }
   };
 
-  const updateImageAngle = (index: number, angle: CameraAngle) => {
+  const updateImageRoomType = (index: number, roomType: RoomType) => {
     if (!onMetadataChange) return;
     const newMetadata = [...imageMetadata];
-    newMetadata[index] = { ...newMetadata[index], cameraAngle: angle };
+    newMetadata[index] = { ...newMetadata[index], room_type: roomType, autoDetected: false };
     onMetadataChange(newMetadata);
   };
 
-  const setAllAngles = (angle: CameraAngle) => {
+  const setAllRoomTypes = (roomType: RoomType) => {
     if (!onMetadataChange) return;
-    const newMetadata = imageMetadata.map(meta => ({ ...meta, cameraAngle: angle }));
+    const newMetadata = imageMetadata.map(meta => ({ ...meta, room_type: roomType }));
     onMetadataChange(newMetadata);
   };
 
@@ -265,12 +378,12 @@ export function PhotoUpload({
             {onMetadataChange && imageMetadata.length > 0 && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">{(photos.length * CLIP_DURATION).toFixed(1)}s total</span>
-                <Select value="" onValueChange={(value) => setAllAngles(value as CameraAngle)}>
-                  <SelectTrigger className="h-7 text-xs w-[140px]">
+                <Select value="" onValueChange={(value) => setAllRoomTypes(value as RoomType)}>
+                  <SelectTrigger className="h-7 text-xs w-[160px]">
                     <SelectValue placeholder="Set all to..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(CAMERA_ANGLE_OPTIONS).map(([value, { label }]) => (
+                    {ROOM_TYPE_OPTIONS.map(({ value, label }) => (
                       <SelectItem key={value} value={value} className="text-xs">
                         {label}
                       </SelectItem>
@@ -342,39 +455,55 @@ export function PhotoUpload({
                     )}
                   </div>
 
-                  {/* Camera Angle & Duration Controls */}
+                  {/* Shot Type Controls */}
                   {onMetadataChange && metadata && (
                     <div className="space-y-2">
-                      {/* Camera Angle */}
+                      {/* Shot Type */}
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-1">
-                          <label className="text-xs font-medium text-muted-foreground">Camera Angle</label>
+                          <label className="text-xs font-medium text-muted-foreground">Shot Type</label>
+                          {metadata.autoDetected && !metadata.isDetecting && (
+                            <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-medium rounded-full leading-none">
+                              AI
+                            </span>
+                          )}
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Info className="w-3 h-3 text-muted-foreground" />
                               </TooltipTrigger>
                               <TooltipContent className="max-w-xs">
-                                <p className="text-xs">{CAMERA_ANGLE_OPTIONS[metadata.cameraAngle].description}</p>
+                                <p className="text-xs">
+                                  {metadata.isDetecting
+                                    ? "Detecting room type with AI..."
+                                    : ROOM_TYPE_OPTIONS.find(o => o.value === metadata.room_type)?.description ?? "Select the room type for cinematic motion"}
+                                </p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
                         </div>
-                        <Select
-                          value={metadata.cameraAngle}
-                          onValueChange={(value) => updateImageAngle(index, value as CameraAngle)}
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(CAMERA_ANGLE_OPTIONS).map(([value, { label }]) => (
-                              <SelectItem key={value} value={value} className="text-xs">
-                                {label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {metadata.isDetecting ? (
+                          <div className="h-8 flex items-center gap-2 px-3 border border-border rounded-md bg-secondary/30">
+                            <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground">Detecting...</span>
+                          </div>
+                        ) : (
+                          <Select
+                            value={metadata.room_type ?? "living-room-wide"}
+                            onValueChange={(value) => updateImageRoomType(index, value as RoomType)}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ROOM_TYPE_OPTIONS.map(({ value, label }) => (
+                                <SelectItem key={value} value={value} className="text-xs">
+                                  {label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
                       </div>
 
                     </div>

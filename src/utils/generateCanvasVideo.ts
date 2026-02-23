@@ -46,15 +46,14 @@ function getTransform(angle: CameraAngle, progress: number): Transform {
     }
     case "orbit-right": {
       // Pure pan right: NO simultaneous zoom — that's what makes it feel natural.
-      // A real videographer rotates the tripod head steadily with no focal-length change.
-      // 12% horizontal offset reveals the far side of a wide-angle room shot.
+      // 5% horizontal offset matches professional real estate pacing at 3.5s clips.
       const t = easeInOut(progress);
-      return { scale: 1, offsetX: -0.12 * t, offsetY: 0 };
+      return { scale: 1, offsetX: -0.05 * t, offsetY: 0 };
     }
     case "orbit-left": {
       // Pure pan left — mirror of orbit-right.
       const t = easeInOut(progress);
-      return { scale: 1, offsetX: 0.12 * t, offsetY: 0 };
+      return { scale: 1, offsetX: 0.05 * t, offsetY: 0 };
     }
     case "wide-shot":
     default:
