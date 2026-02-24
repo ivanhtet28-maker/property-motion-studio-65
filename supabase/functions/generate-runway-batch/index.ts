@@ -63,7 +63,7 @@ interface CinematicPreset {
 // Every promptText anchors: camera height + anti-morphing directive.
 //
 // PROVEN FORMULA (from Façade Approach & Foyer Glide — verified good output):
-//   1. zoom ≤ 4, horizontal ≤ 4, pan ≤ 2 — no axis exceeds these bounds
+//   1. zoom ≤ 4, horizontal ≤ 3, pan ≤ 1 — combined lateral (h+p) must not exceed 4
 //   2. Unused axes are STRICTLY 0 — no noise
 //   3. promptText names SPECIFIC fixtures in the room (roofline, doorframes, countertops)
 //   4. promptText describes the MOTION itself (approach, glide, sweep), not just the room
@@ -90,9 +90,10 @@ const LOUNGE_DRIFT: CinematicPreset = {
   duration: 5,
 };
 
-// Lateral sweep with subtle depth — zoom 1 adds the forward feel proven in Foyer Glide
+// 🔒 LOCKED — matched to proven formula (zoom 2 + horizontal 3 + pan 1).
+// Was horizontal:4 pan:2 (combined lateral 6) — caused kitchen melt on reflective surfaces.
 const KITCHEN_SWEEP: CinematicPreset = {
-  camera_motion: { zoom: 1, horizontal: 4, pan: 2, tilt: 0, vertical: 0, roll: 0 },
+  camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
   promptText: "Smooth kitchen sweep. Eye-level, chest-height camera perspective. Gentle arc past stone countertops and cabinetry. Stable island bench, fixed splashback and appliances. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
   duration: 5,
 };
