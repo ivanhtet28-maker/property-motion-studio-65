@@ -9,9 +9,12 @@ const corsHeaders = {
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
 // Super 7 Organic Engine — room detection categories
+// Includes directional variants for spatial intelligence (room-slide-left/right)
 const VALID_ROOM_TYPES = [
   "foyer-glide",
   "room-slide",
+  "room-slide-right",
+  "room-slide-left",
   "bedside-arc",
   "detail-push",
   "hero-arrival",
@@ -21,9 +24,11 @@ const VALID_ROOM_TYPES = [
 
 type RoomType = typeof VALID_ROOM_TYPES[number];
 
-const DETECTION_PROMPT = `Classify this real estate photo into one of 7 cinematic categories. Reply with ONLY one exact value from this list (no other text, no punctuation):
+const DETECTION_PROMPT = `Classify this real estate photo into one of the cinematic categories below. Reply with ONLY one exact value from this list (no other text, no punctuation):
 foyer-glide
 room-slide
+room-slide-right
+room-slide-left
 bedside-arc
 detail-push
 hero-arrival
@@ -32,7 +37,11 @@ vista-pan
 
 Guidelines:
 - foyer-glide: foyer, entry, hallway, corridor, entrance interior, mudroom, stairway
-- room-slide: living room, lounge, dining room, open plan living area, family room, sitting room, den
+- room-slide / room-slide-right / room-slide-left: living room, lounge, dining room, open plan living area, family room, sitting room, den
+  SPATIAL RULE FOR LIVING ROOMS: Identify if there is a primary light source or window wall.
+  If windows are on the LEFT side of the image, return "room-slide-right".
+  If windows are on the RIGHT side of the image, return "room-slide-left".
+  If windows are centered, on both sides, or there are no visible windows, return "room-slide".
 - bedside-arc: bedroom, master suite, guest bedroom, nursery, any sleeping quarters
 - detail-push: kitchen, bathroom, ensuite, powder room, laundry, pantry, utility room
 - hero-arrival: exterior, facade, street view, driveway, front door, porch, property front

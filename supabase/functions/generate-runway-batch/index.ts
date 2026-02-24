@@ -67,9 +67,20 @@ const CINEMATIC_PRESETS: Record<string, CinematicPreset> = {
   },
 
   // ── Living Room, Lounge, Dining ───────────────────────────────────────────
+  // Spatial intelligence: AI detects window position and picks the right direction
   "room-slide": {
     camera_motion: { zoom: 0, horizontal: 4.5, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Lateral parallax slide through spacious living area. Fixed walls, stable furniture.",
+    promptText: "Cinematic lateral parallax slide. Maintain stable window frames and glass reflections. Ensure natural light remains consistent. Camera at chest height, no floor-level tilting.",
+    duration: 5,
+  },
+  "room-slide-right": {
+    camera_motion: { zoom: 0, horizontal: 5.0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
+    promptText: "Cinematic lateral parallax slide. Maintain stable window frames and glass reflections. Ensure natural light remains consistent. Camera at chest height, no floor-level tilting.",
+    duration: 5,
+  },
+  "room-slide-left": {
+    camera_motion: { zoom: 0, horizontal: -5.0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
+    promptText: "Cinematic lateral parallax slide. Maintain stable window frames and glass reflections. Ensure natural light remains consistent. Camera at chest height, no floor-level tilting.",
     duration: 5,
   },
 

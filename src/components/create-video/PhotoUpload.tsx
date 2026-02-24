@@ -19,14 +19,25 @@ export type CameraAngle = "auto" | "wide-shot" | "push-in" | "push-out" | "orbit
 
 // Super 7 Organic Engine — strict preset system.
 // Each room_type maps to a cinematic preset in generate-runway-batch.
+// Directional variants (room-slide-right/left) are set by AI spatial intelligence
+// but display as "The Room Slide" in the UI.
 export type RoomType =
   | "foyer-glide"
   | "room-slide"
+  | "room-slide-right"
+  | "room-slide-left"
   | "bedside-arc"
   | "detail-push"
   | "hero-arrival"
   | "view-reveal"
   | "vista-pan";
+
+// Maps directional AI variants back to their base type for dropdown display.
+// The user sees "The Room Slide" regardless of whether the AI picked left/right.
+function getDisplayRoomType(roomType: RoomType): RoomType {
+  if (roomType === "room-slide-right" || roomType === "room-slide-left") return "room-slide";
+  return roomType;
+}
 
 const CLIP_DURATION = 3.5; // seconds — fixed for Ken Burns mode; Runway uses 5s
 
@@ -453,7 +464,7 @@ export function PhotoUpload({
                                 <p className="text-xs">
                                   {metadata.isDetecting
                                     ? "Detecting room type with AI..."
-                                    : ROOM_TYPE_OPTIONS.find(o => o.value === metadata.room_type)?.description ?? "Select the room type for cinematic motion"}
+                                    : ROOM_TYPE_OPTIONS.find(o => o.value === getDisplayRoomType(metadata.room_type))?.description ?? "Select the room type for cinematic motion"}
                                 </p>
                               </TooltipContent>
                             </Tooltip>
@@ -466,7 +477,7 @@ export function PhotoUpload({
                           </div>
                         ) : (
                           <Select
-                            value={metadata.room_type ?? "room-slide"}
+                            value={getDisplayRoomType(metadata.room_type ?? "room-slide")}
                             onValueChange={(value) => updateImageRoomType(index, value as RoomType)}
                           >
                             <SelectTrigger className="h-8 text-xs">
