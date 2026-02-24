@@ -212,8 +212,9 @@ Deno.serve(async (req) => {
           finalCameraMotion = { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 };
         }
 
-        const clipDuration = toValidRunwayDuration(duration ?? preset.duration);
-        console.log(`Preset: ${room_type || cameraAngle}, Duration: ${clipDuration}s`);
+        // Always generate 5s — shortest Runway supports. Shotstack hard-cuts to 3.5s for pacing.
+        const clipDuration: 5 | 10 = 5;
+        console.log(`Preset: ${room_type || cameraAngle}, Duration: ${clipDuration}s (Runway min, Shotstack cuts to 3.5s)`);
         console.log(`Camera motion:`, JSON.stringify(finalCameraMotion));
         if (motionBias) console.log(`Motion bias: ${motionBias}`);
         if (seed) console.log(`Seed: ${seed}`);

@@ -489,15 +489,22 @@
       // Use provided clip durations or default to 3.5 seconds each
       const durations = clipDurations || sourceUrls.map(() => 3.5);
 
-      // Anti-BS: Melt-Zone Trim — cut 0.5s off AI clip tails to avoid melting artifacts.
-      // Ken Burns clips are mathematical transforms (no AI hallucination), so no trim needed.
+      // ── Pacing Lock: 3.5s hard cut + 0.5s crossfade ────────────────────────
+      // Runway generates 5s clips (shortest it supports). Shotstack hard-cuts at
+      // 3.5s for punchy social-media pacing — this also eliminates the melt zone
+      // entirely (melt artifacts live in the last ~1s). Adjacent AI clips overlap
+      // by 0.5s for high-energy crossfade transitions.
+      const CLIP_HARD_CUT = 3.5;
+      const TRANSITION_OVERLAP = 0.5;
+
       const fallbackSet = new Set(fallbackSlots || []);
       const effectiveDurations = isKenBurns
         ? durations
-        : durations.map((d, i) => fallbackSet.has(i) ? d : Math.max(d - 0.5, 0.5));
+        : durations.map(() => CLIP_HARD_CUT);
 
-      // Calculate total duration
-      const videoClipsDuration = effectiveDurations.reduce((sum, duration) => sum + duration, 0);
+      // Calculate total duration (AI mode subtracts overlap between adjacent clips)
+      const overlapCount = isKenBurns ? 0 : Math.max(0, effectiveDurations.length - 1);
+      const videoClipsDuration = effectiveDurations.reduce((sum, duration) => sum + duration, 0) - (TRANSITION_OVERLAP * overlapCount);
       const agentCardDuration = (agentInfo && agentInfo.name) ? durations[0] : 0; // Match first clip duration
       const totalDuration = videoClipsDuration + agentCardDuration;
 
@@ -558,9 +565,15 @@
           // AI-generated clip: apply digital stabilization
           // Scale 1.1 crops the edges to hide peripheral AI warping artifacts
           clip.scale = 1.1;
+          clip.transition = { in: "fade", out: "fade" };
         }
 
-        currentStart += clipDuration;
+        // AI clips: overlap adjacent clips by 0.5s for crossfade transition
+        if (!isKenBurns && index < sourceUrls.length - 1) {
+          currentStart += clipDuration - TRANSITION_OVERLAP;
+        } else {
+          currentStart += clipDuration;
+        }
         return clip;
       });
 
