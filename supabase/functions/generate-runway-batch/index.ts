@@ -39,19 +39,14 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2, at
 }
 
 /**
- * Cinematic Engine — Option B: Shot List with pre-calibrated cinematography physics.
+ * Super 7 Organic Engine — Strict preset system with human-level physics.
  *
- * Each room_type has:
- *   - camera_motion: numeric sliders calibrated to the space scale
- *     (bathroom uses low magnitudes — camera doesn't punch through walls;
- *      exterior uses high magnitudes — drone scale requires faster movement to look right)
- *   - promptText: room-specific scene description that anchors the AI's geometry model
- *     (Telling the AI "stable cabinetry and countertops" prevents kitchen hallucination
- *      better than a generic "stable walls" prompt)
- *   - duration: always 5s (Runway minimum; 10s available for future hero shots)
+ * Each preset uses ONLY the axes specified — all unlisted axes are strictly 0.
+ * This eliminates robotic motion and ensures every shot feels like a
+ * professional gimbal operator captured it.
  *
- * This replaces user-selected generic angles (push-in, orbit-right, etc.) with
- * professionally directed presets — "ghostwriting the cinematography."
+ * The 13 original room types are collapsed into 7 cinematic categories,
+ * each with its own signature motion profile.
  */
 
 interface CinematicPreset {
@@ -60,100 +55,72 @@ interface CinematicPreset {
   duration: 5 | 10;
 }
 
+// Organic prompt suffix appended to every shot for consistent cinema-grade output
+const ORGANIC_PROMPT_SUFFIX = "Professional real estate cinematography, camera at chest height, eye-level perspective, steady organic gimbal motion, no low-angle distortion, stable architecture.";
+
 const CINEMATIC_PRESETS: Record<string, CinematicPreset> = {
-  // ── Exterior ──────────────────────────────────────────────────────────────
-  "exterior-arrival": {
-    camera_motion: { zoom: 8, horizontal: 0, pan: 0, tilt: -2, vertical: 0, roll: 0 },
-    promptText: "Cinematic aerial drone push toward luxury property exterior. Stable architecture, fixed roofline, no distortion.",
-    duration: 5,
-  },
-  "front-door": {
-    camera_motion: { zoom: 5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Professional real estate push toward front entrance. Stable door frame, fixed walls, no geometry change.",
+  // ── Foyer, Entry, Hallway ─────────────────────────────────────────────────
+  "foyer-glide": {
+    camera_motion: { zoom: 2.5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
+    promptText: "Slow welcoming glide into elegant entryway. Stable walls and flooring.",
     duration: 5,
   },
 
-  // ── Interior common areas ─────────────────────────────────────────────────
-  "entry-foyer": {
-    camera_motion: { zoom: 3, horizontal: 4, pan: 2, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Elegant entryway orbit reveal. Stable walls and flooring. No architectural distortion.",
-    duration: 5,
-  },
-  "living-room-wide": {
-    camera_motion: { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Spacious living room slow push. Fixed walls, stable furniture. Professional real estate.",
-    duration: 5,
-  },
-  "living-room-orbit": {
-    camera_motion: { zoom: 0, horizontal: 6, pan: 3, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Living room cinematic orbit. Stable interior architecture, fixed wall positions. Professional real estate.",
+  // ── Living Room, Lounge, Dining ───────────────────────────────────────────
+  "room-slide": {
+    camera_motion: { zoom: 0, horizontal: 4.5, pan: 0, tilt: 0, vertical: 0, roll: 0 },
+    promptText: "Lateral parallax slide through spacious living area. Fixed walls, stable furniture.",
     duration: 5,
   },
 
-  // ── Kitchen ───────────────────────────────────────────────────────────────
-  "kitchen-orbit": {
-    camera_motion: { zoom: 0, horizontal: 5, pan: 2, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Gourmet kitchen orbit. Stable cabinetry and countertops. Fixed island position. Professional real estate.",
-    duration: 5,
-  },
-  "kitchen-push": {
-    camera_motion: { zoom: 5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Kitchen counter detail push-in. Stable stone surfaces, fixed cabinetry. Professional real estate.",
+  // ── Bedroom, Master Suite ─────────────────────────────────────────────────
+  "bedside-arc": {
+    camera_motion: { zoom: 0, horizontal: 2.0, pan: 3.0, tilt: 0, vertical: 0, roll: 0 },
+    promptText: "Gentle wrap-around arc through bedroom. Fixed walls and ceiling, stable furnishings.",
     duration: 5,
   },
 
-  // ── Bedrooms ──────────────────────────────────────────────────────────────
-  "master-bedroom": {
-    camera_motion: { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Master bedroom sanctuary slow reveal. Fixed walls and ceiling, stable furnishings. Professional real estate.",
-    duration: 5,
-  },
-  "bedroom": {
-    camera_motion: { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Bedroom slow push reveal. Stable walls and furniture. Professional real estate.",
+  // ── Kitchen, Bathroom, Laundry ────────────────────────────────────────────
+  "detail-push": {
+    camera_motion: { zoom: 3.5, horizontal: 0, pan: 0, tilt: 0, vertical: 0.5, roll: 0 },
+    promptText: "Slow inhale push into detail surfaces. Stable fixtures and cabinetry.",
     duration: 5,
   },
 
-  // ── Bathroom (low magnitude — small space) ────────────────────────────────
-  "bathroom": {
-    camera_motion: { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Luxury bathroom slow push. Stable tiles and fixtures, fixed vanity. Professional real estate. No geometry distortion.",
+  // ── Exterior, Facade, Street ──────────────────────────────────────────────
+  "hero-arrival": {
+    camera_motion: { zoom: 6.0, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
+    promptText: "Smooth grounded walk-up toward property exterior. Stable architecture, fixed roofline.",
     duration: 5,
   },
 
-  // ── Outdoor ───────────────────────────────────────────────────────────────
-  "outdoor-entertaining": {
-    camera_motion: { zoom: -5, horizontal: 0, pan: 0, tilt: 0, vertical: 2, roll: 0 },
-    promptText: "Outdoor entertaining area wide reveal pullback. Stable pavers and structure. Professional real estate.",
+  // ── Backyard, Pool, Terrace ───────────────────────────────────────────────
+  "view-reveal": {
+    camera_motion: { zoom: -4.0, horizontal: 0, pan: 0, tilt: 0, vertical: 1.5, roll: 0 },
+    promptText: "Gentle pull-back and rise revealing outdoor space. Stable landscape and structure.",
     duration: 5,
   },
-  "backyard-pool": {
-    camera_motion: { zoom: -6, horizontal: 0, pan: 0, tilt: -2, vertical: 2, roll: 0 },
-    promptText: "Aerial-style backyard pool reveal. Stable landscape, fixed pool edges, stable water surface.",
-    duration: 5,
-  },
-  "view-balcony": {
-    camera_motion: { zoom: -4, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Panoramic balcony view reveal. Stable architectural framing, fixed horizon line.",
+
+  // ── Balcony, View, Scenic ─────────────────────────────────────────────────
+  "vista-pan": {
+    camera_motion: { zoom: 0, horizontal: 0, pan: 4.5, tilt: 0, vertical: 0, roll: 0 },
+    promptText: "Pure sweeping panoramic pan across scenic vista. Fixed horizon line.",
     duration: 5,
   },
 };
 
-// Fallback for legacy cameraAngle inputs — preserves backwards compatibility
-// when room_type is not provided.
+// Fallback for legacy cameraAngle inputs or unknown room_type values.
+// Maps to the closest Super 7 preset.
 function getCameraMotionLegacy(cameraAngle: string): CinematicPreset {
-  const fallbackPrompt = "Cinematic real estate interior. Stable walls and furniture. Professional photography.";
   switch (cameraAngle) {
     case "push-in": case "auto": case "zoom-in":
-      return { camera_motion: { zoom: 5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 }, promptText: fallbackPrompt, duration: 5 };
+      return CINEMATIC_PRESETS["foyer-glide"];
     case "push-out":
-      return { camera_motion: { zoom: -5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 }, promptText: fallbackPrompt, duration: 5 };
-    case "orbit-right":
-      return { camera_motion: { zoom: 0, horizontal: 5, pan: 2, tilt: 0, vertical: 0, roll: 0 }, promptText: fallbackPrompt, duration: 5 };
-    case "orbit-left":
-      return { camera_motion: { zoom: 0, horizontal: -5, pan: -2, tilt: 0, vertical: 0, roll: 0 }, promptText: fallbackPrompt, duration: 5 };
+      return CINEMATIC_PRESETS["view-reveal"];
+    case "orbit-right": case "orbit-left":
+      return CINEMATIC_PRESETS["room-slide"];
     default:
-      return { camera_motion: { zoom: 0, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 }, promptText: fallbackPrompt, duration: 5 };
+      return CINEMATIC_PRESETS["foyer-glide"];
   }
 }
 
@@ -200,7 +167,7 @@ Deno.serve(async (req) => {
         const requestBody = {
           model: "gen3a_turbo",
           promptImage: imageUrl,
-          promptText: preset.promptText,
+          promptText: `${preset.promptText} ${ORGANIC_PROMPT_SUFFIX}`,
           camera_motion: preset.camera_motion,
           ratio: "768:1280",
           duration: clipDuration,

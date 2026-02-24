@@ -8,7 +8,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -18,22 +17,16 @@ import {
 
 export type CameraAngle = "auto" | "wide-shot" | "push-in" | "push-out" | "orbit-left" | "orbit-right";
 
-// Cinematic Engine — Option B: Shot List with pre-calibrated room physics.
-// Each room_type maps to specific camera_motion values in generate-runway-batch.
+// Super 7 Organic Engine — strict preset system.
+// Each room_type maps to a cinematic preset in generate-runway-batch.
 export type RoomType =
-  | "exterior-arrival"
-  | "front-door"
-  | "entry-foyer"
-  | "living-room-wide"
-  | "living-room-orbit"
-  | "kitchen-orbit"
-  | "kitchen-push"
-  | "master-bedroom"
-  | "bedroom"
-  | "bathroom"
-  | "outdoor-entertaining"
-  | "backyard-pool"
-  | "view-balcony";
+  | "foyer-glide"
+  | "room-slide"
+  | "bedside-arc"
+  | "detail-push"
+  | "hero-arrival"
+  | "view-reveal"
+  | "vista-pan";
 
 const CLIP_DURATION = 3.5; // seconds — fixed for Ken Burns mode; Runway uses 5s
 
@@ -55,31 +48,15 @@ interface PhotoUploadProps {
   maxPhotos?: number;
 }
 
-const CAMERA_ANGLE_OPTIONS: Record<CameraAngle, { label: string; description: string }> = {
-  auto: { label: "Auto (Recommended)", description: "Smooth push-in zoom — best all-round movement for any shot" },
-  "wide-shot": { label: "Wide Shot", description: "Static locked camera, no movement - architectural style" },
-  "push-in": { label: "Push In", description: "Camera slowly moves forward toward the focal point" },
-  "push-out": { label: "Push Out", description: "Camera slowly pulls back away from the scene" },
-  "orbit-right": { label: "Pan Right", description: "Camera pans right — smooth horizontal sweep with gentle zoom" },
-  "orbit-left": { label: "Pan Left", description: "Camera pans left — smooth horizontal sweep with gentle zoom" },
-};
-
-// Shot List — pre-calibrated room types for the Cinematic Engine.
-// Labels are agent-friendly (no technical jargon).
+// Super 7 Organic Engine — user-friendly shot labels.
 export const ROOM_TYPE_OPTIONS: { value: RoomType; label: string; description: string }[] = [
-  { value: "exterior-arrival",    label: "Exterior Arrival",     description: "Drone push toward facade" },
-  { value: "front-door",          label: "Front Door",           description: "Architectural entrance push-in" },
-  { value: "entry-foyer",         label: "Entry / Foyer",        description: "Orbit reveal of entry" },
-  { value: "living-room-wide",    label: "Living Room",          description: "Wide slow push" },
-  { value: "living-room-orbit",   label: "Living Room Orbit",    description: "Cinematic sweep" },
-  { value: "kitchen-orbit",       label: "Kitchen Orbit",        description: "Counter orbit" },
-  { value: "kitchen-push",        label: "Kitchen Detail",       description: "Counter push-in" },
-  { value: "master-bedroom",      label: "Master Bedroom",       description: "Sanctuary reveal" },
-  { value: "bedroom",             label: "Bedroom",              description: "Gentle push reveal" },
-  { value: "bathroom",            label: "Bathroom",             description: "Fixture detail push" },
-  { value: "outdoor-entertaining",label: "Outdoor Entertaining", description: "Patio / alfresco reveal" },
-  { value: "backyard-pool",       label: "Backyard / Pool",      description: "Aerial-style reveal" },
-  { value: "view-balcony",        label: "View / Balcony",       description: "Panoramic reveal" },
+  { value: "foyer-glide",   label: "The Foyer Glide",   description: "Slow welcoming entry glide" },
+  { value: "room-slide",    label: "The Room Slide",     description: "Lateral parallax for living spaces" },
+  { value: "bedside-arc",   label: "The Bedside Arc",    description: "Gentle wrap-around for bedrooms" },
+  { value: "detail-push",   label: "The Detail Push",    description: "Slow inhale for kitchen & bath" },
+  { value: "hero-arrival",  label: "The Hero Arrival",   description: "Grounded walk-up for exteriors" },
+  { value: "view-reveal",   label: "The View Reveal",    description: "Pull-back and rise for outdoors" },
+  { value: "vista-pan",     label: "The Vista Pan",      description: "Sweeping pan for scenic views" },
 ];
 
 // Resize an image File to a small JPEG base64 string suitable for Claude Vision.
@@ -127,7 +104,7 @@ export function PhotoUpload({
       // New file — mark as detecting so UI shows spinner immediately
       return {
         file,
-        room_type: "living-room-wide" as RoomType,
+        room_type: "room-slide" as RoomType,
         cameraAngle: "auto" as CameraAngle,
         duration: CLIP_DURATION,
         isDetecting: true,
@@ -170,7 +147,7 @@ export function PhotoUpload({
             const detected = results.find(r => r.id === file.name);
             return {
               file,
-              room_type: (detected?.room_type ?? "living-room-wide") as RoomType,
+              room_type: (detected?.room_type ?? "room-slide") as RoomType,
               cameraAngle: "auto" as CameraAngle,
               duration: CLIP_DURATION,
               isDetecting: false,
@@ -187,7 +164,7 @@ export function PhotoUpload({
             if (existing) return existing;
             return {
               file,
-              room_type: "living-room-wide" as RoomType,
+              room_type: "room-slide" as RoomType,
               cameraAngle: "auto" as CameraAngle,
               duration: CLIP_DURATION,
               isDetecting: false,
@@ -489,7 +466,7 @@ export function PhotoUpload({
                           </div>
                         ) : (
                           <Select
-                            value={metadata.room_type ?? "living-room-wide"}
+                            value={metadata.room_type ?? "room-slide"}
                             onValueChange={(value) => updateImageRoomType(index, value as RoomType)}
                           >
                             <SelectTrigger className="h-8 text-xs">

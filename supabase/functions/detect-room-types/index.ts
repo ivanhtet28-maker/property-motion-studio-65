@@ -8,53 +8,36 @@ const corsHeaders = {
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
+// Super 7 Organic Engine — room detection categories
 const VALID_ROOM_TYPES = [
-  "exterior-arrival",
-  "front-door",
-  "entry-foyer",
-  "living-room-wide",
-  "living-room-orbit",
-  "kitchen-orbit",
-  "kitchen-push",
-  "master-bedroom",
-  "bedroom",
-  "bathroom",
-  "outdoor-entertaining",
-  "backyard-pool",
-  "view-balcony",
+  "foyer-glide",
+  "room-slide",
+  "bedside-arc",
+  "detail-push",
+  "hero-arrival",
+  "view-reveal",
+  "vista-pan",
 ] as const;
 
 type RoomType = typeof VALID_ROOM_TYPES[number];
 
-const DETECTION_PROMPT = `Classify this real estate photo. Reply with ONLY one exact value from this list (no other text, no punctuation):
-exterior-arrival
-front-door
-entry-foyer
-living-room-wide
-living-room-orbit
-kitchen-orbit
-kitchen-push
-master-bedroom
-bedroom
-bathroom
-outdoor-entertaining
-backyard-pool
-view-balcony
+const DETECTION_PROMPT = `Classify this real estate photo into one of 7 cinematic categories. Reply with ONLY one exact value from this list (no other text, no punctuation):
+foyer-glide
+room-slide
+bedside-arc
+detail-push
+hero-arrival
+view-reveal
+vista-pan
 
 Guidelines:
-- exterior-arrival: outside of the property, driveway, facade, street view
-- front-door: close-up of the entrance door or porch
-- entry-foyer: hallway or entrance interior
-- living-room-wide: lounge, living room, open plan living area
-- living-room-orbit: same but photo taken from an angle suggesting a sweep
-- kitchen-orbit: full kitchen view from the side or angle
-- kitchen-push: close-up of kitchen counter, island, appliances, or detail
-- master-bedroom: largest/primary bedroom, usually has ensuite or larger size
-- bedroom: any other bedroom
-- bathroom: any bathroom, ensuite, powder room, toilet
-- outdoor-entertaining: deck, patio, alfresco, pergola, outdoor dining
-- backyard-pool: swimming pool, spa, backyard with grass/garden
-- view-balcony: balcony, terrace, or scenic view from inside
+- foyer-glide: foyer, entry, hallway, corridor, entrance interior, mudroom, stairway
+- room-slide: living room, lounge, dining room, open plan living area, family room, sitting room, den
+- bedside-arc: bedroom, master suite, guest bedroom, nursery, any sleeping quarters
+- detail-push: kitchen, bathroom, ensuite, powder room, laundry, pantry, utility room
+- hero-arrival: exterior, facade, street view, driveway, front door, porch, property front
+- view-reveal: backyard, pool, spa, terrace, deck, patio, alfresco, pergola, outdoor entertaining, garden
+- vista-pan: balcony, scenic view from inside, panoramic window, skyline, ocean/water view, mountain view
 
 Reply with only the room type value.`;
 
@@ -104,7 +87,7 @@ async function detectSingleRoomType(
 
   return (VALID_ROOM_TYPES as readonly string[]).includes(detected)
     ? (detected as RoomType)
-    : "living-room-wide";
+    : "room-slide";
 }
 
 Deno.serve(async (req) => {
@@ -141,8 +124,8 @@ Deno.serve(async (req) => {
           console.log(`Image ${id}: detected → ${room_type}`);
           return { id, room_type };
         } catch (err) {
-          console.error(`Image ${id}: detection failed, defaulting to living-room-wide`, err);
-          return { id, room_type: "living-room-wide" as RoomType };
+          console.error(`Image ${id}: detection failed, defaulting to room-slide`, err);
+          return { id, room_type: "room-slide" as RoomType };
         }
       })
     );
