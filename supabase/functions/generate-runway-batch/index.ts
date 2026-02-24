@@ -121,8 +121,8 @@ const GARDEN_FLOAT: CinematicPreset = {
   duration: 5,
 };
 
-// ── Room Type → Super 7 Mapping ─────────────────────────────────────────────
-// Every room type maps to exactly one of the Super 7 Organic Presets.
+// ── Room Type → Super 7 Mapping (legacy) ────────────────────────────────────
+// Backward-compat: when only room_type is provided (no cameraAction), resolve here.
 
 const CINEMATIC_PRESETS: Record<string, CinematicPreset> = {
   // Parallax Glide (exterior)
@@ -152,6 +152,113 @@ const CINEMATIC_PRESETS: Record<string, CinematicPreset> = {
   "backyard-pool":        GARDEN_FLOAT,
   "view-balcony":         GARDEN_FLOAT,
 };
+
+// ── Camera Action System ────────────────────────────────────────────────────
+// The frontend dropdown now exposes the 7 Camera Actions directly.
+// When cameraAction is provided, we combine the action's camera_motion with
+// room-aware prompt anchors so any action can pair with any detected room.
+
+type CameraActionKey = "parallax-glide" | "foyer-glide" | "space-sweep" | "kitchen-sweep" | "bedside-arc" | "feature-push" | "aerial-float";
+
+const CAMERA_ACTION_MAP: Record<CameraActionKey, CinematicPreset> = {
+  "parallax-glide": FACADE_APPROACH,
+  "foyer-glide":    FOYER_GLIDE,
+  "space-sweep":    LOUNGE_DRIFT,
+  "kitchen-sweep":  KITCHEN_SWEEP,
+  "bedside-arc":    BEDSIDE_ARC,
+  "feature-push":   BATH_REVEAL,
+  "aerial-float":   GARDEN_FLOAT,
+};
+
+// Motion templates — describe HOW the camera moves (from the Camera Action)
+const ACTION_MOTION: Record<CameraActionKey, { motion: string; perspective: string }> = {
+  "parallax-glide": {
+    motion: "Cinematic architectural reveal. Smooth lateral parallax glide with a subtle forward push.",
+    perspective: "Eye-level perspective, chest-height camera.",
+  },
+  "foyer-glide": {
+    motion: "Elegant glide. Smooth lateral motion through the space.",
+    perspective: "Eye-level, chest-height camera perspective.",
+  },
+  "space-sweep": {
+    motion: "Gentle room drift. Smooth lateral glide through the room.",
+    perspective: "Eye-level, chest-height camera perspective.",
+  },
+  "kitchen-sweep": {
+    motion: "Smooth sweep. Gentle arc past focal points.",
+    perspective: "Eye-level, chest-height camera perspective.",
+  },
+  "bedside-arc": {
+    motion: "Gentle arc. Smooth curving motion past furnishings.",
+    perspective: "Eye-level, chest-height camera perspective.",
+  },
+  "feature-push": {
+    motion: "Slow reveal push. Gentle forward motion toward focal point.",
+    perspective: "Eye-level, chest-height camera perspective.",
+  },
+  "aerial-float": {
+    motion: "Floating pullback reveal. Gentle rising motion over the space.",
+    perspective: "Elevated drone-level camera perspective.",
+  },
+};
+
+// Room anchors — describe WHAT the camera sees (from the AI-detected room)
+const ROOM_CONTEXT_KEY: Record<string, string> = {
+  "exterior-arrival": "exterior", "front-door": "exterior",
+  "entry-foyer": "entry",
+  "living-room-wide": "living-room", "living-room-orbit": "living-room",
+  "kitchen-orbit": "kitchen", "kitchen-push": "kitchen",
+  "master-bedroom": "bedroom", "bedroom": "bedroom",
+  "bathroom": "bathroom",
+  "outdoor-entertaining": "outdoor", "backyard-pool": "outdoor", "view-balcony": "outdoor",
+};
+
+const ROOM_ANCHORS: Record<string, { focus: string; stability: string }> = {
+  "exterior": {
+    focus: "Focus on the symmetry of the entrance and the texture of the facade.",
+    stability: "Maintain perfect vertical lines of the building. Stable roofline and facade, fixed driveway geometry.",
+  },
+  "entry": {
+    focus: "Focus on interior furnishings and flooring, not windows or light sources.",
+    stability: "Stable walls and flooring, fixed doorframes.",
+  },
+  "living-room": {
+    focus: "Focus on interior furnishings like sofa and coffee table, not windows or light sources.",
+    stability: "Fixed walls, stable ceiling lines, fixed window frames.",
+  },
+  "kitchen": {
+    focus: "Focus on island bench and cabinetry, not windows or light sources.",
+    stability: "Stable island bench, fixed splashback and appliances.",
+  },
+  "bedroom": {
+    focus: "Focus on bed and nightstands, not windows or light sources.",
+    stability: "Stable walls, fixed headboard and window frames.",
+  },
+  "bathroom": {
+    focus: "Focus on vanity and shower fixtures, not windows or light sources.",
+    stability: "Stable tiles, fixed mirror and tapware.",
+  },
+  "outdoor": {
+    focus: "Focus on garden landscaping and entertaining area, not the sky.",
+    stability: "Stable paving, fixed pool edges and fence line.",
+  },
+};
+
+const DEFAULT_ANCHORS = {
+  focus: "Focus on interior furnishings and architectural details, not windows or light sources.",
+  stability: "Stable walls and fixtures.",
+};
+
+const ANTI_MORPHING = "Locked geometry. No morphing, no liquid surfaces, no structural movement.";
+
+// Compose a prompt by combining a Camera Action's motion style with a room's fixture anchors.
+// This allows any action to pair with any room without room-mismatched prompts.
+function composePrompt(actionKey: CameraActionKey, roomType?: string): string {
+  const motion = ACTION_MOTION[actionKey];
+  const ctxKey = roomType ? ROOM_CONTEXT_KEY[roomType] : null;
+  const anchors = ctxKey ? ROOM_ANCHORS[ctxKey] : DEFAULT_ANCHORS;
+  return `${motion.motion} ${motion.perspective} ${anchors.focus} ${anchors.stability} ${ANTI_MORPHING}`;
+}
 
 // Fallback for legacy cameraAngle inputs — maps to closest Super 7 preset.
 // When room_type is not provided, we route legacy angles through the organic presets.
@@ -191,17 +298,32 @@ Deno.serve(async (req) => {
 
     // Submit all at once — Runway queues excess tasks with THROTTLED status.
     // No requests-per-minute rate limit; no concurrency cap needed client-side.
-    const generationPromises = imageMetadata.map(async (metadata: { url: string; cameraAngle?: string; room_type?: string; duration?: number; seed?: number; motionBias?: "slide-right" | "push-forward" }, index: number) => {
-      const { url: imageUrl, cameraAngle, room_type, duration, seed, motionBias } = metadata;
+    const generationPromises = imageMetadata.map(async (metadata: { url: string; cameraAngle?: string; room_type?: string; cameraAction?: string; duration?: number; seed?: number; motionBias?: "slide-right" | "push-forward" }, index: number) => {
+      const { url: imageUrl, cameraAngle, room_type, cameraAction, duration, seed, motionBias } = metadata;
       try {
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
         console.log(`Image: ${imageUrl}`);
-        console.log(`room_type: ${room_type || "(none)"}, cameraAngle: ${cameraAngle || "(none)"}`);
+        console.log(`cameraAction: ${cameraAction || "(none)"}, room_type: ${room_type || "(none)"}, cameraAngle: ${cameraAngle || "(none)"}`);
 
-        // Cinematic Engine: room_type takes priority over generic cameraAngle
-        const preset = (room_type && CINEMATIC_PRESETS[room_type])
-          ? CINEMATIC_PRESETS[room_type]
-          : getCameraMotionLegacy(cameraAngle || "auto");
+        // Cinematic Engine: cameraAction (new dropdown) → room_type (legacy) → cameraAngle (oldest)
+        let preset: CinematicPreset;
+        const actionKey = cameraAction as CameraActionKey;
+        if (actionKey && CAMERA_ACTION_MAP[actionKey]) {
+          // New flow: Camera Action dropdown + AI-detected room for prompt anchors
+          const basePreset = CAMERA_ACTION_MAP[actionKey];
+          preset = {
+            camera_motion: basePreset.camera_motion,
+            promptText: composePrompt(actionKey, room_type),
+            duration: basePreset.duration,
+          };
+          console.log(`Resolved via cameraAction: ${actionKey} + room context: ${room_type || "generic"}`);
+        } else if (room_type && CINEMATIC_PRESETS[room_type]) {
+          preset = CINEMATIC_PRESETS[room_type];
+          console.log(`Resolved via legacy room_type: ${room_type}`);
+        } else {
+          preset = getCameraMotionLegacy(cameraAngle || "auto");
+          console.log(`Resolved via legacy cameraAngle: ${cameraAngle || "auto"}`);
+        }
 
         // Dual-Crop motion bias: override camera_motion for connected crop pairs
         // Crop A (slide-right): pure lateral slide to reveal right side of scene

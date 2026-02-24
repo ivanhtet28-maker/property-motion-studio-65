@@ -499,11 +499,12 @@ Contact us today for a private inspection.`;
       // Convert frontend voice name to backend ID (only if voiceover is enabled)
       const voiceId = customization.includeVoiceover ? getVoiceId(customization.voiceType) : null;
 
-      // Prepare image metadata with room types, camera angles and durations
+      // Prepare image metadata with camera actions, room types, and durations
       const imageMetadataPayload = imageUrls.map((url, index) => {
         const metadata = imageMetadata[index];
         return {
           url,
+          cameraAction: metadata?.cameraAction || null,
           room_type: metadata?.room_type || null,
           cameraAngle: metadata?.cameraAngle || "auto",
           duration: metadata?.duration || 3.5,

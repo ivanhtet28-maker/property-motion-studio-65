@@ -25,6 +25,8 @@
   interface ImageMetadata {
     url: string;
     cameraAngle: string;
+    cameraAction?: string;   // Camera Action dropdown (e.g., "parallax-glide")
+    room_type?: string;      // AI-detected room (e.g., "kitchen-orbit")
     duration: number;
   }
 
