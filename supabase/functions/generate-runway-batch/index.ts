@@ -190,8 +190,8 @@ Deno.serve(async (req) => {
 
     // Submit all at once — Runway queues excess tasks with THROTTLED status.
     // No requests-per-minute rate limit; no concurrency cap needed client-side.
-    const generationPromises = imageMetadata.map(async (metadata: { url: string; cameraAngle?: string; room_type?: string; duration?: number }, index: number) => {
-      const { url: imageUrl, cameraAngle, room_type, duration } = metadata;
+    const generationPromises = imageMetadata.map(async (metadata: { url: string; cameraAngle?: string; room_type?: string; duration?: number; seed?: number; motionBias?: "slide-right" | "push-forward" }, index: number) => {
+      const { url: imageUrl, cameraAngle, room_type, duration, seed, motionBias } = metadata;
       try {
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
         console.log(`Image: ${imageUrl}`);
@@ -202,19 +202,36 @@ Deno.serve(async (req) => {
           ? CINEMATIC_PRESETS[room_type]
           : getCameraMotionLegacy(cameraAngle || "auto");
 
+        // Dual-Crop motion bias: override camera_motion for connected crop pairs
+        // Crop A (slide-right): pure lateral slide to reveal right side of scene
+        // Crop B (push-forward): pure forward push into the detail crop
+        let finalCameraMotion = preset.camera_motion;
+        if (motionBias === "slide-right") {
+          finalCameraMotion = { zoom: 0, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 };
+        } else if (motionBias === "push-forward") {
+          finalCameraMotion = { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 };
+        }
+
         const clipDuration = toValidRunwayDuration(duration ?? preset.duration);
         console.log(`Preset: ${room_type || cameraAngle}, Duration: ${clipDuration}s`);
-        console.log(`Camera motion:`, JSON.stringify(preset.camera_motion));
+        console.log(`Camera motion:`, JSON.stringify(finalCameraMotion));
+        if (motionBias) console.log(`Motion bias: ${motionBias}`);
+        if (seed) console.log(`Seed: ${seed}`);
         console.log(`Prompt: "${preset.promptText}"`);
 
-        const requestBody = {
+        const requestBody: Record<string, unknown> = {
           model: "gen3a_turbo",
           promptImage: imageUrl,
           promptText: preset.promptText,
-          camera_motion: preset.camera_motion,
+          camera_motion: finalCameraMotion,
           ratio: "768:1280",
           duration: clipDuration,
         };
+
+        // Shared seed ensures consistent lighting/colors across dual-crop pairs
+        if (seed) {
+          requestBody.seed = seed;
+        }
 
         const response = await fetchWithRetry(RUNWAY_API_URL, {
           method: "POST",

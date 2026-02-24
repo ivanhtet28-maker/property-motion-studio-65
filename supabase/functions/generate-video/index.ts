@@ -2,6 +2,7 @@
   /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
   import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+  import { Image } from "https://deno.land/x/imagescript@1.3.0/mod.ts";
 
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -105,6 +106,98 @@
     generationId: string;
     status: "queued" | "error";
     error?: string;
+  }
+
+  // ── Dual-Crop Engine ─────────────────────────────────────────────────────
+  // When a user uploads a 16:9 landscape photo, Runway blindly center-crops
+  // it to 9:16, losing 30-40% of edge detail. Instead, we pre-crop into two
+  // 9:16 portrait slices (left-weighted + right-weighted) and send both to
+  // Runway with the same seed for visual consistency and connected motion.
+
+  interface DualCropResult {
+    leftUrl: string;
+    rightUrl: string;
+    seed: number;
+  }
+
+  async function dualCropLandscape(
+    imageUrl: string,
+    supabase: ReturnType<typeof createClient>
+  ): Promise<DualCropResult | null> {
+    try {
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        console.warn(`Dual-crop: failed to fetch image (${response.status})`);
+        return null;
+      }
+
+      const imageBuffer = new Uint8Array(await response.arrayBuffer());
+      const image = await Image.decode(imageBuffer);
+
+      const { width, height } = image;
+      console.log(`Dual-crop check: ${width}x${height} (ratio: ${(width / height).toFixed(2)})`);
+
+      // Only dual-crop clearly landscape images (width > 1.3× height)
+      if (width <= height * 1.3) {
+        return null;
+      }
+
+      // Calculate 9:16 crop width from the image height
+      const cropWidth = Math.round((height * 9) / 16);
+
+      if (cropWidth >= width) {
+        console.log(`Dual-crop: crop width (${cropWidth}) >= image width (${width}), skipping`);
+        return null;
+      }
+
+      // Crop A (Anchor): Left-weighted 9:16 slice
+      const leftImage = image.clone().crop(0, 0, cropWidth, height);
+      const leftBuffer = await leftImage.encodeJPEG(90);
+
+      // Crop B (Detail): Right-weighted 9:16 slice
+      const rightImage = image.clone().crop(width - cropWidth, 0, cropWidth, height);
+      const rightBuffer = await rightImage.encodeJPEG(90);
+
+      // Upload both crops to Supabase Storage
+      const timestamp = Date.now();
+      const randomId = Math.random().toString(36).substring(2, 8);
+      const leftPath = `dual-crops/${timestamp}-${randomId}-left.jpg`;
+      const rightPath = `dual-crops/${timestamp}-${randomId}-right.jpg`;
+
+      const { error: leftErr } = await supabase.storage
+        .from("video-assets")
+        .upload(leftPath, leftBuffer, { contentType: "image/jpeg", upsert: true });
+
+      if (leftErr) {
+        console.error("Dual-crop: left upload failed:", leftErr);
+        return null;
+      }
+
+      const { error: rightErr } = await supabase.storage
+        .from("video-assets")
+        .upload(rightPath, rightBuffer, { contentType: "image/jpeg", upsert: true });
+
+      if (rightErr) {
+        console.error("Dual-crop: right upload failed:", rightErr);
+        return null;
+      }
+
+      const { data: leftUrlData } = supabase.storage.from("video-assets").getPublicUrl(leftPath);
+      const { data: rightUrlData } = supabase.storage.from("video-assets").getPublicUrl(rightPath);
+
+      const seed = Math.floor(Math.random() * 2147483647);
+
+      console.log(`Dual-crop complete: ${width}x${height} → 2× ${cropWidth}x${height} (seed: ${seed})`);
+
+      return {
+        leftUrl: leftUrlData.publicUrl,
+        rightUrl: rightUrlData.publicUrl,
+        seed,
+      };
+    } catch (err) {
+      console.error("Dual-crop failed, falling back to original:", err);
+      return null;
+    }
   }
 
   Deno.serve(async (req) => {
@@ -393,11 +486,85 @@
       // gen3a_turbo is chosen over gen4_turbo because it exposes camera_motion via the REST API.
       console.log("Starting Runway Gen-3a batch generation for", imageUrls.length, "images...");
 
-      const metadataForRunway = imageMetadata || imageUrls.map(url => ({
+      const baseMetadata = imageMetadata || imageUrls.map(url => ({
         url,
         cameraAngle: "auto",
         duration: 5
       }));
+
+      // ── Dual-Crop Engine: Expand landscape images into two portrait crops ──
+      // For each landscape image (width > height × 1.3), we pre-crop into two
+      // 9:16 slices and send both to Runway with the same seed. This prevents
+      // Runway's blind center-crop from losing 30-40% of edge detail.
+      const supabaseCropUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseCropKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabaseCrop = createClient(supabaseCropUrl, supabaseCropKey);
+
+      const expandedMetadata: Array<{
+        url: string;
+        cameraAngle?: string;
+        room_type?: string;
+        duration?: number;
+        seed?: number;
+        motionBias?: "slide-right" | "push-forward";
+      }> = [];
+      const expandedImageUrls: string[] = []; // Original URLs for hybrid fallback
+
+      for (let i = 0; i < baseMetadata.length; i++) {
+        const meta = baseMetadata[i];
+        const originalUrl = meta.url || imageUrls[i];
+
+        // Respect max 10 clips for Runway cost control
+        if (expandedMetadata.length >= 10) {
+          console.log(`Clip limit reached (10), skipping remaining images`);
+          break;
+        }
+
+        const cropResult = await dualCropLandscape(originalUrl, supabaseCrop);
+
+        if (cropResult) {
+          console.log(`Image ${i + 1}: LANDSCAPE → dual-cropped (seed: ${cropResult.seed})`);
+
+          // Check if adding both crops would exceed the limit
+          if (expandedMetadata.length + 2 > 10) {
+            // Only add left crop to stay within limit
+            expandedMetadata.push({
+              ...meta,
+              url: cropResult.leftUrl,
+              seed: cropResult.seed,
+              motionBias: "slide-right",
+            });
+            expandedImageUrls.push(originalUrl);
+            console.log(`Only added left crop (clip limit)`);
+          } else {
+            // Crop A (Anchor): Left-weighted, slides right
+            expandedMetadata.push({
+              ...meta,
+              url: cropResult.leftUrl,
+              seed: cropResult.seed,
+              motionBias: "slide-right",
+            });
+            expandedImageUrls.push(originalUrl);
+
+            // Crop B (Detail): Right-weighted, pushes forward
+            expandedMetadata.push({
+              ...meta,
+              url: cropResult.rightUrl,
+              seed: cropResult.seed,
+              motionBias: "push-forward",
+            });
+            expandedImageUrls.push(originalUrl);
+          }
+        } else {
+          // Portrait/square or crop failed — pass through unchanged
+          expandedMetadata.push(meta);
+          expandedImageUrls.push(originalUrl);
+        }
+      }
+
+      const metadataForRunway = expandedMetadata;
+      const finalImageUrls = expandedImageUrls;
+      console.log(`Dual-crop expansion: ${baseMetadata.length} images → ${metadataForRunway.length} clips`);
 
       const runwayResponse = await fetch(
         `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-runway-batch`,
@@ -441,11 +608,11 @@
       // Save generation context to DB so Dashboard can resume polling if user navigates away
       if (videoRecordId) {
         try {
-          const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-          const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-          const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+          const supabaseAdminUrl = Deno.env.get("SUPABASE_URL")!;
+          const supabaseAdminKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+          const supabaseAdmin = createClient(supabaseAdminUrl, supabaseAdminKey);
 
-          const clipDurations = (imageMetadata || metadataForRunway).map(m => m.duration ?? 5);
+          const clipDurations = metadataForRunway.map(m => m.duration ?? 5);
 
           await supabaseAdmin
             .from("videos")
@@ -459,7 +626,7 @@
                 agentInfo: agentInfo || null,
                 propertyData: propertyData,
                 style: style,
-                imageUrls: imageUrls,  // Stored for hybrid fallback recovery
+                imageUrls: finalImageUrls,  // Expanded for hybrid fallback recovery
               }),
             })
             .eq("id", videoRecordId);
@@ -485,7 +652,7 @@
           agentInfo: agentInfo,
           propertyData: propertyData,
           style: style,
-          imageUrls: imageUrls,  // Passed to video-status for hybrid fallback
+          imageUrls: finalImageUrls,  // Expanded array for hybrid fallback
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
