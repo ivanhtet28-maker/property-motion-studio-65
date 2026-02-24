@@ -60,33 +60,34 @@ interface CinematicPreset {
 
 // ── The Super 7 Organic Presets ─────────────────────────────────────────────
 // All camera_motion values capped at ±4.5 to prevent AI warping.
-// Every promptText anchors: camera height + anti-morphing directive.
+// Every promptText anchors: camera height + motion bias + anti-morphing directive.
 //
 // PROVEN FORMULA (from Façade Approach & Foyer Glide — verified good output):
 //   1. zoom ≤ 4, horizontal ≤ 3, pan ≤ 1 — combined lateral (h+p) must not exceed 4
 //   2. Unused axes are STRICTLY 0 — no noise
 //   3. promptText names SPECIFIC fixtures in the room (roofline, doorframes, countertops)
 //   4. promptText describes the MOTION itself (approach, glide, sweep), not just the room
-//   5. Anti-morphing tail: "Locked geometry. No morphing, no liquid surfaces, no structural movement."
+//   5. Motion bias: "Focus on interior furnishings, not windows or light sources."
+//   6. Anti-morphing tail: "Locked geometry. No morphing, no liquid surfaces, no structural movement."
 
 // 🔒 LOCKED — verified good output. Do not modify camera_motion or promptText.
 const FACADE_APPROACH: CinematicPreset = {
   camera_motion: { zoom: 4, horizontal: 0, pan: 0, tilt: -1, vertical: 0, roll: 0 },
-  promptText: "Smooth cinematic approach toward property exterior. Eye-level camera perspective. Stable roofline and facade, fixed driveway geometry. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
+  promptText: "Smooth cinematic approach toward property exterior. Eye-level camera perspective. Focus on the front facade and entry, not the sky or street. Stable roofline and facade, fixed driveway geometry. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
   duration: 5,
 };
 
 // 🔒 LOCKED — verified good output. Do not modify camera_motion or promptText.
 const FOYER_GLIDE: CinematicPreset = {
   camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
-  promptText: "Elegant entryway glide. Eye-level, chest-height camera perspective. Smooth lateral motion through foyer. Stable walls and flooring, fixed doorframes. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
+  promptText: "Elegant entryway glide. Eye-level, chest-height camera perspective. Focus on interior furnishings and flooring, not windows or light sources. Smooth lateral motion through foyer. Stable walls and flooring, fixed doorframes. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
   duration: 5,
 };
 
 // Matched to FOYER_GLIDE formula: zoom 2 + horizontal 3 + pan 1
 const LOUNGE_DRIFT: CinematicPreset = {
   camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
-  promptText: "Gentle living room drift. Eye-level, chest-height camera perspective. Smooth lateral glide past sofa and coffee table. Fixed walls, stable ceiling lines, fixed window frames. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
+  promptText: "Gentle living room drift. Eye-level, chest-height camera perspective. Focus on interior furnishings like sofa and coffee table, not windows or light sources. Smooth lateral glide through the room. Fixed walls, stable ceiling lines, fixed window frames. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
   duration: 5,
 };
 
@@ -94,28 +95,28 @@ const LOUNGE_DRIFT: CinematicPreset = {
 // Was horizontal:4 pan:2 (combined lateral 6) — caused kitchen melt on reflective surfaces.
 const KITCHEN_SWEEP: CinematicPreset = {
   camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
-  promptText: "Smooth kitchen sweep. Eye-level, chest-height camera perspective. Gentle arc past stone countertops and cabinetry. Stable island bench, fixed splashback and appliances. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
+  promptText: "Smooth kitchen sweep. Eye-level, chest-height camera perspective. Focus on island bench and cabinetry, not windows or light sources. Gentle arc past stone countertops. Stable island bench, fixed splashback and appliances. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
   duration: 5,
 };
 
 // Matched to FOYER_GLIDE formula: zoom 2 + horizontal 3 + pan 1
 const BEDSIDE_ARC: CinematicPreset = {
   camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
-  promptText: "Gentle bedside arc. Eye-level, chest-height camera perspective. Smooth curving motion past bed and nightstands. Stable walls, fixed headboard and window frames. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
+  promptText: "Gentle bedside arc. Eye-level, chest-height camera perspective. Focus on bed and nightstands, not windows or light sources. Smooth curving motion past bedroom furnishings. Stable walls, fixed headboard and window frames. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
   duration: 5,
 };
 
 // Pure forward push — small spaces need no lateral motion
 const BATH_REVEAL: CinematicPreset = {
   camera_motion: { zoom: 2, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-  promptText: "Slow bathroom reveal push. Eye-level, chest-height camera perspective. Gentle forward motion toward shower screen and vanity. Stable tiles, fixed mirror and tapware. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
+  promptText: "Slow bathroom reveal push. Eye-level, chest-height camera perspective. Focus on vanity and shower fixtures, not windows or light sources. Gentle forward motion toward shower screen. Stable tiles, fixed mirror and tapware. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
   duration: 5,
 };
 
 // Outdoor pullback — drone-level perspective, gentle rise
 const GARDEN_FLOAT: CinematicPreset = {
   camera_motion: { zoom: -3, horizontal: 0, pan: 0, tilt: -1, vertical: 1, roll: 0 },
-  promptText: "Floating outdoor pullback reveal. Elevated drone-level camera perspective. Gentle rising motion over garden, pool and entertaining area. Stable paving, fixed pool edges and fence line. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
+  promptText: "Floating outdoor pullback reveal. Elevated drone-level camera perspective. Focus on garden landscaping and entertaining area, not the sky. Gentle rising motion over pool and outdoor space. Stable paving, fixed pool edges and fence line. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
   duration: 5,
 };
 

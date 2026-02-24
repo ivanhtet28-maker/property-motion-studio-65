@@ -521,6 +521,7 @@
               : { type: "video", src: url },             // AI mode: generated video
           start: currentStart,
           length: clipDuration,
+          fit: "cover",  // Explicit: fill the 9:16 frame, crop excess (no letterboxing)
         };
 
         if (isKenBurns) {
