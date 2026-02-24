@@ -9,28 +9,34 @@ const corsHeaders = {
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
 
 const VALID_ROOM_TYPES = [
-  "hero-push",
-  "room-flow",
-  "luxury-slide",
-  "detail-orbit",
-  "wide-reveal",
+  "foyer-glide",
+  "room-slide",
+  "bedside-arc",
+  "detail-push",
+  "hero-arrival",
+  "view-reveal",
+  "vista-pan",
 ] as const;
 
 type RoomType = typeof VALID_ROOM_TYPES[number];
 
-const DETECTION_PROMPT = `Classify this real estate photo into one of 5 shot presets. Reply with ONLY one exact value from this list (no other text, no punctuation):
-hero-push
-room-flow
-luxury-slide
-detail-orbit
-wide-reveal
+const DETECTION_PROMPT = `Classify this real estate photo into one of 7 shot presets. Reply with ONLY one exact value from this list (no other text, no punctuation):
+foyer-glide
+room-slide
+bedside-arc
+detail-push
+hero-arrival
+view-reveal
+vista-pan
 
 Guidelines:
-- hero-push: exterior of the property, driveway, facade, street view, front door, entrance
-- room-flow: living room, lounge, open plan living area, bedroom, hallway, foyer, entry
-- luxury-slide: kitchen, island, countertops, appliances, dining area, patio, alfresco, pergola
-- detail-orbit: bathroom, ensuite, powder room, toilet, fixtures, vanity, spa bath
-- wide-reveal: backyard, swimming pool, garden, balcony, terrace, scenic view, outdoor space
+- foyer-glide: foyer, entry, hallway, corridor
+- room-slide: living room, lounge, open plan living area, dining room, dining area
+- bedside-arc: bedroom, master suite, master bedroom
+- detail-push: kitchen, kitchen island, bathroom, ensuite, laundry, powder room, vanity
+- hero-arrival: exterior of the property, driveway, facade, street view, front door, entrance
+- view-reveal: backyard, swimming pool, garden, terrace, outdoor entertaining
+- vista-pan: balcony, rooftop, scenic view, city view, ocean view
 
 Reply with only the preset value.`;
 
@@ -80,7 +86,7 @@ async function detectSingleRoomType(
 
   return (VALID_ROOM_TYPES as readonly string[]).includes(detected)
     ? (detected as RoomType)
-    : "living-room-wide";
+    : "room-slide";
 }
 
 Deno.serve(async (req) => {
@@ -117,8 +123,8 @@ Deno.serve(async (req) => {
           console.log(`Image ${id}: detected → ${room_type}`);
           return { id, room_type };
         } catch (err) {
-          console.error(`Image ${id}: detection failed, defaulting to living-room-wide`, err);
-          return { id, room_type: "room-flow" as RoomType };
+          console.error(`Image ${id}: detection failed, defaulting to room-slide`, err);
+          return { id, room_type: "room-slide" as RoomType };
         }
       })
     );

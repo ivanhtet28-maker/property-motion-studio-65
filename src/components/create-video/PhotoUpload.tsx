@@ -18,14 +18,16 @@ import {
 
 export type CameraAngle = "auto" | "wide-shot" | "push-in" | "push-out" | "orbit-left" | "orbit-right";
 
-// Cinematic Engine — 5 axis-locked presets. Each preset moves on one or two
+// Cinematic Engine — Super-7 organic presets. Each preset moves on one or two
 // axes only; all others are strictly 0 so the AI cannot drift into weird angles.
 export type RoomType =
-  | "hero-push"
-  | "room-flow"
-  | "luxury-slide"
-  | "detail-orbit"
-  | "wide-reveal";
+  | "foyer-glide"
+  | "room-slide"
+  | "bedside-arc"
+  | "detail-push"
+  | "hero-arrival"
+  | "view-reveal"
+  | "vista-pan";
 
 const CLIP_DURATION = 3.5; // seconds — fixed for Ken Burns mode; Runway uses 5s
 
@@ -56,13 +58,15 @@ const CAMERA_ANGLE_OPTIONS: Record<CameraAngle, { label: string; description: st
   "orbit-left": { label: "Pan Left", description: "Camera pans left — smooth horizontal sweep with gentle zoom" },
 };
 
-// Shot List — 5 high-performance presets for the Cinematic Engine.
+// Shot List — Super-7 organic presets for the Cinematic Engine.
 export const ROOM_TYPE_OPTIONS: { value: RoomType; label: string; description: string }[] = [
-  { value: "hero-push",    label: "Hero Push",     description: "Exterior & arrival push-in" },
-  { value: "room-flow",    label: "Room Flow",     description: "Living room & bedroom reveal" },
-  { value: "luxury-slide", label: "Luxury Slide",  description: "Kitchen & patio cinematic slide" },
-  { value: "detail-orbit", label: "Detail Orbit",  description: "Bathroom & fixture orbit" },
-  { value: "wide-reveal",  label: "Wide Reveal",   description: "Backyard, pool & view pullback" },
+  { value: "foyer-glide",  label: "The Foyer Glide",  description: "Slow welcoming entry push" },
+  { value: "room-slide",   label: "The Room Slide",   description: "Lateral parallax for living & dining" },
+  { value: "bedside-arc",  label: "The Bedside Arc",  description: "Wrap-around reveal for bedrooms" },
+  { value: "detail-push",  label: "The Detail Push",  description: "Slow inhale for kitchen & bathroom" },
+  { value: "hero-arrival", label: "The Hero Arrival", description: "Grounded exterior walk-up" },
+  { value: "view-reveal",  label: "The View Reveal",  description: "Gentle pullback for outdoor spaces" },
+  { value: "vista-pan",    label: "The Vista Pan",    description: "Pure sweep for balconies & scenic views" },
 ];
 
 // Resize an image File to a small JPEG base64 string suitable for Claude Vision.
@@ -110,7 +114,7 @@ export function PhotoUpload({
       // New file — mark as detecting so UI shows spinner immediately
       return {
         file,
-        room_type: "room-flow" as RoomType,
+        room_type: "room-slide" as RoomType,
         cameraAngle: "auto" as CameraAngle,
         duration: CLIP_DURATION,
         isDetecting: true,
@@ -153,7 +157,7 @@ export function PhotoUpload({
             const detected = results.find(r => r.id === file.name);
             return {
               file,
-              room_type: (detected?.room_type ?? "living-room-wide") as RoomType,
+              room_type: (detected?.room_type ?? "room-slide") as RoomType,
               cameraAngle: "auto" as CameraAngle,
               duration: CLIP_DURATION,
               isDetecting: false,
@@ -170,7 +174,7 @@ export function PhotoUpload({
             if (existing) return existing;
             return {
               file,
-              room_type: "room-flow" as RoomType,
+              room_type: "room-slide" as RoomType,
               cameraAngle: "auto" as CameraAngle,
               duration: CLIP_DURATION,
               isDetecting: false,

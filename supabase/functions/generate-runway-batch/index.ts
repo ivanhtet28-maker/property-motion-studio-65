@@ -60,57 +60,73 @@ interface CinematicPreset {
   duration: 5 | 10;
 }
 
-// ── High-Five Presets ─────────────────────────────────────────────────────
-// Axis-locked: any axis set to 0 is strictly 0. The AI cannot drift into
-// diagonal or "creative" motion. Each preset moves on one or two axes only.
+// ── Super-7 Presets ───────────────────────────────────────────────────────
+// Organic physics: every preset is axis-locked (unused axes strictly 0).
+// All promptText values are suffixed with ORGANIC_PROMPT_SUFFIX at call time.
+const ORGANIC_PROMPT_SUFFIX = "Professional real estate cinematography, camera at chest height, eye-level perspective, steady organic gimbal motion, no low-angle distortion, stable architecture.";
+
 const CINEMATIC_PRESETS: Record<string, CinematicPreset> = {
-  // Zoom only — hard push toward the subject.
-  "hero-push": {
-    camera_motion: { zoom: 8, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Cinematic arrival shot. Camera pushes directly toward property. Stable architecture, fixed roofline. No drift, no diagonal movement.",
+  // Zoom only — slow welcoming push for entry spaces.
+  "foyer-glide": {
+    camera_motion: { zoom: 2.5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
+    promptText: "Slow, welcoming push into the entry. Stable walls and floor. Inviting arrival energy. No lateral movement.",
     duration: 5,
   },
 
-  // Zoom only — calm, inviting interior push.
-  "room-flow": {
-    camera_motion: { zoom: 4, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Calm interior push toward the window. Stable walls and furniture. Slow, inviting movement. No lateral drift.",
+  // Horizontal only — pure lateral parallax for living/dining spaces.
+  "room-slide": {
+    camera_motion: { zoom: 0, horizontal: 4.5, pan: 0, tilt: 0, vertical: 0, roll: 0 },
+    promptText: "Lateral parallax slide across the room. No zoom. Stable furniture and walls. Pure horizontal movement.",
     duration: 5,
   },
 
-  // Horizontal only — pure cinematic parallax, no zoom.
-  "luxury-slide": {
-    camera_motion: { zoom: 0, horizontal: 5.5, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Cinematic horizontal slide across the space. No zoom. Pure parallax movement. Stable countertops, fixed cabinetry.",
+  // Pan + horizontal — wrap-around reveal for bedroom spaces.
+  "bedside-arc": {
+    camera_motion: { zoom: 0, horizontal: 2.0, pan: 3.0, tilt: 0, vertical: 0, roll: 0 },
+    promptText: "Gentle wrap-around arc through the bedroom. Stable bed and furniture. Soft curve, no zoom.",
     duration: 5,
   },
 
-  // Pan + slight horizontal — very slow, steady curve around fixtures.
-  "detail-orbit": {
-    camera_motion: { zoom: 0, horizontal: 2, pan: 3.5, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Very slow, steady orbit around fixtures. Low magnitude curve. Stable tiles and surfaces. No zoom, no vertical drift.",
+  // Zoom + slight rise — slow inhale for kitchen and detail spaces.
+  "detail-push": {
+    camera_motion: { zoom: 3.5, horizontal: 0, pan: 0, tilt: 0, vertical: 0.5, roll: 0 },
+    promptText: "Slow push toward the focal point with a slight rise. Stable surfaces. Deliberate, unhurried movement.",
     duration: 5,
   },
 
-  // Pull-back + rise — reveals the full property or view.
-  "wide-reveal": {
-    camera_motion: { zoom: -5, horizontal: 0, pan: 0, tilt: 0, vertical: 2, roll: 0 },
-    promptText: "Wide reveal pullback and rise. Shows the whole property or view. Stable landscape, fixed horizon. No lateral movement.",
+  // Zoom only — grounded walk-up for exteriors.
+  "hero-arrival": {
+    camera_motion: { zoom: 6.0, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
+    promptText: "Grounded cinematic approach toward the property. Stable roofline and facade. No drift or diagonal movement.",
+    duration: 5,
+  },
+
+  // Pull-back + rise — gentle reveal for outdoor/pool/terrace.
+  "view-reveal": {
+    camera_motion: { zoom: -4.0, horizontal: 0, pan: 0, tilt: 0, vertical: 1.5, roll: 0 },
+    promptText: "Gentle pullback and rise to reveal the full outdoor space. Stable horizon. No lateral movement.",
+    duration: 5,
+  },
+
+  // Pan only — pure sweep for balconies and scenic views.
+  "vista-pan": {
+    camera_motion: { zoom: 0, horizontal: 0, pan: 4.5, tilt: 0, vertical: 0, roll: 0 },
+    promptText: "Sweeping pan across the scenic vista. No zoom, no vertical drift. Pure rotational motion.",
     duration: 5,
   },
 };
 
 // Fallback for legacy cameraAngle inputs — maps old generic angles to the
-// nearest High-Five preset for backwards compatibility.
+// nearest Super-7 preset for backwards compatibility.
 function getCameraMotionLegacy(cameraAngle: string): CinematicPreset {
   switch (cameraAngle) {
     case "push-out":
-      return CINEMATIC_PRESETS["wide-reveal"];
+      return CINEMATIC_PRESETS["view-reveal"];
     case "orbit-right": case "orbit-left":
-      return CINEMATIC_PRESETS["luxury-slide"];
+      return CINEMATIC_PRESETS["room-slide"];
     default:
-      // push-in, auto, zoom-in, wide-shot, unknown → room-flow
-      return CINEMATIC_PRESETS["room-flow"];
+      // push-in, auto, zoom-in, wide-shot, unknown → room-slide
+      return CINEMATIC_PRESETS["room-slide"];
   }
 }
 
@@ -157,7 +173,7 @@ Deno.serve(async (req) => {
         const requestBody = {
           model: "gen3a_turbo",
           promptImage: imageUrl,
-          promptText: preset.promptText,
+          promptText: `${preset.promptText} ${ORGANIC_PROMPT_SUFFIX}`,
           camera_motion: preset.camera_motion,
           ratio: "768:1280",
           duration: clipDuration,
