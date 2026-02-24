@@ -39,19 +39,17 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2, at
 }
 
 /**
- * Cinematic Engine — Option B: Shot List with pre-calibrated cinematography physics.
+ * Super 7 Organic Presets — "Surgical Strikes" for AI video generation.
  *
- * Each room_type has:
- *   - camera_motion: numeric sliders calibrated to the space scale
- *     (bathroom uses low magnitudes — camera doesn't punch through walls;
- *      exterior uses high magnitudes — drone scale requires faster movement to look right)
- *   - promptText: room-specific scene description that anchors the AI's geometry model
- *     (Telling the AI "stable cabinetry and countertops" prevents kitchen hallucination
- *      better than a generic "stable walls" prompt)
- *   - duration: always 5s (Runway minimum; 10s available for future hero shots)
+ * Seven carefully calibrated cinematography profiles that cover every room type
+ * in a property tour. Each preset uses deliberately low camera_motion magnitudes
+ * to produce organic, natural-feeling motion that minimises AI warping artifacts.
  *
- * This replaces user-selected generic angles (push-in, orbit-right, etc.) with
- * professionally directed presets — "ghostwriting the cinematography."
+ * Every room_type maps to exactly one of the Super 7. This is the only set of
+ * camera motions sent to Runway — no generic angles, no high-magnitude moves.
+ *
+ * The prompts anchor Runway's geometry model to the specific room elements,
+ * preventing hallucination of walls, furniture, and fixtures.
  */
 
 interface CinematicPreset {
@@ -60,100 +58,94 @@ interface CinematicPreset {
   duration: 5 | 10;
 }
 
-const CINEMATIC_PRESETS: Record<string, CinematicPreset> = {
-  // ── Exterior ──────────────────────────────────────────────────────────────
-  "exterior-arrival": {
-    camera_motion: { zoom: 8, horizontal: 0, pan: 0, tilt: -2, vertical: 0, roll: 0 },
-    promptText: "Cinematic aerial drone push toward luxury property exterior. Stable architecture, fixed roofline, no distortion.",
-    duration: 5,
-  },
-  "front-door": {
-    camera_motion: { zoom: 5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Professional real estate push toward front entrance. Stable door frame, fixed walls, no geometry change.",
-    duration: 5,
-  },
+// ── The Super 7 Organic Presets ─────────────────────────────────────────────
 
-  // ── Interior common areas ─────────────────────────────────────────────────
-  "entry-foyer": {
-    camera_motion: { zoom: 3, horizontal: 4, pan: 2, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Elegant entryway orbit reveal. Stable walls and flooring. No architectural distortion.",
-    duration: 5,
-  },
-  "living-room-wide": {
-    camera_motion: { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Spacious living room slow push. Fixed walls, stable furniture. Professional real estate.",
-    duration: 5,
-  },
-  "living-room-orbit": {
-    camera_motion: { zoom: 0, horizontal: 6, pan: 3, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Living room cinematic orbit. Stable interior architecture, fixed wall positions. Professional real estate.",
-    duration: 5,
-  },
-
-  // ── Kitchen ───────────────────────────────────────────────────────────────
-  "kitchen-orbit": {
-    camera_motion: { zoom: 0, horizontal: 5, pan: 2, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Gourmet kitchen orbit. Stable cabinetry and countertops. Fixed island position. Professional real estate.",
-    duration: 5,
-  },
-  "kitchen-push": {
-    camera_motion: { zoom: 5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Kitchen counter detail push-in. Stable stone surfaces, fixed cabinetry. Professional real estate.",
-    duration: 5,
-  },
-
-  // ── Bedrooms ──────────────────────────────────────────────────────────────
-  "master-bedroom": {
-    camera_motion: { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Master bedroom sanctuary slow reveal. Fixed walls and ceiling, stable furnishings. Professional real estate.",
-    duration: 5,
-  },
-  "bedroom": {
-    camera_motion: { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Bedroom slow push reveal. Stable walls and furniture. Professional real estate.",
-    duration: 5,
-  },
-
-  // ── Bathroom (low magnitude — small space) ────────────────────────────────
-  "bathroom": {
-    camera_motion: { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Luxury bathroom slow push. Stable tiles and fixtures, fixed vanity. Professional real estate. No geometry distortion.",
-    duration: 5,
-  },
-
-  // ── Outdoor ───────────────────────────────────────────────────────────────
-  "outdoor-entertaining": {
-    camera_motion: { zoom: -5, horizontal: 0, pan: 0, tilt: 0, vertical: 2, roll: 0 },
-    promptText: "Outdoor entertaining area wide reveal pullback. Stable pavers and structure. Professional real estate.",
-    duration: 5,
-  },
-  "backyard-pool": {
-    camera_motion: { zoom: -6, horizontal: 0, pan: 0, tilt: -2, vertical: 2, roll: 0 },
-    promptText: "Aerial-style backyard pool reveal. Stable landscape, fixed pool edges, stable water surface.",
-    duration: 5,
-  },
-  "view-balcony": {
-    camera_motion: { zoom: -4, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Panoramic balcony view reveal. Stable architectural framing, fixed horizon line.",
-    duration: 5,
-  },
+const FACADE_APPROACH: CinematicPreset = {
+  camera_motion: { zoom: 5, horizontal: 0, pan: 0, tilt: -1, vertical: 0, roll: 0 },
+  promptText: "Smooth cinematic approach toward property exterior. Stable roofline and facade, fixed driveway geometry. No distortion.",
+  duration: 5,
 };
 
-// Fallback for legacy cameraAngle inputs — preserves backwards compatibility
-// when room_type is not provided.
+const FOYER_GLIDE: CinematicPreset = {
+  camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
+  promptText: "Elegant entryway glide. Smooth lateral motion through foyer. Stable walls and flooring, fixed doorframes. No warping.",
+  duration: 5,
+};
+
+const LOUNGE_DRIFT: CinematicPreset = {
+  camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
+  promptText: "Gentle living room drift. Smooth floating motion through open space. Fixed walls and furniture, stable ceiling lines. No distortion.",
+  duration: 5,
+};
+
+const KITCHEN_SWEEP: CinematicPreset = {
+  camera_motion: { zoom: 0, horizontal: 4, pan: 2, tilt: 0, vertical: 0, roll: 0 },
+  promptText: "Smooth kitchen sweep. Gentle arc past countertops and cabinetry. Stable island, fixed appliances, no geometry change.",
+  duration: 5,
+};
+
+const BEDSIDE_ARC: CinematicPreset = {
+  camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
+  promptText: "Gentle bedside arc. Smooth curving motion around bedroom furnishings. Stable walls and headboard, fixed window frames. No warping.",
+  duration: 5,
+};
+
+const BATH_REVEAL: CinematicPreset = {
+  camera_motion: { zoom: 2, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
+  promptText: "Slow bathroom reveal push. Gentle forward motion toward fixtures. Stable tiles and vanity, fixed mirror. No geometry distortion.",
+  duration: 5,
+};
+
+const GARDEN_FLOAT: CinematicPreset = {
+  camera_motion: { zoom: -3, horizontal: 0, pan: 0, tilt: -1, vertical: 1, roll: 0 },
+  promptText: "Floating outdoor pullback reveal. Gentle rising motion over garden or pool area. Stable landscape, fixed hardscape edges. No distortion.",
+  duration: 5,
+};
+
+// ── Room Type → Super 7 Mapping ─────────────────────────────────────────────
+// Every room type maps to exactly one of the Super 7 Organic Presets.
+
+const CINEMATIC_PRESETS: Record<string, CinematicPreset> = {
+  // Façade Approach
+  "exterior-arrival": FACADE_APPROACH,
+  "front-door":       FACADE_APPROACH,
+
+  // Foyer Glide
+  "entry-foyer":      FOYER_GLIDE,
+
+  // Lounge Drift
+  "living-room-wide":  LOUNGE_DRIFT,
+  "living-room-orbit": LOUNGE_DRIFT,
+
+  // Kitchen Sweep
+  "kitchen-orbit":    KITCHEN_SWEEP,
+  "kitchen-push":     KITCHEN_SWEEP,
+
+  // Bedside Arc
+  "master-bedroom":   BEDSIDE_ARC,
+  "bedroom":          BEDSIDE_ARC,
+
+  // Bath Reveal
+  "bathroom":         BATH_REVEAL,
+
+  // Garden Float
+  "outdoor-entertaining": GARDEN_FLOAT,
+  "backyard-pool":        GARDEN_FLOAT,
+  "view-balcony":         GARDEN_FLOAT,
+};
+
+// Fallback for legacy cameraAngle inputs — maps to closest Super 7 preset.
+// When room_type is not provided, we route legacy angles through the organic presets.
 function getCameraMotionLegacy(cameraAngle: string): CinematicPreset {
-  const fallbackPrompt = "Cinematic real estate interior. Stable walls and furniture. Professional photography.";
   switch (cameraAngle) {
     case "push-in": case "auto": case "zoom-in":
-      return { camera_motion: { zoom: 5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 }, promptText: fallbackPrompt, duration: 5 };
+      return LOUNGE_DRIFT;   // Gentle forward drift — safest default
     case "push-out":
-      return { camera_motion: { zoom: -5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 }, promptText: fallbackPrompt, duration: 5 };
-    case "orbit-right":
-      return { camera_motion: { zoom: 0, horizontal: 5, pan: 2, tilt: 0, vertical: 0, roll: 0 }, promptText: fallbackPrompt, duration: 5 };
-    case "orbit-left":
-      return { camera_motion: { zoom: 0, horizontal: -5, pan: -2, tilt: 0, vertical: 0, roll: 0 }, promptText: fallbackPrompt, duration: 5 };
+      return GARDEN_FLOAT;   // Pullback reveal
+    case "orbit-right": case "orbit-left":
+      return KITCHEN_SWEEP;  // Lateral sweep
     default:
-      return { camera_motion: { zoom: 0, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 }, promptText: fallbackPrompt, duration: 5 };
+      return LOUNGE_DRIFT;   // Safe organic fallback
   }
 }
 

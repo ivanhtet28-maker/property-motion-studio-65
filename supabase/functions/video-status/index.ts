@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { generationIds, videoId, audioUrl, musicUrl, agentInfo, propertyData, style, layout, customTitle, stitchJobId, clipDurations, provider } = body;
+    const { generationIds, videoId, audioUrl, musicUrl, agentInfo, propertyData, style, layout, customTitle, stitchJobId, clipDurations, provider, imageUrls } = body;
 
     // If stitchJobId is provided, we're polling Shotstack stitching job instead of Runway
     if (stitchJobId) {
@@ -146,15 +146,18 @@ Deno.serve(async (req) => {
       throw new Error(`Failed to check ${isRunway ? "Runway" : "Luma"} batch status`);
     }
 
-    const { allCompleted, anyFailed, summary, videoUrls } = statusData;
+    const { allCompleted, anyFailed, summary, videoUrls, statuses } = statusData;
 
     // Calculate progress based on completed clips
     const progressPercent = Math.round((summary.completed / summary.total) * 80); // 0-80% for AI generation
 
     await updateVideoRecord(videoId, "processing", null, progressPercent);
 
-    // If any failed, return error
-    if (anyFailed && summary.completed === 0) {
+    // All terminal = every clip is either completed or failed (none still processing/pending)
+    const allTerminal = (summary.completed + summary.failed) === summary.total;
+
+    // If ALL clips failed and no fallback images available, the tour cannot finish
+    if (anyFailed && summary.completed === 0 && (!imageUrls || imageUrls.length === 0)) {
       await updateVideoRecord(videoId, "failed", null, 0, `All ${isRunway ? "Runway" : "Luma"} generations failed`);
       return new Response(
         JSON.stringify({
@@ -166,8 +169,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // If not all complete yet, return processing status
-    if (!allCompleted) {
+    // If not all clips are in a terminal state, keep polling
+    if (!allTerminal) {
       return new Response(
         JSON.stringify({
           status: "processing",
@@ -179,8 +182,51 @@ Deno.serve(async (req) => {
       );
     }
 
-    // All complete - start Shotstack stitching
-    console.log(`All ${isRunway ? "Runway" : "Luma"} clips ready! Starting Shotstack stitching...`);
+    // --- Hybrid Fallback: Build final URL array, substituting failed clips ---
+    // The tour must always finish. Failed AI clips get replaced with original
+    // property photos + Shotstack zoomInSlow effect to maintain the sequence.
+    const fallbackSlots: number[] = [];
+    const finalVideoUrls: string[] = [];
+
+    if (statuses && Array.isArray(statuses)) {
+      for (let i = 0; i < statuses.length; i++) {
+        const s = statuses[i];
+        if (s.status === "completed" && s.videoUrl) {
+          finalVideoUrls.push(s.videoUrl);
+        } else if (imageUrls && imageUrls[i]) {
+          // Failed clip: substitute with original property photo
+          finalVideoUrls.push(imageUrls[i]);
+          fallbackSlots.push(i);
+          console.log(`Clip ${i}: FAILED — hybrid fallback to original image: ${imageUrls[i]}`);
+        } else {
+          // No fallback image available, use whatever completed URL we have
+          // This shouldn't happen if imageUrls is properly passed
+          console.warn(`Clip ${i}: FAILED with no fallback image available`);
+        }
+      }
+    } else {
+      // Legacy path: no individual statuses, use the aggregated videoUrls
+      finalVideoUrls.push(...videoUrls);
+    }
+
+    if (finalVideoUrls.length === 0) {
+      await updateVideoRecord(videoId, "failed", null, 0, "No video clips or fallback images available");
+      return new Response(
+        JSON.stringify({
+          status: "failed",
+          message: "No video clips or fallback images available",
+          summary,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (fallbackSlots.length > 0) {
+      console.log(`Hybrid fallback: ${fallbackSlots.length} of ${statuses.length} clips using original images`);
+    }
+
+    // All terminal — start Shotstack stitching (with fallbacks if needed)
+    console.log(`${isRunway ? "Runway" : "Luma"} clips resolved (${summary.completed} AI + ${fallbackSlots.length} fallback)! Starting Shotstack stitching...`);
 
     await updateVideoRecord(videoId, "processing", null, 85, "Stitching video clips...");
 
@@ -193,7 +239,7 @@ Deno.serve(async (req) => {
           "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
         },
         body: JSON.stringify({
-          videoUrls: videoUrls,
+          videoUrls: finalVideoUrls,
           clipDurations: clipDurations,
           audioUrl: audioUrl,
           musicUrl: musicUrl,
@@ -203,6 +249,7 @@ Deno.serve(async (req) => {
           layout: layout || "modern-luxe",
           customTitle: customTitle || null,
           videoId: videoId,
+          fallbackSlots: fallbackSlots.length > 0 ? fallbackSlots : undefined,
         }),
       }
     );

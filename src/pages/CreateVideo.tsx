@@ -209,7 +209,8 @@ export default function CreateVideo() {
     customTitle: string,
     clipDurations: number[],
     initialStitchJobId?: string | null,
-    provider?: string
+    provider?: string,
+    imageUrls?: string[]
   ) => {
     const maxAttempts = 120; // 10 minutes max (120 * 5 seconds)
     let attempts = 0;
@@ -251,6 +252,7 @@ export default function CreateVideo() {
             stitchJobId: currentStitchJobId,
             clipDurations: clipDurations,
             provider: provider || "luma",
+            imageUrls: imageUrls,  // For hybrid fallback — original photos replace failed AI clips
           },
         });
 
@@ -598,7 +600,8 @@ Contact us today for a private inspection.`;
             customization.customTitle,
             clipDurations,
             null,
-            data.provider
+            data.provider,
+            data.imageUrls || imageUrls  // Original photos for hybrid fallback
           );
         }
       } else {

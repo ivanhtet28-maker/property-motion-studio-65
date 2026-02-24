@@ -459,6 +459,7 @@
                 agentInfo: agentInfo || null,
                 propertyData: propertyData,
                 style: style,
+                imageUrls: imageUrls,  // Stored for hybrid fallback recovery
               }),
             })
             .eq("id", videoRecordId);
@@ -484,6 +485,7 @@
           agentInfo: agentInfo,
           propertyData: propertyData,
           style: style,
+          imageUrls: imageUrls,  // Passed to video-status for hybrid fallback
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
