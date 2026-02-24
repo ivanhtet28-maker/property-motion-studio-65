@@ -26,22 +26,13 @@ const VALID_ROOM_TYPES = [
 
 type RoomType = typeof VALID_ROOM_TYPES[number];
 
-const DETECTION_PROMPT = `Classify this real estate photo. Reply with ONLY one exact value from this list (no other text, no punctuation):
-exterior-arrival
-front-door
-entry-foyer
-living-room-wide
-living-room-orbit
-kitchen-orbit
-kitchen-push
-master-bedroom
-bedroom
-bathroom
-outdoor-entertaining
-backyard-pool
-view-balcony
+const DETECTION_PROMPT = `Classify this real estate photo into one of the room types below.
 
-Guidelines:
+Step 1: List 3-5 key objects or features visible in the photo.
+Step 2: Based on those objects, determine the room type.
+Step 3: Output your answer on the FINAL line as: ROOM_TYPE: <value>
+
+Valid room types:
 - exterior-arrival: outside of the property, driveway, facade, street view
 - front-door: close-up of the entrance door or porch
 - entry-foyer: hallway or entrance interior
@@ -54,9 +45,7 @@ Guidelines:
 - bathroom: any bathroom, ensuite, powder room, toilet
 - outdoor-entertaining: deck, patio, alfresco, pergola, outdoor dining
 - backyard-pool: swimming pool, spa, backyard with grass/garden
-- view-balcony: balcony, terrace, or scenic view from inside
-
-Reply with only the room type value.`;
+- view-balcony: balcony, terrace, or scenic view from inside`;
 
 async function detectSingleRoomType(
   base64: string,
@@ -71,7 +60,7 @@ async function detectSingleRoomType(
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      max_tokens: 20,
+      max_tokens: 150,
       messages: [
         {
           role: "user",
@@ -100,7 +89,15 @@ async function detectSingleRoomType(
   }
 
   const data = await response.json();
-  const detected = data.content[0]?.text?.trim().toLowerCase() as RoomType;
+  const responseText = data.content[0]?.text?.trim() || "";
+
+  // Parse chain-of-thought output: extract from "ROOM_TYPE: <value>" on final line.
+  // Falls back to raw text matching if model returns a bare room type.
+  const match = responseText.match(/ROOM_TYPE:\s*(.+)/i);
+  const detected = (match ? match[1].trim().toLowerCase() : responseText.trim().toLowerCase()) as RoomType;
+
+  console.log(`Detection reasoning: ${responseText.substring(0, 200)}`);
+  console.log(`Extracted room type: ${detected}`);
 
   return (VALID_ROOM_TYPES as readonly string[]).includes(detected)
     ? (detected as RoomType)

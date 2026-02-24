@@ -59,46 +59,48 @@ interface CinematicPreset {
 }
 
 // ── The Super 7 Organic Presets ─────────────────────────────────────────────
+// All camera_motion values capped at ±4.5 to prevent AI warping.
+// Every promptText anchors: camera height + anti-morphing directive.
 
 const FACADE_APPROACH: CinematicPreset = {
-  camera_motion: { zoom: 5, horizontal: 0, pan: 0, tilt: -1, vertical: 0, roll: 0 },
-  promptText: "Smooth cinematic approach toward property exterior. Stable roofline and facade, fixed driveway geometry. No distortion.",
+  camera_motion: { zoom: 4, horizontal: 0, pan: 0, tilt: -1, vertical: 0, roll: 0 },
+  promptText: "Smooth cinematic approach toward property exterior. Eye-level camera perspective. Stable roofline and facade, fixed driveway geometry. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
   duration: 5,
 };
 
 const FOYER_GLIDE: CinematicPreset = {
   camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
-  promptText: "Elegant entryway glide. Smooth lateral motion through foyer. Stable walls and flooring, fixed doorframes. No warping.",
+  promptText: "Elegant entryway glide. Eye-level, chest-height camera perspective. Smooth lateral motion through foyer. Stable walls and flooring, fixed doorframes. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
   duration: 5,
 };
 
 const LOUNGE_DRIFT: CinematicPreset = {
   camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
-  promptText: "Gentle living room drift. Smooth floating motion through open space. Fixed walls and furniture, stable ceiling lines. No distortion.",
+  promptText: "Gentle living room drift. Eye-level, chest-height camera perspective. Smooth floating motion through open space. Fixed walls and furniture, stable ceiling lines. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
   duration: 5,
 };
 
 const KITCHEN_SWEEP: CinematicPreset = {
   camera_motion: { zoom: 0, horizontal: 4, pan: 2, tilt: 0, vertical: 0, roll: 0 },
-  promptText: "Smooth kitchen sweep. Gentle arc past countertops and cabinetry. Stable island, fixed appliances, no geometry change.",
+  promptText: "Smooth kitchen sweep. Eye-level, chest-height camera perspective. Gentle arc past countertops and cabinetry. Stable island, fixed appliances. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
   duration: 5,
 };
 
 const BEDSIDE_ARC: CinematicPreset = {
   camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
-  promptText: "Gentle bedside arc. Smooth curving motion around bedroom furnishings. Stable walls and headboard, fixed window frames. No warping.",
+  promptText: "Gentle bedside arc. Eye-level, chest-height camera perspective. Smooth curving motion around bedroom furnishings. Stable walls and headboard, fixed window frames. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
   duration: 5,
 };
 
 const BATH_REVEAL: CinematicPreset = {
   camera_motion: { zoom: 2, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-  promptText: "Slow bathroom reveal push. Gentle forward motion toward fixtures. Stable tiles and vanity, fixed mirror. No geometry distortion.",
+  promptText: "Slow bathroom reveal push. Eye-level, chest-height camera perspective. Gentle forward motion toward fixtures. Stable tiles and vanity, fixed mirror. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
   duration: 5,
 };
 
 const GARDEN_FLOAT: CinematicPreset = {
   camera_motion: { zoom: -3, horizontal: 0, pan: 0, tilt: -1, vertical: 1, roll: 0 },
-  promptText: "Floating outdoor pullback reveal. Gentle rising motion over garden or pool area. Stable landscape, fixed hardscape edges. No distortion.",
+  promptText: "Floating outdoor pullback reveal. Elevated drone-level camera perspective. Gentle rising motion over garden or pool area. Stable landscape, fixed hardscape edges. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
   duration: 5,
 };
 
