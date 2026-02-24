@@ -62,7 +62,7 @@ interface CinematicPreset {
 // All camera_motion values capped at ±4.5 to prevent AI warping.
 // Every promptText anchors: camera height + motion bias + anti-morphing directive.
 //
-// PROVEN FORMULA (from Façade Approach & Foyer Glide — verified good output):
+// PROVEN FORMULA (from Parallax Glide & Foyer Glide — verified good output):
 //   1. zoom ≤ 4, horizontal ≤ 3, pan ≤ 1 — combined lateral (h+p) must not exceed 4
 //   2. Unused axes are STRICTLY 0 — no noise
 //   3. promptText names SPECIFIC fixtures in the room (roofline, doorframes, countertops)
@@ -70,10 +70,11 @@ interface CinematicPreset {
 //   5. Motion bias: "Focus on interior furnishings, not windows or light sources."
 //   6. Anti-morphing tail: "Locked geometry. No morphing, no liquid surfaces, no structural movement."
 
-// 🔒 LOCKED — verified good output. Do not modify camera_motion or promptText.
+// 🔒 LOCKED — Parallax Glide: matched to FOYER_GLIDE formula (zoom 2 + horizontal 3 + pan 1 = lateral 4).
+// Was zoom:4 h:0 p:0 tilt:-1 — felt like a "security camera" rush. Now a premium lateral reveal.
 const FACADE_APPROACH: CinematicPreset = {
-  camera_motion: { zoom: 4, horizontal: 0, pan: 0, tilt: -1, vertical: 0, roll: 0 },
-  promptText: "Smooth cinematic approach toward property exterior. Eye-level camera perspective. Focus on the front facade and entry, not the sky or street. Stable roofline and facade, fixed driveway geometry. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
+  camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
+  promptText: "Cinematic architectural reveal. Eye-level perspective, chest-height camera. Smooth lateral parallax glide with a subtle forward push. Maintain perfect vertical lines of the building. Focus on the symmetry of the entrance and the texture of the facade. Stable, locked geometry. No morphing, no liquid surfaces, no structural movement.",
   duration: 5,
 };
 
@@ -124,7 +125,7 @@ const GARDEN_FLOAT: CinematicPreset = {
 // Every room type maps to exactly one of the Super 7 Organic Presets.
 
 const CINEMATIC_PRESETS: Record<string, CinematicPreset> = {
-  // Façade Approach
+  // Parallax Glide (exterior)
   "exterior-arrival": FACADE_APPROACH,
   "front-door":       FACADE_APPROACH,
 
