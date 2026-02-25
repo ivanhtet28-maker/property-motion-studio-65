@@ -720,6 +720,7 @@ Contact us today for a private inspection.`;
                 propertyDetails={propertyDetails}
                 onPropertyDetailsChange={setPropertyDetails}
                 onScrapedImagesChange={setScrapedImageUrls}
+                onScrapedMetadataChange={setImageMetadata}
                 userId={user?.id}
               />
             </div>
