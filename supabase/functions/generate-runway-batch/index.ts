@@ -274,7 +274,14 @@ function getDirectionalOverride(
         promptSuffix: "Orbit away from the windows on the right, revealing the interior of the room to the left.",
       };
     }
-    // Windows centered or none: no override, use default orbit
+    if (windowPosition === "center") {
+      // Windows centered: gentle lateral slide so the camera doesn't push into the glass
+      return {
+        camera_motion: { zoom: 1, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
+        promptSuffix: "Gentle lateral glide away from the centered windows, showcasing the interior furnishings of the room.",
+      };
+    }
+    // No windows detected: no override, use default orbit
     return null;
   }
 
@@ -383,10 +390,16 @@ Deno.serve(async (req) => {
           // New flow: Camera Action dropdown + AI-detected room for prompt anchors
           const basePreset = CAMERA_ACTION_MAP[actionKey];
           preset = {
-            camera_motion: basePreset.camera_motion,
+            camera_motion: { ...basePreset.camera_motion },
             promptText: composePrompt(actionKey, room_type),
             duration: basePreset.duration,
           };
+          // Bedroom zoom protection: space-sweep maps to LOUNGE_DRIFT (zoom:2) which
+          // zooms into the bed too much. Override to zoom:1 for bedroom room types.
+          if (actionKey === "space-sweep" && room_type && BEDROOM_TYPES.has(room_type)) {
+            preset.camera_motion = { ...preset.camera_motion, zoom: 1 };
+            console.log(`Bedroom zoom protection: reduced zoom from 2 → 1`);
+          }
           console.log(`Resolved via cameraAction: ${actionKey} + room context: ${room_type || "generic"}`);
         } else if (room_type && CINEMATIC_PRESETS[room_type]) {
           preset = CINEMATIC_PRESETS[room_type];
