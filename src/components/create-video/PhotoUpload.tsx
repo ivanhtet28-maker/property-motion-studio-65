@@ -572,6 +572,11 @@ export function PhotoUpload({
         </div>
       )}
 
+      {/* Helper text */}
+      <p className="text-sm text-muted-foreground text-center">
+        Upload your photos and we'll handle the rest. Just click generate when ready.
+      </p>
+
       {/* Status Bar */}
       <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-xl">
         <div className="flex items-center gap-3">
