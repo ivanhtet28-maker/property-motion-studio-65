@@ -74,7 +74,7 @@ interface CinematicPreset {
 // Was zoom:4 h:0 p:0 tilt:-1 — felt like a "security camera" rush. Now a premium lateral reveal.
 const FACADE_APPROACH: CinematicPreset = {
   camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
-  promptText: "Cinematic architectural reveal. Eye-level perspective, chest-height camera. Smooth lateral parallax glide with a subtle forward push. Maintain perfect vertical lines of the building. Focus on the symmetry of the entrance and the texture of the facade. Stable, locked geometry. No morphing, no liquid surfaces, no structural movement.",
+  promptText: "Cinematic architectural reveal. Eye-level perspective, mid-height camera locked to the front door. Smooth lateral parallax glide with a subtle forward push. Maintain perfect vertical lines of the building. Focus specifically on the front entrance door at eye-level. Ignore the ground, driveway, and foreground gates. Stable, locked geometry. No morphing, no liquid surfaces, no structural movement.",
   duration: 5,
 };
 
@@ -173,7 +173,7 @@ const CAMERA_ACTION_MAP: Record<CameraActionKey, CinematicPreset> = {
 const ACTION_MOTION: Record<CameraActionKey, { motion: string; perspective: string }> = {
   "parallax-glide": {
     motion: "Cinematic architectural reveal. Smooth lateral parallax glide with a subtle forward push.",
-    perspective: "Eye-level perspective, chest-height camera.",
+    perspective: "Eye-level perspective, mid-height camera locked to the front door.",
   },
   "space-sweep": {
     motion: "Wide sweeping orbit. Smooth lateral glide showcasing the full room space.",
@@ -206,8 +206,8 @@ const ROOM_CONTEXT_KEY: Record<string, string> = {
 
 const ROOM_ANCHORS: Record<string, { focus: string; stability: string }> = {
   "exterior": {
-    focus: "Focus on the symmetry of the entrance and the texture of the facade.",
-    stability: "Maintain perfect vertical lines of the building. Stable roofline and facade, fixed driveway geometry.",
+    focus: "Focus specifically on the front entrance door at eye-level. Ignore the ground and foreground gates.",
+    stability: "Maintain perfect vertical lines of the building. Stable roofline and facade.",
   },
   "entry": {
     focus: "Focus on interior furnishings and flooring, not windows or light sources.",
@@ -281,8 +281,11 @@ function getDirectionalOverride(
         promptSuffix: "Gentle lateral glide away from the centered windows, showcasing the interior furnishings of the room.",
       };
     }
-    // No windows detected: no override, use default orbit
-    return null;
+    // No windows detected: default interior-facing orbit (slide right, away from typical window walls)
+    return {
+      camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
+      promptSuffix: "Smooth interior-facing orbit showcasing furnishings and room layout. Focus on the interior, not windows or light sources.",
+    };
   }
 
   if (BEDROOM_TYPES.has(roomType)) {
@@ -409,24 +412,35 @@ Deno.serve(async (req) => {
           console.log(`Resolved via legacy cameraAngle: ${cameraAngle || "auto"}`);
         }
 
+        // Bedroom zoom cap: enforce zoom ≤ 1 for all bedroom room_types.
+        // This prevents kitchen-sweep (zoom: 2) or any other action from zooming into the bed.
+        const isBedroom = room_type && BEDROOM_TYPES.has(room_type);
+        if (isBedroom && preset.camera_motion.zoom > 1) {
+          preset = {
+            ...preset,
+            camera_motion: { ...preset.camera_motion, zoom: 1 },
+          };
+          console.log(`Bedroom zoom cap applied: zoom clamped to 1 (was ${preset.camera_motion.zoom})`);
+        }
+
         // Dual-Crop motion bias: override camera_motion for connected crop pairs
-        // Crop A (slide-right): pure lateral slide to reveal right side of scene
-        // Crop A (slide-left): pure lateral slide to reveal left side of scene
+        // Crop A (slide-right): lateral slide with subtle pull-back to reveal room context
+        // Crop A (slide-left): lateral slide with subtle pull-back to reveal room context
         // Crop B (push-forward): pure forward push into the detail crop
         let finalCameraMotion = preset.camera_motion;
         if (motionBias === "slide-right") {
-          finalCameraMotion = { zoom: 0, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 };
+          finalCameraMotion = { zoom: -1, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 };
         } else if (motionBias === "slide-left") {
-          finalCameraMotion = { zoom: 0, horizontal: -3, pan: -1, tilt: 0, vertical: 0, roll: 0 };
+          finalCameraMotion = { zoom: -1, horizontal: -3, pan: -1, tilt: 0, vertical: 0, roll: 0 };
         } else if (motionBias === "push-forward") {
           finalCameraMotion = { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 };
         }
 
         // Directional override based on detected window/bed position
-        // Only applies when no motionBias (i.e. not a dual-crop pair)
+        // Applies when no motionBias OR when room is a bedroom (bed-aware orbit must always fire)
         const winPos = (windowPosition || "none") as SpatialPosition;
         const bedPos = (bedPosition || "none") as SpatialPosition;
-        if (!motionBias) {
+        if (!motionBias || isBedroom) {
           const directional = getDirectionalOverride(room_type, winPos, bedPos);
           if (directional) {
             finalCameraMotion = directional.camera_motion;

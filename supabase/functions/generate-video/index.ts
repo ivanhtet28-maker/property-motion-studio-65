@@ -146,21 +146,27 @@
         return null;
       }
 
-      // Calculate 9:16 crop width from the image height
-      const cropWidth = Math.round((height * 9) / 16);
+      // Calculate 9:16 crop width from the image height, with 10% overlap
+      // between Crop A and Crop B so the viewer sees shared context across the pair.
+      const baseCropWidth = Math.round((height * 9) / 16);
+      const overlap = Math.round(baseCropWidth * 0.1);
+      const cropWidth = Math.min(baseCropWidth + overlap, width);
 
       if (cropWidth >= width) {
         console.log(`Dual-crop: crop width (${cropWidth}) >= image width (${width}), skipping`);
         return null;
       }
 
-      // Crop A (Anchor): Left-weighted 9:16 slice
+      // Crop A (Anchor): Left-weighted 9:16 slice with 10% overlap into center
       const leftImage = image.clone().crop(0, 0, cropWidth, height);
       const leftBuffer = await leftImage.encodeJPEG(90);
 
-      // Crop B (Detail): Right-weighted 9:16 slice
-      const rightImage = image.clone().crop(width - cropWidth, 0, cropWidth, height);
+      // Crop B (Detail): Right-weighted 9:16 slice with 10% overlap into center
+      const rightX = Math.max(width - cropWidth, 0);
+      const rightImage = image.clone().crop(rightX, 0, cropWidth, height);
       const rightBuffer = await rightImage.encodeJPEG(90);
+
+      console.log(`Dual-crop: base=${baseCropWidth}px, overlap=${overlap}px, final cropWidth=${cropWidth}px`);
 
       // Upload both crops to Supabase Storage
       const timestamp = Date.now();
@@ -543,7 +549,7 @@
           // Check if adding both crops would exceed the limit
           if (expandedMetadata.length + 2 > 10) {
             // Only add one crop to stay within limit — pick the interior-facing crop
-            const cropUrl = windowsOnRight ? cropResult.leftUrl : cropResult.rightUrl;
+            const cropUrl = windowsOnRight ? cropResult.rightUrl : cropResult.leftUrl;
             const bias = windowsOnRight ? "slide-left" : "slide-right";
             expandedMetadata.push({
               ...meta,
