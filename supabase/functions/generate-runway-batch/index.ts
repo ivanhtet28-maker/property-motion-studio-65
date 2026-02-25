@@ -241,6 +241,7 @@ type SpatialPosition = "left" | "right" | "center" | "none";
 // Living room rooms that should orbit away from windows
 const LIVING_ROOM_TYPES = new Set(["living-room-wide", "living-room-orbit"]);
 const BEDROOM_TYPES = new Set(["master-bedroom", "bedroom"]);
+const EXTERIOR_TYPES = new Set(["exterior-arrival", "front-door"]);
 
 /**
  * Compute directional camera_motion overrides based on spatial detection.
@@ -421,6 +422,19 @@ Deno.serve(async (req) => {
             camera_motion: { ...preset.camera_motion, zoom: 1 },
           };
           console.log(`Bedroom zoom cap applied: zoom clamped to 1 (was ${preset.camera_motion.zoom})`);
+        }
+
+        // High-Crane exterior override: portrait exteriors get an elevated camera
+        // to clear foreground fences/gates and capture the full 2-story facade.
+        // Portrait = no motionBias (landscape images get dual-cropped with motionBias).
+        const isExterior = room_type && EXTERIOR_TYPES.has(room_type);
+        if (isExterior && !motionBias) {
+          preset = {
+            ...preset,
+            camera_motion: { zoom: 0.5, horizontal: 2, pan: 0, tilt: -1, vertical: 1.5, roll: 0 },
+            promptText: preset.promptText + " Elevated camera at 3m height. High-angle perspective looking down to clear fences. Capture full 2-story height. Smooth crane-up reveal, rising vertically while pulling back. No forward walking motion.",
+          };
+          console.log(`High-Crane exterior override: portrait exterior → elevated crane-up reveal`);
         }
 
         // Dual-Crop motion bias: override camera_motion for connected crop pairs
