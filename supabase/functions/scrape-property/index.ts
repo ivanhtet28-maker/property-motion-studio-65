@@ -71,23 +71,47 @@ async function scrapePropertyData(url: string): Promise<string> {
     throw new Error("SCRAPER_API_KEY environment variable not set");
   }
 
-  const scraperUrl = new URL(SCRAPER_API_BASE);
-  scraperUrl.searchParams.set("api_key", SCRAPER_API_KEY);
-  scraperUrl.searchParams.set("url", url);
-  scraperUrl.searchParams.set("render", "true");
-  scraperUrl.searchParams.set("country_code", "au");
-  // Premium mode uses residential proxies — helps avoid blocks on REA/Domain
-  scraperUrl.searchParams.set("premium", "true");
+  let lastError: Error | null = null;
 
-  console.log("Calling ScraperAPI for:", url);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const scraperUrl = new URL(SCRAPER_API_BASE);
+      scraperUrl.searchParams.set("api_key", SCRAPER_API_KEY);
+      scraperUrl.searchParams.set("url", url);
+      scraperUrl.searchParams.set("render", "true");
+      scraperUrl.searchParams.set("country_code", "au");
+      // Premium mode uses residential proxies — helps avoid blocks on REA/Domain
+      scraperUrl.searchParams.set("premium", "true");
 
-  const response = await fetch(scraperUrl.toString());
+      if (attempt > 0) {
+        // Use a different proxy session on retry
+        scraperUrl.searchParams.set("session_number", String(Date.now()));
+        console.log(`Retrying ScraperAPI (attempt ${attempt + 1}) for:`, url);
+      } else {
+        console.log("Calling ScraperAPI for:", url);
+      }
 
-  if (!response.ok) {
-    throw new Error(`ScraperAPI error: ${response.status} ${response.statusText}`);
+      const response = await fetch(scraperUrl.toString(), {
+        signal: AbortSignal.timeout(60_000), // 60s timeout for JS-heavy pages
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text().catch(() => "");
+        console.error(`ScraperAPI error (attempt ${attempt + 1}):`, response.status, errorBody);
+        throw new Error(`ScraperAPI error: ${response.status} ${response.statusText}`);
+      }
+
+      return await response.text();
+    } catch (e) {
+      lastError = e;
+      if (attempt < 1) {
+        // Wait 2 seconds before retry
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+    }
   }
 
-  return await response.text();
+  throw lastError || new Error("ScraperAPI request failed after retries");
 }
 
 // ── REA (realestate.com.au) Image Extraction ─────────────────────────────────
