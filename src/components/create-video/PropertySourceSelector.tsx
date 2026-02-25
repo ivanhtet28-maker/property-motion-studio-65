@@ -303,9 +303,9 @@ export function PropertySourceSelector({
       console.log("Scraping listing images from:", propertyUrl);
 
       const { data, error } = await supabase.functions.invoke(
-        "scrape-listing-images",
+        "scrape-property",
         {
-          body: { url: propertyUrl },
+          body: { url: propertyUrl, mode: "images-only" },
         }
       );
 
