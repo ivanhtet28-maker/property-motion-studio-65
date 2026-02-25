@@ -36,41 +36,37 @@ export type RoomType =
 
 const CLIP_DURATION = 3.5; // seconds — fixed for Ken Burns mode; Runway uses 5s
 
-// ── Camera Actions (the user-facing "How" dropdown) ─────────────────────────
+// ── Core 5 Camera Actions (the user-facing "How" dropdown) ──────────────────
 export type CameraAction =
   | "parallax-glide"
-  | "foyer-glide"
   | "space-sweep"
   | "kitchen-sweep"
-  | "bedside-arc"
   | "feature-push"
   | "aerial-float";
 
 export const CAMERA_ACTION_OPTIONS: { value: CameraAction; label: string; description: string }[] = [
-  { value: "parallax-glide", label: "Parallax Glide",  description: "Lateral slide with gentle forward push" },
-  { value: "foyer-glide",    label: "Foyer Glide",     description: "Smooth lateral glide through entryways" },
-  { value: "space-sweep",    label: "Space Sweep",     description: "Gentle drift through living spaces" },
-  { value: "kitchen-sweep",  label: "Kitchen Sweep",   description: "Arc past countertops and cabinetry" },
-  { value: "bedside-arc",    label: "Bedside Arc",     description: "Curving motion past furnishings" },
-  { value: "feature-push",   label: "Feature Push",    description: "Slow forward push to highlight details" },
-  { value: "aerial-float",   label: "Aerial Float",    description: "Elevated pullback reveal" },
+  { value: "parallax-glide", label: "Side Slide",   description: "Clean, horizontal movement" },
+  { value: "space-sweep",    label: "Wide Orbit",   description: "A large, sweeping circular move" },
+  { value: "kitchen-sweep",  label: "Tight Orbit",  description: "A closer, faster circular move" },
+  { value: "feature-push",   label: "Push In",      description: "Direct movement toward the center" },
+  { value: "aerial-float",   label: "Pull Out",     description: "Direct movement away from the center" },
 ];
 
-// Smart Default: AI-detected room → best Camera Action
+// Smart Default: AI-detected room → best Core 5 Camera Action
 export const ROOM_TO_DEFAULT_ACTION: Record<string, CameraAction> = {
-  "exterior-arrival": "parallax-glide",
-  "front-door":       "parallax-glide",
-  "entry-foyer":      "foyer-glide",
-  "living-room-wide": "space-sweep",
-  "living-room-orbit":"space-sweep",
-  "kitchen-orbit":    "kitchen-sweep",
-  "kitchen-push":     "kitchen-sweep",
-  "master-bedroom":   "bedside-arc",
-  "bedroom":          "bedside-arc",
-  "bathroom":         "feature-push",
-  "outdoor-entertaining": "aerial-float",
-  "backyard-pool":    "aerial-float",
-  "view-balcony":     "aerial-float",
+  "exterior-arrival": "parallax-glide",   // Side Slide
+  "front-door":       "parallax-glide",   // Side Slide
+  "entry-foyer":      "parallax-glide",   // Side Slide
+  "living-room-wide": "space-sweep",      // Wide Orbit
+  "living-room-orbit":"space-sweep",      // Wide Orbit
+  "kitchen-orbit":    "kitchen-sweep",    // Tight Orbit
+  "kitchen-push":     "kitchen-sweep",    // Tight Orbit
+  "master-bedroom":   "kitchen-sweep",    // Tight Orbit
+  "bedroom":          "kitchen-sweep",    // Tight Orbit
+  "bathroom":         "feature-push",     // Push In
+  "outdoor-entertaining": "aerial-float", // Pull Out
+  "backyard-pool":    "aerial-float",     // Pull Out
+  "view-balcony":     "aerial-float",     // Pull Out
 };
 
 // AI detection display label (the "What" tag)
