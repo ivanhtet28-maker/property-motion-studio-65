@@ -39,13 +39,13 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2, at
 }
 
 /**
- * Super 7 Organic Presets — "Surgical Strikes" for AI video generation.
+ * Core 5 Organic Presets — "Surgical Strikes" for AI video generation.
  *
- * Seven carefully calibrated cinematography profiles that cover every room type
+ * Five fundamental cinematography profiles that cover every room type
  * in a property tour. Each preset uses deliberately low camera_motion magnitudes
  * to produce organic, natural-feeling motion that minimises AI warping artifacts.
  *
- * Every room_type maps to exactly one of the Super 7. This is the only set of
+ * Every room_type maps to exactly one of the Core 5. This is the only set of
  * camera motions sent to Runway — no generic angles, no high-magnitude moves.
  *
  * The prompts anchor Runway's geometry model to the specific room elements,
@@ -58,7 +58,7 @@ interface CinematicPreset {
   duration: 5 | 10;
 }
 
-// ── The Super 7 Organic Presets ─────────────────────────────────────────────
+// ── The Core 5 Organic Presets (+ legacy room-specific variants) ────────────
 // All camera_motion values capped at ±4.5 to prevent AI warping.
 // Every promptText anchors: camera height + motion bias + anti-morphing directive.
 //
@@ -121,7 +121,7 @@ const GARDEN_FLOAT: CinematicPreset = {
   duration: 5,
 };
 
-// ── Room Type → Super 7 Mapping (legacy) ────────────────────────────────────
+// ── Room Type → Preset Mapping (legacy fallback) ────────────────────────────
 // Backward-compat: when only room_type is provided (no cameraAction), resolve here.
 
 const CINEMATIC_PRESETS: Record<string, CinematicPreset> = {
@@ -153,32 +153,26 @@ const CINEMATIC_PRESETS: Record<string, CinematicPreset> = {
   "view-balcony":         GARDEN_FLOAT,
 };
 
-// ── Camera Action System ────────────────────────────────────────────────────
-// The frontend dropdown now exposes the 7 Camera Actions directly.
+// ── Camera Action System (Core 5) ───────────────────────────────────────────
+// The frontend dropdown exposes 5 fundamental Camera Actions.
 // When cameraAction is provided, we combine the action's camera_motion with
 // room-aware prompt anchors so any action can pair with any detected room.
 
-type CameraActionKey = "parallax-glide" | "foyer-glide" | "space-sweep" | "kitchen-sweep" | "bedside-arc" | "feature-push" | "aerial-float";
+type CameraActionKey = "parallax-glide" | "space-sweep" | "kitchen-sweep" | "feature-push" | "aerial-float";
 
 const CAMERA_ACTION_MAP: Record<CameraActionKey, CinematicPreset> = {
-  "parallax-glide": FACADE_APPROACH,
-  "foyer-glide":    FOYER_GLIDE,
-  "space-sweep":    LOUNGE_DRIFT,
-  "kitchen-sweep":  KITCHEN_SWEEP,
-  "bedside-arc":    BEDSIDE_ARC,
-  "feature-push":   BATH_REVEAL,
-  "aerial-float":   GARDEN_FLOAT,
+  "parallax-glide": FACADE_APPROACH,  // Side Slide
+  "space-sweep":    LOUNGE_DRIFT,     // Wide Orbit
+  "kitchen-sweep":  KITCHEN_SWEEP,    // Tight Orbit
+  "feature-push":   BATH_REVEAL,      // Push In
+  "aerial-float":   GARDEN_FLOAT,     // Pull Out
 };
 
-// Motion templates — describe HOW the camera moves (from the Camera Action)
+// Motion templates — describe HOW the camera moves (Core 5 actions)
 const ACTION_MOTION: Record<CameraActionKey, { motion: string; perspective: string }> = {
   "parallax-glide": {
     motion: "Cinematic architectural reveal. Smooth lateral parallax glide with a subtle forward push.",
     perspective: "Eye-level perspective, chest-height camera.",
-  },
-  "foyer-glide": {
-    motion: "Elegant glide. Smooth lateral motion through the space.",
-    perspective: "Eye-level, chest-height camera perspective.",
   },
   "space-sweep": {
     motion: "Gentle room drift. Smooth lateral glide through the room.",
@@ -186,10 +180,6 @@ const ACTION_MOTION: Record<CameraActionKey, { motion: string; perspective: stri
   },
   "kitchen-sweep": {
     motion: "Smooth sweep. Gentle arc past focal points.",
-    perspective: "Eye-level, chest-height camera perspective.",
-  },
-  "bedside-arc": {
-    motion: "Gentle arc. Smooth curving motion past furnishings.",
     perspective: "Eye-level, chest-height camera perspective.",
   },
   "feature-push": {
