@@ -543,7 +543,7 @@
           // Check if adding both crops would exceed the limit
           if (expandedMetadata.length + 2 > 10) {
             // Only add one crop to stay within limit — pick the interior-facing crop
-            const cropUrl = windowsOnRight ? cropResult.leftUrl : cropResult.leftUrl;
+            const cropUrl = windowsOnRight ? cropResult.leftUrl : cropResult.rightUrl;
             const bias = windowsOnRight ? "slide-left" : "slide-right";
             expandedMetadata.push({
               ...meta,
