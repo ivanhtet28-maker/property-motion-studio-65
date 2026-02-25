@@ -26,11 +26,16 @@ const VALID_ROOM_TYPES = [
 
 type RoomType = typeof VALID_ROOM_TYPES[number];
 
-const DETECTION_PROMPT = `Classify this real estate photo into one of the room types below.
+const DETECTION_PROMPT = `Classify this real estate photo and detect spatial layout.
 
 Step 1: List 3-5 key objects or features visible in the photo.
-Step 2: Based on those objects, determine the room type.
-Step 3: Output your answer on the FINAL line as: ROOM_TYPE: <value>
+Step 2: Determine the room type from the list below.
+Step 3: Check if any outdoor-facing windows are visible. If so, note whether they are on the LEFT side, RIGHT side, or CENTER of the image. If no outdoor windows are visible, say "none".
+Step 4: For bedrooms only — note whether the bed is positioned on the LEFT, RIGHT, or CENTER of the image. Skip for non-bedrooms.
+Step 5: Output your answers on the FINAL 3 lines EXACTLY as:
+ROOM_TYPE: <value>
+WINDOW_POSITION: <left|right|center|none>
+BED_POSITION: <left|right|center|none>
 
 Valid room types:
 - exterior-arrival: outside of the property, driveway, facade, street view
@@ -47,10 +52,18 @@ Valid room types:
 - backyard-pool: swimming pool, spa, backyard with grass/garden
 - view-balcony: balcony, terrace, or scenic view from inside`;
 
+type SpatialPosition = "left" | "right" | "center" | "none";
+
+interface DetectionResult {
+  room_type: RoomType;
+  window_position: SpatialPosition;
+  bed_position: SpatialPosition;
+}
+
 async function detectSingleRoomType(
   base64: string,
   mimeType: string
-): Promise<RoomType> {
+): Promise<DetectionResult> {
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -60,7 +73,7 @@ async function detectSingleRoomType(
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      max_tokens: 150,
+      max_tokens: 250,
       messages: [
         {
           role: "user",
@@ -91,17 +104,27 @@ async function detectSingleRoomType(
   const data = await response.json();
   const responseText = data.content[0]?.text?.trim() || "";
 
-  // Parse chain-of-thought output: extract from "ROOM_TYPE: <value>" on final line.
-  // Falls back to raw text matching if model returns a bare room type.
-  const match = responseText.match(/ROOM_TYPE:\s*(.+)/i);
-  const detected = (match ? match[1].trim().toLowerCase() : responseText.trim().toLowerCase()) as RoomType;
+  // Parse chain-of-thought output: extract structured fields from final lines.
+  const roomMatch = responseText.match(/ROOM_TYPE:\s*(.+)/i);
+  const windowMatch = responseText.match(/WINDOW_POSITION:\s*(.+)/i);
+  const bedMatch = responseText.match(/BED_POSITION:\s*(.+)/i);
 
-  console.log(`Detection reasoning: ${responseText.substring(0, 200)}`);
-  console.log(`Extracted room type: ${detected}`);
+  const detectedRoom = (roomMatch ? roomMatch[1].trim().toLowerCase() : responseText.trim().toLowerCase()) as RoomType;
+  const detectedWindow = (windowMatch ? windowMatch[1].trim().toLowerCase() : "none") as SpatialPosition;
+  const detectedBed = (bedMatch ? bedMatch[1].trim().toLowerCase() : "none") as SpatialPosition;
 
-  return (VALID_ROOM_TYPES as readonly string[]).includes(detected)
-    ? (detected as RoomType)
-    : "living-room-wide";
+  console.log(`Detection reasoning: ${responseText.substring(0, 300)}`);
+  console.log(`Extracted: room=${detectedRoom}, window=${detectedWindow}, bed=${detectedBed}`);
+
+  const validPositions: SpatialPosition[] = ["left", "right", "center", "none"];
+
+  return {
+    room_type: (VALID_ROOM_TYPES as readonly string[]).includes(detectedRoom)
+      ? (detectedRoom as RoomType)
+      : "living-room-wide",
+    window_position: validPositions.includes(detectedWindow) ? detectedWindow : "none",
+    bed_position: validPositions.includes(detectedBed) ? detectedBed : "none",
+  };
 }
 
 Deno.serve(async (req) => {
@@ -134,12 +157,12 @@ Deno.serve(async (req) => {
     const results = await Promise.all(
       body.images.map(async ({ id, base64, mimeType }) => {
         try {
-          const room_type = await detectSingleRoomType(base64, mimeType || "image/jpeg");
-          console.log(`Image ${id}: detected → ${room_type}`);
-          return { id, room_type };
+          const detection = await detectSingleRoomType(base64, mimeType || "image/jpeg");
+          console.log(`Image ${id}: detected → ${detection.room_type} (window: ${detection.window_position}, bed: ${detection.bed_position})`);
+          return { id, room_type: detection.room_type, window_position: detection.window_position, bed_position: detection.bed_position };
         } catch (err) {
           console.error(`Image ${id}: detection failed, defaulting to living-room-wide`, err);
-          return { id, room_type: "living-room-wide" as RoomType };
+          return { id, room_type: "living-room-wide" as RoomType, window_position: "none" as SpatialPosition, bed_position: "none" as SpatialPosition };
         }
       })
     );
