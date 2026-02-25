@@ -18,8 +18,7 @@ import {
 
 export type CameraAngle = "auto" | "wide-shot" | "push-in" | "push-out" | "orbit-left" | "orbit-right";
 
-// Cinematic Engine — Option B: Shot List with pre-calibrated room physics.
-// Each room_type maps to specific camera_motion values in generate-runway-batch.
+// Room types — still used for AI detection and backend prompt anchors.
 export type RoomType =
   | "exterior-arrival"
   | "front-door"
@@ -37,13 +36,69 @@ export type RoomType =
 
 const CLIP_DURATION = 3.5; // seconds — fixed for Ken Burns mode; Runway uses 5s
 
+// ── Camera Actions (the user-facing "How" dropdown) ─────────────────────────
+export type CameraAction =
+  | "parallax-glide"
+  | "foyer-glide"
+  | "space-sweep"
+  | "kitchen-sweep"
+  | "bedside-arc"
+  | "feature-push"
+  | "aerial-float";
+
+export const CAMERA_ACTION_OPTIONS: { value: CameraAction; label: string; description: string }[] = [
+  { value: "parallax-glide", label: "Parallax Glide",  description: "Lateral slide with gentle forward push" },
+  { value: "foyer-glide",    label: "Foyer Glide",     description: "Smooth lateral glide through entryways" },
+  { value: "space-sweep",    label: "Space Sweep",     description: "Gentle drift through living spaces" },
+  { value: "kitchen-sweep",  label: "Kitchen Sweep",   description: "Arc past countertops and cabinetry" },
+  { value: "bedside-arc",    label: "Bedside Arc",     description: "Curving motion past furnishings" },
+  { value: "feature-push",   label: "Feature Push",    description: "Slow forward push to highlight details" },
+  { value: "aerial-float",   label: "Aerial Float",    description: "Elevated pullback reveal" },
+];
+
+// Smart Default: AI-detected room → best Camera Action
+export const ROOM_TO_DEFAULT_ACTION: Record<string, CameraAction> = {
+  "exterior-arrival": "parallax-glide",
+  "front-door":       "parallax-glide",
+  "entry-foyer":      "foyer-glide",
+  "living-room-wide": "space-sweep",
+  "living-room-orbit":"space-sweep",
+  "kitchen-orbit":    "kitchen-sweep",
+  "kitchen-push":     "kitchen-sweep",
+  "master-bedroom":   "bedside-arc",
+  "bedroom":          "bedside-arc",
+  "bathroom":         "feature-push",
+  "outdoor-entertaining": "aerial-float",
+  "backyard-pool":    "aerial-float",
+  "view-balcony":     "aerial-float",
+};
+
+// AI detection display label (the "What" tag)
+const ROOM_TYPE_TO_LABEL: Record<string, string> = {
+  "exterior-arrival": "Exterior",
+  "front-door":       "Exterior",
+  "entry-foyer":      "Entry / Foyer",
+  "living-room-wide": "Living Room",
+  "living-room-orbit":"Living Room",
+  "kitchen-orbit":    "Kitchen",
+  "kitchen-push":     "Kitchen",
+  "master-bedroom":   "Master Bedroom",
+  "bedroom":          "Bedroom",
+  "bathroom":         "Bathroom",
+  "outdoor-entertaining": "Outdoor",
+  "backyard-pool":    "Pool / Backyard",
+  "view-balcony":     "Balcony / View",
+};
+
 export interface ImageMetadata {
   file: File;
-  room_type: RoomType;
-  cameraAngle: CameraAngle; // kept for backwards compatibility
+  cameraAction: CameraAction;          // dropdown value (the "How")
+  detectedRoomLabel: string | null;     // AI tag display (the "What")
+  room_type: RoomType;                  // raw AI detection — sent to backend for prompt anchors
+  cameraAngle: CameraAngle;            // legacy compat
   duration: number;
-  isDetecting?: boolean;   // true while Claude Vision is classifying
-  autoDetected?: boolean;  // true after AI has set the room type
+  isDetecting?: boolean;               // true while Claude Vision is classifying
+  autoDetected?: boolean;              // true after AI has set the camera action
 }
 
 interface PhotoUploadProps {
@@ -54,33 +109,6 @@ interface PhotoUploadProps {
   minPhotos?: number;
   maxPhotos?: number;
 }
-
-const CAMERA_ANGLE_OPTIONS: Record<CameraAngle, { label: string; description: string }> = {
-  auto: { label: "Auto (Recommended)", description: "Smooth push-in zoom — best all-round movement for any shot" },
-  "wide-shot": { label: "Wide Shot", description: "Static locked camera, no movement - architectural style" },
-  "push-in": { label: "Push In", description: "Camera slowly moves forward toward the focal point" },
-  "push-out": { label: "Push Out", description: "Camera slowly pulls back away from the scene" },
-  "orbit-right": { label: "Pan Right", description: "Camera pans right — smooth horizontal sweep with gentle zoom" },
-  "orbit-left": { label: "Pan Left", description: "Camera pans left — smooth horizontal sweep with gentle zoom" },
-};
-
-// Shot List — pre-calibrated room types for the Cinematic Engine.
-// Labels are agent-friendly (no technical jargon).
-export const ROOM_TYPE_OPTIONS: { value: RoomType; label: string; description: string }[] = [
-  { value: "exterior-arrival",    label: "Exterior Arrival",     description: "Drone push toward facade" },
-  { value: "front-door",          label: "Front Door",           description: "Architectural entrance push-in" },
-  { value: "entry-foyer",         label: "Entry / Foyer",        description: "Orbit reveal of entry" },
-  { value: "living-room-wide",    label: "Living Room",          description: "Wide slow push" },
-  { value: "living-room-orbit",   label: "Living Room Orbit",    description: "Cinematic sweep" },
-  { value: "kitchen-orbit",       label: "Kitchen Orbit",        description: "Counter orbit" },
-  { value: "kitchen-push",        label: "Kitchen Detail",       description: "Counter push-in" },
-  { value: "master-bedroom",      label: "Master Bedroom",       description: "Sanctuary reveal" },
-  { value: "bedroom",             label: "Bedroom",              description: "Gentle push reveal" },
-  { value: "bathroom",            label: "Bathroom",             description: "Fixture detail push" },
-  { value: "outdoor-entertaining",label: "Outdoor Entertaining", description: "Patio / alfresco reveal" },
-  { value: "backyard-pool",       label: "Backyard / Pool",      description: "Aerial-style reveal" },
-  { value: "view-balcony",        label: "View / Balcony",       description: "Panoramic reveal" },
-];
 
 // Resize an image File to a small JPEG base64 string suitable for Claude Vision.
 // Keeps payload well under the Supabase Edge Function ~2MB limit.
@@ -127,6 +155,8 @@ export function PhotoUpload({
       // New file — mark as detecting so UI shows spinner immediately
       return {
         file,
+        cameraAction: "space-sweep" as CameraAction,
+        detectedRoomLabel: null,
         room_type: "living-room-wide" as RoomType,
         cameraAngle: "auto" as CameraAngle,
         duration: CLIP_DURATION,
@@ -168,9 +198,12 @@ export function PhotoUpload({
             const existing = imageMetadata.find(m => m.file.name === file.name);
             if (existing) return existing;
             const detected = results.find(r => r.id === file.name);
+            const roomType = (detected?.room_type ?? "living-room-wide") as RoomType;
             return {
               file,
-              room_type: (detected?.room_type ?? "living-room-wide") as RoomType,
+              cameraAction: ROOM_TO_DEFAULT_ACTION[roomType] ?? ("space-sweep" as CameraAction),
+              detectedRoomLabel: ROOM_TYPE_TO_LABEL[roomType] ?? null,
+              room_type: roomType,
               cameraAngle: "auto" as CameraAngle,
               duration: CLIP_DURATION,
               isDetecting: false,
@@ -180,13 +213,15 @@ export function PhotoUpload({
         );
       } catch (err) {
         console.error("Room type detection failed:", err);
-        // Clear detecting state on failure — leave default room type
+        // Clear detecting state on failure — leave default camera action
         onMetadataChange(
           newPhotos.map((file) => {
             const existing = imageMetadata.find(m => m.file.name === file.name);
             if (existing) return existing;
             return {
               file,
+              cameraAction: "space-sweep" as CameraAction,
+              detectedRoomLabel: null,
               room_type: "living-room-wide" as RoomType,
               cameraAngle: "auto" as CameraAngle,
               duration: CLIP_DURATION,
@@ -259,16 +294,16 @@ export function PhotoUpload({
     }
   };
 
-  const updateImageRoomType = (index: number, roomType: RoomType) => {
+  const updateImageCameraAction = (index: number, action: CameraAction) => {
     if (!onMetadataChange) return;
     const newMetadata = [...imageMetadata];
-    newMetadata[index] = { ...newMetadata[index], room_type: roomType, autoDetected: false };
+    newMetadata[index] = { ...newMetadata[index], cameraAction: action, autoDetected: false };
     onMetadataChange(newMetadata);
   };
 
-  const setAllRoomTypes = (roomType: RoomType) => {
+  const setAllCameraActions = (action: CameraAction) => {
     if (!onMetadataChange) return;
-    const newMetadata = imageMetadata.map(meta => ({ ...meta, room_type: roomType }));
+    const newMetadata = imageMetadata.map(meta => ({ ...meta, cameraAction: action, autoDetected: false }));
     onMetadataChange(newMetadata);
   };
 
@@ -291,7 +326,7 @@ export function PhotoUpload({
             </p>
           </div>
         </div>
-        
+
         {/* Progress Ring */}
         <div className="relative w-12 h-12">
           <svg className="w-12 h-12 transform -rotate-90">
@@ -340,7 +375,7 @@ export function PhotoUpload({
         {isDragging && (
           <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-primary/5 animate-pulse" />
         )}
-        
+
         <input
           type="file"
           accept="image/*"
@@ -348,7 +383,7 @@ export function PhotoUpload({
           className="hidden"
           onChange={handleFileSelect}
         />
-        
+
         <div className="relative z-10">
           <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center transition-all ${
             isDragging ? "bg-primary/20 scale-110" : "bg-secondary"
@@ -378,12 +413,12 @@ export function PhotoUpload({
             {onMetadataChange && imageMetadata.length > 0 && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">{(photos.length * CLIP_DURATION).toFixed(1)}s total</span>
-                <Select value="" onValueChange={(value) => setAllRoomTypes(value as RoomType)}>
+                <Select value="" onValueChange={(value) => setAllCameraActions(value as CameraAction)}>
                   <SelectTrigger className="h-7 text-xs w-[160px]">
                     <SelectValue placeholder="Set all to..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {ROOM_TYPE_OPTIONS.map(({ value, label }) => (
+                    {CAMERA_ACTION_OPTIONS.map(({ value, label }) => (
                       <SelectItem key={value} value={value} className="text-xs">
                         {label}
                       </SelectItem>
@@ -453,17 +488,23 @@ export function PhotoUpload({
                         {index + 1}
                       </span>
                     )}
+
+                    {/* AI room detection tag — bottom-left of image */}
+                    {metadata && !metadata.isDetecting && metadata.detectedRoomLabel && (
+                      <span className="absolute bottom-2 left-2 px-2 py-0.5 bg-purple-600/80 text-white text-[10px] font-medium rounded-full leading-tight shadow-sm backdrop-blur-sm">
+                        AI: {metadata.detectedRoomLabel}
+                      </span>
+                    )}
                   </div>
 
-                  {/* Shot Type Controls */}
+                  {/* Camera Action Controls */}
                   {onMetadataChange && metadata && (
                     <div className="space-y-2">
-                      {/* Shot Type */}
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-1">
-                          <label className="text-xs font-medium text-muted-foreground">Shot Type</label>
+                          <label className="text-xs font-medium text-muted-foreground">Camera Action</label>
                           {metadata.autoDetected && !metadata.isDetecting && (
-                            <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-medium rounded-full leading-none">
+                            <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-medium rounded-full leading-none">
                               AI
                             </span>
                           )}
@@ -475,8 +516,8 @@ export function PhotoUpload({
                               <TooltipContent className="max-w-xs">
                                 <p className="text-xs">
                                   {metadata.isDetecting
-                                    ? "Detecting room type with AI..."
-                                    : ROOM_TYPE_OPTIONS.find(o => o.value === metadata.room_type)?.description ?? "Select the room type for cinematic motion"}
+                                    ? "Detecting room and selecting best camera action..."
+                                    : CAMERA_ACTION_OPTIONS.find(o => o.value === metadata.cameraAction)?.description ?? "Choose how the camera moves for this shot"}
                                 </p>
                               </TooltipContent>
                             </Tooltip>
@@ -489,16 +530,17 @@ export function PhotoUpload({
                           </div>
                         ) : (
                           <Select
-                            value={metadata.room_type ?? "living-room-wide"}
-                            onValueChange={(value) => updateImageRoomType(index, value as RoomType)}
+                            value={metadata.cameraAction ?? "space-sweep"}
+                            onValueChange={(value) => updateImageCameraAction(index, value as CameraAction)}
                           >
                             <SelectTrigger className="h-8 text-xs">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {ROOM_TYPE_OPTIONS.map(({ value, label }) => (
+                              {CAMERA_ACTION_OPTIONS.map(({ value, label, description }) => (
                                 <SelectItem key={value} value={value} className="text-xs">
-                                  {label}
+                                  <span>{label}</span>
+                                  <span className="ml-1 text-muted-foreground">— {description}</span>
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -539,7 +581,7 @@ export function PhotoUpload({
         <div className="flex items-center gap-3">
           <div className={`w-2 h-2 rounded-full ${photos.length >= minPhotos ? "bg-success" : "bg-warning"} animate-pulse`} />
           <span className={`text-sm font-medium ${photos.length >= minPhotos ? "text-success" : "text-foreground"}`}>
-            {photos.length >= minPhotos 
+            {photos.length >= minPhotos
               ? `${photos.length} photos ready`
               : `${photos.length} of ${minPhotos} minimum`
             }

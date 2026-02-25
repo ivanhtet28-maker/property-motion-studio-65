@@ -39,19 +39,17 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2, at
 }
 
 /**
- * Cinematic Engine — Option B: Shot List with pre-calibrated cinematography physics.
+ * Super 7 Organic Presets — "Surgical Strikes" for AI video generation.
  *
- * Each room_type has:
- *   - camera_motion: numeric sliders calibrated to the space scale
- *     (bathroom uses low magnitudes — camera doesn't punch through walls;
- *      exterior uses high magnitudes — drone scale requires faster movement to look right)
- *   - promptText: room-specific scene description that anchors the AI's geometry model
- *     (Telling the AI "stable cabinetry and countertops" prevents kitchen hallucination
- *      better than a generic "stable walls" prompt)
- *   - duration: always 5s (Runway minimum; 10s available for future hero shots)
+ * Seven carefully calibrated cinematography profiles that cover every room type
+ * in a property tour. Each preset uses deliberately low camera_motion magnitudes
+ * to produce organic, natural-feeling motion that minimises AI warping artifacts.
  *
- * This replaces user-selected generic angles (push-in, orbit-right, etc.) with
- * professionally directed presets — "ghostwriting the cinematography."
+ * Every room_type maps to exactly one of the Super 7. This is the only set of
+ * camera motions sent to Runway — no generic angles, no high-magnitude moves.
+ *
+ * The prompts anchor Runway's geometry model to the specific room elements,
+ * preventing hallucination of walls, furniture, and fixtures.
  */
 
 interface CinematicPreset {
@@ -60,100 +58,220 @@ interface CinematicPreset {
   duration: 5 | 10;
 }
 
+// ── The Super 7 Organic Presets ─────────────────────────────────────────────
+// All camera_motion values capped at ±4.5 to prevent AI warping.
+// Every promptText anchors: camera height + motion bias + anti-morphing directive.
+//
+// PROVEN FORMULA (from Parallax Glide & Foyer Glide — verified good output):
+//   1. zoom ≤ 4, horizontal ≤ 3, pan ≤ 1 — combined lateral (h+p) must not exceed 4
+//   2. Unused axes are STRICTLY 0 — no noise
+//   3. promptText names SPECIFIC fixtures in the room (roofline, doorframes, countertops)
+//   4. promptText describes the MOTION itself (approach, glide, sweep), not just the room
+//   5. Motion bias: "Focus on interior furnishings, not windows or light sources."
+//   6. Anti-morphing tail: "Locked geometry. No morphing, no liquid surfaces, no structural movement."
+
+// 🔒 LOCKED — Parallax Glide: matched to FOYER_GLIDE formula (zoom 2 + horizontal 3 + pan 1 = lateral 4).
+// Was zoom:4 h:0 p:0 tilt:-1 — felt like a "security camera" rush. Now a premium lateral reveal.
+const FACADE_APPROACH: CinematicPreset = {
+  camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
+  promptText: "Cinematic architectural reveal. Eye-level perspective, chest-height camera. Smooth lateral parallax glide with a subtle forward push. Maintain perfect vertical lines of the building. Focus on the symmetry of the entrance and the texture of the facade. Stable, locked geometry. No morphing, no liquid surfaces, no structural movement.",
+  duration: 5,
+};
+
+// 🔒 LOCKED — verified good output. Do not modify camera_motion or promptText.
+const FOYER_GLIDE: CinematicPreset = {
+  camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
+  promptText: "Elegant entryway glide. Eye-level, chest-height camera perspective. Focus on interior furnishings and flooring, not windows or light sources. Smooth lateral motion through foyer. Stable walls and flooring, fixed doorframes. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
+  duration: 5,
+};
+
+// Matched to FOYER_GLIDE formula: zoom 2 + horizontal 3 + pan 1
+const LOUNGE_DRIFT: CinematicPreset = {
+  camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
+  promptText: "Gentle living room drift. Eye-level, chest-height camera perspective. Focus on interior furnishings like sofa and coffee table, not windows or light sources. Smooth lateral glide through the room. Fixed walls, stable ceiling lines, fixed window frames. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
+  duration: 5,
+};
+
+// 🔒 LOCKED — matched to proven formula (zoom 2 + horizontal 3 + pan 1).
+// Was horizontal:4 pan:2 (combined lateral 6) — caused kitchen melt on reflective surfaces.
+const KITCHEN_SWEEP: CinematicPreset = {
+  camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
+  promptText: "Smooth kitchen sweep. Eye-level, chest-height camera perspective. Focus on island bench and cabinetry, not windows or light sources. Gentle arc past stone countertops. Stable island bench, fixed splashback and appliances. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
+  duration: 5,
+};
+
+// Matched to FOYER_GLIDE formula: zoom 2 + horizontal 3 + pan 1
+const BEDSIDE_ARC: CinematicPreset = {
+  camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
+  promptText: "Gentle bedside arc. Eye-level, chest-height camera perspective. Focus on bed and nightstands, not windows or light sources. Smooth curving motion past bedroom furnishings. Stable walls, fixed headboard and window frames. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
+  duration: 5,
+};
+
+// Pure forward push — small spaces need no lateral motion
+const BATH_REVEAL: CinematicPreset = {
+  camera_motion: { zoom: 2, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
+  promptText: "Slow bathroom reveal push. Eye-level, chest-height camera perspective. Focus on vanity and shower fixtures, not windows or light sources. Gentle forward motion toward shower screen. Stable tiles, fixed mirror and tapware. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
+  duration: 5,
+};
+
+// Outdoor pullback — drone-level perspective, gentle rise
+const GARDEN_FLOAT: CinematicPreset = {
+  camera_motion: { zoom: -3, horizontal: 0, pan: 0, tilt: -1, vertical: 1, roll: 0 },
+  promptText: "Floating outdoor pullback reveal. Elevated drone-level camera perspective. Focus on garden landscaping and entertaining area, not the sky. Gentle rising motion over pool and outdoor space. Stable paving, fixed pool edges and fence line. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
+  duration: 5,
+};
+
+// ── Room Type → Super 7 Mapping (legacy) ────────────────────────────────────
+// Backward-compat: when only room_type is provided (no cameraAction), resolve here.
+
 const CINEMATIC_PRESETS: Record<string, CinematicPreset> = {
-  // ── Exterior ──────────────────────────────────────────────────────────────
-  "exterior-arrival": {
-    camera_motion: { zoom: 8, horizontal: 0, pan: 0, tilt: -2, vertical: 0, roll: 0 },
-    promptText: "Cinematic aerial drone push toward luxury property exterior. Stable architecture, fixed roofline, no distortion.",
-    duration: 5,
-  },
-  "front-door": {
-    camera_motion: { zoom: 5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Professional real estate push toward front entrance. Stable door frame, fixed walls, no geometry change.",
-    duration: 5,
-  },
+  // Parallax Glide (exterior)
+  "exterior-arrival": FACADE_APPROACH,
+  "front-door":       FACADE_APPROACH,
 
-  // ── Interior common areas ─────────────────────────────────────────────────
-  "entry-foyer": {
-    camera_motion: { zoom: 3, horizontal: 4, pan: 2, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Elegant entryway orbit reveal. Stable walls and flooring. No architectural distortion.",
-    duration: 5,
-  },
-  "living-room-wide": {
-    camera_motion: { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Spacious living room slow push. Fixed walls, stable furniture. Professional real estate.",
-    duration: 5,
-  },
-  "living-room-orbit": {
-    camera_motion: { zoom: 0, horizontal: 6, pan: 3, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Living room cinematic orbit. Stable interior architecture, fixed wall positions. Professional real estate.",
-    duration: 5,
-  },
+  // Foyer Glide
+  "entry-foyer":      FOYER_GLIDE,
 
-  // ── Kitchen ───────────────────────────────────────────────────────────────
-  "kitchen-orbit": {
-    camera_motion: { zoom: 0, horizontal: 5, pan: 2, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Gourmet kitchen orbit. Stable cabinetry and countertops. Fixed island position. Professional real estate.",
-    duration: 5,
-  },
-  "kitchen-push": {
-    camera_motion: { zoom: 5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Kitchen counter detail push-in. Stable stone surfaces, fixed cabinetry. Professional real estate.",
-    duration: 5,
-  },
+  // Lounge Drift
+  "living-room-wide":  LOUNGE_DRIFT,
+  "living-room-orbit": LOUNGE_DRIFT,
 
-  // ── Bedrooms ──────────────────────────────────────────────────────────────
-  "master-bedroom": {
-    camera_motion: { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Master bedroom sanctuary slow reveal. Fixed walls and ceiling, stable furnishings. Professional real estate.",
-    duration: 5,
-  },
-  "bedroom": {
-    camera_motion: { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Bedroom slow push reveal. Stable walls and furniture. Professional real estate.",
-    duration: 5,
-  },
+  // Kitchen Sweep
+  "kitchen-orbit":    KITCHEN_SWEEP,
+  "kitchen-push":     KITCHEN_SWEEP,
 
-  // ── Bathroom (low magnitude — small space) ────────────────────────────────
-  "bathroom": {
-    camera_motion: { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Luxury bathroom slow push. Stable tiles and fixtures, fixed vanity. Professional real estate. No geometry distortion.",
-    duration: 5,
-  },
+  // Bedside Arc
+  "master-bedroom":   BEDSIDE_ARC,
+  "bedroom":          BEDSIDE_ARC,
 
-  // ── Outdoor ───────────────────────────────────────────────────────────────
-  "outdoor-entertaining": {
-    camera_motion: { zoom: -5, horizontal: 0, pan: 0, tilt: 0, vertical: 2, roll: 0 },
-    promptText: "Outdoor entertaining area wide reveal pullback. Stable pavers and structure. Professional real estate.",
-    duration: 5,
+  // Bath Reveal
+  "bathroom":         BATH_REVEAL,
+
+  // Garden Float
+  "outdoor-entertaining": GARDEN_FLOAT,
+  "backyard-pool":        GARDEN_FLOAT,
+  "view-balcony":         GARDEN_FLOAT,
+};
+
+// ── Camera Action System ────────────────────────────────────────────────────
+// The frontend dropdown now exposes the 7 Camera Actions directly.
+// When cameraAction is provided, we combine the action's camera_motion with
+// room-aware prompt anchors so any action can pair with any detected room.
+
+type CameraActionKey = "parallax-glide" | "foyer-glide" | "space-sweep" | "kitchen-sweep" | "bedside-arc" | "feature-push" | "aerial-float";
+
+const CAMERA_ACTION_MAP: Record<CameraActionKey, CinematicPreset> = {
+  "parallax-glide": FACADE_APPROACH,
+  "foyer-glide":    FOYER_GLIDE,
+  "space-sweep":    LOUNGE_DRIFT,
+  "kitchen-sweep":  KITCHEN_SWEEP,
+  "bedside-arc":    BEDSIDE_ARC,
+  "feature-push":   BATH_REVEAL,
+  "aerial-float":   GARDEN_FLOAT,
+};
+
+// Motion templates — describe HOW the camera moves (from the Camera Action)
+const ACTION_MOTION: Record<CameraActionKey, { motion: string; perspective: string }> = {
+  "parallax-glide": {
+    motion: "Cinematic architectural reveal. Smooth lateral parallax glide with a subtle forward push.",
+    perspective: "Eye-level perspective, chest-height camera.",
   },
-  "backyard-pool": {
-    camera_motion: { zoom: -6, horizontal: 0, pan: 0, tilt: -2, vertical: 2, roll: 0 },
-    promptText: "Aerial-style backyard pool reveal. Stable landscape, fixed pool edges, stable water surface.",
-    duration: 5,
+  "foyer-glide": {
+    motion: "Elegant glide. Smooth lateral motion through the space.",
+    perspective: "Eye-level, chest-height camera perspective.",
   },
-  "view-balcony": {
-    camera_motion: { zoom: -4, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
-    promptText: "Panoramic balcony view reveal. Stable architectural framing, fixed horizon line.",
-    duration: 5,
+  "space-sweep": {
+    motion: "Gentle room drift. Smooth lateral glide through the room.",
+    perspective: "Eye-level, chest-height camera perspective.",
+  },
+  "kitchen-sweep": {
+    motion: "Smooth sweep. Gentle arc past focal points.",
+    perspective: "Eye-level, chest-height camera perspective.",
+  },
+  "bedside-arc": {
+    motion: "Gentle arc. Smooth curving motion past furnishings.",
+    perspective: "Eye-level, chest-height camera perspective.",
+  },
+  "feature-push": {
+    motion: "Slow reveal push. Gentle forward motion toward focal point.",
+    perspective: "Eye-level, chest-height camera perspective.",
+  },
+  "aerial-float": {
+    motion: "Floating pullback reveal. Gentle rising motion over the space.",
+    perspective: "Elevated drone-level camera perspective.",
   },
 };
 
-// Fallback for legacy cameraAngle inputs — preserves backwards compatibility
-// when room_type is not provided.
+// Room anchors — describe WHAT the camera sees (from the AI-detected room)
+const ROOM_CONTEXT_KEY: Record<string, string> = {
+  "exterior-arrival": "exterior", "front-door": "exterior",
+  "entry-foyer": "entry",
+  "living-room-wide": "living-room", "living-room-orbit": "living-room",
+  "kitchen-orbit": "kitchen", "kitchen-push": "kitchen",
+  "master-bedroom": "bedroom", "bedroom": "bedroom",
+  "bathroom": "bathroom",
+  "outdoor-entertaining": "outdoor", "backyard-pool": "outdoor", "view-balcony": "outdoor",
+};
+
+const ROOM_ANCHORS: Record<string, { focus: string; stability: string }> = {
+  "exterior": {
+    focus: "Focus on the symmetry of the entrance and the texture of the facade.",
+    stability: "Maintain perfect vertical lines of the building. Stable roofline and facade, fixed driveway geometry.",
+  },
+  "entry": {
+    focus: "Focus on interior furnishings and flooring, not windows or light sources.",
+    stability: "Stable walls and flooring, fixed doorframes.",
+  },
+  "living-room": {
+    focus: "Focus on interior furnishings like sofa and coffee table, not windows or light sources.",
+    stability: "Fixed walls, stable ceiling lines, fixed window frames.",
+  },
+  "kitchen": {
+    focus: "Focus on island bench and cabinetry, not windows or light sources.",
+    stability: "Stable island bench, fixed splashback and appliances.",
+  },
+  "bedroom": {
+    focus: "Focus on bed and nightstands, not windows or light sources.",
+    stability: "Stable walls, fixed headboard and window frames.",
+  },
+  "bathroom": {
+    focus: "Focus on vanity and shower fixtures, not windows or light sources.",
+    stability: "Stable tiles, fixed mirror and tapware.",
+  },
+  "outdoor": {
+    focus: "Focus on garden landscaping and entertaining area, not the sky.",
+    stability: "Stable paving, fixed pool edges and fence line.",
+  },
+};
+
+const DEFAULT_ANCHORS = {
+  focus: "Focus on interior furnishings and architectural details, not windows or light sources.",
+  stability: "Stable walls and fixtures.",
+};
+
+const ANTI_MORPHING = "Locked geometry. No morphing, no liquid surfaces, no structural movement.";
+
+// Compose a prompt by combining a Camera Action's motion style with a room's fixture anchors.
+// This allows any action to pair with any room without room-mismatched prompts.
+function composePrompt(actionKey: CameraActionKey, roomType?: string): string {
+  const motion = ACTION_MOTION[actionKey];
+  const ctxKey = roomType ? ROOM_CONTEXT_KEY[roomType] : null;
+  const anchors = ctxKey ? ROOM_ANCHORS[ctxKey] : DEFAULT_ANCHORS;
+  return `${motion.motion} ${motion.perspective} ${anchors.focus} ${anchors.stability} ${ANTI_MORPHING}`;
+}
+
+// Fallback for legacy cameraAngle inputs — maps to closest Super 7 preset.
+// When room_type is not provided, we route legacy angles through the organic presets.
 function getCameraMotionLegacy(cameraAngle: string): CinematicPreset {
-  const fallbackPrompt = "Cinematic real estate interior. Stable walls and furniture. Professional photography.";
   switch (cameraAngle) {
     case "push-in": case "auto": case "zoom-in":
-      return { camera_motion: { zoom: 5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 }, promptText: fallbackPrompt, duration: 5 };
+      return LOUNGE_DRIFT;   // Gentle forward drift — safest default
     case "push-out":
-      return { camera_motion: { zoom: -5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 }, promptText: fallbackPrompt, duration: 5 };
-    case "orbit-right":
-      return { camera_motion: { zoom: 0, horizontal: 5, pan: 2, tilt: 0, vertical: 0, roll: 0 }, promptText: fallbackPrompt, duration: 5 };
-    case "orbit-left":
-      return { camera_motion: { zoom: 0, horizontal: -5, pan: -2, tilt: 0, vertical: 0, roll: 0 }, promptText: fallbackPrompt, duration: 5 };
+      return GARDEN_FLOAT;   // Pullback reveal
+    case "orbit-right": case "orbit-left":
+      return KITCHEN_SWEEP;  // Lateral sweep
     default:
-      return { camera_motion: { zoom: 0, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 }, promptText: fallbackPrompt, duration: 5 };
+      return LOUNGE_DRIFT;   // Safe organic fallback
   }
 }
 
@@ -180,31 +298,64 @@ Deno.serve(async (req) => {
 
     // Submit all at once — Runway queues excess tasks with THROTTLED status.
     // No requests-per-minute rate limit; no concurrency cap needed client-side.
-    const generationPromises = imageMetadata.map(async (metadata: { url: string; cameraAngle?: string; room_type?: string; duration?: number }, index: number) => {
-      const { url: imageUrl, cameraAngle, room_type, duration } = metadata;
+    const generationPromises = imageMetadata.map(async (metadata: { url: string; cameraAngle?: string; room_type?: string; cameraAction?: string; duration?: number; seed?: number; motionBias?: "slide-right" | "push-forward" }, index: number) => {
+      const { url: imageUrl, cameraAngle, room_type, cameraAction, duration, seed, motionBias } = metadata;
       try {
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
         console.log(`Image: ${imageUrl}`);
-        console.log(`room_type: ${room_type || "(none)"}, cameraAngle: ${cameraAngle || "(none)"}`);
+        console.log(`cameraAction: ${cameraAction || "(none)"}, room_type: ${room_type || "(none)"}, cameraAngle: ${cameraAngle || "(none)"}`);
 
-        // Cinematic Engine: room_type takes priority over generic cameraAngle
-        const preset = (room_type && CINEMATIC_PRESETS[room_type])
-          ? CINEMATIC_PRESETS[room_type]
-          : getCameraMotionLegacy(cameraAngle || "auto");
+        // Cinematic Engine: cameraAction (new dropdown) → room_type (legacy) → cameraAngle (oldest)
+        let preset: CinematicPreset;
+        const actionKey = cameraAction as CameraActionKey;
+        if (actionKey && CAMERA_ACTION_MAP[actionKey]) {
+          // New flow: Camera Action dropdown + AI-detected room for prompt anchors
+          const basePreset = CAMERA_ACTION_MAP[actionKey];
+          preset = {
+            camera_motion: basePreset.camera_motion,
+            promptText: composePrompt(actionKey, room_type),
+            duration: basePreset.duration,
+          };
+          console.log(`Resolved via cameraAction: ${actionKey} + room context: ${room_type || "generic"}`);
+        } else if (room_type && CINEMATIC_PRESETS[room_type]) {
+          preset = CINEMATIC_PRESETS[room_type];
+          console.log(`Resolved via legacy room_type: ${room_type}`);
+        } else {
+          preset = getCameraMotionLegacy(cameraAngle || "auto");
+          console.log(`Resolved via legacy cameraAngle: ${cameraAngle || "auto"}`);
+        }
 
-        const clipDuration = toValidRunwayDuration(duration ?? preset.duration);
-        console.log(`Preset: ${room_type || cameraAngle}, Duration: ${clipDuration}s`);
-        console.log(`Camera motion:`, JSON.stringify(preset.camera_motion));
+        // Dual-Crop motion bias: override camera_motion for connected crop pairs
+        // Crop A (slide-right): pure lateral slide to reveal right side of scene
+        // Crop B (push-forward): pure forward push into the detail crop
+        let finalCameraMotion = preset.camera_motion;
+        if (motionBias === "slide-right") {
+          finalCameraMotion = { zoom: 0, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 };
+        } else if (motionBias === "push-forward") {
+          finalCameraMotion = { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 };
+        }
+
+        // Always generate 5s — shortest Runway supports. Shotstack hard-cuts to 3.5s for pacing.
+        const clipDuration: 5 | 10 = 5;
+        console.log(`Preset: ${room_type || cameraAngle}, Duration: ${clipDuration}s (Runway min, Shotstack cuts to 3.5s)`);
+        console.log(`Camera motion:`, JSON.stringify(finalCameraMotion));
+        if (motionBias) console.log(`Motion bias: ${motionBias}`);
+        if (seed) console.log(`Seed: ${seed}`);
         console.log(`Prompt: "${preset.promptText}"`);
 
-        const requestBody = {
+        const requestBody: Record<string, unknown> = {
           model: "gen3a_turbo",
           promptImage: imageUrl,
           promptText: preset.promptText,
-          camera_motion: preset.camera_motion,
+          camera_motion: finalCameraMotion,
           ratio: "768:1280",
           duration: clipDuration,
         };
+
+        // Shared seed ensures consistent lighting/colors across dual-crop pairs
+        if (seed) {
+          requestBody.seed = seed;
+        }
 
         const response = await fetchWithRetry(RUNWAY_API_URL, {
           method: "POST",

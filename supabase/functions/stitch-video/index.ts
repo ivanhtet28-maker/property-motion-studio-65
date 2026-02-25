@@ -106,6 +106,7 @@
     imageEffects?: string[];  // Per-image Shotstack effect (Ken Burns mode only)
     cameraAngles?: string[];  // Raw camera angle names — used for orbit offset animation
     clipDurations?: number[]; // Array of durations for each clip
+    fallbackSlots?: number[]; // Indices of clips that failed AI generation — use image + zoomInSlow
     propertyData: {
       address: string;
       streetAddress?: string;
@@ -425,7 +426,7 @@
     }
 
     try {
-      const { videoUrls, imageUrls, imageEffects, cameraAngles, clipDurations, propertyData, audioUrl, musicUrl, agentInfo, style, layout, customTitle, videoId, outputFormat }: StitchVideoRequest = await req.json();
+      const { videoUrls, imageUrls, imageEffects, cameraAngles, clipDurations, propertyData, audioUrl, musicUrl, agentInfo, style, layout, customTitle, videoId, outputFormat, fallbackSlots }: StitchVideoRequest = await req.json();
 
       // Ken Burns mode: raw property photos + Shotstack effects
       // AI mode: pre-generated video clips from Luma/Runway
@@ -488,28 +489,50 @@
       // Use provided clip durations or default to 3.5 seconds each
       const durations = clipDurations || sourceUrls.map(() => 3.5);
 
-      // Calculate total duration
-      const videoClipsDuration = durations.reduce((sum, duration) => sum + duration, 0);
+      // ── Pacing Lock: 3.5s hard cut + 0.5s crossfade ────────────────────────
+      // Runway generates 5s clips (shortest it supports). Shotstack hard-cuts at
+      // 3.5s for punchy social-media pacing — this also eliminates the melt zone
+      // entirely (melt artifacts live in the last ~1s). Adjacent AI clips overlap
+      // by 0.5s for high-energy crossfade transitions.
+      const CLIP_HARD_CUT = 3.5;
+      const TRANSITION_OVERLAP = 0.5;
+
+      const fallbackSet = new Set(fallbackSlots || []);
+      const effectiveDurations = isKenBurns
+        ? durations
+        : durations.map(() => CLIP_HARD_CUT);
+
+      // Calculate total duration (AI mode subtracts overlap between adjacent clips)
+      const overlapCount = isKenBurns ? 0 : Math.max(0, effectiveDurations.length - 1);
+      const videoClipsDuration = effectiveDurations.reduce((sum, duration) => sum + duration, 0) - (TRANSITION_OVERLAP * overlapCount);
       const agentCardDuration = (agentInfo && agentInfo.name) ? durations[0] : 0; // Match first clip duration
       const totalDuration = videoClipsDuration + agentCardDuration;
 
-      console.log("Clip durations:", durations);
+      console.log("Clip durations (raw):", durations);
+      console.log("Clip durations (effective):", effectiveDurations);
+      console.log("Fallback slots:", fallbackSlots || []);
       console.log("Video clips duration:", videoClipsDuration);
       console.log("Total duration:", totalDuration);
 
       // Build main clip track
       let currentStart = 0;
       const videoClips = sourceUrls.map((url, index) => {
-        const clipDuration = durations[index];
+        const clipDuration = effectiveDurations[index];
+        const isFallbackSlot = fallbackSet.has(index);
+
         const clip: any = {
           asset: isKenBurns
-            ? { type: "image", src: url }   // Ken Burns: still photo
-            : { type: "video", src: url },  // AI mode: generated video
+            ? { type: "image", src: url }                // Ken Burns: still photo
+            : isFallbackSlot
+              ? { type: "image", src: url }              // Hybrid fallback: original photo replaces failed AI clip
+              : { type: "video", src: url },             // AI mode: generated video
           start: currentStart,
           length: clipDuration,
+          fit: "cover",  // Explicit: fill the 9:16 frame, crop excess (no letterboxing)
         };
-        // Ken Burns: smooth motion using angle-specific technique
+
         if (isKenBurns) {
+          // Ken Burns: smooth motion using angle-specific technique
           const angle = cameraAngles?.[index] || "auto";
 
           if (angle === "orbit-right") {
@@ -531,11 +554,26 @@
             clip.effect = "zoomInSlow";
           }
           // auto, wide-shot, default — no zoom effect; smooth static fades only.
-          // Applying zoomInSlow to every default clip is repetitive and aggressive at 3.5s.
-
+          clip.transition = { in: "fade", out: "fade" };
+        } else if (isFallbackSlot) {
+          // Hybrid Fallback: failed AI clip → original image with zoomInSlow
+          // The tour must always finish — never break the sequence.
+          clip.effect = "zoomInSlow";
+          clip.transition = { in: "fade", out: "fade" };
+          console.log(`Clip ${index}: Hybrid fallback — using original image with zoomInSlow`);
+        } else {
+          // AI-generated clip: apply digital stabilization
+          // Scale 1.1 crops the edges to hide peripheral AI warping artifacts
+          clip.scale = 1.1;
           clip.transition = { in: "fade", out: "fade" };
         }
-        currentStart += clipDuration;
+
+        // AI clips: overlap adjacent clips by 0.5s for crossfade transition
+        if (!isKenBurns && index < sourceUrls.length - 1) {
+          currentStart += clipDuration - TRANSITION_OVERLAP;
+        } else {
+          currentStart += clipDuration;
+        }
         return clip;
       });
 
@@ -655,7 +693,7 @@
                     height: 1920,
                   },
                   start: 0.1,
-                  length: durations[0] - 0.1, // Match first clip duration (minus 0.1s offset)
+                  length: effectiveDurations[0] - 0.1, // Match first clip effective duration (minus 0.1s offset)
                 },
               ],
             },
@@ -666,7 +704,7 @@
                 layout || "modern-luxe",
                 propertyData,
                 0.1,
-                durations[0] - 0.1
+                effectiveDurations[0] - 0.1
               ),
             },
 

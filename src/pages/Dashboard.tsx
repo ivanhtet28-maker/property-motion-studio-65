@@ -166,6 +166,7 @@ export default function Dashboard() {
               layout: ctx.layout || "modern-luxe",
               customTitle: ctx.customTitle || "",
               clipDurations: ctx.clipDurations,
+              imageUrls: ctx.imageUrls,  // For hybrid fallback recovery
             };
           } else {
             continue;
