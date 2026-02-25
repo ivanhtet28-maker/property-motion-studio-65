@@ -309,7 +309,20 @@ export function PropertySourceSelector({
         }
       );
 
-      if (error) throw error;
+      if (error) {
+        // Extract the actual error message from the edge function response
+        let errorMessage = error.message;
+        try {
+          if (error.context && typeof error.context.json === "function") {
+            const errorBody = await error.context.json();
+            errorMessage = errorBody?.error || errorMessage;
+          }
+        } catch {
+          // Fall back to generic error message
+        }
+        console.error("Edge function error details:", errorMessage);
+        throw new Error(errorMessage);
+      }
 
       if (!data.success) {
         throw new Error(
