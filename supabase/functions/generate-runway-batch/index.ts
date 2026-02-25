@@ -428,11 +428,12 @@ Deno.serve(async (req) => {
         // to clear foreground fences/gates and capture the full 2-story facade.
         // Portrait = no motionBias (landscape images get dual-cropped with motionBias).
         const isExterior = room_type && EXTERIOR_TYPES.has(room_type);
-        if (isExterior && !motionBias) {
+        const isPortrait = !motionBias; // Landscape images arrive with motionBias from dual-crop
+        if (isExterior && isPortrait) {
           preset = {
             ...preset,
             camera_motion: { zoom: 0.5, horizontal: 2, pan: 0, tilt: -1, vertical: 1.5, roll: 0 },
-            promptText: preset.promptText + " Elevated camera at 3m height. High-angle perspective looking down to clear fences. Capture full 2-story height. Smooth crane-up reveal, rising vertically while pulling back. No forward walking motion.",
+            promptText: preset.promptText + " Elevated high-angle architectural shot. The camera is positioned at a 3-meter height (10 feet), looking slightly downward to clear all foreground fences and gates. Focus on the full facade of the building, ensuring the roofline and the entrance are both perfectly framed in the 9:16 crop. Execute a smooth Crane-Up reveal. No forward walking motion. Ignore driveway geometry.",
           };
           console.log(`High-Crane exterior override: portrait exterior → elevated crane-up reveal`);
         }
