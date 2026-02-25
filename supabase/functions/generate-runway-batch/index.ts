@@ -100,10 +100,11 @@ const KITCHEN_SWEEP: CinematicPreset = {
   duration: 5,
 };
 
-// Matched to FOYER_GLIDE formula: zoom 2 + horizontal 3 + pan 1
+// Wide bedroom orbit — zoom reduced to 1 to prevent zooming into bed
+// Horizontal 3 + pan 1 creates a wide sweeping motion that showcases the room
 const BEDSIDE_ARC: CinematicPreset = {
-  camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
-  promptText: "Gentle bedside arc. Eye-level, chest-height camera perspective. Focus on bed and nightstands, not windows or light sources. Smooth curving motion past bedroom furnishings. Stable walls, fixed headboard and window frames. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
+  camera_motion: { zoom: 1, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
+  promptText: "Wide bedroom orbit. Eye-level, chest-height camera perspective. Focus on the full bedroom space, furnishings, and room layout, not windows or light sources. Smooth wide sweeping motion showcasing the entire room. Stable walls, fixed headboard and window frames. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
   duration: 5,
 };
 
@@ -175,7 +176,7 @@ const ACTION_MOTION: Record<CameraActionKey, { motion: string; perspective: stri
     perspective: "Eye-level perspective, chest-height camera.",
   },
   "space-sweep": {
-    motion: "Gentle room drift. Smooth lateral glide through the room.",
+    motion: "Wide sweeping orbit. Smooth lateral glide showcasing the full room space.",
     perspective: "Eye-level, chest-height camera perspective.",
   },
   "kitchen-sweep": {
@@ -221,7 +222,7 @@ const ROOM_ANCHORS: Record<string, { focus: string; stability: string }> = {
     stability: "Stable island bench, fixed splashback and appliances.",
   },
   "bedroom": {
-    focus: "Focus on bed and nightstands, not windows or light sources.",
+    focus: "Focus on bed, nightstands, and the full room space, not windows or light sources.",
     stability: "Stable walls, fixed headboard and window frames.",
   },
   "bathroom": {
@@ -233,6 +234,86 @@ const ROOM_ANCHORS: Record<string, { focus: string; stability: string }> = {
     stability: "Stable paving, fixed pool edges and fence line.",
   },
 };
+
+// ── Spatial Position Type ─────────────────────────────────────────────────
+type SpatialPosition = "left" | "right" | "center" | "none";
+
+// Living room rooms that should orbit away from windows
+const LIVING_ROOM_TYPES = new Set(["living-room-wide", "living-room-orbit"]);
+const BEDROOM_TYPES = new Set(["master-bedroom", "bedroom"]);
+
+/**
+ * Compute directional camera_motion overrides based on spatial detection.
+ *
+ * Living rooms: orbit AWAY from windows to showcase the interior.
+ *   - Windows on left → orbit right (positive horizontal)
+ *   - Windows on right → orbit left (negative horizontal)
+ *
+ * Bedrooms: wide orbit away from bed / away from windows.
+ *   - Bed on right → orbit left (negative horizontal)
+ *   - Bed on left → orbit right (positive horizontal)
+ *   - Window position takes priority over bed position for direction.
+ */
+function getDirectionalOverride(
+  roomType: string | undefined,
+  windowPosition: SpatialPosition,
+  bedPosition: SpatialPosition,
+): { camera_motion: Record<string, number>; promptSuffix: string } | null {
+  if (!roomType) return null;
+
+  if (LIVING_ROOM_TYPES.has(roomType)) {
+    if (windowPosition === "left") {
+      return {
+        camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
+        promptSuffix: "Orbit away from the windows on the left, revealing the interior of the room to the right.",
+      };
+    }
+    if (windowPosition === "right") {
+      return {
+        camera_motion: { zoom: 2, horizontal: -3, pan: -1, tilt: 0, vertical: 0, roll: 0 },
+        promptSuffix: "Orbit away from the windows on the right, revealing the interior of the room to the left.",
+      };
+    }
+    // Windows centered or none: no override, use default orbit
+    return null;
+  }
+
+  if (BEDROOM_TYPES.has(roomType)) {
+    // Window position takes priority for direction choice
+    if (windowPosition === "left") {
+      return {
+        camera_motion: { zoom: 1, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
+        promptSuffix: "Wide orbit away from the windows on the left. Showcase the full bedroom space, not just the bed.",
+      };
+    }
+    if (windowPosition === "right") {
+      return {
+        camera_motion: { zoom: 1, horizontal: -3, pan: -1, tilt: 0, vertical: 0, roll: 0 },
+        promptSuffix: "Wide orbit away from the windows on the right. Showcase the full bedroom space, not just the bed.",
+      };
+    }
+    // No windows — use bed position for direction
+    if (bedPosition === "right") {
+      return {
+        camera_motion: { zoom: 1, horizontal: -3, pan: -1, tilt: 0, vertical: 0, roll: 0 },
+        promptSuffix: "Wide orbit to the left, showcasing the full bedroom space and surroundings, not zooming into the bed.",
+      };
+    }
+    if (bedPosition === "left") {
+      return {
+        camera_motion: { zoom: 1, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
+        promptSuffix: "Wide orbit to the right, showcasing the full bedroom space and surroundings, not zooming into the bed.",
+      };
+    }
+    // Bed centered or unknown — use a gentle wide orbit with low zoom to avoid zooming into bed
+    return {
+      camera_motion: { zoom: 1, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
+      promptSuffix: "Wide sweeping orbit showcasing the full bedroom space, room layout, and surroundings. Do not zoom into the bed.",
+    };
+  }
+
+  return null;
+}
 
 const DEFAULT_ANCHORS = {
   focus: "Focus on interior furnishings and architectural details, not windows or light sources.",
@@ -288,8 +369,8 @@ Deno.serve(async (req) => {
 
     // Submit all at once — Runway queues excess tasks with THROTTLED status.
     // No requests-per-minute rate limit; no concurrency cap needed client-side.
-    const generationPromises = imageMetadata.map(async (metadata: { url: string; cameraAngle?: string; room_type?: string; cameraAction?: string; duration?: number; seed?: number; motionBias?: "slide-right" | "push-forward" }, index: number) => {
-      const { url: imageUrl, cameraAngle, room_type, cameraAction, duration, seed, motionBias } = metadata;
+    const generationPromises = imageMetadata.map(async (metadata: { url: string; cameraAngle?: string; room_type?: string; cameraAction?: string; duration?: number; seed?: number; motionBias?: "slide-right" | "slide-left" | "push-forward"; windowPosition?: string; bedPosition?: string }, index: number) => {
+      const { url: imageUrl, cameraAngle, room_type, cameraAction, duration, seed, motionBias, windowPosition, bedPosition } = metadata;
       try {
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
         console.log(`Image: ${imageUrl}`);
@@ -317,12 +398,32 @@ Deno.serve(async (req) => {
 
         // Dual-Crop motion bias: override camera_motion for connected crop pairs
         // Crop A (slide-right): pure lateral slide to reveal right side of scene
+        // Crop A (slide-left): pure lateral slide to reveal left side of scene
         // Crop B (push-forward): pure forward push into the detail crop
         let finalCameraMotion = preset.camera_motion;
         if (motionBias === "slide-right") {
           finalCameraMotion = { zoom: 0, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 };
+        } else if (motionBias === "slide-left") {
+          finalCameraMotion = { zoom: 0, horizontal: -3, pan: -1, tilt: 0, vertical: 0, roll: 0 };
         } else if (motionBias === "push-forward") {
           finalCameraMotion = { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 };
+        }
+
+        // Directional override based on detected window/bed position
+        // Only applies when no motionBias (i.e. not a dual-crop pair)
+        const winPos = (windowPosition || "none") as SpatialPosition;
+        const bedPos = (bedPosition || "none") as SpatialPosition;
+        if (!motionBias) {
+          const directional = getDirectionalOverride(room_type, winPos, bedPos);
+          if (directional) {
+            finalCameraMotion = directional.camera_motion;
+            // Append directional prompt suffix to the preset's prompt
+            preset = {
+              ...preset,
+              promptText: preset.promptText + " " + directional.promptSuffix,
+            };
+            console.log(`Directional override: window=${winPos}, bed=${bedPos} → ${JSON.stringify(directional.camera_motion)}`);
+          }
         }
 
         // Always generate 5s — shortest Runway supports. Shotstack hard-cuts to 3.5s for pacing.

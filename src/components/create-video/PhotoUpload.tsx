@@ -61,8 +61,8 @@ export const ROOM_TO_DEFAULT_ACTION: Record<string, CameraAction> = {
   "living-room-orbit":"space-sweep",      // Wide Orbit
   "kitchen-orbit":    "kitchen-sweep",    // Tight Orbit
   "kitchen-push":     "kitchen-sweep",    // Tight Orbit
-  "master-bedroom":   "kitchen-sweep",    // Tight Orbit
-  "bedroom":          "kitchen-sweep",    // Tight Orbit
+  "master-bedroom":   "space-sweep",      // Wide Orbit — showcase the room/space
+  "bedroom":          "space-sweep",      // Wide Orbit — showcase the room/space
   "bathroom":         "feature-push",     // Push In
   "outdoor-entertaining": "aerial-float", // Pull Out
   "backyard-pool":    "aerial-float",     // Pull Out
@@ -86,6 +86,8 @@ const ROOM_TYPE_TO_LABEL: Record<string, string> = {
   "view-balcony":     "Balcony / View",
 };
 
+export type SpatialPosition = "left" | "right" | "center" | "none";
+
 export interface ImageMetadata {
   file: File;
   cameraAction: CameraAction;          // dropdown value (the "How")
@@ -95,6 +97,8 @@ export interface ImageMetadata {
   duration: number;
   isDetecting?: boolean;               // true while Claude Vision is classifying
   autoDetected?: boolean;              // true after AI has set the camera action
+  windowPosition?: SpatialPosition;    // where outdoor windows are in the photo (left/right/center/none)
+  bedPosition?: SpatialPosition;       // where the bed is in the photo (bedrooms only)
 }
 
 interface PhotoUploadProps {
@@ -187,7 +191,7 @@ export function PhotoUpload({
 
         if (error) throw error;
 
-        const results: Array<{ id: string; room_type: string }> = data.results ?? [];
+        const results: Array<{ id: string; room_type: string; window_position?: string; bed_position?: string }> = data.results ?? [];
 
         onMetadataChange(
           newPhotos.map((file) => {
@@ -195,6 +199,8 @@ export function PhotoUpload({
             if (existing) return existing;
             const detected = results.find(r => r.id === file.name);
             const roomType = (detected?.room_type ?? "living-room-wide") as RoomType;
+            const windowPos = (detected?.window_position ?? "none") as SpatialPosition;
+            const bedPos = (detected?.bed_position ?? "none") as SpatialPosition;
             return {
               file,
               cameraAction: ROOM_TO_DEFAULT_ACTION[roomType] ?? ("space-sweep" as CameraAction),
@@ -204,6 +210,8 @@ export function PhotoUpload({
               duration: CLIP_DURATION,
               isDetecting: false,
               autoDetected: !!detected,
+              windowPosition: windowPos,
+              bedPosition: bedPos,
             };
           })
         );

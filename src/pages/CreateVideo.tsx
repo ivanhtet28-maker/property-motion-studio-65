@@ -508,6 +508,8 @@ Contact us today for a private inspection.`;
           room_type: metadata?.room_type || null,
           cameraAngle: metadata?.cameraAngle || "auto",
           duration: metadata?.duration || 3.5,
+          windowPosition: metadata?.windowPosition || "none",
+          bedPosition: metadata?.bedPosition || "none",
         };
       });
 
