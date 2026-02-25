@@ -64,54 +64,84 @@ function extractListingId(url: string, website: string): string | undefined {
   return undefined;
 }
 
+// ── Direct Fetch (no ScraperAPI — free fallback) ────────────────────────────
+
+async function directFetch(url: string): Promise<string> {
+  console.log("Attempting direct fetch for:", url);
+
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      Accept:
+        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+      "Accept-Language": "en-AU,en-US;q=0.9,en;q=0.8",
+      "Cache-Control": "no-cache",
+    },
+    signal: AbortSignal.timeout(30_000),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Direct fetch error: ${response.status} ${response.statusText}`);
+  }
+
+  return await response.text();
+}
+
 // ── Headless Fetch via ScraperAPI ────────────────────────────────────────────
 
 async function scrapePropertyData(url: string): Promise<string> {
-  if (!SCRAPER_API_KEY) {
-    throw new Error("SCRAPER_API_KEY environment variable not set");
-  }
+  // Strategy 1: Try ScraperAPI if key is available
+  if (SCRAPER_API_KEY) {
+    let lastError: Error | null = null;
 
-  let lastError: Error | null = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const scraperUrl = new URL(SCRAPER_API_BASE);
+        scraperUrl.searchParams.set("api_key", SCRAPER_API_KEY);
+        scraperUrl.searchParams.set("url", url);
+        scraperUrl.searchParams.set("render", "true");
+        // Note: country_code=au and premium=true removed — not supported on free plan
 
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const scraperUrl = new URL(SCRAPER_API_BASE);
-      scraperUrl.searchParams.set("api_key", SCRAPER_API_KEY);
-      scraperUrl.searchParams.set("url", url);
-      scraperUrl.searchParams.set("render", "true");
-      scraperUrl.searchParams.set("country_code", "au");
-      // Premium mode uses residential proxies — helps avoid blocks on REA/Domain
-      scraperUrl.searchParams.set("premium", "true");
+        if (attempt > 0) {
+          scraperUrl.searchParams.set("session_number", String(Date.now()));
+          console.log(`Retrying ScraperAPI (attempt ${attempt + 1}) for:`, url);
+        } else {
+          console.log("Calling ScraperAPI for:", url);
+        }
 
-      if (attempt > 0) {
-        // Use a different proxy session on retry
-        scraperUrl.searchParams.set("session_number", String(Date.now()));
-        console.log(`Retrying ScraperAPI (attempt ${attempt + 1}) for:`, url);
-      } else {
-        console.log("Calling ScraperAPI for:", url);
-      }
+        const response = await fetch(scraperUrl.toString(), {
+          signal: AbortSignal.timeout(60_000),
+        });
 
-      const response = await fetch(scraperUrl.toString(), {
-        signal: AbortSignal.timeout(60_000), // 60s timeout for JS-heavy pages
-      });
+        if (!response.ok) {
+          const errorBody = await response.text().catch(() => "");
+          console.error(`ScraperAPI error (attempt ${attempt + 1}):`, response.status, errorBody);
+          throw new Error(`ScraperAPI error: ${response.status} ${response.statusText}`);
+        }
 
-      if (!response.ok) {
-        const errorBody = await response.text().catch(() => "");
-        console.error(`ScraperAPI error (attempt ${attempt + 1}):`, response.status, errorBody);
-        throw new Error(`ScraperAPI error: ${response.status} ${response.statusText}`);
-      }
-
-      return await response.text();
-    } catch (e) {
-      lastError = e;
-      if (attempt < 1) {
-        // Wait 2 seconds before retry
-        await new Promise((r) => setTimeout(r, 2000));
+        const html = await response.text();
+        if (html.length > 1000) {
+          console.log("ScraperAPI succeeded, HTML length:", html.length);
+          return html;
+        }
+        throw new Error("ScraperAPI returned insufficient HTML");
+      } catch (e) {
+        lastError = e;
+        console.warn(`ScraperAPI attempt ${attempt + 1} failed:`, e.message);
+        if (attempt < 1) {
+          await new Promise((r) => setTimeout(r, 2000));
+        }
       }
     }
+
+    console.warn("ScraperAPI failed, falling back to direct fetch. Last error:", lastError?.message);
+  } else {
+    console.log("No SCRAPER_API_KEY set, using direct fetch");
   }
 
-  throw lastError || new Error("ScraperAPI request failed after retries");
+  // Strategy 2: Direct fetch fallback (works for REA server-rendered pages)
+  return await directFetch(url);
 }
 
 // ── REA (realestate.com.au) Image Extraction ─────────────────────────────────
