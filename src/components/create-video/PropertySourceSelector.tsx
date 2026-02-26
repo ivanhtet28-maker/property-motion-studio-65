@@ -18,6 +18,8 @@ import {
   RoomType,
   SpatialPosition,
   KitchenVisiblePosition,
+  VisualAnchorType,
+  AnchorPosition,
   ROOM_TO_DEFAULT_ACTION,
 } from "./PhotoUpload";
 import { supabase } from "@/lib/supabase";
@@ -83,7 +85,7 @@ export function PropertySourceSelector({
 
   // Store detection results keyed by URL
   const [detectionResults, setDetectionResults] = useState<
-    Record<string, { roomType: RoomType; label: string; cameraAction: CameraAction; windowPosition?: string; bedPosition?: string; kitchenVisible?: string }>
+    Record<string, { roomType: RoomType; label: string; cameraAction: CameraAction; windowPosition?: string; bedPosition?: string; kitchenVisible?: string; visualAnchor?: string; anchorPosition?: string }>
   >({});
 
   // Prevent duplicate AI detection calls
@@ -148,7 +150,7 @@ export function PropertySourceSelector({
 
         setDetectionResults((prev) => ({
           ...prev,
-          [imageUrl]: { roomType, label, cameraAction, windowPosition: result?.window_position ?? "none", bedPosition: result?.bed_position ?? "none", kitchenVisible: result?.kitchen_visible ?? "none" },
+          [imageUrl]: { roomType, label, cameraAction, windowPosition: result?.window_position ?? "none", bedPosition: result?.bed_position ?? "none", kitchenVisible: result?.kitchen_visible ?? "none", visualAnchor: result?.visual_anchor ?? "none", anchorPosition: result?.anchor_position ?? "center" },
         }));
       } catch (err) {
         console.error("Room detection failed for", imageUrl, err);
@@ -162,6 +164,8 @@ export function PropertySourceSelector({
             windowPosition: "none",
             bedPosition: "none",
             kitchenVisible: "none",
+            visualAnchor: "none",
+            anchorPosition: "center",
           },
         }));
       } finally {
@@ -200,6 +204,8 @@ export function PropertySourceSelector({
           windowPosition: (detection?.windowPosition ?? "none") as SpatialPosition,
           bedPosition: (detection?.bedPosition ?? "none") as SpatialPosition,
           kitchenVisible: (detection?.kitchenVisible ?? "none") as KitchenVisiblePosition,
+          visualAnchor: (detection?.visualAnchor ?? "none") as VisualAnchorType,
+          anchorPosition: (detection?.anchorPosition ?? "center") as AnchorPosition,
         };
       });
 

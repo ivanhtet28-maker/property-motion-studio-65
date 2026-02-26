@@ -100,11 +100,11 @@ const KITCHEN_SWEEP: CinematicPreset = {
   duration: 5,
 };
 
-// Wide bedroom orbit — zoom reduced to 1 to prevent zooming into bed
-// Horizontal 3 + pan 1 creates a wide sweeping motion that showcases the room
+// Bedroom pullback — always negative zoom to pull AWAY from bed, not into it.
+// Soft lateral motion (h:2, p:0.5) avoids hallucination in tight 9:16 portrait crops.
 const BEDSIDE_ARC: CinematicPreset = {
-  camera_motion: { zoom: 1, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
-  promptText: "Wide bedroom orbit. Eye-level, chest-height camera perspective. Focus on the full bedroom space, furnishings, and room layout, not windows or light sources. Smooth wide sweeping motion showcasing the entire room. Stable walls, fixed headboard and window frames. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
+  camera_motion: { zoom: -1, horizontal: 2, pan: 0.5, tilt: 0, vertical: 0, roll: 0 },
+  promptText: "Gentle bedroom pullback. Eye-level, chest-height camera perspective. Showcase the full bedroom space, pulling back to reveal room size and proportions. Focus on floor space, furnishings, and room layout. Stable walls, fixed headboard and window frames. Locked geometry. No morphing, no liquid surfaces, no structural movement.",
   duration: 5,
 };
 
@@ -226,7 +226,19 @@ const ROOM_ANCHORS: Record<string, { focus: string; stability: string }> = {
     stability: "Stable island bench, fixed splashback and appliances.",
   },
   "bedroom": {
-    focus: "Focus on bed, nightstands, and the full room space, not windows or light sources.",
+    focus: "Showcase the full bedroom space, pulling back to reveal room size and proportions. Focus on floor space, furnishings, and room layout.",
+    stability: "Stable walls, fixed headboard and window frames.",
+  },
+  "bedroom-anchored": {
+    focus: "Reveal the visual feature while showcasing the bedroom space. Pull back to show room proportions and luxury details.",
+    stability: "Stable walls, fixed headboard and window frames.",
+  },
+  "bedroom-dualcrop-slide": {
+    focus: "Wide lateral glide showcasing the full bedroom space and furnishings. Smooth parallax revealing room depth and proportions.",
+    stability: "Stable walls, fixed headboard and window frames.",
+  },
+  "bedroom-dualcrop-push": {
+    focus: "Gentle reveal of bedroom details and styling. Showcase bed arrangement and room features.",
     stability: "Stable walls, fixed headboard and window frames.",
   },
   "bathroom": {
@@ -242,49 +254,106 @@ const ROOM_ANCHORS: Record<string, { focus: string; stability: string }> = {
 // ── Spatial Position Type ─────────────────────────────────────────────────
 type SpatialPosition = "left" | "right" | "center" | "none";
 type KitchenVisiblePosition = "left" | "right" | "none";
+type VisualAnchorType = "kitchen-island" | "fireplace" | "feature-wall" | "window-view" | "bed-styling" | "vanity" | "entertainment" | "ceiling-detail" | "open-plan-flow" | "none";
+type AnchorPosition = "left" | "right" | "center";
 
-// Living room rooms that should orbit away from windows
 const LIVING_ROOM_TYPES = new Set(["living-room-wide", "living-room-orbit"]);
 const BEDROOM_TYPES = new Set(["master-bedroom", "bedroom"]);
 const EXTERIOR_TYPES = new Set(["exterior-arrival", "front-door"]);
 
+// Human-readable anchor names for prompt interpolation
+const ANCHOR_LABEL: Record<string, string> = {
+  "kitchen-island": "kitchen island",
+  "fireplace": "fireplace",
+  "feature-wall": "feature wall",
+  "window-view": "window view",
+  "bed-styling": "styled bed",
+  "vanity": "vanity",
+  "entertainment": "entertainment unit",
+  "ceiling-detail": "ceiling detail",
+  "open-plan-flow": "open-plan connection",
+};
+
+// Anchor-specific stability elements for bedroom prompt interpolation
+const ANCHOR_STABILITY: Record<string, string> = {
+  "kitchen-island": "countertop edges",
+  "fireplace": "mantle and surround",
+  "feature-wall": "wainscoting panels",
+  "window-view": "window frame",
+  "bed-styling": "headboard",
+  "vanity": "mirror and basin",
+  "entertainment": "shelving unit",
+  "ceiling-detail": "ceiling lines",
+  "open-plan-flow": "adjoining walls",
+};
+
 /**
  * Compute directional camera_motion overrides based on spatial detection.
  *
- * Living rooms (priority order):
- *   1. Kitchen visible → orbit TOWARD kitchen to reveal open-plan layout
- *   2. No kitchen, windows detected → orbit AWAY from windows
- *   3. No kitchen, no windows → default interior-facing orbit
+ * LIVING ROOMS — orbit toward the most interesting thing:
+ *   P1: motionBias (dual-crop) → handled upstream, skip here
+ *   P2: Kitchen visible → orbit TOWARD kitchen
+ *   P3: Visual anchor detected → orbit TOWARD anchor
+ *   P4: Windows detected → orbit AWAY from windows
+ *   P5: Nothing detected → default right orbit
  *
- * Bedrooms: wide orbit away from bed / away from windows.
- *   - Bed on right → orbit left (negative horizontal)
- *   - Bed on left → orbit right (positive horizontal)
- *   - Window position takes priority over bed position for direction.
+ * BEDROOMS — always pull back, soft lateral:
+ *   P1: motionBias (dual-crop) → handled upstream, skip here
+ *   P2: Visual anchor (not bed-styling) → orbit TOWARD anchor
+ *   P3: Bed off-center → glide AWAY from bed
+ *   P4: Bed centered/nothing → slow pullback reveal
+ *
+ * Bedroom rules: zoom always negative (-1 or -1.5), h max ±2, p max ±0.5
  */
 function getDirectionalOverride(
   roomType: string | undefined,
   windowPosition: SpatialPosition,
   bedPosition: SpatialPosition,
   kitchenVisible: KitchenVisiblePosition = "none",
+  visualAnchor: VisualAnchorType = "none",
+  anchorPosition: AnchorPosition = "center",
 ): { camera_motion: Record<string, number>; promptSuffix: string } | null {
   if (!roomType) return null;
 
+  // ── LIVING ROOMS ──────────────────────────────────────────────────────
   if (LIVING_ROOM_TYPES.has(roomType)) {
-    // Priority 1: Kitchen visible in frame → orbit TOWARD kitchen
+    // P2: Kitchen visible → orbit TOWARD kitchen
     if (kitchenVisible === "right") {
       return {
         camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
-        promptSuffix: "Smooth cinematic orbit toward the open kitchen, revealing the full open-plan layout. Glide right to showcase the connection between living and kitchen spaces.",
+        promptSuffix: "Smooth cinematic orbit revealing the full open-plan layout. Glide toward the kitchen bench and island, showcasing the connected flow between living and kitchen spaces.",
       };
     }
     if (kitchenVisible === "left") {
       return {
         camera_motion: { zoom: 2, horizontal: -3, pan: -1, tilt: 0, vertical: 0, roll: 0 },
-        promptSuffix: "Smooth cinematic orbit toward the open kitchen, revealing the full open-plan layout. Glide left to showcase the connection between living and kitchen spaces.",
+        promptSuffix: "Smooth cinematic orbit revealing the full open-plan layout. Glide toward the kitchen bench and island, showcasing the connected flow between living and kitchen spaces.",
       };
     }
 
-    // Priority 2: No kitchen, windows detected → orbit AWAY from windows
+    // P3: Visual anchor detected → orbit TOWARD anchor
+    if (visualAnchor !== "none") {
+      const label = ANCHOR_LABEL[visualAnchor] || visualAnchor;
+      if (anchorPosition === "right") {
+        return {
+          camera_motion: { zoom: 1, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
+          promptSuffix: `Smooth orbit toward the ${label}, revealing the room's key feature.`,
+        };
+      }
+      if (anchorPosition === "left") {
+        return {
+          camera_motion: { zoom: 1, horizontal: -3, pan: -1, tilt: 0, vertical: 0, roll: 0 },
+          promptSuffix: `Smooth orbit toward the ${label}, revealing the room's key feature.`,
+        };
+      }
+      // anchor center — gentle pull-back with slight lateral to add depth
+      return {
+        camera_motion: { zoom: -1, horizontal: 2, pan: 0.5, tilt: 0, vertical: 0, roll: 0 },
+        promptSuffix: `Smooth orbit toward the ${label}, revealing the room's key feature.`,
+      };
+    }
+
+    // P4: Windows detected → orbit AWAY from windows
     if (windowPosition === "left") {
       return {
         camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
@@ -298,51 +367,62 @@ function getDirectionalOverride(
       };
     }
     if (windowPosition === "center") {
-      // Windows centered: gentle lateral slide so the camera doesn't push into the glass
       return {
         camera_motion: { zoom: 1, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
         promptSuffix: "Gentle lateral glide away from the centered windows, showcasing the interior furnishings of the room.",
       };
     }
 
-    // Priority 3: No kitchen, no windows → default interior-facing orbit
+    // P5: Nothing detected → default right orbit
     return {
       camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
       promptSuffix: "Smooth interior-facing orbit showcasing furnishings and room layout. Focus on the interior, not windows or light sources.",
     };
   }
 
+  // ── BEDROOMS ──────────────────────────────────────────────────────────
+  // No window-away rule. Always negative zoom. Softer lateral (h ≤ 2, p ≤ 0.5).
   if (BEDROOM_TYPES.has(roomType)) {
-    // Window position takes priority for direction choice
-    if (windowPosition === "left") {
+    // P2: Visual anchor (not bed-styling) → orbit TOWARD anchor
+    if (visualAnchor !== "none" && visualAnchor !== "bed-styling") {
+      const label = ANCHOR_LABEL[visualAnchor] || visualAnchor;
+      if (anchorPosition === "right") {
+        return {
+          camera_motion: { zoom: -1, horizontal: 2, pan: 0.5, tilt: 0, vertical: 0, roll: 0 },
+          promptSuffix: `Subtle lateral glide revealing the ${label}. Pull back gently to showcase the full bedroom space.`,
+        };
+      }
+      if (anchorPosition === "left") {
+        return {
+          camera_motion: { zoom: -1, horizontal: -2, pan: -0.5, tilt: 0, vertical: 0, roll: 0 },
+          promptSuffix: `Subtle lateral glide revealing the ${label}. Pull back gently to showcase the full bedroom space.`,
+        };
+      }
+      // anchor center
       return {
-        camera_motion: { zoom: 1, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
-        promptSuffix: "Wide orbit away from the windows on the left. Showcase the full bedroom space, not just the bed.",
+        camera_motion: { zoom: -1.5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
+        promptSuffix: `Subtle lateral glide revealing the ${label}. Pull back gently to showcase the full bedroom space.`,
       };
     }
-    if (windowPosition === "right") {
-      return {
-        camera_motion: { zoom: 1, horizontal: -3, pan: -1, tilt: 0, vertical: 0, roll: 0 },
-        promptSuffix: "Wide orbit away from the windows on the right. Showcase the full bedroom space, not just the bed.",
-      };
-    }
-    // No windows — use bed position for direction
-    if (bedPosition === "right") {
-      return {
-        camera_motion: { zoom: 1, horizontal: -3, pan: -1, tilt: 0, vertical: 0, roll: 0 },
-        promptSuffix: "Wide orbit to the left, showcasing the full bedroom space and surroundings, not zooming into the bed.",
-      };
-    }
+
+    // P3: Bed off-center → glide AWAY from bed
     if (bedPosition === "left") {
       return {
-        camera_motion: { zoom: 1, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
-        promptSuffix: "Wide orbit to the right, showcasing the full bedroom space and surroundings, not zooming into the bed.",
+        camera_motion: { zoom: -1, horizontal: 2, pan: 0.5, tilt: 0, vertical: 0, roll: 0 },
+        promptSuffix: "Subtle lateral glide away from the bed, revealing bedroom floor space and room proportions.",
       };
     }
-    // Bed centered or unknown — use a gentle wide orbit with low zoom to avoid zooming into bed
+    if (bedPosition === "right") {
+      return {
+        camera_motion: { zoom: -1, horizontal: -2, pan: -0.5, tilt: 0, vertical: 0, roll: 0 },
+        promptSuffix: "Subtle lateral glide away from the bed, revealing bedroom floor space and room proportions.",
+      };
+    }
+
+    // P4: Bed centered or nothing → slow pullback
     return {
-      camera_motion: { zoom: 1, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
-      promptSuffix: "Wide sweeping orbit showcasing the full bedroom space, room layout, and surroundings. Do not zoom into the bed.",
+      camera_motion: { zoom: -1.5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
+      promptSuffix: "Gentle pullback revealing the full bedroom. Showcase room size, furnishings, and proportions.",
     };
   }
 
@@ -358,15 +438,50 @@ const ANTI_MORPHING = "Locked geometry. No morphing, no liquid surfaces, no stru
 
 // Compose a prompt by combining a Camera Action's motion style with a room's fixture anchors.
 // This allows any action to pair with any room without room-mismatched prompts.
-// When kitchenVisible is set for living rooms, uses open-plan anchors instead.
-function composePrompt(actionKey: CameraActionKey, roomType?: string, kitchenVisible: KitchenVisiblePosition = "none"): string {
+// Selects the best anchor variant based on room type, kitchen visibility, visual anchor, and motion bias.
+function composePrompt(
+  actionKey: CameraActionKey,
+  roomType?: string,
+  kitchenVisible: KitchenVisiblePosition = "none",
+  visualAnchor: VisualAnchorType = "none",
+  motionBias?: string,
+): string {
   const motion = ACTION_MOTION[actionKey];
   const ctxKey = roomType ? ROOM_CONTEXT_KEY[roomType] : null;
-  // Use open-plan anchors when kitchen is visible in a living room
-  const isOpenPlan = kitchenVisible !== "none" && ctxKey === "living-room";
-  const anchorsKey = isOpenPlan ? "living-room-open-plan" : ctxKey;
+
+  let anchorsKey: string | null = ctxKey;
+
+  if (ctxKey === "living-room" && kitchenVisible !== "none") {
+    // Open-plan living room — kitchen visible
+    anchorsKey = "living-room-open-plan";
+  } else if (ctxKey === "bedroom") {
+    // Bedroom — select variant based on context
+    if (motionBias && (motionBias === "slide-right" || motionBias === "slide-left")) {
+      anchorsKey = "bedroom-dualcrop-slide";
+    } else if (motionBias === "push-forward") {
+      anchorsKey = "bedroom-dualcrop-push";
+    } else if (visualAnchor !== "none" && visualAnchor !== "bed-styling") {
+      anchorsKey = "bedroom-anchored";
+    }
+    // else: default "bedroom" anchors (pullback)
+  }
+
   const anchors = anchorsKey ? ROOM_ANCHORS[anchorsKey] : DEFAULT_ANCHORS;
-  return `${motion.motion} ${motion.perspective} ${anchors.focus} ${anchors.stability} ${ANTI_MORPHING}`;
+
+  // Interpolate anchor name into bedroom-anchored focus
+  let focus = anchors.focus;
+  if (anchorsKey === "bedroom-anchored" && visualAnchor !== "none") {
+    const label = ANCHOR_LABEL[visualAnchor] || visualAnchor;
+    focus = focus.replace("the visual feature", `the ${label}`);
+  }
+
+  // Interpolate anchor-specific stability element
+  let stability = anchors.stability;
+  if (anchorsKey === "bedroom-anchored" && visualAnchor !== "none" && ANCHOR_STABILITY[visualAnchor]) {
+    stability = stability + ` Fixed ${ANCHOR_STABILITY[visualAnchor]}.`;
+  }
+
+  return `${motion.motion} ${motion.perspective} ${focus} ${stability} ${ANTI_MORPHING}`;
 }
 
 // Fallback for legacy cameraAngle inputs — maps to closest Super 7 preset.
@@ -407,8 +522,8 @@ Deno.serve(async (req) => {
 
     // Submit all at once — Runway queues excess tasks with THROTTLED status.
     // No requests-per-minute rate limit; no concurrency cap needed client-side.
-    const generationPromises = imageMetadata.map(async (metadata: { url: string; cameraAngle?: string; room_type?: string; cameraAction?: string; duration?: number; seed?: number; motionBias?: "slide-right" | "slide-left" | "push-forward"; windowPosition?: string; bedPosition?: string; kitchenVisible?: string }, index: number) => {
-      const { url: imageUrl, cameraAngle, room_type, cameraAction, duration, seed, motionBias, windowPosition, bedPosition, kitchenVisible } = metadata;
+    const generationPromises = imageMetadata.map(async (metadata: { url: string; cameraAngle?: string; room_type?: string; cameraAction?: string; duration?: number; seed?: number; motionBias?: "slide-right" | "slide-left" | "push-forward"; windowPosition?: string; bedPosition?: string; kitchenVisible?: string; visualAnchor?: string; anchorPosition?: string }, index: number) => {
+      const { url: imageUrl, cameraAngle, room_type, cameraAction, duration, seed, motionBias, windowPosition, bedPosition, kitchenVisible, visualAnchor, anchorPosition } = metadata;
       try {
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
         console.log(`Image: ${imageUrl}`);
@@ -422,15 +537,10 @@ Deno.serve(async (req) => {
           const basePreset = CAMERA_ACTION_MAP[actionKey];
           preset = {
             camera_motion: { ...basePreset.camera_motion },
-            promptText: composePrompt(actionKey, room_type, (kitchenVisible || "none") as KitchenVisiblePosition),
+            promptText: composePrompt(actionKey, room_type, (kitchenVisible || "none") as KitchenVisiblePosition, (visualAnchor || "none") as VisualAnchorType, motionBias),
             duration: basePreset.duration,
           };
-          // Bedroom zoom protection: space-sweep maps to LOUNGE_DRIFT (zoom:2) which
-          // zooms into the bed too much. Override to zoom:1 for bedroom room types.
-          if (actionKey === "space-sweep" && room_type && BEDROOM_TYPES.has(room_type)) {
-            preset.camera_motion = { ...preset.camera_motion, zoom: 1 };
-            console.log(`Bedroom zoom protection: reduced zoom from 2 → 1`);
-          }
+          // Bedroom zoom protection handled by the zoom cap below (clamps to -1)
           console.log(`Resolved via cameraAction: ${actionKey} + room context: ${room_type || "generic"}`);
         } else if (room_type && CINEMATIC_PRESETS[room_type]) {
           preset = CINEMATIC_PRESETS[room_type];
@@ -440,15 +550,16 @@ Deno.serve(async (req) => {
           console.log(`Resolved via legacy cameraAngle: ${cameraAngle || "auto"}`);
         }
 
-        // Bedroom zoom cap: enforce zoom ≤ 1 for all bedroom room_types.
-        // This prevents kitchen-sweep (zoom: 2) or any other action from zooming into the bed.
+        // Bedroom zoom cap: enforce zoom ≤ -1 for all bedroom room_types.
+        // Positive zoom pushes INTO the bed. Always pull back (negative zoom).
         const isBedroom = room_type && BEDROOM_TYPES.has(room_type);
-        if (isBedroom && preset.camera_motion.zoom > 1) {
+        if (isBedroom && preset.camera_motion.zoom > -1) {
+          const oldZoom = preset.camera_motion.zoom;
           preset = {
             ...preset,
-            camera_motion: { ...preset.camera_motion, zoom: 1 },
+            camera_motion: { ...preset.camera_motion, zoom: -1 },
           };
-          console.log(`Bedroom zoom cap applied: zoom clamped to 1 (was ${preset.camera_motion.zoom})`);
+          console.log(`Bedroom zoom cap applied: zoom clamped to -1 (was ${oldZoom})`);
         }
 
         // High-Crane exterior override: portrait exteriors get an elevated camera
@@ -478,13 +589,17 @@ Deno.serve(async (req) => {
           finalCameraMotion = { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 };
         }
 
-        // Directional override based on detected window/bed/kitchen position
-        // Applies when no motionBias OR when room is a bedroom (bed-aware orbit must always fire)
+        // Directional override based on detected spatial positions + visual anchor
+        // Applies when no motionBias (dual-crop handles its own motion).
+        // For bedrooms with motionBias: skip camera_motion override but prompt is already
+        // set by composePrompt() using bedroom-dualcrop-slide/push anchors.
         const winPos = (windowPosition || "none") as SpatialPosition;
         const bedPos = (bedPosition || "none") as SpatialPosition;
         const kitchenPos = (kitchenVisible || "none") as KitchenVisiblePosition;
-        if (!motionBias || isBedroom) {
-          const directional = getDirectionalOverride(room_type, winPos, bedPos, kitchenPos);
+        const anchorType = (visualAnchor || "none") as VisualAnchorType;
+        const anchorPos = (anchorPosition || "center") as AnchorPosition;
+        if (!motionBias) {
+          const directional = getDirectionalOverride(room_type, winPos, bedPos, kitchenPos, anchorType, anchorPos);
           if (directional) {
             finalCameraMotion = directional.camera_motion;
             // Append directional prompt suffix to the preset's prompt
@@ -492,7 +607,7 @@ Deno.serve(async (req) => {
               ...preset,
               promptText: preset.promptText + " " + directional.promptSuffix,
             };
-            console.log(`Directional override: window=${winPos}, bed=${bedPos}, kitchen=${kitchenPos} → ${JSON.stringify(directional.camera_motion)}`);
+            console.log(`Directional override: window=${winPos}, bed=${bedPos}, kitchen=${kitchenPos}, anchor=${anchorType}@${anchorPos} → ${JSON.stringify(directional.camera_motion)}`);
           }
         }
 

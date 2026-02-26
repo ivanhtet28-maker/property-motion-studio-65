@@ -88,6 +88,8 @@ const ROOM_TYPE_TO_LABEL: Record<string, string> = {
 
 export type SpatialPosition = "left" | "right" | "center" | "none";
 export type KitchenVisiblePosition = "left" | "right" | "none";
+export type VisualAnchorType = "kitchen-island" | "fireplace" | "feature-wall" | "window-view" | "bed-styling" | "vanity" | "entertainment" | "ceiling-detail" | "open-plan-flow" | "none";
+export type AnchorPosition = "left" | "right" | "center";
 
 export interface ImageMetadata {
   file: File;
@@ -101,6 +103,8 @@ export interface ImageMetadata {
   windowPosition?: SpatialPosition;    // where outdoor windows are in the photo (left/right/center/none)
   bedPosition?: SpatialPosition;       // where the bed is in the photo (bedrooms only)
   kitchenVisible?: KitchenVisiblePosition; // kitchen visible in living room (left/right/none)
+  visualAnchor?: VisualAnchorType;     // primary visual feature in the room
+  anchorPosition?: AnchorPosition;     // which side of frame the anchor is on
 }
 
 interface PhotoUploadProps {
@@ -193,7 +197,7 @@ export function PhotoUpload({
 
         if (error) throw error;
 
-        const results: Array<{ id: string; room_type: string; window_position?: string; bed_position?: string; kitchen_visible?: string }> = data.results ?? [];
+        const results: Array<{ id: string; room_type: string; window_position?: string; bed_position?: string; kitchen_visible?: string; visual_anchor?: string; anchor_position?: string }> = data.results ?? [];
 
         onMetadataChange(
           newPhotos.map((file) => {
@@ -204,6 +208,8 @@ export function PhotoUpload({
             const windowPos = (detected?.window_position ?? "none") as SpatialPosition;
             const bedPos = (detected?.bed_position ?? "none") as SpatialPosition;
             const kitchenPos = (detected?.kitchen_visible ?? "none") as KitchenVisiblePosition;
+            const anchorType = (detected?.visual_anchor ?? "none") as VisualAnchorType;
+            const anchorPos = (detected?.anchor_position ?? "center") as AnchorPosition;
             return {
               file,
               cameraAction: ROOM_TO_DEFAULT_ACTION[roomType] ?? ("space-sweep" as CameraAction),
@@ -216,6 +222,8 @@ export function PhotoUpload({
               windowPosition: windowPos,
               bedPosition: bedPos,
               kitchenVisible: kitchenPos,
+              visualAnchor: anchorType,
+              anchorPosition: anchorPos,
             };
           })
         );

@@ -31,6 +31,8 @@
     windowPosition?: string; // "left" | "right" | "center" | "none"
     bedPosition?: string;    // "left" | "right" | "center" | "none"
     kitchenVisible?: string; // "left" | "right" | "none" — open-plan kitchen detection
+    visualAnchor?: string;   // "fireplace" | "feature-wall" | ... | "none"
+    anchorPosition?: string; // "left" | "right" | "center"
   }
 
   interface GenerateVideoRequest {
@@ -525,6 +527,8 @@
         windowPosition?: string;
         bedPosition?: string;
         kitchenVisible?: string;
+        visualAnchor?: string;
+        anchorPosition?: string;
       }> = [];
       const expandedImageUrls: string[] = []; // Original URLs for hybrid fallback
 

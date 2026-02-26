@@ -511,6 +511,8 @@ Contact us today for a private inspection.`;
           windowPosition: metadata?.windowPosition || "none",
           bedPosition: metadata?.bedPosition || "none",
           kitchenVisible: metadata?.kitchenVisible || "none",
+          visualAnchor: metadata?.visualAnchor || "none",
+          anchorPosition: metadata?.anchorPosition || "center",
         };
       });
 

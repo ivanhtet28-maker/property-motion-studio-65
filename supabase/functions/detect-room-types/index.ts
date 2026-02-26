@@ -33,11 +33,26 @@ Step 2: Determine the room type from the list below.
 Step 3: Check if any outdoor-facing windows are visible. If so, note whether they are on the LEFT side, RIGHT side, or CENTER of the image. If no outdoor windows are visible, say "none".
 Step 4: For bedrooms only — note whether the bed is positioned on the LEFT, RIGHT, or CENTER of the image. Skip for non-bedrooms.
 Step 5: For living rooms only (living-room-wide or living-room-orbit) — scan the frame for any visible kitchen elements: island bench, countertops, cabinetry, splashback, rangehood, stovetop, or fridge. Determine which side of the frame the kitchen occupies (left/right/none). If kitchen elements appear across the full width, choose the side with the most prominent kitchen features (island bench or countertop takes priority). For non-living-room types, always say "none".
-Step 6: Output your answers on the FINAL 4 lines EXACTLY as:
+Step 6: For all interior rooms — identify the PRIMARY VISUAL ANCHOR, the single most impressive or attention-grabbing feature in this room. Choose from:
+- kitchen-island (visible island bench or waterfall countertop)
+- fireplace (mantle, built-in fireplace)
+- feature-wall (accent wall, wainscoting, artwork gallery)
+- window-view (window showing greenery, city view, garden — NOT harsh sky glare)
+- bed-styling (styled bed with cushions, throws, headboard)
+- vanity (bathroom double vanity, statement mirror)
+- entertainment (TV unit, built-in shelving)
+- ceiling-detail (coffered ceiling, chandelier, tray ceiling)
+- open-plan-flow (the room visually connects to another room)
+- none (no standout feature)
+Also detect which side of the frame this anchor sits on (left/right/center).
+For exterior room types, output "none" and "center".
+Step 7: Output your answers on the FINAL 6 lines EXACTLY as:
 ROOM_TYPE: <value>
 WINDOW_POSITION: <left|right|center|none>
 BED_POSITION: <left|right|center|none>
 KITCHEN_VISIBLE: <left|right|none>
+VISUAL_ANCHOR: <value>
+ANCHOR_POSITION: <left|right|center>
 
 Valid room types:
 - exterior-arrival: outside of the property, driveway, facade, street view
@@ -58,11 +73,17 @@ type SpatialPosition = "left" | "right" | "center" | "none";
 
 type KitchenVisiblePosition = "left" | "right" | "none";
 
+type VisualAnchorType = "kitchen-island" | "fireplace" | "feature-wall" | "window-view" | "bed-styling" | "vanity" | "entertainment" | "ceiling-detail" | "open-plan-flow" | "none";
+
+type AnchorPosition = "left" | "right" | "center";
+
 interface DetectionResult {
   room_type: RoomType;
   window_position: SpatialPosition;
   bed_position: SpatialPosition;
   kitchen_visible: KitchenVisiblePosition;
+  visual_anchor: VisualAnchorType;
+  anchor_position: AnchorPosition;
 }
 
 async function detectSingleRoomType(
@@ -78,7 +99,7 @@ async function detectSingleRoomType(
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      max_tokens: 300,
+      max_tokens: 400,
       messages: [
         {
           role: "user",
@@ -114,17 +135,23 @@ async function detectSingleRoomType(
   const windowMatch = responseText.match(/WINDOW_POSITION:\s*(.+)/i);
   const bedMatch = responseText.match(/BED_POSITION:\s*(.+)/i);
   const kitchenMatch = responseText.match(/KITCHEN_VISIBLE:\s*(.+)/i);
+  const anchorMatch = responseText.match(/VISUAL_ANCHOR:\s*(.+)/i);
+  const anchorPosMatch = responseText.match(/ANCHOR_POSITION:\s*(.+)/i);
 
   const detectedRoom = (roomMatch ? roomMatch[1].trim().toLowerCase() : responseText.trim().toLowerCase()) as RoomType;
   const detectedWindow = (windowMatch ? windowMatch[1].trim().toLowerCase() : "none") as SpatialPosition;
   const detectedBed = (bedMatch ? bedMatch[1].trim().toLowerCase() : "none") as SpatialPosition;
   const detectedKitchen = (kitchenMatch ? kitchenMatch[1].trim().toLowerCase() : "none") as KitchenVisiblePosition;
+  const detectedAnchor = (anchorMatch ? anchorMatch[1].trim().toLowerCase() : "none") as VisualAnchorType;
+  const detectedAnchorPos = (anchorPosMatch ? anchorPosMatch[1].trim().toLowerCase() : "center") as AnchorPosition;
 
-  console.log(`Detection reasoning: ${responseText.substring(0, 400)}`);
-  console.log(`Extracted: room=${detectedRoom}, window=${detectedWindow}, bed=${detectedBed}, kitchen=${detectedKitchen}`);
+  console.log(`Detection reasoning: ${responseText.substring(0, 500)}`);
+  console.log(`Extracted: room=${detectedRoom}, window=${detectedWindow}, bed=${detectedBed}, kitchen=${detectedKitchen}, anchor=${detectedAnchor}, anchorPos=${detectedAnchorPos}`);
 
   const validPositions: SpatialPosition[] = ["left", "right", "center", "none"];
   const validKitchenPositions: KitchenVisiblePosition[] = ["left", "right", "none"];
+  const validAnchorTypes: VisualAnchorType[] = ["kitchen-island", "fireplace", "feature-wall", "window-view", "bed-styling", "vanity", "entertainment", "ceiling-detail", "open-plan-flow", "none"];
+  const validAnchorPositions: AnchorPosition[] = ["left", "right", "center"];
 
   // Only allow kitchen_visible for living room types
   const isLivingRoom = detectedRoom === "living-room-wide" || detectedRoom === "living-room-orbit";
@@ -139,6 +166,8 @@ async function detectSingleRoomType(
     window_position: validPositions.includes(detectedWindow) ? detectedWindow : "none",
     bed_position: validPositions.includes(detectedBed) ? detectedBed : "none",
     kitchen_visible: kitchenVisible,
+    visual_anchor: validAnchorTypes.includes(detectedAnchor) ? detectedAnchor : "none",
+    anchor_position: validAnchorPositions.includes(detectedAnchorPos) ? detectedAnchorPos : "center",
   };
 }
 
@@ -173,11 +202,11 @@ Deno.serve(async (req) => {
       body.images.map(async ({ id, base64, mimeType }) => {
         try {
           const detection = await detectSingleRoomType(base64, mimeType || "image/jpeg");
-          console.log(`Image ${id}: detected → ${detection.room_type} (window: ${detection.window_position}, bed: ${detection.bed_position}, kitchen: ${detection.kitchen_visible})`);
-          return { id, room_type: detection.room_type, window_position: detection.window_position, bed_position: detection.bed_position, kitchen_visible: detection.kitchen_visible };
+          console.log(`Image ${id}: detected → ${detection.room_type} (window: ${detection.window_position}, bed: ${detection.bed_position}, kitchen: ${detection.kitchen_visible}, anchor: ${detection.visual_anchor}@${detection.anchor_position})`);
+          return { id, room_type: detection.room_type, window_position: detection.window_position, bed_position: detection.bed_position, kitchen_visible: detection.kitchen_visible, visual_anchor: detection.visual_anchor, anchor_position: detection.anchor_position };
         } catch (err) {
           console.error(`Image ${id}: detection failed, defaulting to living-room-wide`, err);
-          return { id, room_type: "living-room-wide" as RoomType, window_position: "none" as SpatialPosition, bed_position: "none" as SpatialPosition, kitchen_visible: "none" as KitchenVisiblePosition };
+          return { id, room_type: "living-room-wide" as RoomType, window_position: "none" as SpatialPosition, bed_position: "none" as SpatialPosition, kitchen_visible: "none" as KitchenVisiblePosition, visual_anchor: "none" as VisualAnchorType, anchor_position: "center" as AnchorPosition };
         }
       })
     );
