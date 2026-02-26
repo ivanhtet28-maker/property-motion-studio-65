@@ -510,6 +510,14 @@ Contact us today for a private inspection.`;
           duration: metadata?.duration || 3.5,
           windowPosition: metadata?.windowPosition || "none",
           bedPosition: metadata?.bedPosition || "none",
+          kitchenVisible: metadata?.kitchenVisible || "none",
+          visualAnchor: metadata?.visualAnchor || "none",
+          anchorPosition: metadata?.anchorPosition || "center",
+          facadeSymmetry: metadata?.facadeSymmetry || "none",
+          doorPosition: metadata?.doorPosition || "none",
+          stories: metadata?.stories || "none",
+          fenceObstruction: metadata?.fenceObstruction || "none",
+          drivewayDominance: metadata?.drivewayDominance || "none",
         };
       });
 

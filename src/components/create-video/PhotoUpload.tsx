@@ -87,6 +87,14 @@ const ROOM_TYPE_TO_LABEL: Record<string, string> = {
 };
 
 export type SpatialPosition = "left" | "right" | "center" | "none";
+export type KitchenVisiblePosition = "left" | "right" | "none";
+export type VisualAnchorType = "kitchen-island" | "fireplace" | "feature-wall" | "window-view" | "bed-styling" | "vanity" | "entertainment" | "ceiling-detail" | "open-plan-flow" | "none";
+export type AnchorPosition = "left" | "right" | "center";
+export type FacadeSymmetry = "symmetric" | "asymmetric-left" | "asymmetric-right" | "none";
+export type DoorPosition = "left" | "center" | "right" | "none";
+export type Stories = "1" | "2" | "3" | "none";
+export type FenceObstruction = "yes" | "no" | "none";
+export type DrivewayDominance = "yes" | "no" | "none";
 
 export interface ImageMetadata {
   file: File;
@@ -99,6 +107,14 @@ export interface ImageMetadata {
   autoDetected?: boolean;              // true after AI has set the camera action
   windowPosition?: SpatialPosition;    // where outdoor windows are in the photo (left/right/center/none)
   bedPosition?: SpatialPosition;       // where the bed is in the photo (bedrooms only)
+  kitchenVisible?: KitchenVisiblePosition; // kitchen visible in living room (left/right/none)
+  visualAnchor?: VisualAnchorType;     // primary visual feature in the room
+  anchorPosition?: AnchorPosition;     // which side of frame the anchor is on
+  facadeSymmetry?: FacadeSymmetry;     // building facade symmetry (exterior only)
+  doorPosition?: DoorPosition;         // main entrance position (exterior only)
+  stories?: Stories;                   // building height (exterior only)
+  fenceObstruction?: FenceObstruction; // foreground barrier (exterior only)
+  drivewayDominance?: DrivewayDominance; // driveway dominates bottom third (exterior only)
 }
 
 interface PhotoUploadProps {
@@ -191,7 +207,7 @@ export function PhotoUpload({
 
         if (error) throw error;
 
-        const results: Array<{ id: string; room_type: string; window_position?: string; bed_position?: string }> = data.results ?? [];
+        const results: Array<{ id: string; room_type: string; window_position?: string; bed_position?: string; kitchen_visible?: string; visual_anchor?: string; anchor_position?: string; facade_symmetry?: string; door_position?: string; stories?: string; fence_obstruction?: string; driveway_dominance?: string }> = data.results ?? [];
 
         onMetadataChange(
           newPhotos.map((file) => {
@@ -201,6 +217,14 @@ export function PhotoUpload({
             const roomType = (detected?.room_type ?? "living-room-wide") as RoomType;
             const windowPos = (detected?.window_position ?? "none") as SpatialPosition;
             const bedPos = (detected?.bed_position ?? "none") as SpatialPosition;
+            const kitchenPos = (detected?.kitchen_visible ?? "none") as KitchenVisiblePosition;
+            const anchorType = (detected?.visual_anchor ?? "none") as VisualAnchorType;
+            const anchorPos = (detected?.anchor_position ?? "center") as AnchorPosition;
+            const facadeSym = (detected?.facade_symmetry ?? "none") as FacadeSymmetry;
+            const doorPos = (detected?.door_position ?? "none") as DoorPosition;
+            const storiesVal = (detected?.stories ?? "none") as Stories;
+            const fenceVal = (detected?.fence_obstruction ?? "none") as FenceObstruction;
+            const drivewayVal = (detected?.driveway_dominance ?? "none") as DrivewayDominance;
             return {
               file,
               cameraAction: ROOM_TO_DEFAULT_ACTION[roomType] ?? ("space-sweep" as CameraAction),
@@ -212,6 +236,14 @@ export function PhotoUpload({
               autoDetected: !!detected,
               windowPosition: windowPos,
               bedPosition: bedPos,
+              kitchenVisible: kitchenPos,
+              visualAnchor: anchorType,
+              anchorPosition: anchorPos,
+              facadeSymmetry: facadeSym,
+              doorPosition: doorPos,
+              stories: storiesVal,
+              fenceObstruction: fenceVal,
+              drivewayDominance: drivewayVal,
             };
           })
         );

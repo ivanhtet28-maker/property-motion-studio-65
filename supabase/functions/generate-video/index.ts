@@ -2,7 +2,9 @@
   /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
   import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-  import { Image } from "https://deno.land/x/imagescript@1.3.0/mod.ts";
+  // NOTE: imagescript uses WASM and must be dynamically imported to avoid
+  // Supabase Edge Function boot errors (546). It is only needed for the
+  // Runway dual-crop path, not for Ken Burns or Canvas flows.
 
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -30,6 +32,14 @@
     duration: number;
     windowPosition?: string; // "left" | "right" | "center" | "none"
     bedPosition?: string;    // "left" | "right" | "center" | "none"
+    kitchenVisible?: string; // "left" | "right" | "none" — open-plan kitchen detection
+    visualAnchor?: string;   // "fireplace" | "feature-wall" | ... | "none"
+    anchorPosition?: string; // "left" | "right" | "center"
+    facadeSymmetry?: string;    // "symmetric" | "asymmetric-left" | "asymmetric-right" | "none"
+    doorPosition?: string;      // "left" | "center" | "right" | "none"
+    stories?: string;           // "1" | "2" | "3" | "none"
+    fenceObstruction?: string;  // "yes" | "no" | "none"
+    drivewayDominance?: string; // "yes" | "no" | "none"
   }
 
   interface GenerateVideoRequest {
@@ -136,6 +146,7 @@
       }
 
       const imageBuffer = new Uint8Array(await response.arrayBuffer());
+      const { Image } = await import("https://deno.land/x/imagescript@1.3.0/mod.ts");
       const image = await Image.decode(imageBuffer);
 
       const { width, height } = image;
@@ -523,6 +534,14 @@
         motionBias?: "slide-right" | "slide-left" | "push-forward";
         windowPosition?: string;
         bedPosition?: string;
+        kitchenVisible?: string;
+        visualAnchor?: string;
+        anchorPosition?: string;
+        facadeSymmetry?: string;
+        doorPosition?: string;
+        stories?: string;
+        fenceObstruction?: string;
+        drivewayDominance?: string;
       }> = [];
       const expandedImageUrls: string[] = []; // Original URLs for hybrid fallback
 
@@ -539,12 +558,13 @@
         const cropResult = await dualCropLandscape(originalUrl, supabaseCrop);
 
         if (cropResult) {
-          console.log(`Image ${i + 1}: LANDSCAPE → dual-cropped (seed: ${cropResult.seed})`);
+          console.log(`Image ${i + 1}: LANDSCAPE → dual-cropped (seed: ${cropResult.seed}, room_type: ${meta.room_type || "unknown"})`);
 
           // Determine crop direction for living rooms with detected windows
           const isLivingRoom = meta.room_type && LIVING_ROOM_TYPES.has(meta.room_type);
           const windowPos = meta.windowPosition || "none";
           const windowsOnRight = isLivingRoom && windowPos === "right";
+          console.log(`Image ${i + 1} dual-crop decision: room_type=${meta.room_type}, isLivingRoom=${isLivingRoom}, windowPos=${windowPos}, windowsOnRight=${windowsOnRight}`);
 
           // Check if adding both crops would exceed the limit
           if (expandedMetadata.length + 2 > 10) {
