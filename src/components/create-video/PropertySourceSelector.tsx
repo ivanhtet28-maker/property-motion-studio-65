@@ -20,6 +20,11 @@ import {
   KitchenVisiblePosition,
   VisualAnchorType,
   AnchorPosition,
+  FacadeSymmetry,
+  DoorPosition,
+  Stories,
+  FenceObstruction,
+  DrivewayDominance,
   ROOM_TO_DEFAULT_ACTION,
 } from "./PhotoUpload";
 import { supabase } from "@/lib/supabase";
@@ -85,7 +90,7 @@ export function PropertySourceSelector({
 
   // Store detection results keyed by URL
   const [detectionResults, setDetectionResults] = useState<
-    Record<string, { roomType: RoomType; label: string; cameraAction: CameraAction; windowPosition?: string; bedPosition?: string; kitchenVisible?: string; visualAnchor?: string; anchorPosition?: string }>
+    Record<string, { roomType: RoomType; label: string; cameraAction: CameraAction; windowPosition?: string; bedPosition?: string; kitchenVisible?: string; visualAnchor?: string; anchorPosition?: string; facadeSymmetry?: string; doorPosition?: string; stories?: string; fenceObstruction?: string; drivewayDominance?: string }>
   >({});
 
   // Prevent duplicate AI detection calls
@@ -150,7 +155,7 @@ export function PropertySourceSelector({
 
         setDetectionResults((prev) => ({
           ...prev,
-          [imageUrl]: { roomType, label, cameraAction, windowPosition: result?.window_position ?? "none", bedPosition: result?.bed_position ?? "none", kitchenVisible: result?.kitchen_visible ?? "none", visualAnchor: result?.visual_anchor ?? "none", anchorPosition: result?.anchor_position ?? "center" },
+          [imageUrl]: { roomType, label, cameraAction, windowPosition: result?.window_position ?? "none", bedPosition: result?.bed_position ?? "none", kitchenVisible: result?.kitchen_visible ?? "none", visualAnchor: result?.visual_anchor ?? "none", anchorPosition: result?.anchor_position ?? "center", facadeSymmetry: result?.facade_symmetry ?? "none", doorPosition: result?.door_position ?? "none", stories: result?.stories ?? "none", fenceObstruction: result?.fence_obstruction ?? "none", drivewayDominance: result?.driveway_dominance ?? "none" },
         }));
       } catch (err) {
         console.error("Room detection failed for", imageUrl, err);
@@ -166,6 +171,11 @@ export function PropertySourceSelector({
             kitchenVisible: "none",
             visualAnchor: "none",
             anchorPosition: "center",
+            facadeSymmetry: "none",
+            doorPosition: "none",
+            stories: "none",
+            fenceObstruction: "none",
+            drivewayDominance: "none",
           },
         }));
       } finally {
@@ -206,6 +216,11 @@ export function PropertySourceSelector({
           kitchenVisible: (detection?.kitchenVisible ?? "none") as KitchenVisiblePosition,
           visualAnchor: (detection?.visualAnchor ?? "none") as VisualAnchorType,
           anchorPosition: (detection?.anchorPosition ?? "center") as AnchorPosition,
+          facadeSymmetry: (detection?.facadeSymmetry ?? "none") as FacadeSymmetry,
+          doorPosition: (detection?.doorPosition ?? "none") as DoorPosition,
+          stories: (detection?.stories ?? "none") as Stories,
+          fenceObstruction: (detection?.fenceObstruction ?? "none") as FenceObstruction,
+          drivewayDominance: (detection?.drivewayDominance ?? "none") as DrivewayDominance,
         };
       });
 

@@ -209,6 +209,14 @@ const ROOM_ANCHORS: Record<string, { focus: string; stability: string }> = {
     focus: "Focus specifically on the front entrance door at eye-level. Ignore the ground and foreground gates.",
     stability: "Maintain perfect vertical lines of the building. Stable roofline and facade.",
   },
+  "exterior-slide": {
+    focus: "Cinematic lateral reveal of the building facade. Smooth parallax showcasing architectural details and building width.",
+    stability: "Maintain perfect vertical lines of the building. Stable roofline and facade.",
+  },
+  "exterior-push": {
+    focus: "Gentle approach toward the front entrance. Focus on the entry as the architectural focal point.",
+    stability: "Maintain perfect vertical lines. Stable roofline and facade.",
+  },
   "entry": {
     focus: "Focus on interior furnishings and flooring, not windows or light sources.",
     stability: "Stable walls and flooring, fixed doorframes.",
@@ -256,6 +264,12 @@ type SpatialPosition = "left" | "right" | "center" | "none";
 type KitchenVisiblePosition = "left" | "right" | "none";
 type VisualAnchorType = "kitchen-island" | "fireplace" | "feature-wall" | "window-view" | "bed-styling" | "vanity" | "entertainment" | "ceiling-detail" | "open-plan-flow" | "none";
 type AnchorPosition = "left" | "right" | "center";
+
+type FacadeSymmetry = "symmetric" | "asymmetric-left" | "asymmetric-right" | "none";
+type DoorPosition = "left" | "center" | "right" | "none";
+type Stories = "1" | "2" | "3" | "none";
+type FenceObstruction = "yes" | "no" | "none";
+type DrivewayDominance = "yes" | "no" | "none";
 
 const LIVING_ROOM_TYPES = new Set(["living-room-wide", "living-room-orbit"]);
 const BEDROOM_TYPES = new Set(["master-bedroom", "bedroom"]);
@@ -429,6 +443,125 @@ function getDirectionalOverride(
   return null;
 }
 
+/**
+ * Exterior Adaptive Cinematography — replaces static High-Crane.
+ *
+ * A drone operator reads the building first:
+ * - Symmetrical? Rise straight up — lateral breaks the composition.
+ * - Fence in the way? Crane over it — never push into it.
+ * - Two stories? Must rise enough to reveal the full height.
+ * - Asymmetrical? Drift toward the entrance — that's the hero.
+ *
+ * 7 priorities + 5 hard enforcement rules.
+ */
+function getExteriorOverride(
+  facadeSymmetry: FacadeSymmetry,
+  doorPosition: DoorPosition,
+  stories: Stories,
+  fenceObstruction: FenceObstruction,
+  drivewayDominance: DrivewayDominance,
+  motionBias?: string,
+): { camera_motion: Record<string, number>; promptText: string } | null {
+
+  // Helper: replace [STORIES] placeholder with actual value
+  function replaceStories(prompt: string): string {
+    if (stories === "none") {
+      return prompt.replace(/\[STORIES\]-story/g, "full");
+    }
+    return prompt.replace(/\[STORIES\]/g, stories);
+  }
+
+  // Priority 1 — motionBias set (dual-crop engine controls motion)
+  if (motionBias) {
+    return null; // Dual-crop motion wins. Prompt handled by composePrompt() exterior-slide/push anchors.
+  }
+
+  let motion: Record<string, number>;
+  let prompt: string;
+
+  // Priority 6 — SINGLE STORY (check before symmetry priorities)
+  if (stories === "1") {
+    if (fenceObstruction === "yes") {
+      motion = { horizontal: 0, pan: 0, zoom: 0.5, vertical: 1, tilt: -0.5, roll: 0 };
+      prompt = "Gentle crane rise revealing the single-story facade. Lift above the foreground fence to showcase the full building frontage and roofline. Focus on the front entrance. Maintain vertical building lines.";
+    } else {
+      motion = { horizontal: 2, pan: 0.5, zoom: 1, vertical: 0.3, tilt: 0, roll: 0 };
+      prompt = "Smooth lateral glide past the single-story facade. Gentle parallax revealing the building frontage with subtle forward approach toward the entrance. Maintain vertical building lines.";
+    }
+  }
+  // Priority 2 — SYMMETRIC + fence
+  else if (facadeSymmetry === "symmetric" && fenceObstruction === "yes") {
+    motion = { horizontal: 0, pan: 0, zoom: 0, vertical: 2, tilt: -1.5, roll: 0 };
+    prompt = replaceStories("Majestic vertical crane reveal of symmetrical facade. Camera rises straight up from street level, clearing the foreground fence and gate. Reveal the full [STORIES]-story architecture while maintaining perfect centered composition. The front entrance remains the focal anchor as the camera ascends. Maintain perfect vertical lines of the building. Ignore driveway and foreground pavement. Stable fence line, fixed gate.");
+  }
+  // Priority 3 — SYMMETRIC + no fence
+  else if (facadeSymmetry === "symmetric" && fenceObstruction !== "yes") {
+    motion = { horizontal: 0, pan: 0, zoom: 0.5, vertical: 1, tilt: -0.5, roll: 0 };
+    prompt = replaceStories("Elegant vertical reveal of symmetrical facade. Gentle rising camera with subtle forward approach toward the centered entrance. Reveal the full [STORIES]-story architecture. Maintain perfect centered composition and vertical building lines throughout.");
+  }
+  // Priority 4 — ASYMMETRIC + fence
+  else if ((facadeSymmetry === "asymmetric-left" || facadeSymmetry === "asymmetric-right") && fenceObstruction === "yes") {
+    if (doorPosition === "left") {
+      motion = { horizontal: -2, pan: -0.5, zoom: 0, vertical: 2, tilt: -1.5, roll: 0 };
+    } else if (doorPosition === "right") {
+      motion = { horizontal: 2, pan: 0.5, zoom: 0, vertical: 2, tilt: -1.5, roll: 0 };
+    } else {
+      // door center on asymmetric building → treat as symmetric motion (Priority 2)
+      motion = { horizontal: 0, pan: 0, zoom: 0, vertical: 2, tilt: -1.5, roll: 0 };
+    }
+    prompt = replaceStories("Rising crane reveal drifting toward the main entrance. Camera lifts from street level to clear the foreground fence, settling on the front door as the architectural focal point. Reveal the full [STORIES]-story facade. Maintain vertical building lines. Ignore foreground hardscape.");
+  }
+  // Priority 5 — ASYMMETRIC + no fence
+  else if (facadeSymmetry === "asymmetric-left" || facadeSymmetry === "asymmetric-right") {
+    if (doorPosition === "left") {
+      motion = { horizontal: -2, pan: -0.5, zoom: 1, vertical: 0.5, tilt: -0.5, roll: 0 };
+    } else if (doorPosition === "right") {
+      motion = { horizontal: 2, pan: 0.5, zoom: 1, vertical: 0.5, tilt: -0.5, roll: 0 };
+    } else {
+      motion = { horizontal: 0, pan: 0, zoom: 1.5, vertical: 0.5, tilt: -0.5, roll: 0 };
+    }
+    prompt = "Cinematic approach toward the main entrance. Smooth lateral glide with gentle forward motion and subtle camera rise. The front door is the destination and focal point. Maintain vertical building lines.";
+  }
+  // Priority 7 — Fallback (detection failed, all fields "none")
+  else {
+    motion = { horizontal: 0, pan: 0, zoom: 0, vertical: 1.5, tilt: -1, roll: 0 };
+    prompt = "Elevated architectural reveal. Camera rises gently to showcase the full building facade from a high vantage point. Focus on the front entrance. Maintain vertical building lines.";
+  }
+
+  // ── HARD RULES (apply after priority selection) ──────────────────────
+
+  // Rule 1: No forward zoom when fence is present
+  if (fenceObstruction === "yes") {
+    motion.zoom = Math.min(motion.zoom, 0);
+  }
+
+  // Rule 2: Must rise for multi-story buildings
+  if (stories !== "1" && stories !== "none") {
+    motion.vertical = Math.max(motion.vertical, 1.5);
+  }
+
+  // Rule 3: Must tilt down when rising significantly
+  if (motion.vertical >= 1.5) {
+    motion.tilt = Math.min(motion.tilt, -1);
+  }
+
+  // Rule 4: No lateral on symmetric facades
+  if (facadeSymmetry === "symmetric") {
+    motion.horizontal = 0;
+    motion.pan = 0;
+  }
+
+  // Rule 5: Driveway prompt injection
+  if (drivewayDominance === "yes") {
+    prompt += " Ignore driveway and foreground hardscape geometry.";
+  }
+
+  // Anti-morphing tail on every exterior prompt
+  prompt += " Locked geometry. No morphing, no liquid surfaces, no structural movement.";
+
+  return { camera_motion: motion, promptText: prompt };
+}
+
 const DEFAULT_ANCHORS = {
   focus: "Focus on interior furnishings and architectural details, not windows or light sources.",
   stability: "Stable walls and fixtures.",
@@ -451,7 +584,14 @@ function composePrompt(
 
   let anchorsKey: string | null = ctxKey;
 
-  if (ctxKey === "living-room" && kitchenVisible !== "none") {
+  if (ctxKey === "exterior" && motionBias) {
+    // Exterior dual-crop: use slide/push specific anchors
+    if (motionBias === "slide-right" || motionBias === "slide-left") {
+      anchorsKey = "exterior-slide";
+    } else if (motionBias === "push-forward") {
+      anchorsKey = "exterior-push";
+    }
+  } else if (ctxKey === "living-room" && kitchenVisible !== "none") {
     // Open-plan living room — kitchen visible
     anchorsKey = "living-room-open-plan";
   } else if (ctxKey === "bedroom") {
@@ -522,8 +662,8 @@ Deno.serve(async (req) => {
 
     // Submit all at once — Runway queues excess tasks with THROTTLED status.
     // No requests-per-minute rate limit; no concurrency cap needed client-side.
-    const generationPromises = imageMetadata.map(async (metadata: { url: string; cameraAngle?: string; room_type?: string; cameraAction?: string; duration?: number; seed?: number; motionBias?: "slide-right" | "slide-left" | "push-forward"; windowPosition?: string; bedPosition?: string; kitchenVisible?: string; visualAnchor?: string; anchorPosition?: string }, index: number) => {
-      const { url: imageUrl, cameraAngle, room_type, cameraAction, duration, seed, motionBias, windowPosition, bedPosition, kitchenVisible, visualAnchor, anchorPosition } = metadata;
+    const generationPromises = imageMetadata.map(async (metadata: { url: string; cameraAngle?: string; room_type?: string; cameraAction?: string; duration?: number; seed?: number; motionBias?: "slide-right" | "slide-left" | "push-forward"; windowPosition?: string; bedPosition?: string; kitchenVisible?: string; visualAnchor?: string; anchorPosition?: string; facadeSymmetry?: string; doorPosition?: string; stories?: string; fenceObstruction?: string; drivewayDominance?: string }, index: number) => {
+      const { url: imageUrl, cameraAngle, room_type, cameraAction, duration, seed, motionBias, windowPosition, bedPosition, kitchenVisible, visualAnchor, anchorPosition, facadeSymmetry, doorPosition, stories: storiesField, fenceObstruction, drivewayDominance } = metadata;
       try {
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
         console.log(`Image: ${imageUrl}`);
@@ -562,18 +702,24 @@ Deno.serve(async (req) => {
           console.log(`Bedroom zoom cap applied: zoom clamped to -1 (was ${oldZoom})`);
         }
 
-        // High-Crane exterior override: portrait exteriors get an elevated camera
-        // to clear foreground fences/gates and capture the full 2-story facade.
-        // Portrait = no motionBias (landscape images get dual-cropped with motionBias).
+        // Exterior adaptive cinematography — replaces static High-Crane
         const isExterior = room_type && EXTERIOR_TYPES.has(room_type);
-        const isPortrait = !motionBias; // Landscape images arrive with motionBias from dual-crop
-        if (isExterior && isPortrait) {
-          preset = {
-            ...preset,
-            camera_motion: { zoom: 0.5, horizontal: 2, pan: 0, tilt: -1, vertical: 1.5, roll: 0 },
-            promptText: preset.promptText + " Elevated high-angle architectural shot. The camera is positioned at a 3-meter height (10 feet), looking slightly downward to clear all foreground fences and gates. Focus on the full facade of the building, ensuring the roofline and the entrance are both perfectly framed in the 9:16 crop. Execute a smooth Crane-Up reveal. No forward walking motion. Ignore driveway geometry.",
-          };
-          console.log(`High-Crane exterior override: portrait exterior → elevated crane-up reveal`);
+        if (isExterior) {
+          const facadeSym = (facadeSymmetry || "none") as FacadeSymmetry;
+          const doorPos = (doorPosition || "none") as DoorPosition;
+          const storiesVal = (storiesField || "none") as Stories;
+          const fenceVal = (fenceObstruction || "none") as FenceObstruction;
+          const drivewayVal = (drivewayDominance || "none") as DrivewayDominance;
+
+          const exteriorResult = getExteriorOverride(facadeSym, doorPos, storiesVal, fenceVal, drivewayVal, motionBias);
+          if (exteriorResult) {
+            preset = {
+              ...preset,
+              camera_motion: exteriorResult.camera_motion,
+              promptText: exteriorResult.promptText,
+            };
+            console.log(`Exterior adaptive: sym=${facadeSym}, door=${doorPos}, stories=${storiesVal}, fence=${fenceVal}, driveway=${drivewayVal} → ${JSON.stringify(exteriorResult.camera_motion)}`);
+          }
         }
 
         // Dual-Crop motion bias: override camera_motion for connected crop pairs

@@ -33,6 +33,11 @@
     kitchenVisible?: string; // "left" | "right" | "none" — open-plan kitchen detection
     visualAnchor?: string;   // "fireplace" | "feature-wall" | ... | "none"
     anchorPosition?: string; // "left" | "right" | "center"
+    facadeSymmetry?: string;    // "symmetric" | "asymmetric-left" | "asymmetric-right" | "none"
+    doorPosition?: string;      // "left" | "center" | "right" | "none"
+    stories?: string;           // "1" | "2" | "3" | "none"
+    fenceObstruction?: string;  // "yes" | "no" | "none"
+    drivewayDominance?: string; // "yes" | "no" | "none"
   }
 
   interface GenerateVideoRequest {
@@ -529,6 +534,11 @@
         kitchenVisible?: string;
         visualAnchor?: string;
         anchorPosition?: string;
+        facadeSymmetry?: string;
+        doorPosition?: string;
+        stories?: string;
+        fenceObstruction?: string;
+        drivewayDominance?: string;
       }> = [];
       const expandedImageUrls: string[] = []; // Original URLs for hybrid fallback
 

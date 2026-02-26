@@ -46,13 +46,25 @@ Step 6: For all interior rooms — identify the PRIMARY VISUAL ANCHOR, the singl
 - none (no standout feature)
 Also detect which side of the frame this anchor sits on (left/right/center).
 For exterior room types, output "none" and "center".
-Step 7: Output your answers on the FINAL 6 lines EXACTLY as:
+Step 7 (exterior-arrival and front-door ONLY) — FACADE ANALYSIS: Analyze the building facade as a drone operator planning the shot:
+a) SYMMETRY: Is the facade architecturally symmetrical? Check: Is the front door centered? Are windows balanced on both sides? Are garages or carports mirrored? Is the roofline balanced? If yes to most → "symmetric". If the entry or main building mass is offset to one side → "asymmetric-left" or "asymmetric-right" (the side where the entry or dominant mass sits).
+b) DOOR POSITION: Where is the main entrance in the frame? (left/center/right)
+c) STORIES: How many stories is the building? (1/2/3). Look for: upper floor windows, roofline height, second-story balconies, upper-level architectural details, visible staircase through windows.
+d) FENCE OBSTRUCTION: Is there a fence, gate, wall, hedge, railing, or any horizontal barrier in the foreground between the camera position and the front door? (yes/no). Includes: iron fences, rendered brick walls, hedgerows, stone pillars, bollards, retaining walls, planter boxes along the boundary.
+e) DRIVEWAY DOMINANCE: Does driveway, pathway, or hardscape pavement dominate the bottom third of the image? (yes/no). If a ground-level camera pushed forward, would it mainly show concrete, pavers, or asphalt?
+For non-exterior rooms: output all facade fields as "none".
+Step 8: Output your answers on the FINAL 11 lines EXACTLY as:
 ROOM_TYPE: <value>
 WINDOW_POSITION: <left|right|center|none>
 BED_POSITION: <left|right|center|none>
 KITCHEN_VISIBLE: <left|right|none>
 VISUAL_ANCHOR: <value>
 ANCHOR_POSITION: <left|right|center>
+FACADE_SYMMETRY: <symmetric|asymmetric-left|asymmetric-right|none>
+DOOR_POSITION: <left|center|right|none>
+STORIES: <1|2|3|none>
+FENCE_OBSTRUCTION: <yes|no|none>
+DRIVEWAY_DOMINANCE: <yes|no|none>
 
 Valid room types:
 - exterior-arrival: outside of the property, driveway, facade, street view
@@ -77,6 +89,12 @@ type VisualAnchorType = "kitchen-island" | "fireplace" | "feature-wall" | "windo
 
 type AnchorPosition = "left" | "right" | "center";
 
+type FacadeSymmetry = "symmetric" | "asymmetric-left" | "asymmetric-right" | "none";
+type DoorPosition = "left" | "center" | "right" | "none";
+type Stories = "1" | "2" | "3" | "none";
+type FenceObstruction = "yes" | "no" | "none";
+type DrivewayDominance = "yes" | "no" | "none";
+
 interface DetectionResult {
   room_type: RoomType;
   window_position: SpatialPosition;
@@ -84,6 +102,11 @@ interface DetectionResult {
   kitchen_visible: KitchenVisiblePosition;
   visual_anchor: VisualAnchorType;
   anchor_position: AnchorPosition;
+  facade_symmetry: FacadeSymmetry;
+  door_position: DoorPosition;
+  stories: Stories;
+  fence_obstruction: FenceObstruction;
+  driveway_dominance: DrivewayDominance;
 }
 
 async function detectSingleRoomType(
@@ -99,7 +122,7 @@ async function detectSingleRoomType(
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      max_tokens: 400,
+      max_tokens: 550,
       messages: [
         {
           role: "user",
@@ -137,6 +160,11 @@ async function detectSingleRoomType(
   const kitchenMatch = responseText.match(/KITCHEN_VISIBLE:\s*(.+)/i);
   const anchorMatch = responseText.match(/VISUAL_ANCHOR:\s*(.+)/i);
   const anchorPosMatch = responseText.match(/ANCHOR_POSITION:\s*(.+)/i);
+  const symmetryMatch = responseText.match(/FACADE_SYMMETRY:\s*(.+)/i);
+  const doorPosMatch = responseText.match(/DOOR_POSITION:\s*(.+)/i);
+  const storiesMatch = responseText.match(/STORIES:\s*(.+)/i);
+  const fenceMatch = responseText.match(/FENCE_OBSTRUCTION:\s*(.+)/i);
+  const drivewayMatch = responseText.match(/DRIVEWAY_DOMINANCE:\s*(.+)/i);
 
   const detectedRoom = (roomMatch ? roomMatch[1].trim().toLowerCase() : responseText.trim().toLowerCase()) as RoomType;
   const detectedWindow = (windowMatch ? windowMatch[1].trim().toLowerCase() : "none") as SpatialPosition;
@@ -144,9 +172,14 @@ async function detectSingleRoomType(
   const detectedKitchen = (kitchenMatch ? kitchenMatch[1].trim().toLowerCase() : "none") as KitchenVisiblePosition;
   const detectedAnchor = (anchorMatch ? anchorMatch[1].trim().toLowerCase() : "none") as VisualAnchorType;
   const detectedAnchorPos = (anchorPosMatch ? anchorPosMatch[1].trim().toLowerCase() : "center") as AnchorPosition;
+  const detectedSymmetry = (symmetryMatch ? symmetryMatch[1].trim().toLowerCase() : "none") as FacadeSymmetry;
+  const detectedDoorPos = (doorPosMatch ? doorPosMatch[1].trim().toLowerCase() : "none") as DoorPosition;
+  const detectedStories = (storiesMatch ? storiesMatch[1].trim().toLowerCase() : "none") as Stories;
+  const detectedFence = (fenceMatch ? fenceMatch[1].trim().toLowerCase() : "none") as FenceObstruction;
+  const detectedDriveway = (drivewayMatch ? drivewayMatch[1].trim().toLowerCase() : "none") as DrivewayDominance;
 
   console.log(`Detection reasoning: ${responseText.substring(0, 500)}`);
-  console.log(`Extracted: room=${detectedRoom}, window=${detectedWindow}, bed=${detectedBed}, kitchen=${detectedKitchen}, anchor=${detectedAnchor}, anchorPos=${detectedAnchorPos}`);
+  console.log(`Extracted: room=${detectedRoom}, window=${detectedWindow}, bed=${detectedBed}, kitchen=${detectedKitchen}, anchor=${detectedAnchor}, anchorPos=${detectedAnchorPos}, symmetry=${detectedSymmetry}, doorPos=${detectedDoorPos}, stories=${detectedStories}, fence=${detectedFence}, driveway=${detectedDriveway}`);
 
   const validPositions: SpatialPosition[] = ["left", "right", "center", "none"];
   const validKitchenPositions: KitchenVisiblePosition[] = ["left", "right", "none"];
@@ -159,6 +192,14 @@ async function detectSingleRoomType(
     ? detectedKitchen
     : "none";
 
+  // Only allow facade fields for exterior room types
+  const validSymmetries: FacadeSymmetry[] = ["symmetric", "asymmetric-left", "asymmetric-right", "none"];
+  const validDoorPositions: DoorPosition[] = ["left", "center", "right", "none"];
+  const validStories: Stories[] = ["1", "2", "3", "none"];
+  const validFence: FenceObstruction[] = ["yes", "no", "none"];
+  const validDriveway: DrivewayDominance[] = ["yes", "no", "none"];
+  const isExterior = detectedRoom === "exterior-arrival" || detectedRoom === "front-door";
+
   return {
     room_type: (VALID_ROOM_TYPES as readonly string[]).includes(detectedRoom)
       ? (detectedRoom as RoomType)
@@ -168,6 +209,11 @@ async function detectSingleRoomType(
     kitchen_visible: kitchenVisible,
     visual_anchor: validAnchorTypes.includes(detectedAnchor) ? detectedAnchor : "none",
     anchor_position: validAnchorPositions.includes(detectedAnchorPos) ? detectedAnchorPos : "center",
+    facade_symmetry: isExterior && validSymmetries.includes(detectedSymmetry) ? detectedSymmetry : "none",
+    door_position: isExterior && validDoorPositions.includes(detectedDoorPos) ? detectedDoorPos : "none",
+    stories: isExterior && validStories.includes(detectedStories) ? detectedStories : "none",
+    fence_obstruction: isExterior && validFence.includes(detectedFence) ? detectedFence : "none",
+    driveway_dominance: isExterior && validDriveway.includes(detectedDriveway) ? detectedDriveway : "none",
   };
 }
 
@@ -202,11 +248,11 @@ Deno.serve(async (req) => {
       body.images.map(async ({ id, base64, mimeType }) => {
         try {
           const detection = await detectSingleRoomType(base64, mimeType || "image/jpeg");
-          console.log(`Image ${id}: detected → ${detection.room_type} (window: ${detection.window_position}, bed: ${detection.bed_position}, kitchen: ${detection.kitchen_visible}, anchor: ${detection.visual_anchor}@${detection.anchor_position})`);
-          return { id, room_type: detection.room_type, window_position: detection.window_position, bed_position: detection.bed_position, kitchen_visible: detection.kitchen_visible, visual_anchor: detection.visual_anchor, anchor_position: detection.anchor_position };
+          console.log(`Image ${id}: detected → ${detection.room_type} (window: ${detection.window_position}, bed: ${detection.bed_position}, kitchen: ${detection.kitchen_visible}, anchor: ${detection.visual_anchor}@${detection.anchor_position}, facade: ${detection.facade_symmetry}, door: ${detection.door_position}, stories: ${detection.stories}, fence: ${detection.fence_obstruction}, driveway: ${detection.driveway_dominance})`);
+          return { id, room_type: detection.room_type, window_position: detection.window_position, bed_position: detection.bed_position, kitchen_visible: detection.kitchen_visible, visual_anchor: detection.visual_anchor, anchor_position: detection.anchor_position, facade_symmetry: detection.facade_symmetry, door_position: detection.door_position, stories: detection.stories, fence_obstruction: detection.fence_obstruction, driveway_dominance: detection.driveway_dominance };
         } catch (err) {
           console.error(`Image ${id}: detection failed, defaulting to living-room-wide`, err);
-          return { id, room_type: "living-room-wide" as RoomType, window_position: "none" as SpatialPosition, bed_position: "none" as SpatialPosition, kitchen_visible: "none" as KitchenVisiblePosition, visual_anchor: "none" as VisualAnchorType, anchor_position: "center" as AnchorPosition };
+          return { id, room_type: "living-room-wide" as RoomType, window_position: "none" as SpatialPosition, bed_position: "none" as SpatialPosition, kitchen_visible: "none" as KitchenVisiblePosition, visual_anchor: "none" as VisualAnchorType, anchor_position: "center" as AnchorPosition, facade_symmetry: "none" as FacadeSymmetry, door_position: "none" as DoorPosition, stories: "none" as Stories, fence_obstruction: "none" as FenceObstruction, driveway_dominance: "none" as DrivewayDominance };
         }
       })
     );

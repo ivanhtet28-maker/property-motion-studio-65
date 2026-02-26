@@ -513,6 +513,11 @@ Contact us today for a private inspection.`;
           kitchenVisible: metadata?.kitchenVisible || "none",
           visualAnchor: metadata?.visualAnchor || "none",
           anchorPosition: metadata?.anchorPosition || "center",
+          facadeSymmetry: metadata?.facadeSymmetry || "none",
+          doorPosition: metadata?.doorPosition || "none",
+          stories: metadata?.stories || "none",
+          fenceObstruction: metadata?.fenceObstruction || "none",
+          drivewayDominance: metadata?.drivewayDominance || "none",
         };
       });
 
