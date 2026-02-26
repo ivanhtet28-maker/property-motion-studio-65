@@ -714,7 +714,9 @@
                 {
                   asset: isKenBurns
                     ? { type: "image", src: imageUrls![0] }  // Ken Burns: use first photo
-                    : { type: "video", src: videoUrls![0] }, // AI mode: use first video clip
+                    : fallbackSet.has(0)
+                      ? { type: "image", src: videoUrls![0] }  // Fallback: image URL, not video
+                      : { type: "video", src: videoUrls![0] }, // AI mode: use first video clip
                   start: videoClipsDuration,
                   length: agentCardDuration,
                   filter: "blur",

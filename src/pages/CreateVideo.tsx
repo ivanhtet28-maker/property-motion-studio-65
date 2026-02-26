@@ -251,7 +251,7 @@ export default function CreateVideo() {
             customTitle: customTitle,
             stitchJobId: currentStitchJobId,
             clipDurations: clipDurations,
-            provider: provider || "luma",
+            provider: provider || "runway",
             imageUrls: imageUrls,  // For hybrid fallback — original photos replace failed AI clips
           },
         });
