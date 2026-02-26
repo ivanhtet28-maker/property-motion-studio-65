@@ -110,7 +110,7 @@ try {
 - ⚪ **LUMA_API_KEY** - Cinematic intro (only if user enables it)
 - ⚪ **ELEVENLABS_API_KEY** - Voice synthesis (only if user selects voice)
 - ⚪ **OPENAI_API_KEY** - AI script generation (only if user clicks "Generate Script")
-- ⚪ **SCRAPER_API_KEY** - Property scraping (only if user uses scrape feature)
+- ⚪ **SCRAPINGDOG_API_KEY** - Property scraping (only if user uses scrape feature)
 
 ---
 

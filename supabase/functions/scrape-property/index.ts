@@ -1,4 +1,4 @@
-// ScraperAPI Integration for Property Image Scraping
+// Scrapingdog Integration for Property Image Scraping
 // Supports: realestate.com.au (REA), Domain.com.au, Realtor.com.au
 //
 // Two modes:
@@ -8,8 +8,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const SCRAPER_API_KEY = Deno.env.get("SCRAPER_API_KEY") || "";
-const SCRAPER_API_BASE = "https://api.scraperapi.com";
+const SCRAPINGDOG_API_KEY = Deno.env.get("SCRAPINGDOG_API_KEY") || "";
+const SCRAPINGDOG_API_BASE = "https://api.scrapingdog.com/scrape";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -64,7 +64,7 @@ function extractListingId(url: string, website: string): string | undefined {
   return undefined;
 }
 
-// ── Direct Fetch (no ScraperAPI — free fallback) ────────────────────────────
+// ── Direct Fetch (no Scrapingdog — free fallback) ────────────────────────────
 
 async function directFetch(url: string): Promise<string> {
   console.log("Attempting direct fetch for:", url);
@@ -88,26 +88,26 @@ async function directFetch(url: string): Promise<string> {
   return await response.text();
 }
 
-// ── Headless Fetch via ScraperAPI ────────────────────────────────────────────
+// ── Headless Fetch via Scrapingdog ──────────────────────────────────────────
 
 async function scrapePropertyData(url: string): Promise<string> {
-  // Strategy 1: Try ScraperAPI if key is available
-  if (SCRAPER_API_KEY) {
+  // Strategy 1: Try Scrapingdog if key is available
+  if (SCRAPINGDOG_API_KEY) {
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const scraperUrl = new URL(SCRAPER_API_BASE);
-        scraperUrl.searchParams.set("api_key", SCRAPER_API_KEY);
+        const scraperUrl = new URL(SCRAPINGDOG_API_BASE);
+        scraperUrl.searchParams.set("api_key", SCRAPINGDOG_API_KEY);
         scraperUrl.searchParams.set("url", url);
-        scraperUrl.searchParams.set("render", "true");
-        // Note: country_code=au and premium=true removed — not supported on free plan
+        scraperUrl.searchParams.set("dynamic", "true");
+        scraperUrl.searchParams.set("country", "au");
 
         if (attempt > 0) {
           scraperUrl.searchParams.set("session_number", String(Date.now()));
-          console.log(`Retrying ScraperAPI (attempt ${attempt + 1}) for:`, url);
+          console.log(`Retrying Scrapingdog (attempt ${attempt + 1}) for:`, url);
         } else {
-          console.log("Calling ScraperAPI for:", url);
+          console.log("Calling Scrapingdog for:", url);
         }
 
         const response = await fetch(scraperUrl.toString(), {
@@ -116,28 +116,28 @@ async function scrapePropertyData(url: string): Promise<string> {
 
         if (!response.ok) {
           const errorBody = await response.text().catch(() => "");
-          console.error(`ScraperAPI error (attempt ${attempt + 1}):`, response.status, errorBody);
-          throw new Error(`ScraperAPI error: ${response.status} ${response.statusText}`);
+          console.error(`Scrapingdog error (attempt ${attempt + 1}):`, response.status, errorBody);
+          throw new Error(`Scrapingdog error: ${response.status} ${response.statusText}`);
         }
 
         const html = await response.text();
         if (html.length > 1000) {
-          console.log("ScraperAPI succeeded, HTML length:", html.length);
+          console.log("Scrapingdog succeeded, HTML length:", html.length);
           return html;
         }
-        throw new Error("ScraperAPI returned insufficient HTML");
+        throw new Error("Scrapingdog returned insufficient HTML");
       } catch (e) {
         lastError = e;
-        console.warn(`ScraperAPI attempt ${attempt + 1} failed:`, e.message);
+        console.warn(`Scrapingdog attempt ${attempt + 1} failed:`, e.message);
         if (attempt < 1) {
           await new Promise((r) => setTimeout(r, 2000));
         }
       }
     }
 
-    console.warn("ScraperAPI failed, falling back to direct fetch. Last error:", lastError?.message);
+    console.warn("Scrapingdog failed, falling back to direct fetch. Last error:", lastError?.message);
   } else {
-    console.log("No SCRAPER_API_KEY set, using direct fetch");
+    console.log("No SCRAPINGDOG_API_KEY set, using direct fetch");
   }
 
   // Strategy 2: Direct fetch fallback (works for REA server-rendered pages)
