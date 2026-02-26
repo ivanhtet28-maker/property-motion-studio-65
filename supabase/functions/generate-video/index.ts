@@ -2,9 +2,6 @@
   /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
   import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-  // NOTE: imagescript uses WASM and must be dynamically imported to avoid
-  // Supabase Edge Function boot errors (546). It is only needed for the
-  // Runway dual-crop path, not for Ken Burns or Canvas flows.
 
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -134,91 +131,13 @@
     seed: number;
   }
 
+  // Dual-crop disabled: imagescript uses WASM which causes Supabase Edge Function
+  // boot errors (546). Images pass through unchanged — Runway handles cropping itself.
   async function dualCropLandscape(
-    imageUrl: string,
-    supabase: ReturnType<typeof createClient>
+    _imageUrl: string,
+    _supabase: ReturnType<typeof createClient>
   ): Promise<DualCropResult | null> {
-    try {
-      const response = await fetch(imageUrl);
-      if (!response.ok) {
-        console.warn(`Dual-crop: failed to fetch image (${response.status})`);
-        return null;
-      }
-
-      const imageBuffer = new Uint8Array(await response.arrayBuffer());
-      const { Image } = await import("https://deno.land/x/imagescript@1.3.0/mod.ts");
-      const image = await Image.decode(imageBuffer);
-
-      const { width, height } = image;
-      console.log(`Dual-crop check: ${width}x${height} (ratio: ${(width / height).toFixed(2)})`);
-
-      // Only dual-crop clearly landscape images (width > 1.3× height)
-      if (width <= height * 1.3) {
-        return null;
-      }
-
-      // Calculate 9:16 crop width from the image height, with 10% overlap
-      // between Crop A and Crop B so the viewer sees shared context across the pair.
-      const baseCropWidth = Math.round((height * 9) / 16);
-      const overlap = Math.round(baseCropWidth * 0.1);
-      const cropWidth = Math.min(baseCropWidth + overlap, width);
-
-      if (cropWidth >= width) {
-        console.log(`Dual-crop: crop width (${cropWidth}) >= image width (${width}), skipping`);
-        return null;
-      }
-
-      // Crop A (Anchor): Left-weighted 9:16 slice with 10% overlap into center
-      const leftImage = image.clone().crop(0, 0, cropWidth, height);
-      const leftBuffer = await leftImage.encodeJPEG(90);
-
-      // Crop B (Detail): Right-weighted 9:16 slice with 10% overlap into center
-      const rightX = Math.max(width - cropWidth, 0);
-      const rightImage = image.clone().crop(rightX, 0, cropWidth, height);
-      const rightBuffer = await rightImage.encodeJPEG(90);
-
-      console.log(`Dual-crop: base=${baseCropWidth}px, overlap=${overlap}px, final cropWidth=${cropWidth}px`);
-
-      // Upload both crops to Supabase Storage
-      const timestamp = Date.now();
-      const randomId = Math.random().toString(36).substring(2, 8);
-      const leftPath = `dual-crops/${timestamp}-${randomId}-left.jpg`;
-      const rightPath = `dual-crops/${timestamp}-${randomId}-right.jpg`;
-
-      const { error: leftErr } = await supabase.storage
-        .from("video-assets")
-        .upload(leftPath, leftBuffer, { contentType: "image/jpeg", upsert: true });
-
-      if (leftErr) {
-        console.error("Dual-crop: left upload failed:", leftErr);
-        return null;
-      }
-
-      const { error: rightErr } = await supabase.storage
-        .from("video-assets")
-        .upload(rightPath, rightBuffer, { contentType: "image/jpeg", upsert: true });
-
-      if (rightErr) {
-        console.error("Dual-crop: right upload failed:", rightErr);
-        return null;
-      }
-
-      const { data: leftUrlData } = supabase.storage.from("video-assets").getPublicUrl(leftPath);
-      const { data: rightUrlData } = supabase.storage.from("video-assets").getPublicUrl(rightPath);
-
-      const seed = Math.floor(Math.random() * 2147483647);
-
-      console.log(`Dual-crop complete: ${width}x${height} → 2× ${cropWidth}x${height} (seed: ${seed})`);
-
-      return {
-        leftUrl: leftUrlData.publicUrl,
-        rightUrl: rightUrlData.publicUrl,
-        seed,
-      };
-    } catch (err) {
-      console.error("Dual-crop failed, falling back to original:", err);
-      return null;
-    }
+    return null;
   }
 
   Deno.serve(async (req) => {
