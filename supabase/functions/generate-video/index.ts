@@ -555,12 +555,13 @@
         const cropResult = await dualCropLandscape(originalUrl, supabaseCrop);
 
         if (cropResult) {
-          console.log(`Image ${i + 1}: LANDSCAPE → dual-cropped (seed: ${cropResult.seed})`);
+          console.log(`Image ${i + 1}: LANDSCAPE → dual-cropped (seed: ${cropResult.seed}, room_type: ${meta.room_type || "unknown"})`);
 
           // Determine crop direction for living rooms with detected windows
           const isLivingRoom = meta.room_type && LIVING_ROOM_TYPES.has(meta.room_type);
           const windowPos = meta.windowPosition || "none";
           const windowsOnRight = isLivingRoom && windowPos === "right";
+          console.log(`Image ${i + 1} dual-crop decision: room_type=${meta.room_type}, isLivingRoom=${isLivingRoom}, windowPos=${windowPos}, windowsOnRight=${windowsOnRight}`);
 
           // Check if adding both crops would exceed the limit
           if (expandedMetadata.length + 2 > 10) {

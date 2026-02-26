@@ -732,7 +732,18 @@ Deno.serve(async (req) => {
         } else if (motionBias === "slide-left") {
           finalCameraMotion = { zoom: -1, horizontal: -3, pan: -1, tilt: 0, vertical: 0, roll: 0 };
         } else if (motionBias === "push-forward") {
-          finalCameraMotion = { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 };
+          if (isBedroom) {
+            // Bedrooms: never push into bed — gentle detail reveal with pullback
+            finalCameraMotion = { zoom: -0.5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 };
+            console.log(`Push-forward overridden for bedroom: zoom: -0.5 (pullback)`);
+          } else if (isExterior) {
+            // Exterior: gentle approach, slight rise for cinematic feel
+            finalCameraMotion = { zoom: 1.5, horizontal: 0, pan: 0, tilt: 0, vertical: 0.3, roll: 0 };
+            console.log(`Push-forward overridden for exterior: zoom: 1.5 (gentle approach)`);
+          } else {
+            // All other rooms: reduced from 3 to 2 for smoother motion
+            finalCameraMotion = { zoom: 2, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 };
+          }
         }
 
         // Directional override based on detected spatial positions + visual anchor
@@ -755,6 +766,17 @@ Deno.serve(async (req) => {
             };
             console.log(`Directional override: window=${winPos}, bed=${bedPos}, kitchen=${kitchenPos}, anchor=${anchorType}@${anchorPos} → ${JSON.stringify(directional.camera_motion)}`);
           }
+        }
+
+        // Final safety nets — ensure room-type constraints are NEVER bypassed,
+        // regardless of which code path set finalCameraMotion above.
+        if (isBedroom && finalCameraMotion.zoom > -0.5) {
+          console.log(`Bedroom final safety: zoom clamped to -0.5 (was ${finalCameraMotion.zoom})`);
+          finalCameraMotion = { ...finalCameraMotion, zoom: -0.5 };
+        }
+        if (isExterior && fenceObstruction === "yes" && finalCameraMotion.zoom > 0) {
+          console.log(`Exterior fence safety: zoom clamped to 0 (was ${finalCameraMotion.zoom})`);
+          finalCameraMotion = { ...finalCameraMotion, zoom: 0 };
         }
 
         // Always generate 5s — shortest Runway supports. Shotstack hard-cuts to 3.5s for pacing.
