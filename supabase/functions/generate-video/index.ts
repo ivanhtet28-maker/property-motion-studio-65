@@ -2,7 +2,9 @@
   /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
   import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-  import { Image } from "https://deno.land/x/imagescript@1.3.0/mod.ts";
+  // NOTE: imagescript uses WASM and must be dynamically imported to avoid
+  // Supabase Edge Function boot errors (546). It is only needed for the
+  // Runway dual-crop path, not for Ken Burns or Canvas flows.
 
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -144,6 +146,7 @@
       }
 
       const imageBuffer = new Uint8Array(await response.arrayBuffer());
+      const { Image } = await import("https://deno.land/x/imagescript@1.3.0/mod.ts");
       const image = await Image.decode(imageBuffer);
 
       const { width, height } = image;
