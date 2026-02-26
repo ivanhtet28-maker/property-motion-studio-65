@@ -149,7 +149,7 @@
       const { imageUrls, imageMetadata, propertyData, style, layout, customTitle, voice, music, userId, propertyId, script, source, agentInfo, preGeneratedVideoUrls, useKenBurns }: GenerateVideoRequest = await req.json();
 
       console.log("=== VIDEO GENERATION ===");
-      console.log("Mode:", useKenBurns ? "Ken Burns (Shotstack direct)" : "Luma AI");
+      console.log("Mode:", useKenBurns ? "Ken Burns (Shotstack direct)" : "Runway Gen-3a");
       console.log("Total images:", imageUrls?.length || 0);
       console.log("Property:", propertyData?.address);
 

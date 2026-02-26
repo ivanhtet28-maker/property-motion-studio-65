@@ -25,7 +25,6 @@ async function updateVideoRecord(
       status: string;
       download_url?: string;
       completed_at?: string;
-      error_message?: string;
     } = {
       status,
     };
@@ -39,7 +38,7 @@ async function updateVideoRecord(
     }
 
     if (errorMessage) {
-      updateData.error_message = errorMessage;
+      console.warn("Video error detail:", errorMessage);
     }
 
     const { error } = await supabase
