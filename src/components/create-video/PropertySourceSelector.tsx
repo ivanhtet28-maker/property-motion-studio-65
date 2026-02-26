@@ -16,6 +16,8 @@ import {
   ImageMetadata,
   CameraAction,
   RoomType,
+  SpatialPosition,
+  KitchenVisiblePosition,
   ROOM_TO_DEFAULT_ACTION,
 } from "./PhotoUpload";
 import { supabase } from "@/lib/supabase";
@@ -81,7 +83,7 @@ export function PropertySourceSelector({
 
   // Store detection results keyed by URL
   const [detectionResults, setDetectionResults] = useState<
-    Record<string, { roomType: RoomType; label: string; cameraAction: CameraAction }>
+    Record<string, { roomType: RoomType; label: string; cameraAction: CameraAction; windowPosition?: string; bedPosition?: string; kitchenVisible?: string }>
   >({});
 
   // Prevent duplicate AI detection calls
@@ -146,7 +148,7 @@ export function PropertySourceSelector({
 
         setDetectionResults((prev) => ({
           ...prev,
-          [imageUrl]: { roomType, label, cameraAction },
+          [imageUrl]: { roomType, label, cameraAction, windowPosition: result?.window_position ?? "none", bedPosition: result?.bed_position ?? "none", kitchenVisible: result?.kitchen_visible ?? "none" },
         }));
       } catch (err) {
         console.error("Room detection failed for", imageUrl, err);
@@ -157,6 +159,9 @@ export function PropertySourceSelector({
             roomType: "living-room-wide" as RoomType,
             label: "Living Room",
             cameraAction: "space-sweep" as CameraAction,
+            windowPosition: "none",
+            bedPosition: "none",
+            kitchenVisible: "none",
           },
         }));
       } finally {
@@ -192,6 +197,9 @@ export function PropertySourceSelector({
           duration: 3.5,
           isDetecting,
           autoDetected: !!detection,
+          windowPosition: (detection?.windowPosition ?? "none") as SpatialPosition,
+          bedPosition: (detection?.bedPosition ?? "none") as SpatialPosition,
+          kitchenVisible: (detection?.kitchenVisible ?? "none") as KitchenVisiblePosition,
         };
       });
 

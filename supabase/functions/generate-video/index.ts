@@ -30,6 +30,7 @@
     duration: number;
     windowPosition?: string; // "left" | "right" | "center" | "none"
     bedPosition?: string;    // "left" | "right" | "center" | "none"
+    kitchenVisible?: string; // "left" | "right" | "none" — open-plan kitchen detection
   }
 
   interface GenerateVideoRequest {
@@ -523,6 +524,7 @@
         motionBias?: "slide-right" | "slide-left" | "push-forward";
         windowPosition?: string;
         bedPosition?: string;
+        kitchenVisible?: string;
       }> = [];
       const expandedImageUrls: string[] = []; // Original URLs for hybrid fallback
 

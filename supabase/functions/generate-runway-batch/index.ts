@@ -217,6 +217,10 @@ const ROOM_ANCHORS: Record<string, { focus: string; stability: string }> = {
     focus: "Focus on interior furnishings like sofa and coffee table, not windows or light sources.",
     stability: "Fixed walls, stable ceiling lines, fixed window frames.",
   },
+  "living-room-open-plan": {
+    focus: "Focus on the full open-plan layout. Start from the living area furnishings and reveal the kitchen bench, island, or countertops as the camera orbits. Showcase the connected flow between living and kitchen spaces.",
+    stability: "Fixed walls, stable ceiling lines, fixed window frames. Stable kitchen island and cabinetry. Fixed countertop edges.",
+  },
   "kitchen": {
     focus: "Focus on island bench and cabinetry, not windows or light sources.",
     stability: "Stable island bench, fixed splashback and appliances.",
@@ -237,6 +241,7 @@ const ROOM_ANCHORS: Record<string, { focus: string; stability: string }> = {
 
 // ── Spatial Position Type ─────────────────────────────────────────────────
 type SpatialPosition = "left" | "right" | "center" | "none";
+type KitchenVisiblePosition = "left" | "right" | "none";
 
 // Living room rooms that should orbit away from windows
 const LIVING_ROOM_TYPES = new Set(["living-room-wide", "living-room-orbit"]);
@@ -246,9 +251,10 @@ const EXTERIOR_TYPES = new Set(["exterior-arrival", "front-door"]);
 /**
  * Compute directional camera_motion overrides based on spatial detection.
  *
- * Living rooms: orbit AWAY from windows to showcase the interior.
- *   - Windows on left → orbit right (positive horizontal)
- *   - Windows on right → orbit left (negative horizontal)
+ * Living rooms (priority order):
+ *   1. Kitchen visible → orbit TOWARD kitchen to reveal open-plan layout
+ *   2. No kitchen, windows detected → orbit AWAY from windows
+ *   3. No kitchen, no windows → default interior-facing orbit
  *
  * Bedrooms: wide orbit away from bed / away from windows.
  *   - Bed on right → orbit left (negative horizontal)
@@ -259,10 +265,26 @@ function getDirectionalOverride(
   roomType: string | undefined,
   windowPosition: SpatialPosition,
   bedPosition: SpatialPosition,
+  kitchenVisible: KitchenVisiblePosition = "none",
 ): { camera_motion: Record<string, number>; promptSuffix: string } | null {
   if (!roomType) return null;
 
   if (LIVING_ROOM_TYPES.has(roomType)) {
+    // Priority 1: Kitchen visible in frame → orbit TOWARD kitchen
+    if (kitchenVisible === "right") {
+      return {
+        camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
+        promptSuffix: "Smooth cinematic orbit toward the open kitchen, revealing the full open-plan layout. Glide right to showcase the connection between living and kitchen spaces.",
+      };
+    }
+    if (kitchenVisible === "left") {
+      return {
+        camera_motion: { zoom: 2, horizontal: -3, pan: -1, tilt: 0, vertical: 0, roll: 0 },
+        promptSuffix: "Smooth cinematic orbit toward the open kitchen, revealing the full open-plan layout. Glide left to showcase the connection between living and kitchen spaces.",
+      };
+    }
+
+    // Priority 2: No kitchen, windows detected → orbit AWAY from windows
     if (windowPosition === "left") {
       return {
         camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
@@ -282,7 +304,8 @@ function getDirectionalOverride(
         promptSuffix: "Gentle lateral glide away from the centered windows, showcasing the interior furnishings of the room.",
       };
     }
-    // No windows detected: default interior-facing orbit (slide right, away from typical window walls)
+
+    // Priority 3: No kitchen, no windows → default interior-facing orbit
     return {
       camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
       promptSuffix: "Smooth interior-facing orbit showcasing furnishings and room layout. Focus on the interior, not windows or light sources.",
@@ -335,10 +358,14 @@ const ANTI_MORPHING = "Locked geometry. No morphing, no liquid surfaces, no stru
 
 // Compose a prompt by combining a Camera Action's motion style with a room's fixture anchors.
 // This allows any action to pair with any room without room-mismatched prompts.
-function composePrompt(actionKey: CameraActionKey, roomType?: string): string {
+// When kitchenVisible is set for living rooms, uses open-plan anchors instead.
+function composePrompt(actionKey: CameraActionKey, roomType?: string, kitchenVisible: KitchenVisiblePosition = "none"): string {
   const motion = ACTION_MOTION[actionKey];
   const ctxKey = roomType ? ROOM_CONTEXT_KEY[roomType] : null;
-  const anchors = ctxKey ? ROOM_ANCHORS[ctxKey] : DEFAULT_ANCHORS;
+  // Use open-plan anchors when kitchen is visible in a living room
+  const isOpenPlan = kitchenVisible !== "none" && ctxKey === "living-room";
+  const anchorsKey = isOpenPlan ? "living-room-open-plan" : ctxKey;
+  const anchors = anchorsKey ? ROOM_ANCHORS[anchorsKey] : DEFAULT_ANCHORS;
   return `${motion.motion} ${motion.perspective} ${anchors.focus} ${anchors.stability} ${ANTI_MORPHING}`;
 }
 
@@ -380,8 +407,8 @@ Deno.serve(async (req) => {
 
     // Submit all at once — Runway queues excess tasks with THROTTLED status.
     // No requests-per-minute rate limit; no concurrency cap needed client-side.
-    const generationPromises = imageMetadata.map(async (metadata: { url: string; cameraAngle?: string; room_type?: string; cameraAction?: string; duration?: number; seed?: number; motionBias?: "slide-right" | "slide-left" | "push-forward"; windowPosition?: string; bedPosition?: string }, index: number) => {
-      const { url: imageUrl, cameraAngle, room_type, cameraAction, duration, seed, motionBias, windowPosition, bedPosition } = metadata;
+    const generationPromises = imageMetadata.map(async (metadata: { url: string; cameraAngle?: string; room_type?: string; cameraAction?: string; duration?: number; seed?: number; motionBias?: "slide-right" | "slide-left" | "push-forward"; windowPosition?: string; bedPosition?: string; kitchenVisible?: string }, index: number) => {
+      const { url: imageUrl, cameraAngle, room_type, cameraAction, duration, seed, motionBias, windowPosition, bedPosition, kitchenVisible } = metadata;
       try {
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
         console.log(`Image: ${imageUrl}`);
@@ -395,7 +422,7 @@ Deno.serve(async (req) => {
           const basePreset = CAMERA_ACTION_MAP[actionKey];
           preset = {
             camera_motion: { ...basePreset.camera_motion },
-            promptText: composePrompt(actionKey, room_type),
+            promptText: composePrompt(actionKey, room_type, (kitchenVisible || "none") as KitchenVisiblePosition),
             duration: basePreset.duration,
           };
           // Bedroom zoom protection: space-sweep maps to LOUNGE_DRIFT (zoom:2) which
@@ -451,12 +478,13 @@ Deno.serve(async (req) => {
           finalCameraMotion = { zoom: 3, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 };
         }
 
-        // Directional override based on detected window/bed position
+        // Directional override based on detected window/bed/kitchen position
         // Applies when no motionBias OR when room is a bedroom (bed-aware orbit must always fire)
         const winPos = (windowPosition || "none") as SpatialPosition;
         const bedPos = (bedPosition || "none") as SpatialPosition;
+        const kitchenPos = (kitchenVisible || "none") as KitchenVisiblePosition;
         if (!motionBias || isBedroom) {
-          const directional = getDirectionalOverride(room_type, winPos, bedPos);
+          const directional = getDirectionalOverride(room_type, winPos, bedPos, kitchenPos);
           if (directional) {
             finalCameraMotion = directional.camera_motion;
             // Append directional prompt suffix to the preset's prompt
@@ -464,7 +492,7 @@ Deno.serve(async (req) => {
               ...preset,
               promptText: preset.promptText + " " + directional.promptSuffix,
             };
-            console.log(`Directional override: window=${winPos}, bed=${bedPos} → ${JSON.stringify(directional.camera_motion)}`);
+            console.log(`Directional override: window=${winPos}, bed=${bedPos}, kitchen=${kitchenPos} → ${JSON.stringify(directional.camera_motion)}`);
           }
         }
 
