@@ -124,6 +124,7 @@ Deno.serve(async (req) => {
 
     const isRunway = provider === "runway";
     const batchCheckFunction = isRunway ? "check-runway-batch" : "check-luma-batch";
+    console.log(`Provider received: "${provider}", using: ${batchCheckFunction}`);
     console.log(`Checking status for ${generationIds.length} ${isRunway ? "Runway" : "Luma"} generations`);
 
     // Check batch status via the appropriate provider function
@@ -140,12 +141,15 @@ Deno.serve(async (req) => {
     );
 
     const statusData = await statusResponse.json();
+    console.log(`Batch check response: success=${statusData.success}, HTTP=${statusResponse.status}`);
 
     if (!statusData.success) {
-      throw new Error(`Failed to check ${isRunway ? "Runway" : "Luma"} batch status`);
+      console.error(`Batch check failed:`, statusData.error || "unknown error");
+      throw new Error(`Failed to check ${isRunway ? "Runway" : "Luma"} batch status: ${statusData.error || "unknown"}`);
     }
 
     const { allCompleted, anyFailed, summary, videoUrls, statuses } = statusData;
+    console.log(`Batch summary: ${summary.completed} completed, ${summary.processing} processing, ${summary.pending} pending, ${summary.failed} failed`);
 
     // Calculate progress based on completed clips
     const progressPercent = Math.round((summary.completed / summary.total) * 80); // 0-80% for AI generation
