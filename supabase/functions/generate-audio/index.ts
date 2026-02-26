@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
       .from("video-assets")
       .upload(`audio/${fileName}`, audioBuffer, {
         contentType: "audio/mpeg",
-        upsert: false,
+        upsert: true,
       });
 
     if (uploadError) {
