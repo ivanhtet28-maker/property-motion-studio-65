@@ -1,17 +1,19 @@
 project_id = "acpkhbjgnlenjfiswftx"
 
+# User-facing functions require JWT authentication
 [functions.generate-video]
-verify_jwt = false
+verify_jwt = true
 
 [functions.generate-script]
-verify_jwt = false
+verify_jwt = true
 
 [functions.video-status]
-verify_jwt = false
+verify_jwt = true
 
 [functions.scrape-property]
-verify_jwt = false
+verify_jwt = true
 
+# Internal functions called by other edge functions (not browser-facing)
 [functions.generate-runway-batch]
 verify_jwt = false
 
@@ -25,4 +27,8 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.stitch-video]
+verify_jwt = false
+
+# Stripe webhook uses its own signature verification, not JWT
+[functions.stripe-webhook]
 verify_jwt = false

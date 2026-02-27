@@ -11,13 +11,12 @@
 //   4. De-duplicate and filter to high-res URLs only.
 //   5. Return all found image URLs (the frontend handles selection of up to 10).
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
 const SCRAPINGDOG_API_KEY = Deno.env.get("SCRAPINGDOG_API_KEY") || "";
 const SCRAPINGDOG_API_BASE = "https://api.scrapingdog.com/scrape";
 
+const ALLOWED_ORIGIN = Deno.env.get("CORS_ALLOWED_ORIGIN") || "*";
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
@@ -263,7 +262,7 @@ function filterHighResImages(urls: string[]): string[] {
 
 // ── Main Handler ─────────────────────────────────────────────────────────────
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

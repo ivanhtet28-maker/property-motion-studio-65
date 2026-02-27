@@ -2,8 +2,9 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const ALLOWED_ORIGIN = Deno.env.get("CORS_ALLOWED_ORIGIN") || "*";
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
@@ -23,14 +24,15 @@ async function updateVideoRecord(
 
     const updateData: {
       status: string;
-      download_url?: string;
+      video_url?: string;
       completed_at?: string;
+      error_message?: string;
     } = {
       status,
     };
 
     if (videoUrl) {
-      updateData.download_url = videoUrl;
+      updateData.video_url = videoUrl;
     }
 
     if (status === "completed") {
@@ -38,6 +40,7 @@ async function updateVideoRecord(
     }
 
     if (errorMessage) {
+      updateData.error_message = errorMessage;
       console.warn("Video error detail:", errorMessage);
     }
 

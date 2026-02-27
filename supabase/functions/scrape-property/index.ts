@@ -5,14 +5,14 @@
 //   default       — full scrape: extract property data + upload images to storage + DB records
 //   "images-only" — lightweight: extract gallery image URLs only, return them directly (no DB, no upload)
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SCRAPINGDOG_API_KEY = Deno.env.get("SCRAPINGDOG_API_KEY") || "";
 const SCRAPINGDOG_API_BASE = "https://api.scrapingdog.com/scrape";
 
+const ALLOWED_ORIGIN = Deno.env.get("CORS_ALLOWED_ORIGIN") || "*";
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
@@ -564,7 +564,7 @@ async function uploadImageToStorage(
 
 // ── Main Handler ─────────────────────────────────────────────────────────────
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });

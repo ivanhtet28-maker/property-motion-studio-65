@@ -2,8 +2,9 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const ALLOWED_ORIGIN = Deno.env.get("CORS_ALLOWED_ORIGIN") || "*";
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
@@ -62,36 +63,34 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Check if user exists in users table and has a Stripe customer ID
-    let { data: user } = await supabase
-      .from("users")
-      .select("stripe_customer_id, email")
-      .eq("id", userId)
+    // Check if user has a Stripe customer ID in user_preferences
+    let { data: userPrefs } = await supabase
+      .from("user_preferences")
+      .select("stripe_customer_id")
+      .eq("user_id", userId)
       .single();
 
-    // If user doesn't exist in users table, create them
-    if (!user) {
-      console.log("User not found in users table, creating...");
-      const { data: newUser, error: insertError } = await supabase
-        .from("users")
+    // If user_preferences row doesn't exist (handle_new_user trigger may not have fired), create it
+    if (!userPrefs) {
+      console.log("User preferences not found, creating...");
+      const { data: newPrefs, error: insertError } = await supabase
+        .from("user_preferences")
         .insert({
-          id: userId,
-          email: email,
-          plan: 'starter',
-          videos_limit: 10,
+          user_id: userId,
+          subscription_tier: 'starter',
         })
-        .select("stripe_customer_id, email")
+        .select("stripe_customer_id")
         .single();
 
       if (insertError) {
-        console.error("Failed to create user:", insertError);
-        throw new Error(`Failed to create user record: ${insertError.message}`);
+        console.error("Failed to create user preferences:", insertError);
+        throw new Error(`Failed to create user preferences: ${insertError.message}`);
       }
 
-      user = newUser;
+      userPrefs = newPrefs;
     }
 
-    let customerId = user?.stripe_customer_id;
+    let customerId = userPrefs?.stripe_customer_id;
 
     // Create Stripe customer if doesn't exist
     if (!customerId) {
@@ -116,11 +115,11 @@ Deno.serve(async (req) => {
       const customer = await customerResponse.json();
       customerId = customer.id;
 
-      // Save customer ID to database
+      // Save customer ID to user_preferences (same table stripe-webhook reads from)
       await supabase
-        .from("users")
+        .from("user_preferences")
         .update({ stripe_customer_id: customerId })
-        .eq("id", userId);
+        .eq("user_id", userId);
 
       console.log("Stripe customer created:", customerId);
     }

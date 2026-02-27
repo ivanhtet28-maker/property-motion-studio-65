@@ -3,8 +3,9 @@
 
   import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+  const ALLOWED_ORIGIN = Deno.env.get("CORS_ALLOWED_ORIGIN") || "*";
   const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers":
       "authorization, x-client-info, apikey, content-type",
@@ -234,9 +235,9 @@
 
           // Check user subscription status and free trial availability
           const { data: userData, error: userError } = await supabase
-            .from("users")
+            .from("user_preferences")
             .select("subscription_status, free_video_used")
-            .eq("id", userId)
+            .eq("user_id", userId)
             .single();
 
           if (!userError && userData) {
@@ -250,9 +251,9 @@
 
               // Mark free trial as used
               const { error: updateError } = await supabase
-                .from("users")
+                .from("user_preferences")
                 .update({ free_video_used: true })
-                .eq("id", userId);
+                .eq("user_id", userId);
 
               if (updateError) {
                 console.error("Failed to mark free trial as used:", updateError);
