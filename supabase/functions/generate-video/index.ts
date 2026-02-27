@@ -140,6 +140,26 @@
     return null;
   }
 
+  // Mark free trial as consumed — called only AFTER generation successfully starts.
+  async function markFreeTrialUsed(userId: string) {
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      const { error } = await supabase
+        .from("users")
+        .update({ free_video_used: true })
+        .eq("id", userId);
+      if (error) {
+        console.error("Failed to mark free trial as used:", error);
+      } else {
+        console.log("Free trial marked as used for user:", userId);
+      }
+    } catch (err) {
+      console.error("Error marking free trial:", err);
+    }
+  }
+
   Deno.serve(async (req) => {
     if (req.method === "OPTIONS") {
       return new Response("ok", { status: 200, headers: corsHeaders });
@@ -244,21 +264,13 @@
             const hasFreeTrial = !userData.free_video_used;
 
             // Determine if this is a free trial video
+            // Note: free_video_used is NOT marked here — it's marked later
+            // only after video generation successfully starts (Runway queued or
+            // Ken Burns/Canvas job started). This prevents consuming the trial
+            // on failed generations.
             if (!hasActiveSubscription && hasFreeTrial) {
               isFreeTrial = true;
-              console.log("This is a free trial video generation");
-
-              // Mark free trial as used
-              const { error: updateError } = await supabase
-                .from("users")
-                .update({ free_video_used: true })
-                .eq("id", userId);
-
-              if (updateError) {
-                console.error("Failed to mark free trial as used:", updateError);
-              } else {
-                console.log("Free trial marked as used for user:", userId);
-              }
+              console.log("This is a free trial video generation (will mark used after successful start)");
             }
           }
 
@@ -341,6 +353,9 @@
 
         console.log("Ken Burns Shotstack job started:", stitchData.jobId);
 
+        // Mark free trial consumed now that generation succeeded
+        if (isFreeTrial && userId) await markFreeTrialUsed(userId);
+
         return new Response(
           JSON.stringify({
             success: true,
@@ -399,6 +414,9 @@
         }
 
         console.log("Shotstack stitch job started:", stitchData.jobId);
+
+        // Mark free trial consumed now that generation succeeded
+        if (isFreeTrial && userId) await markFreeTrialUsed(userId);
 
         return new Response(
           JSON.stringify({
@@ -591,6 +609,9 @@
         const errors = failedGenerations.map((g) => g.error).join("; ");
         throw new Error(`No valid Runway generation IDs returned. All ${runwayData.generations?.length ?? 0} submissions failed. Errors: ${errors || "unknown"}`);
       }
+
+      // Mark free trial consumed now that at least one Runway generation started
+      if (isFreeTrial && userId) await markFreeTrialUsed(userId);
 
       // Save generation context to DB so Dashboard can resume polling if user navigates away
       if (videoRecordId) {

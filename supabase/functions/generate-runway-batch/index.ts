@@ -658,7 +658,7 @@ Deno.serve(async (req) => {
     }
 
     console.log(`=== RUNWAY GEN3A TURBO BATCH: Generating ${imageMetadata.length} clips ===`);
-    console.log(`RUNWAY_API_KEY present: ${!!RUNWAY_API_KEY}, length: ${RUNWAY_API_KEY.length}, prefix: ${RUNWAY_API_KEY.substring(0, 8)}...`);
+    console.log(`RUNWAY_API_KEY present: ${!!RUNWAY_API_KEY}`);
 
     // Submit all at once — Runway queues excess tasks with THROTTLED status.
     // No requests-per-minute rate limit; no concurrency cap needed client-side.
