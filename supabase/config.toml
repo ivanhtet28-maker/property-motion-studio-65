@@ -1,4 +1,4 @@
-project_id = "acpkhbjgnlenjfiswftx"
+project_id = "pxhpfewunsetuxygeprp"
 
 # User-facing functions require JWT authentication
 [functions.generate-video]

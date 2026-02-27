@@ -72,49 +72,65 @@ Deno.serve(async (req) => {
     if (stitchJobId) {
       console.log("Checking Shotstack stitch job status:", stitchJobId);
 
-      const shotstackResponse = await fetch(
-        `https://api.shotstack.io/v1/render/${stitchJobId}`,
-        {
-          headers: {
-            "x-api-key": Deno.env.get("SHOTSTACK_API_KEY")!,
-          },
+      try {
+        const shotstackResponse = await fetch(
+          `https://api.shotstack.io/v1/render/${stitchJobId}`,
+          {
+            headers: {
+              "x-api-key": Deno.env.get("SHOTSTACK_API_KEY")!,
+            },
+          }
+        );
+
+        if (!shotstackResponse.ok) {
+          console.error(`Shotstack API error: ${shotstackResponse.status}`);
+          return new Response(
+            JSON.stringify({ status: "stitching", progress: 95, message: "Checking stitch status...", stitchJobId }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
         }
-      );
 
-      const shotstackData = await shotstackResponse.json();
-      const shotstackStatus = shotstackData.response?.status; // "queued", "fetching", "rendering", "saving", "done", "failed"
-      const videoUrl = shotstackData.response?.url;
+        const shotstackData = await shotstackResponse.json();
+        const shotstackStatus = shotstackData.response?.status; // "queued", "fetching", "rendering", "saving", "done", "failed"
+        const videoUrl = shotstackData.response?.url;
 
-      console.log("Shotstack status:", shotstackStatus);
+        console.log("Shotstack status:", shotstackStatus);
 
-      if (shotstackStatus === "done" && videoUrl) {
-        await updateVideoRecord(videoId, "completed", videoUrl, 100);
+        if (shotstackStatus === "done" && videoUrl) {
+          await updateVideoRecord(videoId, "completed", videoUrl, 100);
+          return new Response(
+            JSON.stringify({
+              status: "done",
+              videoUrl: videoUrl,
+              message: "Video stitched successfully!",
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        } else if (shotstackStatus === "failed") {
+          await updateVideoRecord(videoId, "failed", null, 0, "Shotstack stitching failed");
+          return new Response(
+            JSON.stringify({
+              status: "failed",
+              message: "Video stitching failed",
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        } else {
+          // Still stitching
+          return new Response(
+            JSON.stringify({
+              status: "stitching",
+              progress: 95,
+              message: "Stitching video clips...",
+              stitchJobId: stitchJobId,
+            }),
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      } catch (shotstackError) {
+        console.error("Shotstack poll error:", shotstackError);
         return new Response(
-          JSON.stringify({
-            status: "done",
-            videoUrl: videoUrl,
-            message: "Video stitched successfully!",
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      } else if (shotstackStatus === "failed") {
-        await updateVideoRecord(videoId, "failed", null, 0, "Shotstack stitching failed");
-        return new Response(
-          JSON.stringify({
-            status: "failed",
-            message: "Video stitching failed",
-          }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      } else {
-        // Still stitching
-        return new Response(
-          JSON.stringify({
-            status: "stitching",
-            progress: 95,
-            message: "Stitching video clips...",
-            stitchJobId: stitchJobId,
-          }),
+          JSON.stringify({ status: "stitching", progress: 95, message: "Checking stitch status...", stitchJobId }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
@@ -131,27 +147,82 @@ Deno.serve(async (req) => {
     console.log(`Checking status for ${generationIds.length} ${isRunway ? "Runway" : "Luma"} generations`);
 
     // Check batch status via the appropriate provider function
-    const statusResponse = await fetch(
-      `${Deno.env.get("SUPABASE_URL")}/functions/v1/${batchCheckFunction}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
-        },
-        body: JSON.stringify({ generationIds }),
-      }
-    );
+    // Use service role key for internal server-to-server calls (more reliable than anon key)
+    const internalAuthKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
 
-    const statusData = await statusResponse.json();
-    console.log(`Batch check response: success=${statusData.success}, HTTP=${statusResponse.status}`);
-
-    if (!statusData.success) {
-      console.error(`Batch check failed:`, statusData.error || "unknown error");
-      throw new Error(`Failed to check ${isRunway ? "Runway" : "Luma"} batch status: ${statusData.error || "unknown"}`);
+    if (!supabaseUrl || !internalAuthKey) {
+      console.error(`Missing env: SUPABASE_URL=${!!supabaseUrl}, auth_key=${!!internalAuthKey}`);
+      return new Response(
+        JSON.stringify({ status: "processing", progress: 5, message: "Waiting for infrastructure..." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    const { allCompleted, anyFailed, summary, videoUrls, statuses } = statusData;
+    let statusData: Record<string, unknown>;
+    try {
+      const statusResponse = await fetch(
+        `${supabaseUrl}/functions/v1/${batchCheckFunction}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${internalAuthKey}`,
+          },
+          body: JSON.stringify({ generationIds }),
+        }
+      );
+
+      console.log(`Batch check HTTP status: ${statusResponse.status}`);
+
+      if (!statusResponse.ok) {
+        const errorText = await statusResponse.text().catch(() => "no body");
+        console.error(`Batch check HTTP error: ${statusResponse.status} — ${errorText}`);
+        // Don't throw — return processing so frontend retries
+        return new Response(
+          JSON.stringify({
+            status: "processing",
+            progress: 10,
+            message: `Checking clip status (provider returned ${statusResponse.status})...`,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      statusData = await statusResponse.json();
+      console.log(`Batch check response: success=${statusData.success}`);
+    } catch (fetchError) {
+      // Network error, JSON parse error, or function crash — return processing so frontend retries
+      console.error(`Batch check fetch/parse error:`, fetchError);
+      return new Response(
+        JSON.stringify({
+          status: "processing",
+          progress: 10,
+          message: "Checking clip status...",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!statusData.success) {
+      console.error(`Batch check failed:`, statusData.error || statusData.msg || "unknown error");
+      // Return processing instead of 500 — the batch checker may recover on next poll
+      return new Response(
+        JSON.stringify({
+          status: "processing",
+          progress: 10,
+          message: `Clip status check failed (${statusData.error || "unknown"}), retrying...`,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { anyFailed, summary, videoUrls, statuses } = statusData as {
+      anyFailed: boolean;
+      summary: { total: number; completed: number; processing: number; pending: number; failed: number };
+      videoUrls: string[];
+      statuses: Array<{ status: string; videoUrl: string | null; generationId: string }>;
+    };
     console.log(`Batch summary: ${summary.completed} completed, ${summary.processing} processing, ${summary.pending} pending, ${summary.failed} failed`);
 
     // Calculate progress based on completed clips
@@ -237,12 +308,12 @@ Deno.serve(async (req) => {
     await updateVideoRecord(videoId, "processing", null, 85, "Stitching video clips...");
 
     const stitchResponse = await fetch(
-      `${Deno.env.get("SUPABASE_URL")}/functions/v1/stitch-video`,
+      `${supabaseUrl}/functions/v1/stitch-video`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+          "Authorization": `Bearer ${internalAuthKey}`,
         },
         body: JSON.stringify({
           videoUrls: finalVideoUrls,
