@@ -525,7 +525,7 @@ Contact us today for a private inspection.`;
         body: {
           imageUrls: imageUrls,
           imageMetadata: imageMetadataPayload,
-          useKenBurns: false, // Use Runway Gen-3a AI generation with camera_motion sliders
+          useKenBurns: true, // Ken Burns: Shotstack applies motion server-side on original photos
           propertyData: propertyDataPayload,
           style: customization.selectedTemplate,
           layout: customization.selectedLayout,
