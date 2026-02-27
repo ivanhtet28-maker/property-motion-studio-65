@@ -139,7 +139,7 @@ Make sure you have a `video-assets` bucket:
 
 **Fix**:
 1. Go to Edge Functions → Secrets
-2. Add `LUMA_API_KEY` with value: `luma-3cd8b9ba-07f7-4650-9293-f25e7dcfb632-62bcfabf-eafa-475b-bd63-4ccba0bc69f7`
+2. Add `LUMA_API_KEY` with the key from your Luma Labs dashboard (never commit API keys to code or docs)
 
 ### Error: "All Luma generations failed"
 
