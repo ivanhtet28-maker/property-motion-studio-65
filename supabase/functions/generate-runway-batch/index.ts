@@ -877,6 +877,8 @@ Deno.serve(async (req) => {
 
       if (firstError.includes("401") || firstError.includes("Unauthorized")) {
         throw new Error("Invalid Runway API key. Please check your RUNWAY_API_KEY secret.");
+      } else if (firstError.includes("402") || firstError.includes("Payment Required") || firstError.includes("insufficient") || firstError.includes("credits")) {
+        throw new Error("Runway account has insufficient credits. Please add credits at https://app.runwayml.com/billing");
       } else if (firstError.includes("403")) {
         throw new Error("Runway API access forbidden. Please check your account status.");
       } else if (firstError.includes("429")) {
