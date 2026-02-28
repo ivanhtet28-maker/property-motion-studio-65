@@ -27,87 +27,112 @@ const VALID_ROOM_TYPES = [
 
 type RoomType = typeof VALID_ROOM_TYPES[number];
 
-const DETECTION_PROMPT = `Classify this real estate photo and detect spatial layout.
+const VALID_INTENTS = [
+  "orbit-right",
+  "orbit-left",
+  "pullback-wide",
+  "pullback-reveal-right",
+  "pullback-reveal-left",
+  "gentle-push",
+  "drift-through",
+  "crane-up",
+  "crane-up-drift-right",
+  "crane-up-drift-left",
+  "approach-gentle",
+  "parallax-exterior",
+  "float-back",
+] as const;
 
-Step 1: List 3-5 key objects or features visible in the photo.
-Step 2: Determine the room type from the list below.
-Step 3: Check if any outdoor-facing windows are visible. If so, note whether they are on the LEFT side, RIGHT side, or CENTER of the image. If no outdoor windows are visible, say "none".
-Step 4: For bedrooms only — note whether the bed is positioned on the LEFT, RIGHT, or CENTER of the image. Skip for non-bedrooms.
-Step 5: For living rooms only (living-room-wide or living-room-orbit) — scan the frame for any visible kitchen elements: island bench, countertops, cabinetry, splashback, rangehood, stovetop, or fridge. Determine which side of the frame the kitchen occupies (left/right/none). If kitchen elements appear across the full width, choose the side with the most prominent kitchen features (island bench or countertop takes priority). For non-living-room types, always say "none".
-Step 6: For all interior rooms — identify the PRIMARY VISUAL ANCHOR, the single most impressive or attention-grabbing feature in this room. Choose from:
-- kitchen-island (visible island bench or waterfall countertop)
-- fireplace (mantle, built-in fireplace)
-- feature-wall (accent wall, wainscoting, artwork gallery)
-- window-view (window showing greenery, city view, garden — NOT harsh sky glare)
-- bed-styling (styled bed with cushions, throws, headboard)
-- vanity (bathroom double vanity, statement mirror)
-- entertainment (TV unit, built-in shelving)
-- ceiling-detail (coffered ceiling, chandelier, tray ceiling)
-- open-plan-flow (the room visually connects to another room)
-- none (no standout feature)
-Also detect which side of the frame this anchor sits on (left/right/center).
-For exterior room types, output "none" and "center".
-Step 7 (exterior-arrival and front-door ONLY) — FACADE ANALYSIS: Analyze the building facade as a drone operator planning the shot:
-a) SYMMETRY: Is the facade architecturally symmetrical? Check: Is the front door centered? Are windows balanced on both sides? Are garages or carports mirrored? Is the roofline balanced? If yes to most → "symmetric". If the entry or main building mass is offset to one side → "asymmetric-left" or "asymmetric-right" (the side where the entry or dominant mass sits).
-b) DOOR POSITION: Where is the main entrance in the frame? (left/center/right)
-c) STORIES: How many stories is the building? (1/2/3). Look for: upper floor windows, roofline height, second-story balconies, upper-level architectural details, visible staircase through windows.
-d) FENCE OBSTRUCTION: Is there a fence, gate, wall, hedge, railing, or any horizontal barrier in the foreground between the camera position and the front door? (yes/no). Includes: iron fences, rendered brick walls, hedgerows, stone pillars, bollards, retaining walls, planter boxes along the boundary.
-e) DRIVEWAY DOMINANCE: Does driveway, pathway, or hardscape pavement dominate the bottom third of the image? (yes/no). If a ground-level camera pushed forward, would it mainly show concrete, pavers, or asphalt?
-For non-exterior rooms: output all facade fields as "none".
-Step 8: Output your answers on the FINAL 11 lines EXACTLY as:
-ROOM_TYPE: <value>
-WINDOW_POSITION: <left|right|center|none>
-BED_POSITION: <left|right|center|none>
-KITCHEN_VISIBLE: <left|right|none>
-VISUAL_ANCHOR: <value>
-ANCHOR_POSITION: <left|right|center>
-FACADE_SYMMETRY: <symmetric|asymmetric-left|asymmetric-right|none>
-DOOR_POSITION: <left|center|right|none>
-STORIES: <1|2|3|none>
-FENCE_OBSTRUCTION: <yes|no|none>
-DRIVEWAY_DOMINANCE: <yes|no|none>
+const DETECTION_PROMPT = `You are an elite real estate cinematographer scouting a property photo before filming a 9:16 portrait video for a luxury property listing. Your job: analyze this image and decide the single best camera move.
 
-Valid room types:
-- exterior-arrival: outside of the property, driveway, facade, street view
-- front-door: close-up of the entrance door or porch
-- entry-foyer: hallway or entrance interior
-- living-room-wide: lounge, living room, open plan living area
-- living-room-orbit: same but photo taken from an angle suggesting a sweep
-- kitchen-orbit: full kitchen view from the side or angle
-- kitchen-push: close-up of kitchen counter, island, appliances, or detail
-- master-bedroom: largest/primary bedroom, usually has ensuite or larger size
-- bedroom: any other bedroom
-- bathroom: any bathroom, ensuite, powder room, toilet
-- outdoor-entertaining: deck, patio, alfresco, pergola, outdoor dining
-- backyard-pool: swimming pool, spa, backyard with grass/garden
-- view-balcony: balcony, terrace, or scenic view from inside`;
+THINK THROUGH THESE STEPS:
 
-type SpatialPosition = "left" | "right" | "center" | "none";
+Step 1 — ROOM TYPE: Classify this photo. Valid types: exterior-arrival, front-door, entry-foyer, living-room-wide, living-room-orbit, kitchen-orbit, kitchen-push, master-bedroom, bedroom, bathroom, outdoor-entertaining, backyard-pool, view-balcony
 
-type KitchenVisiblePosition = "left" | "right" | "none";
+Step 2 — READ THE SPACE: As a videographer standing at the camera position, assess:
+- What is the hero feature that a buyer would notice first?
+- What is on the left side of the frame?
+- What is on the right side of the frame?
+- Are there any obstructions (fences, gates, walls) in the foreground?
+- For exteriors: is the facade symmetrical? How many stories? Is there a fence?
+- For living rooms: is there a kitchen visible in the frame? Which side?
+- For bedrooms: where is the bed? What is more visually interesting — left or right side?
 
-type VisualAnchorType = "kitchen-island" | "fireplace" | "feature-wall" | "window-view" | "bed-styling" | "vanity" | "entertainment" | "ceiling-detail" | "open-plan-flow" | "none";
+Step 3 — IDENTIFY HAZARDS that would ruin the shot:
+- window-glare (bright sky through windows — camera should avoid)
+- fence-obstruction (fence/gate/wall blocking foreground — camera must rise above)
+- driveway-flat (pavement dominates bottom third — camera should ignore ground)
+- bed-dominant (bed fills most of frame — camera must pull BACK, never push forward)
+- dead-wall (one direction leads to blank wall — avoid that direction)
+- List all that apply, comma-separated. Or "none".
 
-type AnchorPosition = "left" | "right" | "center";
+Step 4 — CHOOSE YOUR SHOT: Pick the single best camera move.
 
-type FacadeSymmetry = "symmetric" | "asymmetric-left" | "asymmetric-right" | "none";
-type DoorPosition = "left" | "center" | "right" | "none";
-type Stories = "1" | "2" | "3" | "none";
-type FenceObstruction = "yes" | "no" | "none";
-type DrivewayDominance = "yes" | "no" | "none";
+Think like a real videographer. Where would you place the camera, and what would you reveal as it moves? Always move TOWARD the most impressive feature. Never move toward blank walls, fences, or empty space.
+
+Available camera intents:
+
+INTERIOR MOVES:
+- orbit-right: Smooth lateral orbit revealing what is on the right. Use when the best feature (kitchen, fireplace, staircase, feature wall) is on the right side.
+- orbit-left: Smooth lateral orbit revealing what is on the left. Use when the best feature is on the left side.
+- pullback-wide: Slow pull backward revealing room scale. Use for bedrooms with centered beds, tight bathrooms, or any room where the story is "look how spacious this is."
+- pullback-reveal-right: Pull back while subtly drifting right. Use for bedrooms where the bed is on the left — reveals floor space on the right while pulling back.
+- pullback-reveal-left: Pull back while subtly drifting left. Use for bedrooms where the bed is on the right — reveals floor space on the left while pulling back.
+- gentle-push: Very slow forward creep. ONLY for bathrooms approaching vanity/shower, or narrow hallways. NEVER for bedrooms. NEVER for living rooms with windows ahead.
+- drift-through: Floating lateral glide with minimal zoom. For long spaces like entries, hallways, open-plan rooms showing flow between areas.
+
+EXTERIOR MOVES:
+- crane-up: Pure vertical rise, no lateral. For symmetrical facades WITH fences. Rises above the fence, reveals upper stories, keeps centered.
+- crane-up-drift-right: Rising crane drifting right. For asymmetric facades with fence, entrance on right.
+- crane-up-drift-left: Rising crane drifting left. For asymmetric facades with fence, entrance on left.
+- approach-gentle: Slow forward with subtle rise. For homes WITHOUT fences where walking toward the front door works.
+- parallax-exterior: Lateral glide past facade. For single-story homes without fences where width is the statement.
+
+OUTDOOR MOVES:
+- float-back: Rising pullback from above. For pools, backyards, entertaining areas.
+
+BEDROOM RULES (critical):
+- NEVER choose gentle-push for a bedroom. The camera must NEVER move forward into a bed.
+- Always choose pullback-wide, pullback-reveal-left, or pullback-reveal-right.
+- If the bed is centered: pullback-wide.
+- If the bed is on the left: pullback-reveal-right (drift away from bed).
+- If the bed is on the right: pullback-reveal-left (drift away from bed).
+- If there is a standout feature (staircase, fireplace, feature wall, artwork) on one side, drift TOWARD it while pulling back.
+
+EXTERIOR RULES (critical):
+- If there is a fence, gate, or wall in the foreground: MUST choose crane-up or crane-up-drift. Never approach-gentle or parallax-exterior.
+- If the facade is symmetrical: MUST choose crane-up (pure vertical, no lateral drift).
+- If single story with no fence: parallax-exterior or approach-gentle are fine.
+
+LIVING ROOM RULES (critical):
+- If a kitchen is visible in the frame: ALWAYS orbit TOWARD the kitchen. The kitchen reveal is the payoff of an open-plan shot. This overrides everything else.
+- If no kitchen but a standout feature exists: orbit toward it.
+- If no kitchen and windows are causing glare: orbit AWAY from windows.
+
+Step 5 — JUSTIFY in one sentence why this is the right shot.
+
+OUTPUT FORMAT — exactly these 5 lines, no extra text:
+ROOM_TYPE: [type from valid list]
+CAMERA_INTENT: [intent from available list above]
+HERO_FEATURE: [2-5 word description of what the camera reveals]
+HAZARDS: [comma-separated list or "none"]
+REASONING: [one sentence]`;
 
 interface DetectionResult {
   room_type: RoomType;
-  window_position: SpatialPosition;
-  bed_position: SpatialPosition;
-  kitchen_visible: KitchenVisiblePosition;
-  visual_anchor: VisualAnchorType;
-  anchor_position: AnchorPosition;
-  facade_symmetry: FacadeSymmetry;
-  door_position: DoorPosition;
-  stories: Stories;
-  fence_obstruction: FenceObstruction;
-  driveway_dominance: DrivewayDominance;
+  camera_intent: string;
+  hero_feature: string;
+  hazards: string;
+}
+
+function getDefaultIntent(roomType: string): string {
+  if (roomType.startsWith("exterior") || roomType === "front-door") return "crane-up";
+  if (roomType === "entry-foyer") return "drift-through";
+  if (roomType.startsWith("living-room")) return "orbit-right";
+  if (roomType.startsWith("kitchen")) return "orbit-right";
+  if (roomType === "master-bedroom" || roomType === "bedroom") return "pullback-wide";
+  if (roomType === "bathroom") return "gentle-push";
+  return "float-back";
 }
 
 async function detectSingleRoomType(
@@ -123,7 +148,7 @@ async function detectSingleRoomType(
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      max_tokens: 550,
+      max_tokens: 300,
       messages: [
         {
           role: "user",
@@ -154,67 +179,40 @@ async function detectSingleRoomType(
   const data = await response.json();
   const responseText = data.content[0]?.text?.trim() || "";
 
-  // Parse chain-of-thought output: extract structured fields from final lines.
+  // Parse the 5-line output
   const roomMatch = responseText.match(/ROOM_TYPE:\s*(.+)/i);
-  const windowMatch = responseText.match(/WINDOW_POSITION:\s*(.+)/i);
-  const bedMatch = responseText.match(/BED_POSITION:\s*(.+)/i);
-  const kitchenMatch = responseText.match(/KITCHEN_VISIBLE:\s*(.+)/i);
-  const anchorMatch = responseText.match(/VISUAL_ANCHOR:\s*(.+)/i);
-  const anchorPosMatch = responseText.match(/ANCHOR_POSITION:\s*(.+)/i);
-  const symmetryMatch = responseText.match(/FACADE_SYMMETRY:\s*(.+)/i);
-  const doorPosMatch = responseText.match(/DOOR_POSITION:\s*(.+)/i);
-  const storiesMatch = responseText.match(/STORIES:\s*(.+)/i);
-  const fenceMatch = responseText.match(/FENCE_OBSTRUCTION:\s*(.+)/i);
-  const drivewayMatch = responseText.match(/DRIVEWAY_DOMINANCE:\s*(.+)/i);
+  const intentMatch = responseText.match(/CAMERA_INTENT:\s*(.+)/i);
+  const heroMatch = responseText.match(/HERO_FEATURE:\s*(.+)/i);
+  const hazardsMatch = responseText.match(/HAZARDS:\s*(.+)/i);
+  const reasoningMatch = responseText.match(/REASONING:\s*(.+)/i);
 
-  const detectedRoom = (roomMatch ? roomMatch[1].trim().toLowerCase() : responseText.trim().toLowerCase()) as RoomType;
-  const detectedWindow = (windowMatch ? windowMatch[1].trim().toLowerCase() : "none") as SpatialPosition;
-  const detectedBed = (bedMatch ? bedMatch[1].trim().toLowerCase() : "none") as SpatialPosition;
-  const detectedKitchen = (kitchenMatch ? kitchenMatch[1].trim().toLowerCase() : "none") as KitchenVisiblePosition;
-  const detectedAnchor = (anchorMatch ? anchorMatch[1].trim().toLowerCase() : "none") as VisualAnchorType;
-  const detectedAnchorPos = (anchorPosMatch ? anchorPosMatch[1].trim().toLowerCase() : "center") as AnchorPosition;
-  const detectedSymmetry = (symmetryMatch ? symmetryMatch[1].trim().toLowerCase() : "none") as FacadeSymmetry;
-  const detectedDoorPos = (doorPosMatch ? doorPosMatch[1].trim().toLowerCase() : "none") as DoorPosition;
-  const detectedStories = (storiesMatch ? storiesMatch[1].trim().toLowerCase() : "none") as Stories;
-  const detectedFence = (fenceMatch ? fenceMatch[1].trim().toLowerCase() : "none") as FenceObstruction;
-  const detectedDriveway = (drivewayMatch ? drivewayMatch[1].trim().toLowerCase() : "none") as DrivewayDominance;
+  const detectedRoom = (roomMatch ? roomMatch[1].trim().toLowerCase() : "living-room-wide") as RoomType;
+  const detectedIntent = intentMatch ? intentMatch[1].trim().toLowerCase() : "";
+  const detectedHero = heroMatch ? heroMatch[1].trim() : "none";
+  const detectedHazards = hazardsMatch ? hazardsMatch[1].trim().toLowerCase() : "none";
 
   console.log(`Detection reasoning: ${responseText.substring(0, 500)}`);
-  console.log(`Extracted: room=${detectedRoom}, window=${detectedWindow}, bed=${detectedBed}, kitchen=${detectedKitchen}, anchor=${detectedAnchor}, anchorPos=${detectedAnchorPos}, symmetry=${detectedSymmetry}, doorPos=${detectedDoorPos}, stories=${detectedStories}, fence=${detectedFence}, driveway=${detectedDriveway}`);
+  console.log(`Extracted: room=${detectedRoom}, intent=${detectedIntent}, hero=${detectedHero}, hazards=${detectedHazards}`);
+  if (reasoningMatch) {
+    console.log(`Reasoning: ${reasoningMatch[1].trim()}`);
+  }
 
-  const validPositions: SpatialPosition[] = ["left", "right", "center", "none"];
-  const validKitchenPositions: KitchenVisiblePosition[] = ["left", "right", "none"];
-  const validAnchorTypes: VisualAnchorType[] = ["kitchen-island", "fireplace", "feature-wall", "window-view", "bed-styling", "vanity", "entertainment", "ceiling-detail", "open-plan-flow", "none"];
-  const validAnchorPositions: AnchorPosition[] = ["left", "right", "center"];
+  // Validate room type
+  const validRoom = (VALID_ROOM_TYPES as readonly string[]).includes(detectedRoom)
+    ? (detectedRoom as RoomType)
+    : "living-room-wide" as RoomType;
 
-  // Only allow kitchen_visible for living room types
-  const isLivingRoom = detectedRoom === "living-room-wide" || detectedRoom === "living-room-orbit";
-  const kitchenVisible = isLivingRoom && validKitchenPositions.includes(detectedKitchen)
-    ? detectedKitchen
-    : "none";
-
-  // Only allow facade fields for exterior room types
-  const validSymmetries: FacadeSymmetry[] = ["symmetric", "asymmetric-left", "asymmetric-right", "none"];
-  const validDoorPositions: DoorPosition[] = ["left", "center", "right", "none"];
-  const validStories: Stories[] = ["1", "2", "3", "none"];
-  const validFence: FenceObstruction[] = ["yes", "no", "none"];
-  const validDriveway: DrivewayDominance[] = ["yes", "no", "none"];
-  const isExterior = detectedRoom === "exterior-arrival" || detectedRoom === "front-door";
+  // Validate camera intent — if unrecognized, default based on room type
+  const isExterior = validRoom.startsWith("exterior") || validRoom === "front-door";
+  const validIntent = (VALID_INTENTS as readonly string[]).includes(detectedIntent)
+    ? detectedIntent
+    : (isExterior ? "crane-up" : "pullback-wide");
 
   return {
-    room_type: (VALID_ROOM_TYPES as readonly string[]).includes(detectedRoom)
-      ? (detectedRoom as RoomType)
-      : "living-room-wide",
-    window_position: validPositions.includes(detectedWindow) ? detectedWindow : "none",
-    bed_position: validPositions.includes(detectedBed) ? detectedBed : "none",
-    kitchen_visible: kitchenVisible,
-    visual_anchor: validAnchorTypes.includes(detectedAnchor) ? detectedAnchor : "none",
-    anchor_position: validAnchorPositions.includes(detectedAnchorPos) ? detectedAnchorPos : "center",
-    facade_symmetry: isExterior && validSymmetries.includes(detectedSymmetry) ? detectedSymmetry : "none",
-    door_position: isExterior && validDoorPositions.includes(detectedDoorPos) ? detectedDoorPos : "none",
-    stories: isExterior && validStories.includes(detectedStories) ? detectedStories : "none",
-    fence_obstruction: isExterior && validFence.includes(detectedFence) ? detectedFence : "none",
-    driveway_dominance: isExterior && validDriveway.includes(detectedDriveway) ? detectedDriveway : "none",
+    room_type: validRoom,
+    camera_intent: validIntent,
+    hero_feature: detectedHero,
+    hazards: detectedHazards,
   };
 }
 
@@ -242,18 +240,30 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`=== DETECT ROOM TYPES (Claude Vision) ===`);
+    console.log(`=== DETECT ROOM TYPES (Claude Vision — CAMERA_INTENT system) ===`);
     console.log(`Classifying ${body.images.length} image(s)...`);
 
     const results = await Promise.all(
       body.images.map(async ({ id, base64, mimeType }) => {
         try {
           const detection = await detectSingleRoomType(base64, mimeType || "image/jpeg");
-          console.log(`Image ${id}: detected → ${detection.room_type} (window: ${detection.window_position}, bed: ${detection.bed_position}, kitchen: ${detection.kitchen_visible}, anchor: ${detection.visual_anchor}@${detection.anchor_position}, facade: ${detection.facade_symmetry}, door: ${detection.door_position}, stories: ${detection.stories}, fence: ${detection.fence_obstruction}, driveway: ${detection.driveway_dominance})`);
-          return { id, room_type: detection.room_type, window_position: detection.window_position, bed_position: detection.bed_position, kitchen_visible: detection.kitchen_visible, visual_anchor: detection.visual_anchor, anchor_position: detection.anchor_position, facade_symmetry: detection.facade_symmetry, door_position: detection.door_position, stories: detection.stories, fence_obstruction: detection.fence_obstruction, driveway_dominance: detection.driveway_dominance };
+          console.log(`Image ${id}: detected → room=${detection.room_type}, intent=${detection.camera_intent}, hero=${detection.hero_feature}, hazards=${detection.hazards}`);
+          return {
+            id,
+            room_type: detection.room_type,
+            camera_intent: detection.camera_intent,
+            hero_feature: detection.hero_feature,
+            hazards: detection.hazards,
+          };
         } catch (err) {
-          console.error(`Image ${id}: detection failed, defaulting to living-room-wide`, err);
-          return { id, room_type: "living-room-wide" as RoomType, window_position: "none" as SpatialPosition, bed_position: "none" as SpatialPosition, kitchen_visible: "none" as KitchenVisiblePosition, visual_anchor: "none" as VisualAnchorType, anchor_position: "center" as AnchorPosition, facade_symmetry: "none" as FacadeSymmetry, door_position: "none" as DoorPosition, stories: "none" as Stories, fence_obstruction: "none" as FenceObstruction, driveway_dominance: "none" as DrivewayDominance };
+          console.error(`Image ${id}: detection failed, defaulting`, err);
+          return {
+            id,
+            room_type: "living-room-wide" as RoomType,
+            camera_intent: "pullback-wide",
+            hero_feature: "none",
+            hazards: "none",
+          };
         }
       })
     );

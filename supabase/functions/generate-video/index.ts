@@ -25,19 +25,12 @@
   interface ImageMetadata {
     url: string;
     cameraAngle: string;
-    cameraAction?: string;   // Camera Action dropdown (e.g., "parallax-glide")
-    room_type?: string;      // AI-detected room (e.g., "kitchen-orbit")
+    cameraAction?: string;    // Camera Action dropdown (e.g., "parallax-glide")
+    room_type?: string;       // AI-detected room (e.g., "kitchen-orbit")
+    camera_intent?: string;   // AI-decided camera move (e.g., "orbit-right")
+    hero_feature?: string;    // What the camera reveals (e.g., "marble kitchen island")
+    hazards?: string;         // Comma-separated hazards or "none"
     duration: number;
-    windowPosition?: string; // "left" | "right" | "center" | "none"
-    bedPosition?: string;    // "left" | "right" | "center" | "none"
-    kitchenVisible?: string; // "left" | "right" | "none" — open-plan kitchen detection
-    visualAnchor?: string;   // "fireplace" | "feature-wall" | ... | "none"
-    anchorPosition?: string; // "left" | "right" | "center"
-    facadeSymmetry?: string;    // "symmetric" | "asymmetric-left" | "asymmetric-right" | "none"
-    doorPosition?: string;      // "left" | "center" | "right" | "none"
-    stories?: string;           // "1" | "2" | "3" | "none"
-    fenceObstruction?: string;  // "yes" | "no" | "none"
-    drivewayDominance?: string; // "yes" | "no" | "none"
   }
 
   interface GenerateVideoRequest {
@@ -441,27 +434,57 @@
       const supabaseCropKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const supabaseCrop = createClient(supabaseCropUrl, supabaseCropKey);
 
-      // Living room types that should use directional dual-crop based on window position
-      const LIVING_ROOM_TYPES = new Set(["living-room-wide", "living-room-orbit"]);
+      // Helper: get room group for dual-crop intent assignment
+      function getRoomGroup(roomType: string): string {
+        if (roomType.startsWith("exterior") || roomType === "front-door") return "exterior";
+        if (roomType === "entry-foyer") return "entry";
+        if (roomType.startsWith("living-room")) return "living-room";
+        if (roomType.startsWith("kitchen")) return "kitchen";
+        if (roomType === "master-bedroom" || roomType === "bedroom") return "bedroom";
+        if (roomType === "bathroom") return "bathroom";
+        return "outdoor";
+      }
+
+      // Dual-crop intent assignment: each crop gets a proper camera_intent
+      function getDualCropIntents(
+        roomType: string,
+        originalIntent: string,
+      ): { cropAIntent: string; cropBIntent: string } {
+        const roomGroup = getRoomGroup(roomType);
+
+        // Bedrooms: both crops pull back. Never push forward into bed.
+        if (roomGroup === "bedroom") {
+          return {
+            cropAIntent: "pullback-reveal-right",
+            cropBIntent: "pullback-wide",
+          };
+        }
+
+        // Exteriors: both crops rise. Never push forward into fence.
+        if (roomGroup === "exterior") {
+          return {
+            cropAIntent: "parallax-exterior",
+            cropBIntent: "crane-up",
+          };
+        }
+
+        // Living rooms / kitchens / entries: Crop A orbits, Crop B pushes gently
+        return {
+          cropAIntent: originalIntent.startsWith("orbit") ? originalIntent : "orbit-right",
+          cropBIntent: "gentle-push",
+        };
+      }
 
       const expandedMetadata: Array<{
         url: string;
         cameraAngle?: string;
         cameraAction?: string;
         room_type?: string;
+        camera_intent?: string;
+        hero_feature?: string;
+        hazards?: string;
         duration?: number;
         seed?: number;
-        motionBias?: "slide-right" | "slide-left" | "push-forward";
-        windowPosition?: string;
-        bedPosition?: string;
-        kitchenVisible?: string;
-        visualAnchor?: string;
-        anchorPosition?: string;
-        facadeSymmetry?: string;
-        doorPosition?: string;
-        stories?: string;
-        fenceObstruction?: string;
-        drivewayDominance?: string;
       }> = [];
       const expandedImageUrls: string[] = []; // Original URLs for hybrid fallback
 
@@ -478,73 +501,44 @@
         const cropResult = await dualCropLandscape(originalUrl, supabaseCrop);
 
         if (cropResult) {
-          console.log(`Image ${i + 1}: LANDSCAPE → dual-cropped (seed: ${cropResult.seed}, room_type: ${meta.room_type || "unknown"})`);
+          const roomType = meta.room_type || "living-room-wide";
+          const originalIntent = meta.camera_intent || "orbit-right";
+          const { cropAIntent, cropBIntent } = getDualCropIntents(roomType, originalIntent);
 
-          // Determine crop direction for living rooms with detected windows
-          const isLivingRoom = meta.room_type && LIVING_ROOM_TYPES.has(meta.room_type);
-          const windowPos = meta.windowPosition || "none";
-          const windowsOnRight = isLivingRoom && windowPos === "right";
-          console.log(`Image ${i + 1} dual-crop decision: room_type=${meta.room_type}, isLivingRoom=${isLivingRoom}, windowPos=${windowPos}, windowsOnRight=${windowsOnRight}`);
+          console.log(`Image ${i + 1}: LANDSCAPE → dual-cropped (seed: ${cropResult.seed}, room=${roomType}, cropA=${cropAIntent}, cropB=${cropBIntent})`);
 
           // Check if adding both crops would exceed the limit
           if (expandedMetadata.length + 2 > 10) {
-            // Only add one crop to stay within limit — pick the interior-facing crop
-            const cropUrl = windowsOnRight ? cropResult.rightUrl : cropResult.leftUrl;
-            const bias = windowsOnRight ? "slide-left" : "slide-right";
-            expandedMetadata.push({
-              ...meta,
-              url: cropUrl,
-              seed: cropResult.seed,
-              motionBias: bias,
-            });
-            expandedImageUrls.push(originalUrl);
-            console.log(`Only added single crop (clip limit), bias: ${bias}`);
-          } else if (windowsOnRight) {
-            // Windows on RIGHT: orbit AWAY from windows (left)
-            // Crop A (Anchor): Right-weighted (shows window), slides left away from it
-            expandedMetadata.push({
-              ...meta,
-              url: cropResult.rightUrl,
-              seed: cropResult.seed,
-              motionBias: "slide-left",
-            });
-            expandedImageUrls.push(originalUrl);
-
-            // Crop B (Detail): Left-weighted (interior), pushes forward into detail
+            // Only add one crop to stay within limit
             expandedMetadata.push({
               ...meta,
               url: cropResult.leftUrl,
               seed: cropResult.seed,
-              motionBias: "push-forward",
+              camera_intent: cropAIntent,
             });
             expandedImageUrls.push(originalUrl);
-            console.log(`Living room: windows on right → slide-left (orbit away from windows)`);
+            console.log(`Only added single crop (clip limit), intent: ${cropAIntent}`);
           } else {
-            // Default: windows on left or no window detected
-            // Crop A (Anchor): Left-weighted, slides right (away from window if present)
+            // Crop A
             expandedMetadata.push({
               ...meta,
               url: cropResult.leftUrl,
               seed: cropResult.seed,
-              motionBias: "slide-right",
+              camera_intent: cropAIntent,
             });
             expandedImageUrls.push(originalUrl);
 
-            // Crop B (Detail): Right-weighted, pushes forward
+            // Crop B
             expandedMetadata.push({
               ...meta,
               url: cropResult.rightUrl,
               seed: cropResult.seed,
-              motionBias: "push-forward",
+              camera_intent: cropBIntent,
             });
             expandedImageUrls.push(originalUrl);
-            if (isLivingRoom && windowPos === "left") {
-              console.log(`Living room: windows on left → slide-right (orbit away from windows)`);
-            }
           }
         } else {
           // Portrait/square or crop failed — pass through unchanged
-          // Spatial data (windowPosition, bedPosition) is preserved for directional override in generate-runway-batch
           expandedMetadata.push(meta);
           expandedImageUrls.push(originalUrl);
         }

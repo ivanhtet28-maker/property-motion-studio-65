@@ -86,35 +86,18 @@ const ROOM_TYPE_TO_LABEL: Record<string, string> = {
   "view-balcony":     "Balcony / View",
 };
 
-export type SpatialPosition = "left" | "right" | "center" | "none";
-export type KitchenVisiblePosition = "left" | "right" | "none";
-export type VisualAnchorType = "kitchen-island" | "fireplace" | "feature-wall" | "window-view" | "bed-styling" | "vanity" | "entertainment" | "ceiling-detail" | "open-plan-flow" | "none";
-export type AnchorPosition = "left" | "right" | "center";
-export type FacadeSymmetry = "symmetric" | "asymmetric-left" | "asymmetric-right" | "none";
-export type DoorPosition = "left" | "center" | "right" | "none";
-export type Stories = "1" | "2" | "3" | "none";
-export type FenceObstruction = "yes" | "no" | "none";
-export type DrivewayDominance = "yes" | "no" | "none";
-
 export interface ImageMetadata {
   file: File;
   cameraAction: CameraAction;          // dropdown value (the "How")
   detectedRoomLabel: string | null;     // AI tag display (the "What")
   room_type: RoomType;                  // raw AI detection — sent to backend for prompt anchors
+  camera_intent?: string;              // AI-decided camera move (e.g., "orbit-right")
+  hero_feature?: string;               // what the camera reveals (e.g., "marble kitchen island")
+  hazards?: string;                    // comma-separated hazards or "none"
   cameraAngle: CameraAngle;            // legacy compat
   duration: number;
   isDetecting?: boolean;               // true while Claude Vision is classifying
   autoDetected?: boolean;              // true after AI has set the camera action
-  windowPosition?: SpatialPosition;    // where outdoor windows are in the photo (left/right/center/none)
-  bedPosition?: SpatialPosition;       // where the bed is in the photo (bedrooms only)
-  kitchenVisible?: KitchenVisiblePosition; // kitchen visible in living room (left/right/none)
-  visualAnchor?: VisualAnchorType;     // primary visual feature in the room
-  anchorPosition?: AnchorPosition;     // which side of frame the anchor is on
-  facadeSymmetry?: FacadeSymmetry;     // building facade symmetry (exterior only)
-  doorPosition?: DoorPosition;         // main entrance position (exterior only)
-  stories?: Stories;                   // building height (exterior only)
-  fenceObstruction?: FenceObstruction; // foreground barrier (exterior only)
-  drivewayDominance?: DrivewayDominance; // driveway dominates bottom third (exterior only)
 }
 
 interface PhotoUploadProps {
@@ -124,6 +107,17 @@ interface PhotoUploadProps {
   onMetadataChange?: (metadata: ImageMetadata[]) => void;
   minPhotos?: number;
   maxPhotos?: number;
+}
+
+// Default intent fallback when AI detection doesn't return one
+function getDefaultIntent(roomType: string): string {
+  if (roomType.startsWith("exterior") || roomType === "front-door") return "crane-up";
+  if (roomType === "entry-foyer") return "drift-through";
+  if (roomType.startsWith("living-room")) return "orbit-right";
+  if (roomType.startsWith("kitchen")) return "orbit-right";
+  if (roomType === "master-bedroom" || roomType === "bedroom") return "pullback-wide";
+  if (roomType === "bathroom") return "gentle-push";
+  return "float-back";
 }
 
 // Resize an image File to a small JPEG base64 string suitable for Claude Vision.
@@ -207,7 +201,7 @@ export function PhotoUpload({
 
         if (error) throw error;
 
-        const results: Array<{ id: string; room_type: string; window_position?: string; bed_position?: string; kitchen_visible?: string; visual_anchor?: string; anchor_position?: string; facade_symmetry?: string; door_position?: string; stories?: string; fence_obstruction?: string; driveway_dominance?: string }> = data.results ?? [];
+        const results: Array<{ id: string; room_type: string; camera_intent?: string; hero_feature?: string; hazards?: string }> = data.results ?? [];
 
         onMetadataChange(
           newPhotos.map((file) => {
@@ -215,35 +209,21 @@ export function PhotoUpload({
             if (existing) return existing;
             const detected = results.find(r => r.id === file.name);
             const roomType = (detected?.room_type ?? "living-room-wide") as RoomType;
-            const windowPos = (detected?.window_position ?? "none") as SpatialPosition;
-            const bedPos = (detected?.bed_position ?? "none") as SpatialPosition;
-            const kitchenPos = (detected?.kitchen_visible ?? "none") as KitchenVisiblePosition;
-            const anchorType = (detected?.visual_anchor ?? "none") as VisualAnchorType;
-            const anchorPos = (detected?.anchor_position ?? "center") as AnchorPosition;
-            const facadeSym = (detected?.facade_symmetry ?? "none") as FacadeSymmetry;
-            const doorPos = (detected?.door_position ?? "none") as DoorPosition;
-            const storiesVal = (detected?.stories ?? "none") as Stories;
-            const fenceVal = (detected?.fence_obstruction ?? "none") as FenceObstruction;
-            const drivewayVal = (detected?.driveway_dominance ?? "none") as DrivewayDominance;
+            const detectedIntent = detected?.camera_intent ?? getDefaultIntent(roomType);
+            const detectedHero = detected?.hero_feature ?? "none";
+            const detectedHazards = detected?.hazards ?? "none";
             return {
               file,
               cameraAction: ROOM_TO_DEFAULT_ACTION[roomType] ?? ("space-sweep" as CameraAction),
               detectedRoomLabel: ROOM_TYPE_TO_LABEL[roomType] ?? null,
               room_type: roomType,
+              camera_intent: detectedIntent,
+              hero_feature: detectedHero,
+              hazards: detectedHazards,
               cameraAngle: "auto" as CameraAngle,
               duration: CLIP_DURATION,
               isDetecting: false,
               autoDetected: !!detected,
-              windowPosition: windowPos,
-              bedPosition: bedPos,
-              kitchenVisible: kitchenPos,
-              visualAnchor: anchorType,
-              anchorPosition: anchorPos,
-              facadeSymmetry: facadeSym,
-              doorPosition: doorPos,
-              stories: storiesVal,
-              fenceObstruction: fenceVal,
-              drivewayDominance: drivewayVal,
             };
           })
         );
