@@ -274,6 +274,7 @@ type DrivewayDominance = "yes" | "no" | "none";
 const LIVING_ROOM_TYPES = new Set(["living-room-wide", "living-room-orbit"]);
 const BEDROOM_TYPES = new Set(["master-bedroom", "bedroom"]);
 const EXTERIOR_TYPES = new Set(["exterior-arrival", "front-door"]);
+const ENTRY_TYPES = new Set(["entry-foyer"]);
 
 // Human-readable anchor names for prompt interpolation
 const ANCHOR_LABEL: Record<string, string> = {
@@ -438,6 +439,33 @@ function getDirectionalOverride(
       camera_motion: { zoom: -1.5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
       promptSuffix: "Gentle pullback revealing the full bedroom. Showcase room size, furnishings, and proportions.",
     };
+  }
+
+  // ── ENTRY / FOYER ──────────────────────────────────────────────────
+  // Orbit TOWARD the visual anchor (staircase, ceiling detail, etc.)
+  if (ENTRY_TYPES.has(roomType)) {
+    if (visualAnchor !== "none") {
+      const label = ANCHOR_LABEL[visualAnchor] || visualAnchor;
+      if (anchorPosition === "left") {
+        return {
+          camera_motion: { zoom: 2, horizontal: -3, pan: -1, tilt: 0, vertical: 0, roll: 0 },
+          promptSuffix: `Elegant drift toward the ${label}, revealing the architectural centrepiece of the entry.`,
+        };
+      }
+      if (anchorPosition === "right") {
+        return {
+          camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
+          promptSuffix: `Elegant drift toward the ${label}, revealing the architectural centrepiece of the entry.`,
+        };
+      }
+      // anchor center — forward push toward feature
+      return {
+        camera_motion: { zoom: 2, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
+        promptSuffix: `Elegant forward drift revealing the ${label} at the centre of the entry.`,
+      };
+    }
+    // No anchor — default forward glide through hallway
+    return null;
   }
 
   return null;
@@ -667,7 +695,13 @@ Deno.serve(async (req) => {
       try {
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
         console.log(`Image: ${imageUrl}`);
-        console.log(`cameraAction: ${cameraAction || "(none)"}, room_type: ${room_type || "(none)"}, cameraAngle: ${cameraAngle || "(none)"}`);
+        console.log(`Image ${index + 1}: room=${room_type || "(none)"}, action=${cameraAction || "(none)"}, angle=${cameraAngle || "(none)"}`);
+        console.log(`Image ${index + 1}: Spatial: window=${windowPosition || "none"}, bed=${bedPosition || "none"}, kitchen=${kitchenVisible || "none"}, anchor=${visualAnchor || "none"}@${anchorPosition || "center"}`);
+        console.log(`Image ${index + 1}: Exterior: facade=${facadeSymmetry || "none"}, door=${doorPosition || "none"}, stories=${storiesField || "none"}, fence=${fenceObstruction || "none"}, driveway=${drivewayDominance || "none"}`);
+        if (motionBias) console.log(`Image ${index + 1}: motionBias=${motionBias}`);
+
+        // Track which override path fired for debugging
+        let overridePath = "BASE";
 
         // Cinematic Engine: cameraAction (new dropdown) → room_type (legacy) → cameraAngle (oldest)
         let preset: CinematicPreset;
@@ -680,13 +714,15 @@ Deno.serve(async (req) => {
             promptText: composePrompt(actionKey, room_type, (kitchenVisible || "none") as KitchenVisiblePosition, (visualAnchor || "none") as VisualAnchorType, motionBias),
             duration: basePreset.duration,
           };
-          // Bedroom zoom protection handled by the zoom cap below (clamps to -1)
+          overridePath = `BASE:cameraAction=${actionKey}+room=${room_type || "generic"}`;
           console.log(`Resolved via cameraAction: ${actionKey} + room context: ${room_type || "generic"}`);
         } else if (room_type && CINEMATIC_PRESETS[room_type]) {
           preset = CINEMATIC_PRESETS[room_type];
+          overridePath = `BASE:legacy-room=${room_type}`;
           console.log(`Resolved via legacy room_type: ${room_type}`);
         } else {
           preset = getCameraMotionLegacy(cameraAngle || "auto");
+          overridePath = `BASE:legacy-angle=${cameraAngle || "auto"}`;
           console.log(`Resolved via legacy cameraAngle: ${cameraAngle || "auto"}`);
         }
 
@@ -704,7 +740,7 @@ Deno.serve(async (req) => {
 
         // Exterior adaptive cinematography — replaces static High-Crane
         const isExterior = room_type && EXTERIOR_TYPES.has(room_type);
-        if (isExterior) {
+        if (isExterior && !motionBias) {
           const facadeSym = (facadeSymmetry || "none") as FacadeSymmetry;
           const doorPos = (doorPosition || "none") as DoorPosition;
           const storiesVal = (storiesField || "none") as Stories;
@@ -718,8 +754,14 @@ Deno.serve(async (req) => {
               camera_motion: exteriorResult.camera_motion,
               promptText: exteriorResult.promptText,
             };
-            console.log(`Exterior adaptive: sym=${facadeSym}, door=${doorPos}, stories=${storiesVal}, fence=${fenceVal}, driveway=${drivewayVal} → ${JSON.stringify(exteriorResult.camera_motion)}`);
+            overridePath = `EXTERIOR:sym=${facadeSym},door=${doorPos},stories=${storiesVal},fence=${fenceVal}`;
+            console.log(`Exterior adaptive FIRED: sym=${facadeSym}, door=${doorPos}, stories=${storiesVal}, fence=${fenceVal}, driveway=${drivewayVal} → ${JSON.stringify(exteriorResult.camera_motion)}`);
+          } else {
+            console.log(`Exterior adaptive returned null (motionBias=${motionBias})`);
           }
+        } else if (isExterior && motionBias) {
+          // Dual-crop controls exterior motion
+          console.log(`Exterior skipped adaptive (dual-crop motionBias=${motionBias})`);
         }
 
         // Dual-Crop motion bias: override camera_motion for connected crop pairs
@@ -729,20 +771,25 @@ Deno.serve(async (req) => {
         let finalCameraMotion = preset.camera_motion;
         if (motionBias === "slide-right") {
           finalCameraMotion = { zoom: -1, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 };
+          overridePath = `DUAL-CROP:slide-right`;
         } else if (motionBias === "slide-left") {
           finalCameraMotion = { zoom: -1, horizontal: -3, pan: -1, tilt: 0, vertical: 0, roll: 0 };
+          overridePath = `DUAL-CROP:slide-left`;
         } else if (motionBias === "push-forward") {
           if (isBedroom) {
             // Bedrooms: never push into bed — gentle detail reveal with pullback
             finalCameraMotion = { zoom: -0.5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 };
+            overridePath = `DUAL-CROP:push-forward(bedroom-safe)`;
             console.log(`Push-forward overridden for bedroom: zoom: -0.5 (pullback)`);
           } else if (isExterior) {
             // Exterior: gentle approach, slight rise for cinematic feel
             finalCameraMotion = { zoom: 1.5, horizontal: 0, pan: 0, tilt: 0, vertical: 0.3, roll: 0 };
+            overridePath = `DUAL-CROP:push-forward(exterior)`;
             console.log(`Push-forward overridden for exterior: zoom: 1.5 (gentle approach)`);
           } else {
             // All other rooms: reduced from 3 to 2 for smoother motion
             finalCameraMotion = { zoom: 2, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 };
+            overridePath = `DUAL-CROP:push-forward`;
           }
         }
 
@@ -764,28 +811,78 @@ Deno.serve(async (req) => {
               ...preset,
               promptText: preset.promptText + " " + directional.promptSuffix,
             };
-            console.log(`Directional override: window=${winPos}, bed=${bedPos}, kitchen=${kitchenPos}, anchor=${anchorType}@${anchorPos} → ${JSON.stringify(directional.camera_motion)}`);
+            // Log which specific directional priority fired
+            if (LIVING_ROOM_TYPES.has(room_type || "")) {
+              if (kitchenPos !== "none") {
+                overridePath = `DIRECTIONAL:P2-kitchen-${kitchenPos}`;
+                console.log(`Kitchen override FIRED: kitchen_visible=${kitchenPos}, orbiting toward kitchen`);
+              } else if (anchorType !== "none") {
+                overridePath = `DIRECTIONAL:P3-anchor-${anchorType}@${anchorPos}`;
+              } else if (winPos !== "none") {
+                overridePath = `DIRECTIONAL:P4-window-${winPos}`;
+              } else {
+                overridePath = `DIRECTIONAL:P5-default-right`;
+              }
+            } else if (BEDROOM_TYPES.has(room_type || "")) {
+              if (anchorType !== "none" && anchorType !== "bed-styling") {
+                overridePath = `DIRECTIONAL:P2-bedroom-anchor-${anchorType}@${anchorPos}`;
+              } else if (bedPos !== "none" && bedPos !== "center") {
+                overridePath = `DIRECTIONAL:P3-bedroom-bed-${bedPos}`;
+              } else {
+                overridePath = `DIRECTIONAL:P4-bedroom-pullback`;
+              }
+            } else if (ENTRY_TYPES.has(room_type || "")) {
+              overridePath = `DIRECTIONAL:entry-anchor-${anchorType}@${anchorPos}`;
+            }
+            console.log(`Directional override FIRED: window=${winPos}, bed=${bedPos}, kitchen=${kitchenPos}, anchor=${anchorType}@${anchorPos} → ${JSON.stringify(directional.camera_motion)}`);
+          } else {
+            console.log(`Directional override returned null (room=${room_type})`);
           }
         }
 
-        // Final safety nets — ensure room-type constraints are NEVER bypassed,
+        // ── FINAL SAFETY NETS ────────────────────────────────────────────
+        // Ensure room-type constraints are NEVER bypassed,
         // regardless of which code path set finalCameraMotion above.
+
+        // Bedroom: zoom must always be negative
         if (isBedroom && finalCameraMotion.zoom > -0.5) {
           console.log(`Bedroom final safety: zoom clamped to -0.5 (was ${finalCameraMotion.zoom})`);
           finalCameraMotion = { ...finalCameraMotion, zoom: -0.5 };
         }
-        if (isExterior && fenceObstruction === "yes" && finalCameraMotion.zoom > 0) {
-          console.log(`Exterior fence safety: zoom clamped to 0 (was ${finalCameraMotion.zoom})`);
+
+        // Exterior safety — runs AFTER everything including motionBias
+        if (isExterior && !motionBias) {
+          // If detection says fence, never allow positive zoom
+          if (fenceObstruction === "yes" && finalCameraMotion.zoom > 0) {
+            console.log(`Exterior fence safety: zoom clamped to 0 (was ${finalCameraMotion.zoom})`);
+            finalCameraMotion = { ...finalCameraMotion, zoom: 0 };
+          }
+          // If 2+ stories, ensure some vertical rise
+          if (storiesField && storiesField !== "1" && storiesField !== "none" && finalCameraMotion.vertical < 1) {
+            console.log(`Exterior multi-story safety: forced vertical rise (was vertical=${finalCameraMotion.vertical})`);
+            finalCameraMotion = { ...finalCameraMotion, vertical: 1.5, tilt: Math.min(finalCameraMotion.tilt, -1) };
+          }
+          // If symmetric, zero out lateral
+          if (facadeSymmetry === "symmetric") {
+            if (finalCameraMotion.horizontal !== 0 || finalCameraMotion.pan !== 0) {
+              console.log(`Exterior symmetry safety: zeroed lateral (was h=${finalCameraMotion.horizontal}, p=${finalCameraMotion.pan})`);
+            }
+            finalCameraMotion = { ...finalCameraMotion, horizontal: 0, pan: 0 };
+          }
+        }
+        // Exterior with motionBias (dual-crop): only fence clamp
+        if (isExterior && motionBias && fenceObstruction === "yes" && finalCameraMotion.zoom > 0) {
+          console.log(`Exterior fence safety (dual-crop): zoom clamped to 0 (was ${finalCameraMotion.zoom})`);
           finalCameraMotion = { ...finalCameraMotion, zoom: 0 };
         }
 
         // Always generate 5s — shortest Runway supports. Shotstack hard-cuts to 3.5s for pacing.
         const clipDuration: 5 | 10 = 5;
-        console.log(`Preset: ${room_type || cameraAngle}, Duration: ${clipDuration}s (Runway min, Shotstack cuts to 3.5s)`);
-        console.log(`Camera motion:`, JSON.stringify(finalCameraMotion));
-        if (motionBias) console.log(`Motion bias: ${motionBias}`);
-        if (seed) console.log(`Seed: ${seed}`);
-        console.log(`Prompt: "${preset.promptText}"`);
+        console.log(`Image ${index + 1}: Override path = ${overridePath}`);
+        console.log(`Image ${index + 1}: Final motion = ${JSON.stringify(finalCameraMotion)}`);
+        console.log(`Image ${index + 1}: Duration = ${clipDuration}s (Runway min, Shotstack cuts to 3.5s)`);
+        if (seed) console.log(`Image ${index + 1}: Seed = ${seed}`);
+        console.log(`Image ${index + 1}: Prompt = "${preset.promptText.substring(0, 120)}..."`);
 
         const requestBody: Record<string, unknown> = {
           model: "gen3a_turbo",
