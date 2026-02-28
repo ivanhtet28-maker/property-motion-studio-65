@@ -499,25 +499,18 @@ Contact us today for a private inspection.`;
       // Convert frontend voice name to backend ID (only if voiceover is enabled)
       const voiceId = customization.includeVoiceover ? getVoiceId(customization.voiceType) : null;
 
-      // Prepare image metadata with camera actions, room types, and durations
+      // Prepare image metadata with camera intents, room types, and durations
       const imageMetadataPayload = imageUrls.map((url, index) => {
         const metadata = imageMetadata[index];
         return {
           url,
           cameraAction: metadata?.cameraAction || null,
-          room_type: metadata?.room_type || null,
+          room_type: metadata?.room_type || "living-room-wide",
+          camera_intent: metadata?.camera_intent || "pullback-wide",
+          hero_feature: metadata?.hero_feature || "none",
+          hazards: metadata?.hazards || "none",
           cameraAngle: metadata?.cameraAngle || "auto",
           duration: metadata?.duration || 3.5,
-          windowPosition: metadata?.windowPosition || "none",
-          bedPosition: metadata?.bedPosition || "none",
-          kitchenVisible: metadata?.kitchenVisible || "none",
-          visualAnchor: metadata?.visualAnchor || "none",
-          anchorPosition: metadata?.anchorPosition || "center",
-          facadeSymmetry: metadata?.facadeSymmetry || "none",
-          doorPosition: metadata?.doorPosition || "none",
-          stories: metadata?.stories || "none",
-          fenceObstruction: metadata?.fenceObstruction || "none",
-          drivewayDominance: metadata?.drivewayDominance || "none",
         };
       });
 

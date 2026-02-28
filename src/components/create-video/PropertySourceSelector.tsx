@@ -16,15 +16,6 @@ import {
   ImageMetadata,
   CameraAction,
   RoomType,
-  SpatialPosition,
-  KitchenVisiblePosition,
-  VisualAnchorType,
-  AnchorPosition,
-  FacadeSymmetry,
-  DoorPosition,
-  Stories,
-  FenceObstruction,
-  DrivewayDominance,
   ROOM_TO_DEFAULT_ACTION,
 } from "./PhotoUpload";
 import { supabase } from "@/lib/supabase";
@@ -90,7 +81,7 @@ export function PropertySourceSelector({
 
   // Store detection results keyed by URL
   const [detectionResults, setDetectionResults] = useState<
-    Record<string, { roomType: RoomType; label: string; cameraAction: CameraAction; windowPosition?: string; bedPosition?: string; kitchenVisible?: string; visualAnchor?: string; anchorPosition?: string; facadeSymmetry?: string; doorPosition?: string; stories?: string; fenceObstruction?: string; drivewayDominance?: string }>
+    Record<string, { roomType: RoomType; label: string; cameraAction: CameraAction; camera_intent?: string; hero_feature?: string; hazards?: string }>
   >({});
 
   // Prevent duplicate AI detection calls
@@ -155,7 +146,14 @@ export function PropertySourceSelector({
 
         setDetectionResults((prev) => ({
           ...prev,
-          [imageUrl]: { roomType, label, cameraAction, windowPosition: result?.window_position ?? "none", bedPosition: result?.bed_position ?? "none", kitchenVisible: result?.kitchen_visible ?? "none", visualAnchor: result?.visual_anchor ?? "none", anchorPosition: result?.anchor_position ?? "center", facadeSymmetry: result?.facade_symmetry ?? "none", doorPosition: result?.door_position ?? "none", stories: result?.stories ?? "none", fenceObstruction: result?.fence_obstruction ?? "none", drivewayDominance: result?.driveway_dominance ?? "none" },
+          [imageUrl]: {
+            roomType,
+            label,
+            cameraAction,
+            camera_intent: result?.camera_intent ?? "pullback-wide",
+            hero_feature: result?.hero_feature ?? "none",
+            hazards: result?.hazards ?? "none",
+          },
         }));
       } catch (err) {
         console.error("Room detection failed for", imageUrl, err);
@@ -166,16 +164,9 @@ export function PropertySourceSelector({
             roomType: "living-room-wide" as RoomType,
             label: "Living Room",
             cameraAction: "space-sweep" as CameraAction,
-            windowPosition: "none",
-            bedPosition: "none",
-            kitchenVisible: "none",
-            visualAnchor: "none",
-            anchorPosition: "center",
-            facadeSymmetry: "none",
-            doorPosition: "none",
-            stories: "none",
-            fenceObstruction: "none",
-            drivewayDominance: "none",
+            camera_intent: "pullback-wide",
+            hero_feature: "none",
+            hazards: "none",
           },
         }));
       } finally {
@@ -207,20 +198,13 @@ export function PropertySourceSelector({
           cameraAction: detection?.cameraAction ?? ("space-sweep" as CameraAction),
           detectedRoomLabel: detection?.label ?? null,
           room_type: detection?.roomType ?? ("living-room-wide" as RoomType),
+          camera_intent: detection?.camera_intent ?? "pullback-wide",
+          hero_feature: detection?.hero_feature ?? "none",
+          hazards: detection?.hazards ?? "none",
           cameraAngle: "auto" as const,
           duration: 3.5,
           isDetecting,
           autoDetected: !!detection,
-          windowPosition: (detection?.windowPosition ?? "none") as SpatialPosition,
-          bedPosition: (detection?.bedPosition ?? "none") as SpatialPosition,
-          kitchenVisible: (detection?.kitchenVisible ?? "none") as KitchenVisiblePosition,
-          visualAnchor: (detection?.visualAnchor ?? "none") as VisualAnchorType,
-          anchorPosition: (detection?.anchorPosition ?? "center") as AnchorPosition,
-          facadeSymmetry: (detection?.facadeSymmetry ?? "none") as FacadeSymmetry,
-          doorPosition: (detection?.doorPosition ?? "none") as DoorPosition,
-          stories: (detection?.stories ?? "none") as Stories,
-          fenceObstruction: (detection?.fenceObstruction ?? "none") as FenceObstruction,
-          drivewayDominance: (detection?.drivewayDominance ?? "none") as DrivewayDominance,
         };
       });
 
