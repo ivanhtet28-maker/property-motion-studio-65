@@ -241,19 +241,7 @@
             // Determine if this is a free trial video
             if (!hasActiveSubscription && hasFreeTrial) {
               isFreeTrial = true;
-              console.log("This is a free trial video generation");
-
-              // Mark free trial as used
-              const { error: updateError } = await supabase
-                .from("user_preferences")
-                .update({ free_video_used: true })
-                .eq("user_id", userId);
-
-              if (updateError) {
-                console.error("Failed to mark free trial as used:", updateError);
-              } else {
-                console.log("Free trial marked as used for user:", userId);
-              }
+              console.log("This is a free trial video generation — will mark as used after DB record creation");
             }
           }
 
@@ -264,9 +252,9 @@
               source: source || "upload",
               property_address: propertyData.address || "Unknown Property",
               price: propertyData.price || null,
-              bedrooms: propertyData.beds || null,
-              bathrooms: propertyData.baths || null,
-              car_spaces: propertyData.carSpaces || null,
+              bedrooms: propertyData.beds ?? null,
+              bathrooms: propertyData.baths ?? null,
+              car_spaces: propertyData.carSpaces ?? null,
               template_used: style,
               music_used: music,
               aspect_ratio: "9:16",
@@ -285,6 +273,20 @@
           } else {
             videoRecordId = videoRecord.id;
             console.log("Video record created:", videoRecordId, isFreeTrial ? "(FREE TRIAL)" : "");
+
+            // Mark free trial as used AFTER video record exists (so user has a video to show for it)
+            if (isFreeTrial) {
+              const { error: updateError } = await supabase
+                .from("user_preferences")
+                .update({ free_video_used: true })
+                .eq("user_id", userId);
+
+              if (updateError) {
+                console.error("Failed to mark free trial as used:", updateError);
+              } else {
+                console.log("Free trial marked as used for user:", userId);
+              }
+            }
           }
         } catch (dbErr) {
           console.error("Database error:", dbErr);
@@ -383,6 +385,7 @@
               style,
               layout: layout || style,
               customTitle: customTitle || "",
+              videoId: videoRecordId,
             }),
           }
         );
@@ -565,6 +568,11 @@
         }
       );
 
+      if (!runwayResponse.ok) {
+        const errorText = await runwayResponse.text();
+        throw new Error(`generate-runway-batch HTTP ${runwayResponse.status}: ${errorText}`);
+      }
+
       const runwayData = await runwayResponse.json();
 
       if (!runwayData.success) {
@@ -610,6 +618,8 @@
                 agentInfo: agentInfo || null,
                 propertyData: propertyData,
                 style: style,
+                layout: layout || style,
+                customTitle: customTitle || "",
                 imageUrls: finalImageUrls,  // Expanded for hybrid fallback recovery
               }),
             })

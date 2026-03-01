@@ -352,6 +352,18 @@ export default function CreateVideo() {
       return;
     }
 
+    // Block generation if AI room detection is still running
+    const stillDetecting = imageMetadata.some(m => m.isDetecting);
+    if (stillDetecting) {
+      setError("AI is still analyzing your photos. Please wait a moment...");
+      toast({
+        title: "Detection in progress",
+        description: "AI room detection is still running. Please wait for it to finish.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Validate agent info (required for video outro)
     if (!customization.agentInfo.name.trim()) {
       setError("Please fill in your agent name");
