@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Upload, X, ImageIcon, GripVertical, Star, Info, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -15,6 +15,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useToast } from "@/hooks/use-toast";
 
 export type CameraAngle = "auto" | "wide-shot" | "push-in" | "push-out" | "orbit-left" | "orbit-right";
 
@@ -168,6 +169,7 @@ export function PhotoUpload({
   minPhotos = 3,
   maxPhotos = 10,
 }: PhotoUploadProps) {
+  const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   // Tracks which file names are currently being detected to avoid duplicate calls
@@ -175,7 +177,16 @@ export function PhotoUpload({
 
   // Initialize metadata when photos change, then trigger AI detection for new images
   const syncMetadata = useCallback((newPhotos: File[]) => {
-    if (!onMetadataChange) return;
+    if (!onMetadataChange) {
+      console.warn("[PhotoUpload] syncMetadata called but onMetadataChange is null/undefined — detection skipped!");
+      return;
+    }
+
+    console.log("[PhotoUpload] syncMetadata called", {
+      photoCount: newPhotos.length,
+      existingMetadata: imageMetadata.length,
+      detectingRefSize: detectingRef.current.size,
+    });
 
     const newMetadata: ImageMetadata[] = newPhotos.map((file) => {
       const existing = imageMetadata.find(m => m.file.name === file.name);
@@ -219,9 +230,13 @@ export function PhotoUpload({
           body: { images },
         });
 
-        if (error) throw error;
+        if (error) {
+          console.error("[PhotoUpload] detect-room-types returned error:", error);
+          throw error;
+        }
 
-        const results: Array<{ id: string; room_type: string; camera_intent?: string; hero_feature?: string; hazards?: string }> = data.results ?? [];
+        const results: Array<{ id: string; room_type: string; camera_intent?: string; hero_feature?: string; hazards?: string }> = data?.results ?? [];
+        console.log("[PhotoUpload] Detection results received:", JSON.stringify(results, null, 2));
 
         onMetadataChange(
           newPhotos.map((file) => {
@@ -249,17 +264,26 @@ export function PhotoUpload({
           })
         );
       } catch (err) {
-        console.error("Room type detection failed:", err);
-        // Clear detecting state on failure — leave default camera action
+        console.error("Room type detection FAILED:", err);
+        toast({
+          title: "AI Detection Failed",
+          description: "Could not analyze photos. Using defaults. Check console for details.",
+          variant: "destructive",
+        });
+        // Set defaults with visible label so user sees SOMETHING (not blank)
         onMetadataChange(
           newPhotos.map((file) => {
             const existing = imageMetadata.find(m => m.file.name === file.name);
             if (existing) return existing;
+            const fallbackRoom = "living-room-wide" as RoomType;
             return {
               file,
               cameraAction: "space-sweep" as CameraAction,
-              detectedRoomLabel: null,
-              room_type: "living-room-wide" as RoomType,
+              detectedRoomLabel: ROOM_TYPE_TO_LABEL[fallbackRoom] + " (default)",
+              room_type: fallbackRoom,
+              camera_intent: getDefaultIntent(fallbackRoom),
+              hero_feature: "none",
+              hazards: "none",
               cameraAngle: "auto" as CameraAngle,
               duration: CLIP_DURATION,
               isDetecting: false,
@@ -272,7 +296,17 @@ export function PhotoUpload({
         newFiles.forEach(f => detectingRef.current.delete(f.name));
       }
     })();
-  }, [imageMetadata, onMetadataChange]);
+  }, [imageMetadata, onMetadataChange, toast]);
+
+  // Re-sync: if photos exist but metadata is empty/mismatched, re-trigger detection.
+  // This catches cases where metadata was wiped (tab switching, state resets, etc.)
+  useEffect(() => {
+    if (!onMetadataChange || photos.length === 0) return;
+    if (imageMetadata.length === 0) {
+      console.log("[PhotoUpload] metadata empty but photos exist — re-syncing", { photoCount: photos.length });
+      syncMetadata(photos);
+    }
+  }, [photos, imageMetadata.length, syncMetadata, onMetadataChange]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
