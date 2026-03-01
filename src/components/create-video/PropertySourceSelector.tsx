@@ -393,13 +393,17 @@ export function PropertySourceSelector({
         className="w-full"
         onValueChange={(value) => {
           if (value === "upload") {
-            // Clear scrape state when switching to manual upload
+            // Clear scrape-specific state when switching to manual upload.
+            // IMPORTANT: Only clear scraped images/metadata, NOT upload metadata.
+            // onScrapedMetadataChange and onMetadataChange share the same setter,
+            // so we must NOT call onScrapedMetadataChange([]) here — it would
+            // wipe the upload detection results too.
             setAllScrapedImages([]);
             setSelectedImages([]);
             setDetectionResults({});
             setScrapeError(null);
             if (onScrapedImagesChange) onScrapedImagesChange([]);
-            if (onScrapedMetadataChange) onScrapedMetadataChange([]);
+            // Do NOT call onScrapedMetadataChange([]) — it clears upload metadata!
           }
         }}
       >
