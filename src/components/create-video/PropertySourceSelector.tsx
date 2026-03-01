@@ -17,6 +17,7 @@ import {
   CameraAction,
   RoomType,
   ROOM_TO_DEFAULT_ACTION,
+  CAMERA_INTENT_TO_LABEL,
 } from "./PhotoUpload";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
@@ -552,9 +553,16 @@ export function PropertySourceSelector({
                         </div>
                       )}
                       {isSelected && !isDetecting && detection && (
-                        <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 bg-purple-600/80 text-white text-[10px] font-medium rounded-full leading-tight shadow-sm backdrop-blur-sm">
-                          AI: {detection.label}
-                        </span>
+                        <div className="absolute bottom-1.5 left-1.5 flex flex-col gap-0.5">
+                          <span className="px-2 py-0.5 bg-purple-600/80 text-white text-[10px] font-medium rounded-full leading-tight shadow-sm backdrop-blur-sm">
+                            AI: {detection.label}
+                          </span>
+                          {detection.camera_intent && (
+                            <span className="px-2 py-0.5 bg-blue-600/80 text-white text-[10px] font-medium rounded-full leading-tight shadow-sm backdrop-blur-sm">
+                              {CAMERA_INTENT_TO_LABEL[detection.camera_intent] ?? detection.camera_intent}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </button>
                   );
@@ -588,9 +596,14 @@ export function PropertySourceSelector({
                         <Loader2 className="absolute bottom-1 right-1 w-3.5 h-3.5 text-white animate-spin drop-shadow" />
                       )}
                       {!isDetecting && detection && (
-                        <span className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[9px] text-center py-0.5 truncate px-1">
-                          {detection.label}
-                        </span>
+                        <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[9px] text-center py-0.5 px-1">
+                          <div className="truncate">{detection.label}</div>
+                          {detection.camera_intent && (
+                            <div className="truncate text-blue-200">
+                              {CAMERA_INTENT_TO_LABEL[detection.camera_intent] ?? detection.camera_intent}
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   );
