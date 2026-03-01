@@ -98,6 +98,7 @@ export interface ImageMetadata {
   duration: number;
   isDetecting?: boolean;               // true while Claude Vision is classifying
   autoDetected?: boolean;              // true after AI has set the camera action
+  userOverridden?: boolean;            // true ONLY when user manually changed the dropdown
 }
 
 interface PhotoUploadProps {
@@ -172,6 +173,7 @@ export function PhotoUpload({
         duration: CLIP_DURATION,
         isDetecting: true,
         autoDetected: false,
+        userOverridden: false,
       };
     });
 
@@ -224,6 +226,7 @@ export function PhotoUpload({
               duration: CLIP_DURATION,
               isDetecting: false,
               autoDetected: !!detected,
+              userOverridden: false,
             };
           })
         );
@@ -243,6 +246,7 @@ export function PhotoUpload({
               duration: CLIP_DURATION,
               isDetecting: false,
               autoDetected: false,
+              userOverridden: false,
             };
           })
         );
@@ -313,13 +317,13 @@ export function PhotoUpload({
   const updateImageCameraAction = (index: number, action: CameraAction) => {
     if (!onMetadataChange) return;
     const newMetadata = [...imageMetadata];
-    newMetadata[index] = { ...newMetadata[index], cameraAction: action, autoDetected: false };
+    newMetadata[index] = { ...newMetadata[index], cameraAction: action, autoDetected: false, userOverridden: true };
     onMetadataChange(newMetadata);
   };
 
   const setAllCameraActions = (action: CameraAction) => {
     if (!onMetadataChange) return;
-    const newMetadata = imageMetadata.map(meta => ({ ...meta, cameraAction: action, autoDetected: false }));
+    const newMetadata = imageMetadata.map(meta => ({ ...meta, cameraAction: action, autoDetected: false, userOverridden: true }));
     onMetadataChange(newMetadata);
   };
 

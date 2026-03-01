@@ -511,6 +511,7 @@ Contact us today for a private inspection.`;
           hazards: metadata?.hazards || "none",
           cameraAngle: metadata?.cameraAngle || "auto",
           duration: metadata?.duration || 3.5,
+          userOverridden: metadata?.userOverridden || false,
         };
       });
 

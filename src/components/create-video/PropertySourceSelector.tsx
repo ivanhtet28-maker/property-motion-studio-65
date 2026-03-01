@@ -205,6 +205,7 @@ export function PropertySourceSelector({
           duration: 3.5,
           isDetecting,
           autoDetected: !!detection,
+          userOverridden: false,
         };
       });
 
