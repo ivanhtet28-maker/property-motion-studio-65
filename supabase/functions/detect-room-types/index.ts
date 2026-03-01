@@ -161,7 +161,7 @@ async function detectSingleRoomType(
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
-      max_tokens: 300,
+      max_tokens: 1024,
       messages: [
         {
           role: "user",
@@ -192,12 +192,17 @@ async function detectSingleRoomType(
   const data = await response.json();
   const responseText = data.content[0]?.text?.trim() || "";
 
-  // Parse the 5-line output
-  const roomMatch = responseText.match(/ROOM_TYPE:\s*(.+)/i);
-  const intentMatch = responseText.match(/CAMERA_INTENT:\s*(.+)/i);
-  const heroMatch = responseText.match(/HERO_FEATURE:\s*(.+)/i);
-  const hazardsMatch = responseText.match(/HAZARDS:\s*(.+)/i);
-  const reasoningMatch = responseText.match(/REASONING:\s*(.+)/i);
+  // Check if response was truncated by max_tokens
+  if (data.stop_reason === "max_tokens") {
+    console.warn(`WARNING: Claude Vision response was TRUNCATED (stop_reason=max_tokens). Increasing max_tokens may be needed.`);
+  }
+
+  // Parse the 5-line output — anchor to start of line to avoid matching chain-of-thought reasoning
+  const roomMatch = responseText.match(/^ROOM_TYPE:\s*(.+)/im);
+  const intentMatch = responseText.match(/^CAMERA_INTENT:\s*(.+)/im);
+  const heroMatch = responseText.match(/^HERO_FEATURE:\s*(.+)/im);
+  const hazardsMatch = responseText.match(/^HAZARDS:\s*(.+)/im);
+  const reasoningMatch = responseText.match(/^REASONING:\s*(.+)/im);
 
   const detectedRoom = (roomMatch ? roomMatch[1].trim().toLowerCase() : "living-room-wide") as RoomType;
   const detectedIntent = intentMatch ? intentMatch[1].trim().toLowerCase() : "";
@@ -217,11 +222,14 @@ async function detectSingleRoomType(
     ? (detectedRoom as RoomType)
     : "living-room-wide" as RoomType;
 
-  // Validate camera intent — if unrecognized, default based on room type
-  const isExterior = validRoom.startsWith("exterior") || validRoom === "front-door";
+  // Validate camera intent — if unrecognized, use getDefaultIntent for smarter fallback
   const validIntent = (VALID_INTENTS as readonly string[]).includes(detectedIntent)
     ? detectedIntent
-    : (isExterior ? "crane-up" : "pullback-wide");
+    : getDefaultIntent(validRoom);
+
+  if (!(VALID_INTENTS as readonly string[]).includes(detectedIntent)) {
+    console.warn(`Camera intent "${detectedIntent}" not in VALID_INTENTS, falling back to "${validIntent}" for room "${validRoom}"`);
+  }
 
   return {
     room_type: validRoom,

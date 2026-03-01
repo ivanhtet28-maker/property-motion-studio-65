@@ -274,7 +274,7 @@ Deno.serve(async (req) => {
     }
 
     console.log(`=== RUNWAY GEN3A TURBO BATCH: Generating ${imageMetadata.length} clips ===`);
-    console.log(`RUNWAY_API_KEY present: ${!!RUNWAY_API_KEY}, length: ${RUNWAY_API_KEY.length}, prefix: ${RUNWAY_API_KEY.substring(0, 8)}...`);
+    console.log(`RUNWAY_API_KEY present: ${!!RUNWAY_API_KEY}, length: ${RUNWAY_API_KEY.length}`);
 
     // Submit all at once — Runway queues excess tasks with THROTTLED status.
     const generationPromises = imageMetadata.map(async (metadata: {
@@ -296,7 +296,8 @@ Deno.serve(async (req) => {
 
         // For each image in the batch:
         const roomType = room_type || "living-room-wide";
-        const cameraIntent = camera_intent || getDefaultIntent(roomType);
+        // DO NOT pre-fill camera_intent with a default here — let the priority logic below decide
+        const aiCameraIntent = camera_intent || null;
         const heroFeature = hero_feature || "none";
         const hazardsStr = hazards || "none";
 
@@ -310,16 +311,22 @@ Deno.serve(async (req) => {
 
         if (userOverridden && cameraAction) {
           // User explicitly chose a different camera action in the dropdown
-          effectiveIntent = USER_ACTION_TO_INTENT[cameraAction] || cameraIntent;
+          const mappedIntent = USER_ACTION_TO_INTENT[cameraAction];
+          if (mappedIntent) {
+            effectiveIntent = mappedIntent;
+          } else {
+            console.warn(`WARNING: cameraAction "${cameraAction}" not found in USER_ACTION_TO_INTENT map, using AI intent or fallback`);
+            effectiveIntent = aiCameraIntent && INTENT_MAP[aiCameraIntent] ? aiCameraIntent : getDefaultIntent(roomType);
+          }
           intentSource = `USER OVERRIDE (dropdown="${cameraAction}" → "${effectiveIntent}")`;
-        } else if (cameraIntent && INTENT_MAP[cameraIntent]) {
+        } else if (aiCameraIntent && INTENT_MAP[aiCameraIntent]) {
           // Claude Vision's intelligent, photo-aware decision — PRIMARY path
-          effectiveIntent = cameraIntent;
-          intentSource = `AI VISION (camera_intent="${cameraIntent}")`;
+          effectiveIntent = aiCameraIntent;
+          intentSource = `AI VISION (camera_intent="${aiCameraIntent}")`;
         } else {
           // No valid AI intent — fall back to room-type default
           effectiveIntent = getDefaultIntent(roomType);
-          intentSource = `FALLBACK (room="${roomType}" → "${effectiveIntent}")`;
+          intentSource = `FALLBACK (room="${roomType}" → "${effectiveIntent}")${aiCameraIntent ? ` [AI returned "${aiCameraIntent}" but not found in INTENT_MAP]` : " [no AI intent received]"}`;
         }
 
         // 1. Look up motion values
