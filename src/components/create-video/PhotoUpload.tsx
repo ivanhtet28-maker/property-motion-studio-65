@@ -69,6 +69,23 @@ export const ROOM_TO_DEFAULT_ACTION: Record<string, CameraAction> = {
   "view-balcony":     "aerial-float",     // Pull Out
 };
 
+// Human-readable labels for AI camera intent (the "Shot" tag)
+export const CAMERA_INTENT_TO_LABEL: Record<string, string> = {
+  "orbit-right":           "Orbit Right",
+  "orbit-left":            "Orbit Left",
+  "pullback-wide":         "Pull Back Wide",
+  "pullback-reveal-right": "Pull Back → Right",
+  "pullback-reveal-left":  "Pull Back → Left",
+  "gentle-push":           "Gentle Push",
+  "drift-through":         "Drift Through",
+  "crane-up":              "Crane Up",
+  "crane-up-drift-right":  "Crane Up → Right",
+  "crane-up-drift-left":   "Crane Up → Left",
+  "approach-gentle":       "Gentle Approach",
+  "parallax-exterior":     "Parallax Slide",
+  "float-back":            "Float Back",
+};
+
 // AI detection display label (the "What" tag)
 const ROOM_TYPE_TO_LABEL: Record<string, string> = {
   "exterior-arrival": "Exterior",
@@ -197,6 +214,7 @@ export function PhotoUpload({
           }))
         );
 
+        console.log("CALLING DETECT ROOM TYPES", { count: images.length, ids: images.map(i => i.id) });
         const { data, error } = await supabase.functions.invoke("detect-room-types", {
           body: { images },
         });
@@ -511,9 +529,16 @@ export function PhotoUpload({
 
                     {/* AI room detection tag — bottom-left of image */}
                     {metadata && !metadata.isDetecting && metadata.detectedRoomLabel && (
-                      <span className="absolute bottom-2 left-2 px-2 py-0.5 bg-purple-600/80 text-white text-[10px] font-medium rounded-full leading-tight shadow-sm backdrop-blur-sm">
-                        AI: {metadata.detectedRoomLabel}
-                      </span>
+                      <div className="absolute bottom-2 left-2 flex flex-col gap-0.5">
+                        <span className="px-2 py-0.5 bg-purple-600/80 text-white text-[10px] font-medium rounded-full leading-tight shadow-sm backdrop-blur-sm">
+                          AI: {metadata.detectedRoomLabel}
+                        </span>
+                        {metadata.camera_intent && (
+                          <span className="px-2 py-0.5 bg-blue-600/80 text-white text-[10px] font-medium rounded-full leading-tight shadow-sm backdrop-blur-sm">
+                            Shot: {CAMERA_INTENT_TO_LABEL[metadata.camera_intent] ?? metadata.camera_intent}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
 
@@ -567,6 +592,25 @@ export function PhotoUpload({
                           </Select>
                         )}
                       </div>
+
+                      {/* AI Shot Details — camera_intent + hero_feature */}
+                      {!metadata.isDetecting && metadata.autoDetected && metadata.camera_intent && (
+                        <div className="px-2 py-1.5 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50 rounded-md space-y-0.5">
+                          <p className="text-[10px] font-semibold text-blue-700 dark:text-blue-300 flex items-center gap-1">
+                            AI Shot: {CAMERA_INTENT_TO_LABEL[metadata.camera_intent] ?? metadata.camera_intent}
+                          </p>
+                          {metadata.hero_feature && metadata.hero_feature !== "none" && (
+                            <p className="text-[10px] text-blue-600/80 dark:text-blue-400/70">
+                              Reveals: {metadata.hero_feature}
+                            </p>
+                          )}
+                          {metadata.hazards && metadata.hazards !== "none" && (
+                            <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                              Hazards: {metadata.hazards}
+                            </p>
+                          )}
+                        </div>
+                      )}
 
                     </div>
                   )}
