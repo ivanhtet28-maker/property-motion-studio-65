@@ -109,6 +109,19 @@ LIVING ROOM RULES (critical):
 - If no kitchen but a standout feature exists: orbit toward it.
 - If no kitchen and windows are causing glare: orbit AWAY from windows.
 
+ENTRY/FOYER RULES (critical):
+- If a staircase is visible: orbit TOWARD the staircase. The staircase reveal is the architectural highlight.
+- If the staircase is on the left side of the frame: MUST choose orbit-left.
+- If the staircase is on the right side of the frame: MUST choose orbit-right.
+- Never choose an orbit direction that moves AWAY from a visible staircase.
+- If no staircase but an open-plan flow to other rooms: drift-through.
+
+FINAL VALIDATION — Before you commit to your answer, run this checklist:
+1. Is this an exterior with a fence/gate/wall? → You MUST choose crane-up or crane-up-drift. If you chose orbit, approach, or parallax, CHANGE IT NOW.
+2. Is this a bedroom? → You MUST choose pullback-wide, pullback-reveal-left, or pullback-reveal-right. If you chose gentle-push, CHANGE IT NOW.
+3. Does your chosen direction move TOWARD the hero feature? → If not, flip the direction (orbit-left ↔ orbit-right).
+4. Does your chosen direction move TOWARD a blank wall, fence, or empty space? → If so, flip the direction.
+
 Step 5 — JUSTIFY in one sentence why this is the right shot.
 
 OUTPUT FORMAT — exactly these 5 lines, no extra text:
@@ -191,7 +204,9 @@ async function detectSingleRoomType(
   const detectedHero = heroMatch ? heroMatch[1].trim() : "none";
   const detectedHazards = hazardsMatch ? hazardsMatch[1].trim().toLowerCase() : "none";
 
-  console.log(`Detection reasoning: ${responseText.substring(0, 500)}`);
+  console.log(`=== Claude Vision FULL response ===`);
+  console.log(responseText);
+  console.log(`=== End Claude Vision response ===`);
   console.log(`Extracted: room=${detectedRoom}, intent=${detectedIntent}, hero=${detectedHero}, hazards=${detectedHazards}`);
   if (reasoningMatch) {
     console.log(`Reasoning: ${reasoningMatch[1].trim()}`);

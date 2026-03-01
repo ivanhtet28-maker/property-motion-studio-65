@@ -31,6 +31,7 @@
     hero_feature?: string;    // What the camera reveals (e.g., "marble kitchen island")
     hazards?: string;         // Comma-separated hazards or "none"
     duration: number;
+    userOverridden?: boolean; // true when user manually changed the camera dropdown
   }
 
   interface GenerateVideoRequest {
@@ -485,6 +486,7 @@
         hazards?: string;
         duration?: number;
         seed?: number;
+        userOverridden?: boolean;
       }> = [];
       const expandedImageUrls: string[] = []; // Original URLs for hybrid fallback
 

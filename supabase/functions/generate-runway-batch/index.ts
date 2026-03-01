@@ -287,6 +287,7 @@ Deno.serve(async (req) => {
       hazards?: string;
       duration?: number;
       seed?: number;
+      userOverridden?: boolean;
     }, index: number) => {
       const { url: imageUrl, room_type, cameraAction, camera_intent, hero_feature, hazards, seed } = metadata;
       try {
@@ -299,10 +300,27 @@ Deno.serve(async (req) => {
         const heroFeature = hero_feature || "none";
         const hazardsStr = hazards || "none";
 
-        // If user overrode the camera action via dropdown, map it to an intent
-        const effectiveIntent = cameraAction
-          ? (USER_ACTION_TO_INTENT[cameraAction] || cameraIntent)
-          : cameraIntent;
+        // PRIORITY LOGIC (Phase 2):
+        // 1. If user MANUALLY changed the dropdown (userOverridden === true), respect their choice
+        // 2. Otherwise, use Claude Vision's camera_intent (the whole point of Phase 2)
+        // 3. Fallback to room-type default if neither exists
+        const userOverridden = metadata.userOverridden === true;
+        let effectiveIntent: string;
+        let intentSource: string;
+
+        if (userOverridden && cameraAction) {
+          // User explicitly chose a different camera action in the dropdown
+          effectiveIntent = USER_ACTION_TO_INTENT[cameraAction] || cameraIntent;
+          intentSource = `USER OVERRIDE (dropdown="${cameraAction}" → "${effectiveIntent}")`;
+        } else if (cameraIntent && INTENT_MAP[cameraIntent]) {
+          // Claude Vision's intelligent, photo-aware decision — PRIMARY path
+          effectiveIntent = cameraIntent;
+          intentSource = `AI VISION (camera_intent="${cameraIntent}")`;
+        } else {
+          // No valid AI intent — fall back to room-type default
+          effectiveIntent = getDefaultIntent(roomType);
+          intentSource = `FALLBACK (room="${roomType}" → "${effectiveIntent}")`;
+        }
 
         // 1. Look up motion values
         const intentConfig = INTENT_MAP[effectiveIntent] || INTENT_MAP["pullback-wide"];
@@ -314,10 +332,19 @@ Deno.serve(async (req) => {
         // 3. Apply safety clamps (LAST — non-negotiable)
         finalMotion = applySafetyClamps(finalMotion, roomType, hazardsStr);
 
-        // 4. Log everything
-        console.log(`Image ${index + 1}: room=${roomType}, intent=${effectiveIntent}, hero=${heroFeature}, hazards=${hazardsStr}`);
-        console.log(`Image ${index + 1}: motion=${JSON.stringify(finalMotion)}`);
-        console.log(`Image ${index + 1}: prompt=${promptText.substring(0, 120)}...`);
+        // 4. Log FULL decision chain
+        console.log(`\n=== Clip ${index + 1} INTENT DECISION ===`);
+        console.log(`  room_type:       ${roomType}`);
+        console.log(`  camera_intent:   ${camera_intent || "(none)"}`);
+        console.log(`  cameraAction:    ${cameraAction || "(none)"}`);
+        console.log(`  userOverridden:  ${userOverridden}`);
+        console.log(`  effectiveIntent: ${effectiveIntent}`);
+        console.log(`  intentSource:    ${intentSource}`);
+        console.log(`  hero_feature:    ${heroFeature}`);
+        console.log(`  hazards:         ${hazardsStr}`);
+        console.log(`  motion:          ${JSON.stringify(finalMotion)}`);
+        console.log(`  prompt:          ${promptText}`);
+        console.log(`=== End Clip ${index + 1} ===\n`);
 
         // Always generate 5s — shortest Runway supports. Shotstack hard-cuts to 3.5s for pacing.
         const clipDuration: 5 | 10 = 5;
