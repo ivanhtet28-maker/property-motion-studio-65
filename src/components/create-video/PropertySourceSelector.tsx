@@ -19,7 +19,7 @@ import {
   ROOM_TO_DEFAULT_ACTION,
   CAMERA_INTENT_TO_LABEL,
 } from "./PhotoUpload";
-import { supabase } from "@/lib/supabase";
+import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { useToast } from "@/hooks/use-toast";
 import { PropertyDetails } from "./index";
 
@@ -129,26 +129,17 @@ export function PropertySourceSelector({
 
         console.log("[PropertySourceSelector] CALLING detect-room-types for", imageUrl, { base64Length: base64.length });
         const invokeStart = performance.now();
-        const { data, error } = await supabase.functions.invoke(
+        const data = await invokeEdgeFunction<{ results?: Array<{ room_type?: string; camera_intent?: string; hero_feature?: string; hazards?: string }> }>(
           "detect-room-types",
           {
             body: {
               images: [{ id: imageUrl, base64, mimeType: "image/jpeg" }],
             },
+            requireAuth: false,
           }
         );
         const invokeMs = Math.round(performance.now() - invokeStart);
-        console.log(`[PropertySourceSelector] detect-room-types responded in ${invokeMs}ms`, { data, error });
-
-        if (error) {
-          console.error("[PropertySourceSelector] detect-room-types FAILED:", {
-            error,
-            message: error?.message,
-            context: error?.context,
-            status: error?.status,
-          });
-          throw error;
-        }
+        console.log(`[PropertySourceSelector] detect-room-types responded in ${invokeMs}ms`, { data });
 
         const result = data.results?.[0];
         const roomType = (result?.room_type ?? "living-room-wide") as RoomType;
@@ -329,27 +320,13 @@ export function PropertySourceSelector({
     try {
       console.log("Scraping listing images from:", propertyUrl);
 
-      const { data, error } = await supabase.functions.invoke(
+      const data = await invokeEdgeFunction<{ success?: boolean; error?: string; images: string[] }>(
         "scrape-property",
         {
           body: { url: propertyUrl, mode: "images-only" },
+          requireAuth: false,
         }
       );
-
-      if (error) {
-        // Extract the actual error message from the edge function response
-        let errorMessage = error.message;
-        try {
-          if (error.context && typeof error.context.json === "function") {
-            const errorBody = await error.context.json();
-            errorMessage = errorBody?.error || errorMessage;
-          }
-        } catch {
-          // Fall back to generic error message
-        }
-        console.error("Edge function error details:", errorMessage);
-        throw new Error(errorMessage);
-      }
 
       if (!data.success) {
         throw new Error(

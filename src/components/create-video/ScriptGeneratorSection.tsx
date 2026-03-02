@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { PropertyDetails } from "./PropertyDetailsForm";
-import { supabase } from "@/lib/supabase";
+import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 
 interface ScriptGeneratorSectionProps {
   propertyDetails: PropertyDetails;
@@ -49,14 +49,10 @@ export function ScriptGeneratorSection({
 
       console.log("Generating script with:", requestBody);
 
-      const { data, error } = await supabase.functions.invoke("generate-script", {
+      const data = await invokeEdgeFunction<{ success?: boolean; script?: string }>("generate-script", {
         body: requestBody,
+        requireAuth: false,
       });
-
-      if (error) {
-        console.error("Script generation failed:", error);
-        throw error;
-      }
 
       console.log("Script generated successfully:", data);
 

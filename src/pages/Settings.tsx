@@ -9,6 +9,7 @@ import { User, CreditCard, Building2, Check, Loader2, Download, ExternalLink } f
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 
 const plans = [
   {
@@ -96,11 +97,9 @@ export default function Settings() {
 
     setIsManagingSubscription(true);
     try {
-      const { data, error } = await supabase.functions.invoke("create-portal-session", {
+      const data = await invokeEdgeFunction<{ url?: string }>("create-portal-session", {
         body: { userId: user.id },
       });
-
-      if (error) throw error;
 
       if (data.url) {
         window.location.href = data.url;

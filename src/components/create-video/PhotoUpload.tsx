@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Upload, X, ImageIcon, GripVertical, Star, Info, Loader2 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import {
   Select,
   SelectContent,
@@ -231,21 +231,15 @@ export function PhotoUpload({
           base64Lengths: images.map(i => `${i.id}=${i.base64.length}`),
         });
         const invokeStart = performance.now();
-        const { data, error } = await supabase.functions.invoke("detect-room-types", {
-          body: { images },
-        });
+        const data = await invokeEdgeFunction<{ results?: Array<{ id: string; room_type: string; camera_intent?: string; hero_feature?: string; hazards?: string }> }>(
+          "detect-room-types",
+          {
+            body: { images },
+            requireAuth: false,
+          }
+        );
         const invokeMs = Math.round(performance.now() - invokeStart);
-        console.log(`[PhotoUpload] detect-room-types responded in ${invokeMs}ms`, { data, error });
-
-        if (error) {
-          console.error("[PhotoUpload] detect-room-types FAILED:", {
-            error,
-            message: error?.message,
-            context: error?.context,
-            status: error?.status,
-          });
-          throw error;
-        }
+        console.log(`[PhotoUpload] detect-room-types responded in ${invokeMs}ms`, { data });
 
         const results: Array<{ id: string; room_type: string; camera_intent?: string; hero_feature?: string; hazards?: string }> = data?.results ?? [];
         console.log("[PhotoUpload] Detection results received:", JSON.stringify(results, null, 2));

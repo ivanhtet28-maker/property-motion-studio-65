@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
+import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import {
@@ -172,16 +173,11 @@ export default function Dashboard() {
             continue;
           }
 
-          const { data: dashSession } = await supabase.auth.getSession();
-          const dashToken = dashSession?.session?.access_token;
-          if (!dashToken) continue; // skip silently if not signed in
-          const { data, error } = await supabase.functions.invoke("video-status", {
-            headers: { Authorization: `Bearer ${dashToken}` },
-            body,
-          });
-
-          if (error) {
-            console.error("Error checking stuck video:", video.id, error);
+          let data: Record<string, unknown>;
+          try {
+            data = await invokeEdgeFunction("video-status", { body });
+          } catch (err) {
+            console.error("Error checking stuck video:", video.id, err);
             continue;
           }
 

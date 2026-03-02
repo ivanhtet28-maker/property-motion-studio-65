@@ -2,7 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Play, Link2, Wand2, Download, Check, Star, ChevronRight, Loader2 } from "lucide-react";
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -191,16 +191,13 @@ export default function Index() {
     setLoadingPlan(planId);
 
     try {
-      // Call create-checkout-session function
-      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
+      const data = await invokeEdgeFunction<{ url?: string }>("create-checkout-session", {
         body: {
           plan: planId,
           userId: user.id,
           email: user.email,
         },
       });
-
-      if (error) throw error;
 
       if (data.url) {
         // Redirect to Stripe checkout
