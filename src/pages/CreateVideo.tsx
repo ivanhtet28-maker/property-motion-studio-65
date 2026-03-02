@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { invokeEdgeFunction, EdgeFunctionError } from "@/lib/invokeEdgeFunction";
 import {
   LeftSidebar,
   PropertyDetailsForm,
@@ -132,11 +133,7 @@ export default function CreateVideo() {
 
       // Step 2: Submit a landscape Shotstack stitch job
       const clipDurations = imageMetadata.map(m => m?.duration || 3.5);
-      const { data: lsStitchSession } = await supabase.auth.getSession();
-      const lsStitchToken = lsStitchSession?.session?.access_token;
-      if (!lsStitchToken) throw new Error("Session expired. Please sign in again.");
-      const { data: stitchData, error: stitchError } = await supabase.functions.invoke("stitch-video", {
-        headers: { Authorization: `Bearer ${lsStitchToken}` },
+      const stitchData = await invokeEdgeFunction<{ jobId: string }>("stitch-video", {
         body: {
           videoUrls: landscapeClipUrls,
           clipDurations,
@@ -151,19 +148,13 @@ export default function CreateVideo() {
         },
       });
 
-      if (stitchError) throw new Error(stitchError.message || "Landscape stitch failed");
-
       const landscapeJobId = stitchData.jobId;
 
       // Step 3: Poll for completion (video-status skips DB update when videoId is null)
       let landscapeVideoUrl: string | null = null;
       for (let attempt = 0; attempt < 60 && !landscapeVideoUrl; attempt++) {
         await new Promise(resolve => setTimeout(resolve, 5000));
-        const { data: lsSession } = await supabase.auth.getSession();
-        const lsToken = lsSession?.session?.access_token;
-        if (!lsToken) throw new Error("Session expired during landscape render. Please sign in again.");
-        const { data: statusData } = await supabase.functions.invoke("video-status", {
-          headers: { Authorization: `Bearer ${lsToken}` },
+        const statusData = await invokeEdgeFunction<{ status: string; videoUrl?: string }>("video-status", {
           body: {
             generationIds: [],
             videoId: null,
@@ -246,56 +237,43 @@ export default function CreateVideo() {
 
         console.log(`Polling attempt ${attempts}/${maxAttempts} for ${generationIds?.length ?? 0} clips`);
 
-        // Refresh session token before each poll — JWT may expire during
-        // long generation runs (Supabase default is 1 hour, but edge
-        // functions with verify_jwt=true reject expired tokens).
-        const { data: sessionData } = await supabase.auth.getSession();
-        const accessToken = sessionData?.session?.access_token;
-        if (!accessToken) {
-          console.error("[video-status] No access token available during poll");
-          setError("Your session has expired. Please sign in again.");
-          setIsGenerating(false);
-          return;
-        }
-
-        const { data, error: fnError } = await supabase.functions.invoke("video-status", {
-          headers: { Authorization: `Bearer ${accessToken}` },
-          body: {
-            generationIds,
-            videoId,
-            audioUrl,
-            musicUrl,
-            agentInfo,
-            propertyData,
-            style: style,
-            layout: layout,
-            customTitle: customTitle,
-            stitchJobId: currentStitchJobId,
-            clipDurations: clipDurations,
-            provider: provider || "runway",
-            imageUrls: imageUrls,  // For hybrid fallback — original photos replace failed AI clips
-          },
-        });
-
-        if (fnError) {
-          const is401 = fnError.message?.includes("401") || fnError.message?.includes("non-2xx");
-          console.error("Status check error:", fnError, is401 ? "(auth)" : "");
+        let data: Record<string, unknown>;
+        try {
+          // invokeEdgeFunction handles fresh-token injection and real error extraction
+          data = await invokeEdgeFunction("video-status", {
+            body: {
+              generationIds,
+              videoId,
+              audioUrl,
+              musicUrl,
+              agentInfo,
+              propertyData,
+              style: style,
+              layout: layout,
+              customTitle: customTitle,
+              stitchJobId: currentStitchJobId,
+              clipDurations: clipDurations,
+              provider: provider || "runway",
+              imageUrls: imageUrls,  // For hybrid fallback — original photos replace failed AI clips
+            },
+          });
+        } catch (invokeErr) {
+          const isAuth = invokeErr instanceof EdgeFunctionError && invokeErr.isAuthError;
+          console.error("Status check error:", invokeErr, isAuth ? "(auth)" : "");
           consecutiveErrors++;
 
           // Bail early on auth failures — no point retrying 120 times
-          if (is401 && consecutiveErrors >= 3) {
+          if (isAuth && consecutiveErrors >= 3) {
             console.error("[video-status] Persistent 401 — stopping poll");
             setError("Authentication failed while checking video status. Please sign in again and retry.");
             setIsGenerating(false);
             return;
           }
 
-          // After 5 consecutive non-auth errors, show a warning but keep trying
           if (consecutiveErrors >= 5) {
             console.warn("Multiple consecutive errors - edge function may be unavailable");
           }
 
-          // Keep polling on transient errors
           setTimeout(poll, 5000);
           return;
         }
@@ -573,26 +551,23 @@ Contact us today for a private inspection.`;
         };
       });
 
-      // Re-fetch the session right before the call to ensure the SDK has a
-      // fresh access token (the earlier refresh may have been minutes ago if
-      // image upload was slow).
-      const { data: preCallSession } = await supabase.auth.getSession();
-      const accessToken = preCallSession?.session?.access_token;
-      console.log("Calling generate-video with auth, user:", user?.id,
-        "| token present:", !!accessToken,
-        "| token prefix:", accessToken?.substring(0, 20) + "…",
-        "| expires:", preCallSession?.session?.expires_at
-          ? new Date(preCallSession.session.expires_at * 1000).toISOString()
-          : "N/A");
-
-      if (!accessToken) {
-        throw new Error("No access token available — please sign in again.");
-      }
-
-      const { data, error: fnError} = await supabase.functions.invoke("generate-video", {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
+      // invokeEdgeFunction auto-injects a fresh JWT token
+      const data = await invokeEdgeFunction<{
+        success: boolean;
+        error?: string;
+        videoId?: string;
+        generationIds?: string[];
+        totalClips?: number;
+        estimatedTime?: number;
+        audioUrl?: string | null;
+        musicUrl?: string | null;
+        agentInfo?: CustomizationSettings['agentInfo'];
+        propertyData?: Record<string, unknown>;
+        style?: string;
+        provider?: string;
+        stitchJobId?: string;
+        imageUrls?: string[];
+      }>("generate-video", {
         body: {
           imageUrls: imageUrls,
           imageMetadata: imageMetadataPayload,
@@ -614,17 +589,6 @@ Contact us today for a private inspection.`;
           },
         },
       });
-
-      if (fnError) {
-        // Detect 401 specifically — means JWT expired despite our refresh attempt
-        const is401 = fnError.message?.includes("non-2xx") || fnError.message?.includes("401");
-        if (is401) {
-          console.error("[generate-video] 401 auth failure. Token was present:", !!accessToken,
-            "| fnError:", fnError);
-          throw new Error("Authentication failed (401). Your session may have expired — please sign in again.");
-        }
-        throw new Error(fnError.message || "Failed to generate video");
-      }
 
       // Handle the response
       if (data.success) {
