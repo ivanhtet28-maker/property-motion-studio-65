@@ -278,7 +278,9 @@ export default function CreateVideo() {
         });
 
         if (fnError) {
-          const is401 = fnError.message?.includes("401") || fnError.message?.includes("non-2xx");
+          // Check for actual 401 status, not generic "non-2xx" which matches all errors
+          const is401 = fnError.context?.status === 401
+            || fnError.message?.includes("401");
           console.error("Status check error:", fnError, is401 ? "(auth)" : "");
           consecutiveErrors++;
 
@@ -616,14 +618,35 @@ Contact us today for a private inspection.`;
       });
 
       if (fnError) {
-        // Detect 401 specifically — means JWT expired despite our refresh attempt
-        const is401 = fnError.message?.includes("non-2xx") || fnError.message?.includes("401");
+        // Try to extract the actual error body from the FunctionsHttpError.
+        // The Supabase SDK wraps ALL non-2xx responses with the generic message
+        // "Edge Function returned a non-2xx status code", so we need to read
+        // the response context to get the real error.
+        let serverMessage = "";
+        try {
+          if (fnError.context && typeof fnError.context.json === "function") {
+            const body = await fnError.context.json();
+            serverMessage = body?.error || body?.message || "";
+          }
+        } catch {
+          // context may not be available
+        }
+
+        // Check for actual 401 status (not just "non-2xx" which matches 400, 500, etc.)
+        const is401 = fnError.context?.status === 401
+          || fnError.message?.includes("401");
         if (is401) {
           console.error("[generate-video] 401 auth failure. Token was present:", !!accessToken,
             "| fnError:", fnError);
           throw new Error("Authentication failed (401). Your session may have expired — please sign in again.");
         }
-        throw new Error(fnError.message || "Failed to generate video");
+
+        // Surface the actual server error so it's not hidden behind a generic message
+        const displayMessage = serverMessage
+          || fnError.message
+          || "Failed to generate video";
+        console.error("[generate-video] Edge function error:", displayMessage, "| fnError:", fnError);
+        throw new Error(displayMessage);
       }
 
       // Handle the response
