@@ -543,9 +543,26 @@ Contact us today for a private inspection.`;
         };
       });
 
-      console.log("Calling generate-video with auth, user:", user?.id);
+      // Re-fetch the session right before the call to ensure the SDK has a
+      // fresh access token (the earlier refresh may have been minutes ago if
+      // image upload was slow).
+      const { data: preCallSession } = await supabase.auth.getSession();
+      const accessToken = preCallSession?.session?.access_token;
+      console.log("Calling generate-video with auth, user:", user?.id,
+        "| token present:", !!accessToken,
+        "| token prefix:", accessToken?.substring(0, 20) + "…",
+        "| expires:", preCallSession?.session?.expires_at
+          ? new Date(preCallSession.session.expires_at * 1000).toISOString()
+          : "N/A");
+
+      if (!accessToken) {
+        throw new Error("No access token available — please sign in again.");
+      }
 
       const { data, error: fnError} = await supabase.functions.invoke("generate-video", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
         body: {
           imageUrls: imageUrls,
           imageMetadata: imageMetadataPayload,
@@ -572,6 +589,8 @@ Contact us today for a private inspection.`;
         // Detect 401 specifically — means JWT expired despite our refresh attempt
         const is401 = fnError.message?.includes("non-2xx") || fnError.message?.includes("401");
         if (is401) {
+          console.error("[generate-video] 401 auth failure. Token was present:", !!accessToken,
+            "| fnError:", fnError);
           throw new Error("Authentication failed (401). Your session may have expired — please sign in again.");
         }
         throw new Error(fnError.message || "Failed to generate video");
