@@ -172,7 +172,11 @@ export default function Dashboard() {
             continue;
           }
 
+          const { data: dashSession } = await supabase.auth.getSession();
+          const dashToken = dashSession?.session?.access_token;
+          if (!dashToken) continue; // skip silently if not signed in
           const { data, error } = await supabase.functions.invoke("video-status", {
+            headers: { Authorization: `Bearer ${dashToken}` },
             body,
           });
 

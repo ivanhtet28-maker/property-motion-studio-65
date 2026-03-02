@@ -132,7 +132,11 @@ export default function CreateVideo() {
 
       // Step 2: Submit a landscape Shotstack stitch job
       const clipDurations = imageMetadata.map(m => m?.duration || 3.5);
+      const { data: lsStitchSession } = await supabase.auth.getSession();
+      const lsStitchToken = lsStitchSession?.session?.access_token;
+      if (!lsStitchToken) throw new Error("Session expired. Please sign in again.");
       const { data: stitchData, error: stitchError } = await supabase.functions.invoke("stitch-video", {
+        headers: { Authorization: `Bearer ${lsStitchToken}` },
         body: {
           videoUrls: landscapeClipUrls,
           clipDurations,
@@ -155,7 +159,11 @@ export default function CreateVideo() {
       let landscapeVideoUrl: string | null = null;
       for (let attempt = 0; attempt < 60 && !landscapeVideoUrl; attempt++) {
         await new Promise(resolve => setTimeout(resolve, 5000));
+        const { data: lsSession } = await supabase.auth.getSession();
+        const lsToken = lsSession?.session?.access_token;
+        if (!lsToken) throw new Error("Session expired during landscape render. Please sign in again.");
         const { data: statusData } = await supabase.functions.invoke("video-status", {
+          headers: { Authorization: `Bearer ${lsToken}` },
           body: {
             generationIds: [],
             videoId: null,
@@ -238,7 +246,20 @@ export default function CreateVideo() {
 
         console.log(`Polling attempt ${attempts}/${maxAttempts} for ${generationIds?.length ?? 0} clips`);
 
+        // Refresh session token before each poll — JWT may expire during
+        // long generation runs (Supabase default is 1 hour, but edge
+        // functions with verify_jwt=true reject expired tokens).
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token;
+        if (!accessToken) {
+          console.error("[video-status] No access token available during poll");
+          setError("Your session has expired. Please sign in again.");
+          setIsGenerating(false);
+          return;
+        }
+
         const { data, error: fnError } = await supabase.functions.invoke("video-status", {
+          headers: { Authorization: `Bearer ${accessToken}` },
           body: {
             generationIds,
             videoId,
@@ -257,15 +278,24 @@ export default function CreateVideo() {
         });
 
         if (fnError) {
-          console.error("Status check error:", fnError);
+          const is401 = fnError.message?.includes("401") || fnError.message?.includes("non-2xx");
+          console.error("Status check error:", fnError, is401 ? "(auth)" : "");
           consecutiveErrors++;
 
-          // After 5 consecutive errors, show a warning but keep trying
+          // Bail early on auth failures — no point retrying 120 times
+          if (is401 && consecutiveErrors >= 3) {
+            console.error("[video-status] Persistent 401 — stopping poll");
+            setError("Authentication failed while checking video status. Please sign in again and retry.");
+            setIsGenerating(false);
+            return;
+          }
+
+          // After 5 consecutive non-auth errors, show a warning but keep trying
           if (consecutiveErrors >= 5) {
             console.warn("Multiple consecutive errors - edge function may be unavailable");
           }
 
-          // Keep polling even on errors
+          // Keep polling on transient errors
           setTimeout(poll, 5000);
           return;
         }
