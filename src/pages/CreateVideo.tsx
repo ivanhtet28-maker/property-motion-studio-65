@@ -432,6 +432,22 @@ export default function CreateVideo() {
     setGenerationIds(null);
 
     try {
+      // Refresh auth session before calling JWT-protected edge functions.
+      // The token may have expired during photo upload + AI detection.
+      const { data: sessionData, error: sessionError } = await supabase.auth.refreshSession();
+      if (sessionError || !sessionData.session) {
+        console.error("Session refresh failed:", sessionError);
+        setIsGenerating(false);
+        setError("Your session has expired. Please sign in again.");
+        toast({
+          title: "Session expired",
+          description: "Please sign in again to generate videos.",
+          variant: "destructive",
+        });
+        return;
+      }
+      console.log("Session refreshed, token valid until:", new Date(sessionData.session.expires_at! * 1000).toISOString());
+
       let imageUrls: string[];
 
       // Step 1: Get image URLs (either from scraping or upload)
@@ -527,6 +543,8 @@ Contact us today for a private inspection.`;
         };
       });
 
+      console.log("Calling generate-video with auth, user:", user?.id);
+
       const { data, error: fnError} = await supabase.functions.invoke("generate-video", {
         body: {
           imageUrls: imageUrls,
@@ -551,6 +569,11 @@ Contact us today for a private inspection.`;
       });
 
       if (fnError) {
+        // Detect 401 specifically — means JWT expired despite our refresh attempt
+        const is401 = fnError.message?.includes("non-2xx") || fnError.message?.includes("401");
+        if (is401) {
+          throw new Error("Authentication failed (401). Your session may have expired — please sign in again.");
+        }
         throw new Error(fnError.message || "Failed to generate video");
       }
 

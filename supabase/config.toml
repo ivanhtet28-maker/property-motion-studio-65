@@ -13,6 +13,10 @@ verify_jwt = true
 [functions.scrape-property]
 verify_jwt = true
 
+# Room detection is a stateless utility (no user data) — skip JWT
+[functions.detect-room-types]
+verify_jwt = false
+
 # Internal functions called by other edge functions (not browser-facing)
 [functions.generate-runway-batch]
 verify_jwt = false

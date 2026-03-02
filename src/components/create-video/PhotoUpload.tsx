@@ -225,13 +225,25 @@ export function PhotoUpload({
           }))
         );
 
-        console.log("CALLING DETECT ROOM TYPES", { count: images.length, ids: images.map(i => i.id) });
+        console.log("[PhotoUpload] CALLING detect-room-types", {
+          count: images.length,
+          ids: images.map(i => i.id),
+          base64Lengths: images.map(i => `${i.id}=${i.base64.length}`),
+        });
+        const invokeStart = performance.now();
         const { data, error } = await supabase.functions.invoke("detect-room-types", {
           body: { images },
         });
+        const invokeMs = Math.round(performance.now() - invokeStart);
+        console.log(`[PhotoUpload] detect-room-types responded in ${invokeMs}ms`, { data, error });
 
         if (error) {
-          console.error("[PhotoUpload] detect-room-types returned error:", error);
+          console.error("[PhotoUpload] detect-room-types FAILED:", {
+            error,
+            message: error?.message,
+            context: error?.context,
+            status: error?.status,
+          });
           throw error;
         }
 

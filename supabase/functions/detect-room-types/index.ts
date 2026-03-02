@@ -152,6 +152,8 @@ async function detectSingleRoomType(
   base64: string,
   mimeType: string
 ): Promise<DetectionResult> {
+  console.log(`[detect-room-types] Calling Anthropic API for image (mimeType=${mimeType}, base64Length=${base64.length})`);
+  const startTime = Date.now();
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -184,8 +186,12 @@ async function detectSingleRoomType(
     }),
   });
 
+  const elapsed = Date.now() - startTime;
+  console.log(`[detect-room-types] Anthropic API responded: status=${response.status} in ${elapsed}ms`);
+
   if (!response.ok) {
     const errorText = await response.text();
+    console.error(`[detect-room-types] Anthropic API FAILED: ${response.status} - ${errorText}`);
     throw new Error(`Anthropic API error: ${response.status} - ${errorText}`);
   }
 
@@ -245,7 +251,17 @@ Deno.serve(async (req) => {
   }
 
   try {
+    console.log(`[detect-room-types] ── REQUEST RECEIVED ──`);
+    console.log(`[detect-room-types] Method: ${req.method}`);
+    console.log(`[detect-room-types] URL: ${req.url}`);
+    console.log(`[detect-room-types] Origin: ${req.headers.get("origin") ?? "(none)"}`);
+    console.log(`[detect-room-types] Auth header present: ${!!req.headers.get("authorization")}`);
+    console.log(`[detect-room-types] Content-Type: ${req.headers.get("content-type") ?? "(none)"}`);
+    console.log(`[detect-room-types] ANTHROPIC_API_KEY set: ${!!ANTHROPIC_API_KEY}`);
+    console.log(`[detect-room-types] CORS_ALLOWED_ORIGIN: ${ALLOWED_ORIGIN}`);
+
     if (!ANTHROPIC_API_KEY) {
+      console.error(`[detect-room-types] FATAL: ANTHROPIC_API_KEY is not set in environment`);
       return new Response(
         JSON.stringify({ error: "AI service not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -257,6 +273,7 @@ Deno.serve(async (req) => {
     };
 
     if (!body.images || body.images.length === 0) {
+      console.error(`[detect-room-types] No images in request body`, JSON.stringify(Object.keys(body)));
       return new Response(
         JSON.stringify({ error: "No images provided" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -265,6 +282,8 @@ Deno.serve(async (req) => {
 
     console.log(`=== DETECT ROOM TYPES (Claude Vision — CAMERA_INTENT system) ===`);
     console.log(`Classifying ${body.images.length} image(s)...`);
+    console.log(`[detect-room-types] Image IDs: ${body.images.map(i => i.id).join(", ")}`);
+    console.log(`[detect-room-types] Image sizes (base64 chars): ${body.images.map(i => `${i.id}=${i.base64?.length ?? 0}`).join(", ")}`);
 
     const results = await Promise.all(
       body.images.map(async ({ id, base64, mimeType }) => {
@@ -291,12 +310,14 @@ Deno.serve(async (req) => {
       })
     );
 
+    console.log(`[detect-room-types] ── SUCCESS: returning ${results.length} result(s) ──`);
     return new Response(
       JSON.stringify({ results }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error in detect-room-types:", error);
+    console.error(`[detect-room-types] ── UNHANDLED ERROR ──`, error);
+    console.error(`[detect-room-types] Error type: ${error?.constructor?.name}, message: ${error instanceof Error ? error.message : String(error)}`);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Detection failed" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

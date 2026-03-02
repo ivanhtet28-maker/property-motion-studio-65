@@ -127,6 +127,8 @@ export function PropertySourceSelector({
           img.src = objUrl;
         });
 
+        console.log("[PropertySourceSelector] CALLING detect-room-types for", imageUrl, { base64Length: base64.length });
+        const invokeStart = performance.now();
         const { data, error } = await supabase.functions.invoke(
           "detect-room-types",
           {
@@ -135,8 +137,18 @@ export function PropertySourceSelector({
             },
           }
         );
+        const invokeMs = Math.round(performance.now() - invokeStart);
+        console.log(`[PropertySourceSelector] detect-room-types responded in ${invokeMs}ms`, { data, error });
 
-        if (error) throw error;
+        if (error) {
+          console.error("[PropertySourceSelector] detect-room-types FAILED:", {
+            error,
+            message: error?.message,
+            context: error?.context,
+            status: error?.status,
+          });
+          throw error;
+        }
 
         const result = data.results?.[0];
         const roomType = (result?.room_type ?? "living-room-wide") as RoomType;
