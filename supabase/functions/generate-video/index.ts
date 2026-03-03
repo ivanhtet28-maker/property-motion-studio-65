@@ -3,8 +3,9 @@
 
   import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+  const ALLOWED_ORIGIN = (Deno.env.get("CORS_ALLOWED_ORIGIN") || "*").replace(/\/+$/, "");
   const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers":
       "authorization, x-client-info, apikey, content-type",
@@ -24,19 +25,13 @@
   interface ImageMetadata {
     url: string;
     cameraAngle: string;
-    cameraAction?: string;   // Camera Action dropdown (e.g., "parallax-glide")
-    room_type?: string;      // AI-detected room (e.g., "kitchen-orbit")
+    cameraAction?: string;    // Camera Action dropdown (e.g., "parallax-glide")
+    room_type?: string;       // AI-detected room (e.g., "kitchen-orbit")
+    camera_intent?: string;   // AI-decided camera move (e.g., "orbit-right")
+    hero_feature?: string;    // What the camera reveals (e.g., "marble kitchen island")
+    hazards?: string;         // Comma-separated hazards or "none"
     duration: number;
-    windowPosition?: string; // "left" | "right" | "center" | "none"
-    bedPosition?: string;    // "left" | "right" | "center" | "none"
-    kitchenVisible?: string; // "left" | "right" | "none" — open-plan kitchen detection
-    visualAnchor?: string;   // "fireplace" | "feature-wall" | ... | "none"
-    anchorPosition?: string; // "left" | "right" | "center"
-    facadeSymmetry?: string;    // "symmetric" | "asymmetric-left" | "asymmetric-right" | "none"
-    doorPosition?: string;      // "left" | "center" | "right" | "none"
-    stories?: string;           // "1" | "2" | "3" | "none"
-    fenceObstruction?: string;  // "yes" | "no" | "none"
-    drivewayDominance?: string; // "yes" | "no" | "none"
+    userOverridden?: boolean; // true when user manually changed the camera dropdown
   }
 
   interface GenerateVideoRequest {
@@ -131,13 +126,152 @@
     seed: number;
   }
 
-  // Dual-crop disabled: imagescript uses WASM which causes Supabase Edge Function
-  // boot errors (546). Images pass through unchanged — Runway handles cropping itself.
+  // Parse JPEG dimensions from the SOF (Start of Frame) marker in the first bytes.
+  // Avoids downloading the full image just to check aspect ratio.
+  function parseJpegDimensions(bytes: Uint8Array): { width: number; height: number } | null {
+    // JPEG files start with FF D8
+    if (bytes[0] !== 0xFF || bytes[1] !== 0xD8) return null;
+
+    let offset = 2;
+    while (offset < bytes.length - 1) {
+      if (bytes[offset] !== 0xFF) break;
+      const marker = bytes[offset + 1];
+
+      // SOF markers: C0 (baseline), C1, C2 (progressive) — all contain dimensions
+      if (marker >= 0xC0 && marker <= 0xC3) {
+        // SOF structure: FF Cx [length:2] [precision:1] [height:2] [width:2]
+        if (offset + 9 > bytes.length) return null;
+        const height = (bytes[offset + 5] << 8) | bytes[offset + 6];
+        const width = (bytes[offset + 7] << 8) | bytes[offset + 8];
+        return { width, height };
+      }
+
+      // Skip to next marker: read segment length and advance
+      if (offset + 3 >= bytes.length) break;
+      const segmentLength = (bytes[offset + 2] << 8) | bytes[offset + 3];
+      offset += 2 + segmentLength;
+    }
+    return null;
+  }
+
+  // Fetch just the first 64KB of an image to extract JPEG dimensions.
+  // Falls back to full fetch + decode if range request is not supported.
+  async function getImageDimensions(imageUrl: string): Promise<{ width: number; height: number } | null> {
+    try {
+      // Try a range request first (saves bandwidth)
+      const rangeResponse = await fetch(imageUrl, {
+        headers: { "Range": "bytes=0-65535" },
+      });
+
+      const bytes = new Uint8Array(await rangeResponse.arrayBuffer());
+      const dims = parseJpegDimensions(bytes);
+      if (dims) return dims;
+
+      // If range request didn't work or wasn't JPEG, try full fetch
+      if (rangeResponse.status !== 206) {
+        // We already have the full (or partial) response — try parsing what we have
+        return null;
+      }
+
+      // Full fetch fallback for non-JPEG formats (PNG, WebP, etc.)
+      const fullResponse = await fetch(imageUrl);
+      const fullBytes = new Uint8Array(await fullResponse.arrayBuffer());
+
+      // Try PNG: dimensions at bytes 16-23
+      if (fullBytes[0] === 0x89 && fullBytes[1] === 0x50) {
+        const width = (fullBytes[16] << 24) | (fullBytes[17] << 16) | (fullBytes[18] << 8) | fullBytes[19];
+        const height = (fullBytes[20] << 24) | (fullBytes[21] << 16) | (fullBytes[22] << 8) | fullBytes[23];
+        return { width, height };
+      }
+
+      return null;
+    } catch (err) {
+      console.error("Failed to get image dimensions:", err);
+      return null;
+    }
+  }
+
   async function dualCropLandscape(
-    _imageUrl: string,
+    imageUrl: string,
     _supabase: ReturnType<typeof createClient>
   ): Promise<DualCropResult | null> {
-    return null;
+    // 1. Get image dimensions
+    const dims = await getImageDimensions(imageUrl);
+    if (!dims) {
+      console.log("Could not determine image dimensions, skipping dual-crop");
+      return null;
+    }
+
+    const { width, height } = dims;
+    console.log(`Image dimensions: ${width}x${height} (ratio: ${(width / height).toFixed(2)})`);
+
+    // Only dual-crop landscape images (width > height × 1.3)
+    if (width <= height * 1.3) {
+      return null; // Portrait or square — no crop needed
+    }
+
+    // 2. Calculate two 9:16 crop regions with ~10% overlap
+    const targetRatio = 9 / 16; // 0.5625
+    const cropWidth = Math.round(height * targetRatio);
+    const cropHeight = height;
+
+    // Ensure crop width doesn't exceed image width
+    if (cropWidth * 2 > width * 1.1) {
+      // Image isn't wide enough for two distinct crops — skip
+      console.log("Image not wide enough for two distinct crops, skipping dual-crop");
+      return null;
+    }
+
+    // Left crop: starts at 0 (or a small offset for a more natural framing)
+    const leftX = 0;
+    // Right crop: ends at image width
+    const rightX = width - cropWidth;
+
+    const seed = Math.floor(Math.random() * 2147483647);
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(2, 8);
+
+    // 3. Call crop-image edge function for both crops in parallel
+    const cropFunctionUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/crop-image`;
+    const authHeader = `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`;
+
+    const [leftResult, rightResult] = await Promise.all([
+      fetch(cropFunctionUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": authHeader,
+        },
+        body: JSON.stringify({
+          imageUrl,
+          cropRegion: { x: leftX, y: 0, width: cropWidth, height: cropHeight },
+          outputPath: `crops/${timestamp}-${randomId}-left.jpg`,
+        }),
+      }).then(r => r.json()),
+      fetch(cropFunctionUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": authHeader,
+        },
+        body: JSON.stringify({
+          imageUrl,
+          cropRegion: { x: rightX, y: 0, width: cropWidth, height: cropHeight },
+          outputPath: `crops/${timestamp}-${randomId}-right.jpg`,
+        }),
+      }).then(r => r.json()),
+    ]);
+
+    if (!leftResult.success || !rightResult.success) {
+      console.error("Dual-crop failed:", leftResult.error || rightResult.error);
+      return null; // Graceful fallback — image passes through unchanged
+    }
+
+    return {
+      leftUrl: leftResult.url,
+      rightUrl: rightResult.url,
+      seed,
+    };
   }
 
   // Mark free trial as consumed — called only AFTER generation successfully starts.
@@ -254,9 +388,9 @@
 
           // Check user subscription status and free trial availability
           const { data: userData, error: userError } = await supabase
-            .from("users")
+            .from("user_preferences")
             .select("subscription_status, free_video_used")
-            .eq("id", userId)
+            .eq("user_id", userId)
             .single();
 
           if (!userError && userData) {
@@ -270,7 +404,7 @@
             // on failed generations.
             if (!hasActiveSubscription && hasFreeTrial) {
               isFreeTrial = true;
-              console.log("This is a free trial video generation (will mark used after successful start)");
+              console.log("This is a free trial video generation — will mark as used after DB record creation");
             }
           }
 
@@ -281,9 +415,9 @@
               source: source || "upload",
               property_address: propertyData.address || "Unknown Property",
               price: propertyData.price || null,
-              bedrooms: propertyData.beds || null,
-              bathrooms: propertyData.baths || null,
-              car_spaces: propertyData.carSpaces || null,
+              bedrooms: propertyData.beds ?? null,
+              bathrooms: propertyData.baths ?? null,
+              car_spaces: propertyData.carSpaces ?? null,
               template_used: style,
               music_used: music,
               aspect_ratio: "9:16",
@@ -302,6 +436,20 @@
           } else {
             videoRecordId = videoRecord.id;
             console.log("Video record created:", videoRecordId, isFreeTrial ? "(FREE TRIAL)" : "");
+
+            // Mark free trial as used AFTER video record exists (so user has a video to show for it)
+            if (isFreeTrial) {
+              const { error: updateError } = await supabase
+                .from("user_preferences")
+                .update({ free_video_used: true })
+                .eq("user_id", userId);
+
+              if (updateError) {
+                console.error("Failed to mark free trial as used:", updateError);
+              } else {
+                console.log("Free trial marked as used for user:", userId);
+              }
+            }
           }
         } catch (dbErr) {
           console.error("Database error:", dbErr);
@@ -314,11 +462,14 @@
       if (useKenBurns) {
         console.log("Ken Burns flow: bypassing AI generation, applying Shotstack effects to photos");
 
-        const imageEffects = metadataSource.map((m: ImageMetadata) => toShotstackEffect(m.cameraAngle || "auto"));
-        const cameraAngles = metadataSource.map((m: ImageMetadata) => m.cameraAngle || "auto");
+        // Use camera_intent from AI detection as primary motion source.
+        // Only fall back to the legacy cameraAngle dropdown if the user manually overrode it.
+        const cameraAngles = metadataSource.map((m: ImageMetadata) =>
+          m.userOverridden ? (m.cameraAngle || "auto") : (m.camera_intent || m.cameraAngle || "auto")
+        );
         const clipDurations = metadataSource.map((m: ImageMetadata) => m.duration ?? 3.5);
 
-        console.log("Effects:", imageEffects);
+        console.log("Camera intents for Ken Burns:", cameraAngles);
 
         const stitchResponse = await fetch(
           `${Deno.env.get("SUPABASE_URL")}/functions/v1/stitch-video`,
@@ -330,7 +481,6 @@
             },
             body: JSON.stringify({
               imageUrls,
-              imageEffects,
               cameraAngles,
               clipDurations,
               audioUrl,
@@ -403,6 +553,7 @@
               style,
               layout: layout || style,
               customTitle: customTitle || "",
+              videoId: videoRecordId,
             }),
           }
         );
@@ -458,27 +609,58 @@
       const supabaseCropKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const supabaseCrop = createClient(supabaseCropUrl, supabaseCropKey);
 
-      // Living room types that should use directional dual-crop based on window position
-      const LIVING_ROOM_TYPES = new Set(["living-room-wide", "living-room-orbit"]);
+      // Helper: get room group for dual-crop intent assignment
+      function getRoomGroup(roomType: string): string {
+        if (roomType.startsWith("exterior") || roomType === "front-door") return "exterior";
+        if (roomType === "entry-foyer") return "entry";
+        if (roomType.startsWith("living-room")) return "living-room";
+        if (roomType.startsWith("kitchen")) return "kitchen";
+        if (roomType === "master-bedroom" || roomType === "bedroom") return "bedroom";
+        if (roomType === "bathroom") return "bathroom";
+        return "outdoor";
+      }
+
+      // Dual-crop intent assignment: each crop gets a proper camera_intent
+      function getDualCropIntents(
+        roomType: string,
+        originalIntent: string,
+      ): { cropAIntent: string; cropBIntent: string } {
+        const roomGroup = getRoomGroup(roomType);
+
+        // Bedrooms: both crops pull back. Never push forward into bed.
+        if (roomGroup === "bedroom") {
+          return {
+            cropAIntent: "pullback-reveal-right",
+            cropBIntent: "pullback-wide",
+          };
+        }
+
+        // Exteriors: both crops rise. Never push forward into fence.
+        if (roomGroup === "exterior") {
+          return {
+            cropAIntent: "parallax-exterior",
+            cropBIntent: "crane-up",
+          };
+        }
+
+        // Living rooms / kitchens / entries: Crop A orbits, Crop B pushes gently
+        return {
+          cropAIntent: originalIntent.startsWith("orbit") ? originalIntent : "orbit-right",
+          cropBIntent: "gentle-push",
+        };
+      }
 
       const expandedMetadata: Array<{
         url: string;
         cameraAngle?: string;
         cameraAction?: string;
         room_type?: string;
+        camera_intent?: string;
+        hero_feature?: string;
+        hazards?: string;
         duration?: number;
         seed?: number;
-        motionBias?: "slide-right" | "slide-left" | "push-forward";
-        windowPosition?: string;
-        bedPosition?: string;
-        kitchenVisible?: string;
-        visualAnchor?: string;
-        anchorPosition?: string;
-        facadeSymmetry?: string;
-        doorPosition?: string;
-        stories?: string;
-        fenceObstruction?: string;
-        drivewayDominance?: string;
+        userOverridden?: boolean;
       }> = [];
       const expandedImageUrls: string[] = []; // Original URLs for hybrid fallback
 
@@ -495,73 +677,44 @@
         const cropResult = await dualCropLandscape(originalUrl, supabaseCrop);
 
         if (cropResult) {
-          console.log(`Image ${i + 1}: LANDSCAPE → dual-cropped (seed: ${cropResult.seed}, room_type: ${meta.room_type || "unknown"})`);
+          const roomType = meta.room_type || "living-room-wide";
+          const originalIntent = meta.camera_intent || "orbit-right";
+          const { cropAIntent, cropBIntent } = getDualCropIntents(roomType, originalIntent);
 
-          // Determine crop direction for living rooms with detected windows
-          const isLivingRoom = meta.room_type && LIVING_ROOM_TYPES.has(meta.room_type);
-          const windowPos = meta.windowPosition || "none";
-          const windowsOnRight = isLivingRoom && windowPos === "right";
-          console.log(`Image ${i + 1} dual-crop decision: room_type=${meta.room_type}, isLivingRoom=${isLivingRoom}, windowPos=${windowPos}, windowsOnRight=${windowsOnRight}`);
+          console.log(`Image ${i + 1}: LANDSCAPE → dual-cropped (seed: ${cropResult.seed}, room=${roomType}, cropA=${cropAIntent}, cropB=${cropBIntent})`);
 
           // Check if adding both crops would exceed the limit
           if (expandedMetadata.length + 2 > 10) {
-            // Only add one crop to stay within limit — pick the interior-facing crop
-            const cropUrl = windowsOnRight ? cropResult.rightUrl : cropResult.leftUrl;
-            const bias = windowsOnRight ? "slide-left" : "slide-right";
-            expandedMetadata.push({
-              ...meta,
-              url: cropUrl,
-              seed: cropResult.seed,
-              motionBias: bias,
-            });
-            expandedImageUrls.push(originalUrl);
-            console.log(`Only added single crop (clip limit), bias: ${bias}`);
-          } else if (windowsOnRight) {
-            // Windows on RIGHT: orbit AWAY from windows (left)
-            // Crop A (Anchor): Right-weighted (shows window), slides left away from it
-            expandedMetadata.push({
-              ...meta,
-              url: cropResult.rightUrl,
-              seed: cropResult.seed,
-              motionBias: "slide-left",
-            });
-            expandedImageUrls.push(originalUrl);
-
-            // Crop B (Detail): Left-weighted (interior), pushes forward into detail
+            // Only add one crop to stay within limit
             expandedMetadata.push({
               ...meta,
               url: cropResult.leftUrl,
               seed: cropResult.seed,
-              motionBias: "push-forward",
+              camera_intent: cropAIntent,
             });
             expandedImageUrls.push(originalUrl);
-            console.log(`Living room: windows on right → slide-left (orbit away from windows)`);
+            console.log(`Only added single crop (clip limit), intent: ${cropAIntent}`);
           } else {
-            // Default: windows on left or no window detected
-            // Crop A (Anchor): Left-weighted, slides right (away from window if present)
+            // Crop A
             expandedMetadata.push({
               ...meta,
               url: cropResult.leftUrl,
               seed: cropResult.seed,
-              motionBias: "slide-right",
+              camera_intent: cropAIntent,
             });
             expandedImageUrls.push(originalUrl);
 
-            // Crop B (Detail): Right-weighted, pushes forward
+            // Crop B
             expandedMetadata.push({
               ...meta,
               url: cropResult.rightUrl,
               seed: cropResult.seed,
-              motionBias: "push-forward",
+              camera_intent: cropBIntent,
             });
             expandedImageUrls.push(originalUrl);
-            if (isLivingRoom && windowPos === "left") {
-              console.log(`Living room: windows on left → slide-right (orbit away from windows)`);
-            }
           }
         } else {
           // Portrait/square or crop failed — pass through unchanged
-          // Spatial data (windowPosition, bedPosition) is preserved for directional override in generate-runway-batch
           expandedMetadata.push(meta);
           expandedImageUrls.push(originalUrl);
         }
@@ -585,6 +738,11 @@
           }),
         }
       );
+
+      if (!runwayResponse.ok) {
+        const errorText = await runwayResponse.text();
+        throw new Error(`generate-runway-batch HTTP ${runwayResponse.status}: ${errorText}`);
+      }
 
       const runwayData = await runwayResponse.json();
 
@@ -634,6 +792,8 @@
                 agentInfo: agentInfo || null,
                 propertyData: propertyData,
                 style: style,
+                layout: layout || style,
+                customTitle: customTitle || "",
                 imageUrls: finalImageUrls,  // Expanded for hybrid fallback recovery
               }),
             })

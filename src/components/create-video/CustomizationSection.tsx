@@ -102,16 +102,18 @@ export function CustomizationSection({ settings, onChange, previewImageUrl, prop
     setIsPreviewingVoice(true);
 
     try {
-      // Get Supabase credentials from environment
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      // Fallback to anon key if not signed in (preview-voice is deployed with --no-verify-jwt)
+      const token = accessToken || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
       // Call backend function directly with fetch to handle binary response
       const response = await fetch(`${supabaseUrl}/functions/v1/preview-voice`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${supabaseKey}`,
+          "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({
           voiceType: settings.voiceType,

@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Check, Sparkles, Zap, Crown } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -92,15 +92,13 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
     setSelectedPlan(planId);
 
     try {
-      const { data, error } = await supabase.functions.invoke("create-checkout-session", {
+      const data = await invokeEdgeFunction<{ url?: string }>("create-checkout-session", {
         body: {
           plan: planId,
           userId: user.id,
           email: user.email,
         },
       });
-
-      if (error) throw error;
 
       if (data.url) {
         // Redirect to Stripe checkout

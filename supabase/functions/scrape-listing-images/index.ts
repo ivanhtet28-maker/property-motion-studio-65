@@ -3,7 +3,7 @@
 //
 // Strategy:
 //   1. Identify the source site from the URL.
-//   2. Use ScraperAPI with render=true (headless browser) + premium=true
+//   2. Use Scrapingdog with dynamic=true (headless browser) + country=au
 //      to execute JS-heavy galleries and bypass bot detection.
 //   3. Parse the HTML for gallery image URLs using site-specific strategies:
 //      - REA: window.ArgonautExchange JSON blob, og:image meta, gallery data-src
@@ -11,13 +11,12 @@
 //   4. De-duplicate and filter to high-res URLs only.
 //   5. Return all found image URLs (the frontend handles selection of up to 10).
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+const SCRAPINGDOG_API_KEY = Deno.env.get("SCRAPINGDOG_API_KEY") || "";
+const SCRAPINGDOG_API_BASE = "https://api.scrapingdog.com/scrape";
 
-const SCRAPER_API_KEY = Deno.env.get("SCRAPER_API_KEY") || "";
-const SCRAPER_API_BASE = "https://api.scraperapi.com";
-
+const ALLOWED_ORIGIN = (Deno.env.get("CORS_ALLOWED_ORIGIN") || "*").replace(/\/+$/, "");
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
@@ -33,22 +32,20 @@ function detectSite(url: string): ListingSite | null {
   return null;
 }
 
-// ── Headless Fetch via ScraperAPI ────────────────────────────────────────────
+// ── Headless Fetch via Scrapingdog ──────────────────────────────────────────
 
 async function fetchRenderedHtml(url: string): Promise<string> {
-  if (!SCRAPER_API_KEY) {
-    throw new Error("SCRAPER_API_KEY environment variable not set");
+  if (!SCRAPINGDOG_API_KEY) {
+    throw new Error("SCRAPINGDOG_API_KEY environment variable not set");
   }
 
-  const scraperUrl = new URL(SCRAPER_API_BASE);
-  scraperUrl.searchParams.set("api_key", SCRAPER_API_KEY);
+  const scraperUrl = new URL(SCRAPINGDOG_API_BASE);
+  scraperUrl.searchParams.set("api_key", SCRAPINGDOG_API_KEY);
   scraperUrl.searchParams.set("url", url);
-  scraperUrl.searchParams.set("render", "true");
-  scraperUrl.searchParams.set("country_code", "au");
-  // premium mode uses residential proxies — helps avoid blocks on REA/Domain
-  scraperUrl.searchParams.set("premium", "true");
+  scraperUrl.searchParams.set("dynamic", "true");
+  scraperUrl.searchParams.set("country", "au");
 
-  console.log("[scrape-listing-images] Fetching via ScraperAPI:", url);
+  console.log("[scrape-listing-images] Fetching via Scrapingdog:", url);
 
   const response = await fetch(scraperUrl.toString(), {
     signal: AbortSignal.timeout(60_000), // 60s timeout for JS-heavy pages
@@ -56,7 +53,7 @@ async function fetchRenderedHtml(url: string): Promise<string> {
 
   if (!response.ok) {
     throw new Error(
-      `ScraperAPI error: ${response.status} ${response.statusText}`
+      `Scrapingdog error: ${response.status} ${response.statusText}`
     );
   }
 
@@ -265,7 +262,7 @@ function filterHighResImages(urls: string[]): string[] {
 
 // ── Main Handler ─────────────────────────────────────────────────────────────
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -320,7 +317,7 @@ serve(async (req) => {
 
     console.log(`[scrape-listing-images] Site: ${site}, URL: ${url}`);
 
-    // Fetch rendered HTML via headless browser (ScraperAPI)
+    // Fetch rendered HTML via headless browser (Scrapingdog)
     const html = await fetchRenderedHtml(url);
     console.log(`[scrape-listing-images] HTML length: ${html.length}`);
 

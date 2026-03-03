@@ -159,7 +159,7 @@ CREATE INDEX idx_videos_provider_job ON videos(provider, provider_job_id);
 
 -- ============================================================================
 -- SCRAPING JOBS TABLE
--- Tracks ScraperAPI requests and responses
+-- Tracks Scrapingdog requests and responses
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS scraping_jobs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

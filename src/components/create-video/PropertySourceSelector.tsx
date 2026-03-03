@@ -16,18 +16,10 @@ import {
   ImageMetadata,
   CameraAction,
   RoomType,
-  SpatialPosition,
-  KitchenVisiblePosition,
-  VisualAnchorType,
-  AnchorPosition,
-  FacadeSymmetry,
-  DoorPosition,
-  Stories,
-  FenceObstruction,
-  DrivewayDominance,
   ROOM_TO_DEFAULT_ACTION,
+  CAMERA_INTENT_TO_LABEL,
 } from "./PhotoUpload";
-import { supabase } from "@/lib/supabase";
+import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { useToast } from "@/hooks/use-toast";
 import { PropertyDetails } from "./index";
 
@@ -90,7 +82,7 @@ export function PropertySourceSelector({
 
   // Store detection results keyed by URL
   const [detectionResults, setDetectionResults] = useState<
-    Record<string, { roomType: RoomType; label: string; cameraAction: CameraAction; windowPosition?: string; bedPosition?: string; kitchenVisible?: string; visualAnchor?: string; anchorPosition?: string; facadeSymmetry?: string; doorPosition?: string; stories?: string; fenceObstruction?: string; drivewayDominance?: string }>
+    Record<string, { roomType: RoomType; label: string; cameraAction: CameraAction; camera_intent?: string; hero_feature?: string; hazards?: string }>
   >({});
 
   // Prevent duplicate AI detection calls
@@ -135,16 +127,19 @@ export function PropertySourceSelector({
           img.src = objUrl;
         });
 
-        const { data, error } = await supabase.functions.invoke(
+        console.log("[PropertySourceSelector] CALLING detect-room-types for", imageUrl, { base64Length: base64.length });
+        const invokeStart = performance.now();
+        const data = await invokeEdgeFunction<{ results?: Array<{ room_type?: string; camera_intent?: string; hero_feature?: string; hazards?: string }> }>(
           "detect-room-types",
           {
             body: {
               images: [{ id: imageUrl, base64, mimeType: "image/jpeg" }],
             },
+            requireAuth: false,
           }
         );
-
-        if (error) throw error;
+        const invokeMs = Math.round(performance.now() - invokeStart);
+        console.log(`[PropertySourceSelector] detect-room-types responded in ${invokeMs}ms`, { data });
 
         const result = data.results?.[0];
         const roomType = (result?.room_type ?? "living-room-wide") as RoomType;
@@ -155,7 +150,14 @@ export function PropertySourceSelector({
 
         setDetectionResults((prev) => ({
           ...prev,
-          [imageUrl]: { roomType, label, cameraAction, windowPosition: result?.window_position ?? "none", bedPosition: result?.bed_position ?? "none", kitchenVisible: result?.kitchen_visible ?? "none", visualAnchor: result?.visual_anchor ?? "none", anchorPosition: result?.anchor_position ?? "center", facadeSymmetry: result?.facade_symmetry ?? "none", doorPosition: result?.door_position ?? "none", stories: result?.stories ?? "none", fenceObstruction: result?.fence_obstruction ?? "none", drivewayDominance: result?.driveway_dominance ?? "none" },
+          [imageUrl]: {
+            roomType,
+            label,
+            cameraAction,
+            camera_intent: result?.camera_intent ?? "pullback-wide",
+            hero_feature: result?.hero_feature ?? "none",
+            hazards: result?.hazards ?? "none",
+          },
         }));
       } catch (err) {
         console.error("Room detection failed for", imageUrl, err);
@@ -166,16 +168,9 @@ export function PropertySourceSelector({
             roomType: "living-room-wide" as RoomType,
             label: "Living Room",
             cameraAction: "space-sweep" as CameraAction,
-            windowPosition: "none",
-            bedPosition: "none",
-            kitchenVisible: "none",
-            visualAnchor: "none",
-            anchorPosition: "center",
-            facadeSymmetry: "none",
-            doorPosition: "none",
-            stories: "none",
-            fenceObstruction: "none",
-            drivewayDominance: "none",
+            camera_intent: "pullback-wide",
+            hero_feature: "none",
+            hazards: "none",
           },
         }));
       } finally {
@@ -207,20 +202,14 @@ export function PropertySourceSelector({
           cameraAction: detection?.cameraAction ?? ("space-sweep" as CameraAction),
           detectedRoomLabel: detection?.label ?? null,
           room_type: detection?.roomType ?? ("living-room-wide" as RoomType),
+          camera_intent: detection?.camera_intent ?? "pullback-wide",
+          hero_feature: detection?.hero_feature ?? "none",
+          hazards: detection?.hazards ?? "none",
           cameraAngle: "auto" as const,
           duration: 3.5,
           isDetecting,
           autoDetected: !!detection,
-          windowPosition: (detection?.windowPosition ?? "none") as SpatialPosition,
-          bedPosition: (detection?.bedPosition ?? "none") as SpatialPosition,
-          kitchenVisible: (detection?.kitchenVisible ?? "none") as KitchenVisiblePosition,
-          visualAnchor: (detection?.visualAnchor ?? "none") as VisualAnchorType,
-          anchorPosition: (detection?.anchorPosition ?? "center") as AnchorPosition,
-          facadeSymmetry: (detection?.facadeSymmetry ?? "none") as FacadeSymmetry,
-          doorPosition: (detection?.doorPosition ?? "none") as DoorPosition,
-          stories: (detection?.stories ?? "none") as Stories,
-          fenceObstruction: (detection?.fenceObstruction ?? "none") as FenceObstruction,
-          drivewayDominance: (detection?.drivewayDominance ?? "none") as DrivewayDominance,
+          userOverridden: false,
         };
       });
 
@@ -331,14 +320,13 @@ export function PropertySourceSelector({
     try {
       console.log("Scraping listing images from:", propertyUrl);
 
-      const { data, error } = await supabase.functions.invoke(
-        "scrape-listing-images",
+      const data = await invokeEdgeFunction<{ success?: boolean; error?: string; images: string[] }>(
+        "scrape-property",
         {
-          body: { url: propertyUrl },
+          body: { url: propertyUrl, mode: "images-only" },
+          requireAuth: false,
         }
       );
-
-      if (error) throw error;
 
       if (!data.success) {
         throw new Error(
@@ -394,13 +382,17 @@ export function PropertySourceSelector({
         className="w-full"
         onValueChange={(value) => {
           if (value === "upload") {
-            // Clear scrape state when switching to manual upload
+            // Clear scrape-specific state when switching to manual upload.
+            // IMPORTANT: Only clear scraped images/metadata, NOT upload metadata.
+            // onScrapedMetadataChange and onMetadataChange share the same setter,
+            // so we must NOT call onScrapedMetadataChange([]) here — it would
+            // wipe the upload detection results too.
             setAllScrapedImages([]);
             setSelectedImages([]);
             setDetectionResults({});
             setScrapeError(null);
             if (onScrapedImagesChange) onScrapedImagesChange([]);
-            if (onScrapedMetadataChange) onScrapedMetadataChange([]);
+            // Do NOT call onScrapedMetadataChange([]) — it clears upload metadata!
           }
         }}
       >
@@ -554,9 +546,16 @@ export function PropertySourceSelector({
                         </div>
                       )}
                       {isSelected && !isDetecting && detection && (
-                        <span className="absolute bottom-1.5 left-1.5 px-2 py-0.5 bg-purple-600/80 text-white text-[10px] font-medium rounded-full leading-tight shadow-sm backdrop-blur-sm">
-                          AI: {detection.label}
-                        </span>
+                        <div className="absolute bottom-1.5 left-1.5 flex flex-col gap-0.5">
+                          <span className="px-2 py-0.5 bg-purple-600/80 text-white text-[10px] font-medium rounded-full leading-tight shadow-sm backdrop-blur-sm">
+                            AI: {detection.label}
+                          </span>
+                          {detection.camera_intent && (
+                            <span className="px-2 py-0.5 bg-blue-600/80 text-white text-[10px] font-medium rounded-full leading-tight shadow-sm backdrop-blur-sm">
+                              {CAMERA_INTENT_TO_LABEL[detection.camera_intent] ?? detection.camera_intent}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </button>
                   );
@@ -590,9 +589,14 @@ export function PropertySourceSelector({
                         <Loader2 className="absolute bottom-1 right-1 w-3.5 h-3.5 text-white animate-spin drop-shadow" />
                       )}
                       {!isDetecting && detection && (
-                        <span className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[9px] text-center py-0.5 truncate px-1">
-                          {detection.label}
-                        </span>
+                        <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[9px] text-center py-0.5 px-1">
+                          <div className="truncate">{detection.label}</div>
+                          {detection.camera_intent && (
+                            <div className="truncate text-blue-200">
+                              {CAMERA_INTENT_TO_LABEL[detection.camera_intent] ?? detection.camera_intent}
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   );

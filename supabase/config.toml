@@ -1,15 +1,24 @@
-project_id = "acpkhbjgnlenjfiswftx"
+project_id = "pxhpfewunsetuxygeprp"
 
+# User-facing functions require JWT authentication
 [functions.generate-video]
-verify_jwt = false
+verify_jwt = true
 
 [functions.generate-script]
-verify_jwt = false
+verify_jwt = true
 
 [functions.video-status]
-verify_jwt = false
+verify_jwt = true
 
 [functions.scrape-property]
+verify_jwt = true
+
+# Room detection is a stateless utility (no user data) — skip JWT
+[functions.detect-room-types]
+verify_jwt = false
+
+# Internal functions called by other edge functions (not browser-facing)
+[functions.crop-image]
 verify_jwt = false
 
 [functions.generate-runway-batch]
@@ -25,4 +34,8 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.stitch-video]
+verify_jwt = false
+
+# Stripe webhook uses its own signature verification, not JWT
+[functions.stripe-webhook]
 verify_jwt = false

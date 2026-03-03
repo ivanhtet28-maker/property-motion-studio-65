@@ -1,6 +1,6 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Upload, X, ImageIcon, GripVertical, Star, Info, Loader2 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import {
   Select,
   SelectContent,
@@ -15,6 +15,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useToast } from "@/hooks/use-toast";
 
 export type CameraAngle = "auto" | "wide-shot" | "push-in" | "push-out" | "orbit-left" | "orbit-right";
 
@@ -69,6 +70,23 @@ export const ROOM_TO_DEFAULT_ACTION: Record<string, CameraAction> = {
   "view-balcony":     "aerial-float",     // Pull Out
 };
 
+// Human-readable labels for AI camera intent (the "Shot" tag)
+export const CAMERA_INTENT_TO_LABEL: Record<string, string> = {
+  "orbit-right":           "Orbit Right",
+  "orbit-left":            "Orbit Left",
+  "pullback-wide":         "Pull Back Wide",
+  "pullback-reveal-right": "Pull Back → Right",
+  "pullback-reveal-left":  "Pull Back → Left",
+  "gentle-push":           "Gentle Push",
+  "drift-through":         "Drift Through",
+  "crane-up":              "Crane Up",
+  "crane-up-drift-right":  "Crane Up → Right",
+  "crane-up-drift-left":   "Crane Up → Left",
+  "approach-gentle":       "Gentle Approach",
+  "parallax-exterior":     "Parallax Slide",
+  "float-back":            "Float Back",
+};
+
 // AI detection display label (the "What" tag)
 const ROOM_TYPE_TO_LABEL: Record<string, string> = {
   "exterior-arrival": "Exterior",
@@ -86,35 +104,19 @@ const ROOM_TYPE_TO_LABEL: Record<string, string> = {
   "view-balcony":     "Balcony / View",
 };
 
-export type SpatialPosition = "left" | "right" | "center" | "none";
-export type KitchenVisiblePosition = "left" | "right" | "none";
-export type VisualAnchorType = "kitchen-island" | "fireplace" | "feature-wall" | "window-view" | "bed-styling" | "vanity" | "entertainment" | "ceiling-detail" | "open-plan-flow" | "none";
-export type AnchorPosition = "left" | "right" | "center";
-export type FacadeSymmetry = "symmetric" | "asymmetric-left" | "asymmetric-right" | "none";
-export type DoorPosition = "left" | "center" | "right" | "none";
-export type Stories = "1" | "2" | "3" | "none";
-export type FenceObstruction = "yes" | "no" | "none";
-export type DrivewayDominance = "yes" | "no" | "none";
-
 export interface ImageMetadata {
   file: File;
   cameraAction: CameraAction;          // dropdown value (the "How")
   detectedRoomLabel: string | null;     // AI tag display (the "What")
   room_type: RoomType;                  // raw AI detection — sent to backend for prompt anchors
+  camera_intent?: string;              // AI-decided camera move (e.g., "orbit-right")
+  hero_feature?: string;               // what the camera reveals (e.g., "marble kitchen island")
+  hazards?: string;                    // comma-separated hazards or "none"
   cameraAngle: CameraAngle;            // legacy compat
   duration: number;
   isDetecting?: boolean;               // true while Claude Vision is classifying
   autoDetected?: boolean;              // true after AI has set the camera action
-  windowPosition?: SpatialPosition;    // where outdoor windows are in the photo (left/right/center/none)
-  bedPosition?: SpatialPosition;       // where the bed is in the photo (bedrooms only)
-  kitchenVisible?: KitchenVisiblePosition; // kitchen visible in living room (left/right/none)
-  visualAnchor?: VisualAnchorType;     // primary visual feature in the room
-  anchorPosition?: AnchorPosition;     // which side of frame the anchor is on
-  facadeSymmetry?: FacadeSymmetry;     // building facade symmetry (exterior only)
-  doorPosition?: DoorPosition;         // main entrance position (exterior only)
-  stories?: Stories;                   // building height (exterior only)
-  fenceObstruction?: FenceObstruction; // foreground barrier (exterior only)
-  drivewayDominance?: DrivewayDominance; // driveway dominates bottom third (exterior only)
+  userOverridden?: boolean;            // true ONLY when user manually changed the dropdown
 }
 
 interface PhotoUploadProps {
@@ -124,6 +126,17 @@ interface PhotoUploadProps {
   onMetadataChange?: (metadata: ImageMetadata[]) => void;
   minPhotos?: number;
   maxPhotos?: number;
+}
+
+// Default intent fallback when AI detection doesn't return one
+function getDefaultIntent(roomType: string): string {
+  if (roomType.startsWith("exterior") || roomType === "front-door") return "crane-up";
+  if (roomType === "entry-foyer") return "drift-through";
+  if (roomType.startsWith("living-room")) return "orbit-right";
+  if (roomType.startsWith("kitchen")) return "orbit-right";
+  if (roomType === "master-bedroom" || roomType === "bedroom") return "pullback-wide";
+  if (roomType === "bathroom") return "gentle-push";
+  return "float-back";
 }
 
 // Resize an image File to a small JPEG base64 string suitable for Claude Vision.
@@ -156,6 +169,7 @@ export function PhotoUpload({
   minPhotos = 3,
   maxPhotos = 10,
 }: PhotoUploadProps) {
+  const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   // Tracks which file names are currently being detected to avoid duplicate calls
@@ -163,7 +177,16 @@ export function PhotoUpload({
 
   // Initialize metadata when photos change, then trigger AI detection for new images
   const syncMetadata = useCallback((newPhotos: File[]) => {
-    if (!onMetadataChange) return;
+    if (!onMetadataChange) {
+      console.warn("[PhotoUpload] syncMetadata called but onMetadataChange is null/undefined — detection skipped!");
+      return;
+    }
+
+    console.log("[PhotoUpload] syncMetadata called", {
+      photoCount: newPhotos.length,
+      existingMetadata: imageMetadata.length,
+      detectingRefSize: detectingRef.current.size,
+    });
 
     const newMetadata: ImageMetadata[] = newPhotos.map((file) => {
       const existing = imageMetadata.find(m => m.file.name === file.name);
@@ -178,6 +201,7 @@ export function PhotoUpload({
         duration: CLIP_DURATION,
         isDetecting: true,
         autoDetected: false,
+        userOverridden: false,
       };
     });
 
@@ -201,13 +225,24 @@ export function PhotoUpload({
           }))
         );
 
-        const { data, error } = await supabase.functions.invoke("detect-room-types", {
-          body: { images },
+        console.log("[PhotoUpload] CALLING detect-room-types", {
+          count: images.length,
+          ids: images.map(i => i.id),
+          base64Lengths: images.map(i => `${i.id}=${i.base64.length}`),
         });
+        const invokeStart = performance.now();
+        const data = await invokeEdgeFunction<{ results?: Array<{ id: string; room_type: string; camera_intent?: string; hero_feature?: string; hazards?: string }> }>(
+          "detect-room-types",
+          {
+            body: { images },
+            requireAuth: false,
+          }
+        );
+        const invokeMs = Math.round(performance.now() - invokeStart);
+        console.log(`[PhotoUpload] detect-room-types responded in ${invokeMs}ms`, { data });
 
-        if (error) throw error;
-
-        const results: Array<{ id: string; room_type: string; window_position?: string; bed_position?: string; kitchen_visible?: string; visual_anchor?: string; anchor_position?: string; facade_symmetry?: string; door_position?: string; stories?: string; fence_obstruction?: string; driveway_dominance?: string }> = data.results ?? [];
+        const results: Array<{ id: string; room_type: string; camera_intent?: string; hero_feature?: string; hazards?: string }> = data?.results ?? [];
+        console.log("[PhotoUpload] Detection results received:", JSON.stringify(results, null, 2));
 
         onMetadataChange(
           newPhotos.map((file) => {
@@ -215,54 +250,51 @@ export function PhotoUpload({
             if (existing) return existing;
             const detected = results.find(r => r.id === file.name);
             const roomType = (detected?.room_type ?? "living-room-wide") as RoomType;
-            const windowPos = (detected?.window_position ?? "none") as SpatialPosition;
-            const bedPos = (detected?.bed_position ?? "none") as SpatialPosition;
-            const kitchenPos = (detected?.kitchen_visible ?? "none") as KitchenVisiblePosition;
-            const anchorType = (detected?.visual_anchor ?? "none") as VisualAnchorType;
-            const anchorPos = (detected?.anchor_position ?? "center") as AnchorPosition;
-            const facadeSym = (detected?.facade_symmetry ?? "none") as FacadeSymmetry;
-            const doorPos = (detected?.door_position ?? "none") as DoorPosition;
-            const storiesVal = (detected?.stories ?? "none") as Stories;
-            const fenceVal = (detected?.fence_obstruction ?? "none") as FenceObstruction;
-            const drivewayVal = (detected?.driveway_dominance ?? "none") as DrivewayDominance;
+            const detectedIntent = detected?.camera_intent ?? getDefaultIntent(roomType);
+            const detectedHero = detected?.hero_feature ?? "none";
+            const detectedHazards = detected?.hazards ?? "none";
             return {
               file,
               cameraAction: ROOM_TO_DEFAULT_ACTION[roomType] ?? ("space-sweep" as CameraAction),
               detectedRoomLabel: ROOM_TYPE_TO_LABEL[roomType] ?? null,
               room_type: roomType,
+              camera_intent: detectedIntent,
+              hero_feature: detectedHero,
+              hazards: detectedHazards,
               cameraAngle: "auto" as CameraAngle,
               duration: CLIP_DURATION,
               isDetecting: false,
               autoDetected: !!detected,
-              windowPosition: windowPos,
-              bedPosition: bedPos,
-              kitchenVisible: kitchenPos,
-              visualAnchor: anchorType,
-              anchorPosition: anchorPos,
-              facadeSymmetry: facadeSym,
-              doorPosition: doorPos,
-              stories: storiesVal,
-              fenceObstruction: fenceVal,
-              drivewayDominance: drivewayVal,
+              userOverridden: false,
             };
           })
         );
       } catch (err) {
-        console.error("Room type detection failed:", err);
-        // Clear detecting state on failure — leave default camera action
+        console.error("Room type detection FAILED:", err);
+        toast({
+          title: "AI Detection Failed",
+          description: "Could not analyze photos. Using defaults. Check console for details.",
+          variant: "destructive",
+        });
+        // Set defaults with visible label so user sees SOMETHING (not blank)
         onMetadataChange(
           newPhotos.map((file) => {
             const existing = imageMetadata.find(m => m.file.name === file.name);
             if (existing) return existing;
+            const fallbackRoom = "living-room-wide" as RoomType;
             return {
               file,
               cameraAction: "space-sweep" as CameraAction,
-              detectedRoomLabel: null,
-              room_type: "living-room-wide" as RoomType,
+              detectedRoomLabel: ROOM_TYPE_TO_LABEL[fallbackRoom] + " (default)",
+              room_type: fallbackRoom,
+              camera_intent: getDefaultIntent(fallbackRoom),
+              hero_feature: "none",
+              hazards: "none",
               cameraAngle: "auto" as CameraAngle,
               duration: CLIP_DURATION,
               isDetecting: false,
               autoDetected: false,
+              userOverridden: false,
             };
           })
         );
@@ -270,7 +302,17 @@ export function PhotoUpload({
         newFiles.forEach(f => detectingRef.current.delete(f.name));
       }
     })();
-  }, [imageMetadata, onMetadataChange]);
+  }, [imageMetadata, onMetadataChange, toast]);
+
+  // Re-sync: if photos exist but metadata is empty/mismatched, re-trigger detection.
+  // This catches cases where metadata was wiped (tab switching, state resets, etc.)
+  useEffect(() => {
+    if (!onMetadataChange || photos.length === 0) return;
+    if (imageMetadata.length === 0) {
+      console.log("[PhotoUpload] metadata empty but photos exist — re-syncing", { photoCount: photos.length });
+      syncMetadata(photos);
+    }
+  }, [photos, imageMetadata.length, syncMetadata, onMetadataChange]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -333,13 +375,13 @@ export function PhotoUpload({
   const updateImageCameraAction = (index: number, action: CameraAction) => {
     if (!onMetadataChange) return;
     const newMetadata = [...imageMetadata];
-    newMetadata[index] = { ...newMetadata[index], cameraAction: action, autoDetected: false };
+    newMetadata[index] = { ...newMetadata[index], cameraAction: action, autoDetected: false, userOverridden: true };
     onMetadataChange(newMetadata);
   };
 
   const setAllCameraActions = (action: CameraAction) => {
     if (!onMetadataChange) return;
-    const newMetadata = imageMetadata.map(meta => ({ ...meta, cameraAction: action, autoDetected: false }));
+    const newMetadata = imageMetadata.map(meta => ({ ...meta, cameraAction: action, autoDetected: false, userOverridden: true }));
     onMetadataChange(newMetadata);
   };
 
@@ -527,9 +569,16 @@ export function PhotoUpload({
 
                     {/* AI room detection tag — bottom-left of image */}
                     {metadata && !metadata.isDetecting && metadata.detectedRoomLabel && (
-                      <span className="absolute bottom-2 left-2 px-2 py-0.5 bg-purple-600/80 text-white text-[10px] font-medium rounded-full leading-tight shadow-sm backdrop-blur-sm">
-                        AI: {metadata.detectedRoomLabel}
-                      </span>
+                      <div className="absolute bottom-2 left-2 flex flex-col gap-0.5">
+                        <span className="px-2 py-0.5 bg-purple-600/80 text-white text-[10px] font-medium rounded-full leading-tight shadow-sm backdrop-blur-sm">
+                          AI: {metadata.detectedRoomLabel}
+                        </span>
+                        {metadata.camera_intent && (
+                          <span className="px-2 py-0.5 bg-blue-600/80 text-white text-[10px] font-medium rounded-full leading-tight shadow-sm backdrop-blur-sm">
+                            Shot: {CAMERA_INTENT_TO_LABEL[metadata.camera_intent] ?? metadata.camera_intent}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
 
@@ -583,6 +632,25 @@ export function PhotoUpload({
                           </Select>
                         )}
                       </div>
+
+                      {/* AI Shot Details — camera_intent + hero_feature */}
+                      {!metadata.isDetecting && metadata.autoDetected && metadata.camera_intent && (
+                        <div className="px-2 py-1.5 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50 rounded-md space-y-0.5">
+                          <p className="text-[10px] font-semibold text-blue-700 dark:text-blue-300 flex items-center gap-1">
+                            AI Shot: {CAMERA_INTENT_TO_LABEL[metadata.camera_intent] ?? metadata.camera_intent}
+                          </p>
+                          {metadata.hero_feature && metadata.hero_feature !== "none" && (
+                            <p className="text-[10px] text-blue-600/80 dark:text-blue-400/70">
+                              Reveals: {metadata.hero_feature}
+                            </p>
+                          )}
+                          {metadata.hazards && metadata.hazards !== "none" && (
+                            <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                              Hazards: {metadata.hazards}
+                            </p>
+                          )}
+                        </div>
+                      )}
 
                     </div>
                   )}

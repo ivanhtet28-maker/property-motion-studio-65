@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { invokeEdgeFunction, EdgeFunctionError } from "@/lib/invokeEdgeFunction";
 import {
   LeftSidebar,
   PropertyDetailsForm,
@@ -145,7 +146,7 @@ export default function CreateVideo() {
 
       // Step 2: Submit a landscape Shotstack stitch job
       const clipDurations = imageMetadata.map(m => m?.duration || 3.5);
-      const { data: stitchData, error: stitchError } = await supabase.functions.invoke("stitch-video", {
+      const stitchData = await invokeEdgeFunction<{ jobId: string }>("stitch-video", {
         body: {
           videoUrls: landscapeClipUrls,
           clipDurations,
@@ -160,15 +161,13 @@ export default function CreateVideo() {
         },
       });
 
-      if (stitchError) throw new Error(stitchError.message || "Landscape stitch failed");
-
       const landscapeJobId = stitchData.jobId;
 
       // Step 3: Poll for completion (video-status skips DB update when videoId is null)
       let landscapeVideoUrl: string | null = null;
       for (let attempt = 0; attempt < 60 && !landscapeVideoUrl; attempt++) {
         await new Promise(resolve => setTimeout(resolve, 5000));
-        const { data: statusData } = await supabase.functions.invoke("video-status", {
+        const statusData = await invokeEdgeFunction<{ status: string; videoUrl?: string }>("video-status", {
           body: {
             generationIds: [],
             videoId: null,
@@ -259,27 +258,38 @@ export default function CreateVideo() {
 
         console.log(`Polling attempt ${attempts}/${maxAttempts} for ${generationIds?.length ?? 0} clips`);
 
-        const { data, error: fnError } = await supabase.functions.invoke("video-status", {
-          body: {
-            generationIds,
-            videoId,
-            audioUrl,
-            musicUrl,
-            agentInfo,
-            propertyData,
-            style: style,
-            layout: layout,
-            customTitle: customTitle,
-            stitchJobId: currentStitchJobId,
-            clipDurations: clipDurations,
-            provider: provider || "runway",
-            imageUrls: imageUrls,  // For hybrid fallback — original photos replace failed AI clips
-          },
-        });
-
-        if (fnError) {
-          console.error("Status check error:", fnError);
+        let data: Record<string, unknown>;
+        try {
+          // invokeEdgeFunction handles fresh-token injection and real error extraction
+          data = await invokeEdgeFunction("video-status", {
+            body: {
+              generationIds,
+              videoId,
+              audioUrl,
+              musicUrl,
+              agentInfo,
+              propertyData,
+              style: style,
+              layout: layout,
+              customTitle: customTitle,
+              stitchJobId: currentStitchJobId,
+              clipDurations: clipDurations,
+              provider: provider || "runway",
+              imageUrls: imageUrls,  // For hybrid fallback — original photos replace failed AI clips
+            },
+          });
+        } catch (invokeErr) {
+          const isAuth = invokeErr instanceof EdgeFunctionError && invokeErr.isAuthError;
+          console.error("Status check error:", invokeErr, isAuth ? "(auth)" : "");
           consecutiveErrors++;
+
+          // Bail early on auth failures — no point retrying 120 times
+          if (isAuth && consecutiveErrors >= 3) {
+            console.error("[video-status] Persistent 401 — stopping poll");
+            setError("Authentication failed while checking video status. Please sign in again and retry.");
+            setIsGenerating(false);
+            return;
+          }
 
           // After 10 consecutive errors, stop polling — backend is likely down
           if (consecutiveErrors >= 10) {
@@ -288,7 +298,7 @@ export default function CreateVideo() {
             return;
           }
 
-          // Keep polling on transient errors
+          // Keep polling on transient errors (use ref so cleanup can cancel)
           pollTimeoutRef.current = setTimeout(poll, 5000);
           return;
         }
@@ -380,6 +390,18 @@ export default function CreateVideo() {
       return;
     }
 
+    // Block generation if AI room detection is still running
+    const stillDetecting = imageMetadata.some(m => m.isDetecting);
+    if (stillDetecting) {
+      setError("AI is still analyzing your photos. Please wait a moment...");
+      toast({
+        title: "Detection in progress",
+        description: "AI room detection is still running. Please wait for it to finish.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Validate agent info (required for video outro)
     if (!customization.agentInfo.name.trim()) {
       setError("Please fill in your agent name");
@@ -448,6 +470,22 @@ export default function CreateVideo() {
     setGenerationIds(null);
 
     try {
+      // Refresh auth session before calling JWT-protected edge functions.
+      // The token may have expired during photo upload + AI detection.
+      const { data: sessionData, error: sessionError } = await supabase.auth.refreshSession();
+      if (sessionError || !sessionData.session) {
+        console.error("Session refresh failed:", sessionError);
+        setIsGenerating(false);
+        setError("Your session has expired. Please sign in again.");
+        toast({
+          title: "Session expired",
+          description: "Please sign in again to generate videos.",
+          variant: "destructive",
+        });
+        return;
+      }
+      console.log("Session refreshed, token valid until:", new Date(sessionData.session.expires_at! * 1000).toISOString());
+
       let imageUrls: string[];
 
       // Step 1: Get image URLs (either from scraping or upload)
@@ -527,33 +565,43 @@ Contact us today for a private inspection.`;
       // Convert frontend voice name to backend ID (only if voiceover is enabled)
       const voiceId = customization.includeVoiceover ? getVoiceId(customization.voiceType) : null;
 
-      // Prepare image metadata with camera actions, room types, and durations
+      // Prepare image metadata with camera intents, room types, and durations
       const imageMetadataPayload = imageUrls.map((url, index) => {
         const metadata = imageMetadata[index];
         return {
           url,
           cameraAction: metadata?.cameraAction || null,
-          room_type: metadata?.room_type || null,
+          room_type: metadata?.room_type || "living-room-wide",
+          camera_intent: metadata?.camera_intent || "pullback-wide",
+          hero_feature: metadata?.hero_feature || "none",
+          hazards: metadata?.hazards || "none",
           cameraAngle: metadata?.cameraAngle || "auto",
           duration: metadata?.duration || 3.5,
-          windowPosition: metadata?.windowPosition || "none",
-          bedPosition: metadata?.bedPosition || "none",
-          kitchenVisible: metadata?.kitchenVisible || "none",
-          visualAnchor: metadata?.visualAnchor || "none",
-          anchorPosition: metadata?.anchorPosition || "center",
-          facadeSymmetry: metadata?.facadeSymmetry || "none",
-          doorPosition: metadata?.doorPosition || "none",
-          stories: metadata?.stories || "none",
-          fenceObstruction: metadata?.fenceObstruction || "none",
-          drivewayDominance: metadata?.drivewayDominance || "none",
+          userOverridden: metadata?.userOverridden || false,
         };
       });
 
-      const { data, error: fnError} = await supabase.functions.invoke("generate-video", {
+      // invokeEdgeFunction auto-injects a fresh JWT token
+      const data = await invokeEdgeFunction<{
+        success: boolean;
+        error?: string;
+        videoId?: string;
+        generationIds?: string[];
+        totalClips?: number;
+        estimatedTime?: number;
+        audioUrl?: string | null;
+        musicUrl?: string | null;
+        agentInfo?: CustomizationSettings['agentInfo'];
+        propertyData?: Record<string, unknown>;
+        style?: string;
+        provider?: string;
+        stitchJobId?: string;
+        imageUrls?: string[];
+      }>("generate-video", {
         body: {
           imageUrls: imageUrls,
           imageMetadata: imageMetadataPayload,
-          useKenBurns: false, // Use Runway Gen-3a AI generation with camera_motion sliders
+          useKenBurns: false, // Runway Gen-3a with dual-crop for landscape images
           propertyData: propertyDataPayload,
           style: customization.selectedTemplate,
           layout: customization.selectedLayout,
@@ -571,10 +619,6 @@ Contact us today for a private inspection.`;
           },
         },
       });
-
-      if (fnError) {
-        throw new Error(fnError.message || "Failed to generate video");
-      }
 
       // Handle the response
       if (data.success) {
