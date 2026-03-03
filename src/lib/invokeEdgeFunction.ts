@@ -11,10 +11,13 @@ import { supabase } from "@/lib/supabase";
  *   server response, detects real 401s, and surfaces the true error.
  *
  * Auth handling:
- *   When `requireAuth` is true (the default), the helper fetches a fresh
- *   access token from the current session and sends it as an explicit
- *   `Authorization` header. If the call returns 401, it automatically
- *   refreshes the session and retries once before giving up.
+ *   The Supabase SDK's internal `fetchWithAuth` automatically injects
+ *   the current session's JWT as the Authorization header. We do NOT
+ *   set a custom Authorization header — doing so can override the SDK's
+ *   correctly-resolved token with a stale one from `getSession()`.
+ *
+ *   On 401, the helper calls `refreshSession()` to force the SDK's
+ *   internal session state to update, then retries once.
  */
 
 export class EdgeFunctionError extends Error {
@@ -33,65 +36,22 @@ export class EdgeFunctionError extends Error {
 
 interface InvokeOptions {
   body?: Record<string, unknown>;
-  /** Extra headers to merge (Authorization is auto-added when requireAuth=true) */
+  /** Extra headers to merge (do NOT include Authorization — the SDK handles it) */
   headers?: Record<string, string>;
-  /** If true (default), fetch a fresh JWT and send it. Set false for public endpoints. */
+  /** If true (default), require a valid session. Set false for public endpoints. */
   requireAuth?: boolean;
-}
-
-interface InvokeFailure {
-  ok: false;
-  serverMessage: string;
-  httpStatus: number | undefined;
-  is401: boolean;
-}
-
-/** Build auth headers, optionally forcing a token refresh. */
-async function buildAuthHeaders(
-  baseHeaders: Record<string, string>,
-  requireAuth: boolean,
-  forceRefresh: boolean,
-): Promise<Record<string, string>> {
-  const finalHeaders: Record<string, string> = { ...baseHeaders };
-
-  if (requireAuth && !finalHeaders.Authorization) {
-    let accessToken: string | undefined;
-
-    if (forceRefresh) {
-      const { data: refreshData, error: refreshError } =
-        await supabase.auth.refreshSession();
-      if (refreshError || !refreshData?.session?.access_token) {
-        throw new EdgeFunctionError(
-          "Your session has expired. Please sign in again.",
-          401,
-        );
-      }
-      accessToken = refreshData.session.access_token;
-    } else {
-      const { data: sessionData } = await supabase.auth.getSession();
-      accessToken = sessionData?.session?.access_token;
-    }
-
-    if (!accessToken) {
-      throw new EdgeFunctionError(
-        "Your session has expired. Please sign in again.",
-        401,
-      );
-    }
-    finalHeaders.Authorization = `Bearer ${accessToken}`;
-  }
-
-  return finalHeaders;
 }
 
 /** Attempt a single invoke call and parse errors into a structured result. */
 async function attemptInvoke<T>(
   functionName: string,
-  finalHeaders: Record<string, string>,
+  headers: Record<string, string>,
   body: Record<string, unknown> | undefined,
-): Promise<{ ok: true; data: T } | InvokeFailure> {
+): Promise<{ ok: true; data: T } | { ok: false; serverMessage: string; httpStatus: number | undefined; is401: boolean }> {
+  // Let the SDK's fetchWithAuth handle Authorization + apikey automatically.
+  // We only pass non-auth headers (Content-Type, etc.) as custom headers.
   const { data, error } = await supabase.functions.invoke(functionName, {
-    headers: finalHeaders,
+    headers,
     body,
   });
 
@@ -132,40 +92,48 @@ export async function invokeEdgeFunction<T = Record<string, unknown>>(
 ): Promise<T> {
   const { body, headers = {}, requireAuth = true } = options;
 
-  // Attempt 1: use cached session (fast path)
-  const headers1 = await buildAuthHeaders(headers, requireAuth, false);
-  const result1 = await attemptInvoke<T>(functionName, headers1, body);
+  // Pre-flight: if auth is required, verify a session exists before calling
+  if (requireAuth) {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData?.session?.access_token) {
+      throw new EdgeFunctionError(
+        "Your session has expired. Please sign in again.",
+        401,
+      );
+    }
+  }
+
+  // Attempt 1 — SDK's fetchWithAuth automatically injects the JWT
+  const result1 = await attemptInvoke<T>(functionName, headers, body);
 
   if (result1.ok) {
     return result1.data;
   }
 
-  // On 401 with auth enabled: refresh session and retry once
+  // On 401: refresh the SDK's internal session state, then retry once
   if (result1.is401 && requireAuth) {
     console.warn(
       `[invokeEdgeFunction] ${functionName} returned 401 — refreshing session and retrying...`,
     );
 
-    let headers2: Record<string, string>;
-    try {
-      headers2 = await buildAuthHeaders(headers, requireAuth, true);
-    } catch {
+    const { error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError) {
       throw new EdgeFunctionError(
-        "Authentication failed (401). Your session may have expired — please sign in again.",
+        "Authentication failed (401). Your session has expired — please sign in again.",
         401,
       );
     }
 
-    const result2 = await attemptInvoke<T>(functionName, headers2, body);
+    // Attempt 2 — SDK will now use the freshly-refreshed token
+    const result2 = await attemptInvoke<T>(functionName, headers, body);
 
     if (result2.ok) {
       return result2.data;
     }
 
-    // Second attempt also failed
     if (result2.is401) {
       throw new EdgeFunctionError(
-        "Authentication failed (401). Your session may have expired — please sign in again.",
+        "Authentication failed (401). Your session has expired — please sign in again.",
         401,
       );
     }
@@ -178,7 +146,7 @@ export async function invokeEdgeFunction<T = Record<string, unknown>>(
   // Non-401 error — throw immediately
   if (result1.is401) {
     throw new EdgeFunctionError(
-      "Authentication failed (401). Your session may have expired — please sign in again.",
+      "Authentication failed (401). Your session has expired — please sign in again.",
       401,
     );
   }
