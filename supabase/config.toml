@@ -18,6 +18,9 @@ verify_jwt = true
 verify_jwt = false
 
 # Internal functions called by other edge functions (not browser-facing)
+[functions.crop-image]
+verify_jwt = false
+
 [functions.generate-runway-batch]
 verify_jwt = false
 
