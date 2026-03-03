@@ -306,7 +306,7 @@
         );
         const clipDurations = metadataSource.map((m: ImageMetadata) => m.duration ?? 3.5);
 
-        console.log("Effects:", imageEffects);
+        console.log("Camera intents for Ken Burns:", cameraAngles);
 
         const stitchResponse = await fetch(
           `${Deno.env.get("SUPABASE_URL")}/functions/v1/stitch-video`,
@@ -318,7 +318,6 @@
             },
             body: JSON.stringify({
               imageUrls,
-              imageEffects,
               cameraAngles,
               clipDurations,
               audioUrl,
