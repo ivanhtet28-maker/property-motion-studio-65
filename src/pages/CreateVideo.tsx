@@ -571,7 +571,7 @@ Contact us today for a private inspection.`;
         body: {
           imageUrls: imageUrls,
           imageMetadata: imageMetadataPayload,
-          useKenBurns: true, // Ken Burns: Shotstack applies motion to still photos (no AI generation)
+          useKenBurns: false, // Runway Gen-3a with dual-crop for landscape images
           propertyData: propertyDataPayload,
           style: customization.selectedTemplate,
           layout: customization.selectedLayout,

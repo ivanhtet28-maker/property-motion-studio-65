@@ -126,13 +126,152 @@
     seed: number;
   }
 
-  // Dual-crop disabled: imagescript uses WASM which causes Supabase Edge Function
-  // boot errors (546). Images pass through unchanged — Runway handles cropping itself.
+  // Parse JPEG dimensions from the SOF (Start of Frame) marker in the first bytes.
+  // Avoids downloading the full image just to check aspect ratio.
+  function parseJpegDimensions(bytes: Uint8Array): { width: number; height: number } | null {
+    // JPEG files start with FF D8
+    if (bytes[0] !== 0xFF || bytes[1] !== 0xD8) return null;
+
+    let offset = 2;
+    while (offset < bytes.length - 1) {
+      if (bytes[offset] !== 0xFF) break;
+      const marker = bytes[offset + 1];
+
+      // SOF markers: C0 (baseline), C1, C2 (progressive) — all contain dimensions
+      if (marker >= 0xC0 && marker <= 0xC3) {
+        // SOF structure: FF Cx [length:2] [precision:1] [height:2] [width:2]
+        if (offset + 9 > bytes.length) return null;
+        const height = (bytes[offset + 5] << 8) | bytes[offset + 6];
+        const width = (bytes[offset + 7] << 8) | bytes[offset + 8];
+        return { width, height };
+      }
+
+      // Skip to next marker: read segment length and advance
+      if (offset + 3 >= bytes.length) break;
+      const segmentLength = (bytes[offset + 2] << 8) | bytes[offset + 3];
+      offset += 2 + segmentLength;
+    }
+    return null;
+  }
+
+  // Fetch just the first 64KB of an image to extract JPEG dimensions.
+  // Falls back to full fetch + decode if range request is not supported.
+  async function getImageDimensions(imageUrl: string): Promise<{ width: number; height: number } | null> {
+    try {
+      // Try a range request first (saves bandwidth)
+      const rangeResponse = await fetch(imageUrl, {
+        headers: { "Range": "bytes=0-65535" },
+      });
+
+      const bytes = new Uint8Array(await rangeResponse.arrayBuffer());
+      const dims = parseJpegDimensions(bytes);
+      if (dims) return dims;
+
+      // If range request didn't work or wasn't JPEG, try full fetch
+      if (rangeResponse.status !== 206) {
+        // We already have the full (or partial) response — try parsing what we have
+        return null;
+      }
+
+      // Full fetch fallback for non-JPEG formats (PNG, WebP, etc.)
+      const fullResponse = await fetch(imageUrl);
+      const fullBytes = new Uint8Array(await fullResponse.arrayBuffer());
+
+      // Try PNG: dimensions at bytes 16-23
+      if (fullBytes[0] === 0x89 && fullBytes[1] === 0x50) {
+        const width = (fullBytes[16] << 24) | (fullBytes[17] << 16) | (fullBytes[18] << 8) | fullBytes[19];
+        const height = (fullBytes[20] << 24) | (fullBytes[21] << 16) | (fullBytes[22] << 8) | fullBytes[23];
+        return { width, height };
+      }
+
+      return null;
+    } catch (err) {
+      console.error("Failed to get image dimensions:", err);
+      return null;
+    }
+  }
+
   async function dualCropLandscape(
-    _imageUrl: string,
+    imageUrl: string,
     _supabase: ReturnType<typeof createClient>
   ): Promise<DualCropResult | null> {
-    return null;
+    // 1. Get image dimensions
+    const dims = await getImageDimensions(imageUrl);
+    if (!dims) {
+      console.log("Could not determine image dimensions, skipping dual-crop");
+      return null;
+    }
+
+    const { width, height } = dims;
+    console.log(`Image dimensions: ${width}x${height} (ratio: ${(width / height).toFixed(2)})`);
+
+    // Only dual-crop landscape images (width > height × 1.3)
+    if (width <= height * 1.3) {
+      return null; // Portrait or square — no crop needed
+    }
+
+    // 2. Calculate two 9:16 crop regions with ~10% overlap
+    const targetRatio = 9 / 16; // 0.5625
+    const cropWidth = Math.round(height * targetRatio);
+    const cropHeight = height;
+
+    // Ensure crop width doesn't exceed image width
+    if (cropWidth * 2 > width * 1.1) {
+      // Image isn't wide enough for two distinct crops — skip
+      console.log("Image not wide enough for two distinct crops, skipping dual-crop");
+      return null;
+    }
+
+    // Left crop: starts at 0 (or a small offset for a more natural framing)
+    const leftX = 0;
+    // Right crop: ends at image width
+    const rightX = width - cropWidth;
+
+    const seed = Math.floor(Math.random() * 2147483647);
+    const timestamp = Date.now();
+    const randomId = Math.random().toString(36).substring(2, 8);
+
+    // 3. Call crop-image edge function for both crops in parallel
+    const cropFunctionUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/crop-image`;
+    const authHeader = `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`;
+
+    const [leftResult, rightResult] = await Promise.all([
+      fetch(cropFunctionUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": authHeader,
+        },
+        body: JSON.stringify({
+          imageUrl,
+          cropRegion: { x: leftX, y: 0, width: cropWidth, height: cropHeight },
+          outputPath: `crops/${timestamp}-${randomId}-left.jpg`,
+        }),
+      }).then(r => r.json()),
+      fetch(cropFunctionUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": authHeader,
+        },
+        body: JSON.stringify({
+          imageUrl,
+          cropRegion: { x: rightX, y: 0, width: cropWidth, height: cropHeight },
+          outputPath: `crops/${timestamp}-${randomId}-right.jpg`,
+        }),
+      }).then(r => r.json()),
+    ]);
+
+    if (!leftResult.success || !rightResult.success) {
+      console.error("Dual-crop failed:", leftResult.error || rightResult.error);
+      return null; // Graceful fallback — image passes through unchanged
+    }
+
+    return {
+      leftUrl: leftResult.url,
+      rightUrl: rightResult.url,
+      seed,
+    };
   }
 
   Deno.serve(async (req) => {
@@ -306,7 +445,7 @@
         );
         const clipDurations = metadataSource.map((m: ImageMetadata) => m.duration ?? 3.5);
 
-        console.log("Effects:", imageEffects);
+        console.log("Camera intents for Ken Burns:", cameraAngles);
 
         const stitchResponse = await fetch(
           `${Deno.env.get("SUPABASE_URL")}/functions/v1/stitch-video`,
@@ -318,7 +457,6 @@
             },
             body: JSON.stringify({
               imageUrls,
-              imageEffects,
               cameraAngles,
               clipDurations,
               audioUrl,
