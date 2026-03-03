@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Video, Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -89,6 +89,19 @@ export default function CreateVideo() {
   const [uploadedImageUrls, setUploadedImageUrls] = useState<string[]>([]); // source image URLs for landscape re-render
   const [isDownloadingLandscape, setIsDownloadingLandscape] = useState(false);
   const [refreshSidebarTrigger, setRefreshSidebarTrigger] = useState(0);
+
+  // Ref to cancel polling when component unmounts
+  const pollCancelledRef = useRef(false);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      pollCancelledRef.current = true;
+      if (pollTimeoutRef.current) {
+        clearTimeout(pollTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Reset video generation state to create another video
   const handleReset = () => {
@@ -217,7 +230,15 @@ export default function CreateVideo() {
     // For canvas flow, start with the stitchJobId returned by generate-video
     let currentStitchJobId: string | null = initialStitchJobId || null;
 
+    // Reset cancellation flag when starting a new poll cycle
+    pollCancelledRef.current = false;
+
     const poll = async (): Promise<void> => {
+      if (pollCancelledRef.current) {
+        console.log("Polling cancelled (component unmounted or reset)");
+        return;
+      }
+
       if (attempts >= maxAttempts) {
         setError("Video generation timed out after 10 minutes. Please try again.");
         setIsGenerating(false);
@@ -270,11 +291,15 @@ export default function CreateVideo() {
             return;
           }
 
-          if (consecutiveErrors >= 5) {
-            console.warn("Multiple consecutive errors - edge function may be unavailable");
+          // After 10 consecutive errors, stop polling — backend is likely down
+          if (consecutiveErrors >= 10) {
+            setError("Video generation service is unavailable. Your video may still be processing — check your dashboard later.");
+            setIsGenerating(false);
+            return;
           }
 
-          setTimeout(poll, 5000);
+          // Keep polling on transient errors (use ref so cleanup can cancel)
+          pollTimeoutRef.current = setTimeout(poll, 5000);
           return;
         }
 
@@ -301,7 +326,7 @@ export default function CreateVideo() {
             console.log("Stitching started with Shotstack:", data.stitchJobId);
           }
           setGeneratingProgress(data.progress || 90);
-          setTimeout(poll, 5000);
+          pollTimeoutRef.current = setTimeout(poll, 5000);
         } else if (data.status === "failed") {
           setError(data.message || "Video generation failed. Please try again.");
           setIsGenerating(false);
@@ -309,12 +334,17 @@ export default function CreateVideo() {
           // Still processing - update progress
           const newProgress = data.progress || Math.min(generatingProgress + 2, 95);
           setGeneratingProgress(newProgress);
-          setTimeout(poll, 5000);
+          pollTimeoutRef.current = setTimeout(poll, 5000);
         }
       } catch (err) {
         console.error("Poll exception:", err);
         consecutiveErrors++;
-        setTimeout(poll, 5000);
+        if (consecutiveErrors >= 10) {
+          setError("Video generation service is unavailable. Your video may still be processing — check your dashboard later.");
+          setIsGenerating(false);
+          return;
+        }
+        pollTimeoutRef.current = setTimeout(poll, 5000);
       }
     };
 
