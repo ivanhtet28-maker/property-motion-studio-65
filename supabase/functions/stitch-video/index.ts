@@ -486,8 +486,13 @@
         console.log("No agent photo provided in agentInfo");
       }
 
-      // Use provided clip durations or default to 3.5 seconds each
-      const durations = clipDurations || sourceUrls.map(() => 3.5);
+      // Use provided clip durations or default to 3.5 seconds each.
+      // Clamp every duration to a minimum of 1s — Shotstack rejects 0, negative, or NaN lengths.
+      const rawDurations = clipDurations || sourceUrls.map(() => 3.5);
+      const durations = rawDurations.map((d: number) => {
+        const n = Number(d);
+        return (Number.isFinite(n) && n >= 1) ? n : 3.5;
+      });
 
       // ── Pacing Lock: 3.5s hard cut + 0.5s crossfade ────────────────────────
       // Runway generates 5s clips (shortest it supports). Shotstack hard-cuts at
@@ -505,7 +510,7 @@
       // Calculate total duration (AI mode subtracts overlap between adjacent clips)
       const overlapCount = isKenBurns ? 0 : Math.max(0, effectiveDurations.length - 1);
       const videoClipsDuration = effectiveDurations.reduce((sum, duration) => sum + duration, 0) - (TRANSITION_OVERLAP * overlapCount);
-      const agentCardDuration = (agentInfo && agentInfo.name) ? durations[0] : 0; // Match first clip duration
+      const agentCardDuration = (agentInfo && agentInfo.name) ? Math.max(durations[0], 1) : 0; // Match first clip duration (min 1s)
       const totalDuration = videoClipsDuration + agentCardDuration;
 
       console.log("Clip durations (raw):", durations);
@@ -640,7 +645,7 @@
                     src: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/luma-mattes/circle_square_white.png",
                   },
                   start: videoClipsDuration + 0.1,
-                  length: agentCardDuration - 0.1,
+                  length: Math.max(agentCardDuration - 0.1, 0.5),
                   position: "top",
                   offset: {
                     y: -0.22,
@@ -656,7 +661,7 @@
                     src: agentPhotoUrl || agentInfo.photo, // Use storage URL if available, fallback to base64
                   },
                   start: videoClipsDuration + 0.1,
-                  length: agentCardDuration - 0.1,
+                  length: Math.max(agentCardDuration - 0.1, 0.5),
                   position: "top",
                   offset: {
                     y: -0.15,
@@ -697,7 +702,7 @@
                     height: 1920,
                   },
                   start: videoClipsDuration + 0.1,
-                  length: agentCardDuration - 0.1,
+                  length: Math.max(agentCardDuration - 0.1, 0.5),
                 },
               ],
             }] : []),
@@ -714,7 +719,7 @@
                     height: 1920,
                   },
                   start: 0.1,
-                  length: effectiveDurations[0] - 0.1, // Match first clip effective duration (minus 0.1s offset)
+                  length: Math.max(effectiveDurations[0] - 0.1, 0.5),
                 },
               ],
             },
@@ -725,7 +730,7 @@
                 layout || "modern-luxe",
                 propertyData,
                 0.1,
-                effectiveDurations[0] - 0.1
+                Math.max(effectiveDurations[0] - 0.1, 0.5)
               ),
             },
 

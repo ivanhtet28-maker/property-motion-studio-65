@@ -26,6 +26,15 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Lightweight auth guard
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Authentication required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const body: GenerateScriptRequest = await req.json();
 
     console.log("=== GENERATE AI SCRIPT (Claude Sonnet 4.5) ===");
