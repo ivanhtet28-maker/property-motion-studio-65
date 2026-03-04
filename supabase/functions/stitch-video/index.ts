@@ -594,9 +594,7 @@
           clip.transition = { in: "fade", out: "fade" };
           console.log(`Clip ${index}: Hybrid fallback — using original image with zoomInSlow`);
         } else {
-          // AI-generated clip: apply digital stabilization
-          // Scale 1.1 crops the edges to hide peripheral AI warping artifacts
-          clip.scale = 1.1;
+          // AI-generated clip
           clip.transition = { in: "fade", out: "fade" };
         }
 
