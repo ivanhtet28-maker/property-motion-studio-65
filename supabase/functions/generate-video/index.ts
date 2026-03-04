@@ -25,9 +25,9 @@
   interface ImageMetadata {
     url: string;
     cameraAngle: string;
-    cameraAction?: string;    // Camera Action dropdown (e.g., "parallax-glide")
+    cameraAction?: string;    // Camera Action dropdown (e.g., "orbit", "push-in")
     room_type?: string;       // AI-detected room (e.g., "kitchen-orbit")
-    camera_intent?: string;   // AI-decided camera move (e.g., "orbit-right")
+    camera_intent?: string;   // AI-decided camera move (e.g., "orbit", "push-in")
     hero_feature?: string;    // What the camera reveals (e.g., "marble kitchen island")
     hazards?: string;         // Comma-separated hazards or "none"
     duration: number;
@@ -64,14 +64,16 @@
   // no AI generation, no hallucination, identical output every run.
   function toShotstackEffect(cameraAngle: string): string {
     switch (cameraAngle) {
-      case "push-out":    return "zoomOutSlow";
-      case "orbit-right": return "slideLeftSlow";  // image moves left = camera pans right
-      case "orbit-left":  return "slideRightSlow"; // image moves right = camera pans left
+      case "pull-out":
+      case "drone-up":
+      case "pedestal-up":  return "zoomOutSlow";
+      case "truck-right":
+      case "orbit":        return "slideLeftSlow";
+      case "truck-left":   return "slideRightSlow";
+      case "static":       return "zoomInSlow"; // subtle motion better than none
       case "push-in":
-      case "zoom-in":
-      case "wide-shot":
-      case "auto":
-      default:            return "zoomInSlow";
+      case "pedestal-down":
+      default:             return "zoomInSlow";
     }
   }
 
@@ -644,7 +646,7 @@
         return "outdoor";
       }
 
-      // Dual-crop intent assignment: each crop gets a proper camera_intent
+      // Dual-crop intent assignment: each crop gets a complementary camera_intent
       function getDualCropIntents(
         roomType: string,
         originalIntent: string,
@@ -653,24 +655,18 @@
 
         // Bedrooms: both crops pull back. Never push forward into bed.
         if (roomGroup === "bedroom") {
-          return {
-            cropAIntent: "pullback-reveal-right",
-            cropBIntent: "pullback-wide",
-          };
+          return { cropAIntent: "pull-out", cropBIntent: "pull-out" };
         }
 
-        // Exteriors: both crops rise. Never push forward into fence.
+        // Exteriors: one trucks, one rises.
         if (roomGroup === "exterior") {
-          return {
-            cropAIntent: "parallax-exterior",
-            cropBIntent: "crane-up",
-          };
+          return { cropAIntent: "truck-right", cropBIntent: "pedestal-up" };
         }
 
-        // Living rooms / kitchens / entries: Crop A orbits, Crop B pushes gently
+        // Living rooms / kitchens / entries: Crop A orbits, Crop B pushes
         return {
-          cropAIntent: originalIntent.startsWith("orbit") ? originalIntent : "orbit-right",
-          cropBIntent: "gentle-push",
+          cropAIntent: originalIntent === "orbit" ? "orbit" : "truck-right",
+          cropBIntent: "push-in",
         };
       }
 
@@ -702,7 +698,7 @@
 
         if (cropResult) {
           const roomType = meta.room_type || "living-room-wide";
-          const originalIntent = meta.camera_intent || "orbit-right";
+          const originalIntent = meta.camera_intent || "orbit";
           const { cropAIntent, cropBIntent } = getDualCropIntents(roomType, originalIntent);
 
           console.log(`Image ${i + 1}: LANDSCAPE → dual-cropped (seed: ${cropResult.seed}, room=${roomType}, cropA=${cropAIntent}, cropB=${cropBIntent})`);
