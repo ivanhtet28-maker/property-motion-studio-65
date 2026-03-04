@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 
-export type CameraAngle = "auto" | "wide-shot" | "push-in" | "push-out" | "orbit-left" | "orbit-right";
+export type CameraAngle = "auto" | "wide-shot" | "push-in" | "pull-out" | "truck-left" | "truck-right" | "orbit" | "static" | "pedestal-up" | "pedestal-down" | "drone-up";
 
 // Room types — still used for AI detection and backend prompt anchors.
 export type RoomType =
@@ -37,54 +37,58 @@ export type RoomType =
 
 const CLIP_DURATION = 3.5; // seconds — fixed for Ken Burns mode; Runway uses 5s
 
-// ── Core 5 Camera Actions (the user-facing "How" dropdown) ──────────────────
+// ── Camera Actions (user-facing dropdown — standard videography terms) ───────
 export type CameraAction =
-  | "parallax-glide"
-  | "space-sweep"
-  | "kitchen-sweep"
-  | "feature-push"
-  | "aerial-float";
+  | "push-in"
+  | "pull-out"
+  | "truck-left"
+  | "truck-right"
+  | "pedestal-up"
+  | "pedestal-down"
+  | "orbit"
+  | "static"
+  | "drone-up";
 
 export const CAMERA_ACTION_OPTIONS: { value: CameraAction; label: string; description: string }[] = [
-  { value: "parallax-glide", label: "Side Slide",   description: "Clean, horizontal movement" },
-  { value: "space-sweep",    label: "Wide Orbit",   description: "A large, sweeping circular move" },
-  { value: "kitchen-sweep",  label: "Tight Orbit",  description: "A closer, faster circular move" },
-  { value: "feature-push",   label: "Push In",      description: "Direct movement toward the center" },
-  { value: "aerial-float",   label: "Pull Out",     description: "Direct movement away from the center" },
+  { value: "push-in",       label: "Push In",       description: "Dolly forward toward the subject" },
+  { value: "pull-out",      label: "Pull Out",      description: "Dolly backward revealing the space" },
+  { value: "truck-left",    label: "Truck Left",    description: "Lateral slide to the left" },
+  { value: "truck-right",   label: "Truck Right",   description: "Lateral slide to the right" },
+  { value: "pedestal-up",   label: "Pedestal Up",   description: "Camera rises vertically" },
+  { value: "pedestal-down", label: "Pedestal Down",  description: "Camera lowers vertically" },
+  { value: "orbit",         label: "Orbit",         description: "Circular arc around the subject" },
+  { value: "static",        label: "Static Shot",   description: "Locked camera, minimal movement" },
+  { value: "drone-up",      label: "Drone Up",      description: "Rising aerial reveal" },
 ];
 
-// Smart Default: AI-detected room → best Core 5 Camera Action
+// Smart Default: AI-detected room → best camera action
 export const ROOM_TO_DEFAULT_ACTION: Record<string, CameraAction> = {
-  "exterior-arrival": "parallax-glide",   // Side Slide
-  "front-door":       "parallax-glide",   // Side Slide
-  "entry-foyer":      "parallax-glide",   // Side Slide
-  "living-room-wide": "space-sweep",      // Wide Orbit
-  "living-room-orbit":"space-sweep",      // Wide Orbit
-  "kitchen-orbit":    "kitchen-sweep",    // Tight Orbit
-  "kitchen-push":     "kitchen-sweep",    // Tight Orbit
-  "master-bedroom":   "space-sweep",      // Wide Orbit — showcase the room/space
-  "bedroom":          "space-sweep",      // Wide Orbit — showcase the room/space
-  "bathroom":         "feature-push",     // Push In
-  "outdoor-entertaining": "aerial-float", // Pull Out
-  "backyard-pool":    "aerial-float",     // Pull Out
-  "view-balcony":     "aerial-float",     // Pull Out
+  "exterior-arrival":     "truck-right",
+  "front-door":           "push-in",
+  "entry-foyer":          "push-in",
+  "living-room-wide":     "orbit",
+  "living-room-orbit":    "orbit",
+  "kitchen-orbit":        "orbit",
+  "kitchen-push":         "push-in",
+  "master-bedroom":       "pull-out",
+  "bedroom":              "pull-out",
+  "bathroom":             "push-in",
+  "outdoor-entertaining": "drone-up",
+  "backyard-pool":        "drone-up",
+  "view-balcony":         "pull-out",
 };
 
 // Human-readable labels for AI camera intent (the "Shot" tag)
 export const CAMERA_INTENT_TO_LABEL: Record<string, string> = {
-  "orbit-right":           "Orbit Right",
-  "orbit-left":            "Orbit Left",
-  "pullback-wide":         "Pull Back Wide",
-  "pullback-reveal-right": "Pull Back → Right",
-  "pullback-reveal-left":  "Pull Back → Left",
-  "gentle-push":           "Gentle Push",
-  "drift-through":         "Drift Through",
-  "crane-up":              "Crane Up",
-  "crane-up-drift-right":  "Crane Up → Right",
-  "crane-up-drift-left":   "Crane Up → Left",
-  "approach-gentle":       "Gentle Approach",
-  "parallax-exterior":     "Parallax Slide",
-  "float-back":            "Float Back",
+  "push-in":       "Push In",
+  "pull-out":      "Pull Out",
+  "truck-left":    "Truck Left",
+  "truck-right":   "Truck Right",
+  "pedestal-up":   "Pedestal Up",
+  "pedestal-down": "Pedestal Down",
+  "orbit":         "Orbit",
+  "static":        "Static Shot",
+  "drone-up":      "Drone Up",
 };
 
 // AI detection display label (the "What" tag)
@@ -109,7 +113,7 @@ export interface ImageMetadata {
   cameraAction: CameraAction;          // dropdown value (the "How")
   detectedRoomLabel: string | null;     // AI tag display (the "What")
   room_type: RoomType;                  // raw AI detection — sent to backend for prompt anchors
-  camera_intent?: string;              // AI-decided camera move (e.g., "orbit-right")
+  camera_intent?: string;              // AI-decided camera move (e.g., "orbit", "push-in")
   hero_feature?: string;               // what the camera reveals (e.g., "marble kitchen island")
   hazards?: string;                    // comma-separated hazards or "none"
   cameraAngle: CameraAngle;            // legacy compat
@@ -130,13 +134,13 @@ interface PhotoUploadProps {
 
 // Default intent fallback when AI detection doesn't return one
 function getDefaultIntent(roomType: string): string {
-  if (roomType.startsWith("exterior") || roomType === "front-door") return "crane-up";
-  if (roomType === "entry-foyer") return "drift-through";
-  if (roomType.startsWith("living-room")) return "orbit-right";
-  if (roomType.startsWith("kitchen")) return "orbit-right";
-  if (roomType === "master-bedroom" || roomType === "bedroom") return "pullback-wide";
-  if (roomType === "bathroom") return "gentle-push";
-  return "float-back";
+  if (roomType.startsWith("exterior") || roomType === "front-door") return "truck-right";
+  if (roomType === "entry-foyer") return "push-in";
+  if (roomType.startsWith("living-room")) return "orbit";
+  if (roomType.startsWith("kitchen")) return "orbit";
+  if (roomType === "master-bedroom" || roomType === "bedroom") return "pull-out";
+  if (roomType === "bathroom") return "push-in";
+  return "drone-up";
 }
 
 // Resize an image File to a small JPEG base64 string suitable for Claude Vision.
@@ -194,7 +198,7 @@ export function PhotoUpload({
       // New file — mark as detecting so UI shows spinner immediately
       return {
         file,
-        cameraAction: "space-sweep" as CameraAction,
+        cameraAction: "orbit" as CameraAction,
         detectedRoomLabel: null,
         room_type: "living-room-wide" as RoomType,
         cameraAngle: "auto" as CameraAngle,
@@ -255,7 +259,7 @@ export function PhotoUpload({
             const detectedHazards = detected?.hazards ?? "none";
             return {
               file,
-              cameraAction: ROOM_TO_DEFAULT_ACTION[roomType] ?? ("space-sweep" as CameraAction),
+              cameraAction: ROOM_TO_DEFAULT_ACTION[roomType] ?? ("orbit" as CameraAction),
               detectedRoomLabel: ROOM_TYPE_TO_LABEL[roomType] ?? null,
               room_type: roomType,
               camera_intent: detectedIntent,
@@ -284,7 +288,7 @@ export function PhotoUpload({
             const fallbackRoom = "living-room-wide" as RoomType;
             return {
               file,
-              cameraAction: "space-sweep" as CameraAction,
+              cameraAction: "orbit" as CameraAction,
               detectedRoomLabel: ROOM_TYPE_TO_LABEL[fallbackRoom] + " (default)",
               room_type: fallbackRoom,
               camera_intent: getDefaultIntent(fallbackRoom),
@@ -615,7 +619,7 @@ export function PhotoUpload({
                           </div>
                         ) : (
                           <Select
-                            value={metadata.cameraAction ?? "space-sweep"}
+                            value={metadata.cameraAction ?? "orbit"}
                             onValueChange={(value) => updateImageCameraAction(index, value as CameraAction)}
                           >
                             <SelectTrigger className="h-8 text-xs">

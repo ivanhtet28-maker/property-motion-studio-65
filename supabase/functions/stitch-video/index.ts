@@ -543,46 +543,25 @@
         };
 
         if (isKenBurns) {
-          // Ken Burns: smooth motion using camera_intent (from AI detection) or cameraAngle.
-          // Maps each intent to a Shotstack-compatible effect or offset animation.
+          // Ken Burns: map camera intent to Shotstack effect or offset animation.
           const angle = cameraAngles?.[index] || "auto";
 
-          // --- Lateral pan intents (4% horizontal offset over clip duration) ---
-          if (angle === "orbit-right" || angle === "parallax-exterior" || angle === "drift-through") {
+          if (angle === "truck-right" || angle === "orbit") {
             clip.offset = {
               x: [{ from: 0, to: -0.04, start: 0, length: clipDuration,
                      interpolation: "bezier", easing: "easeInOutQuart" }]
             };
-          } else if (angle === "orbit-left") {
+          } else if (angle === "truck-left") {
             clip.offset = {
               x: [{ from: 0, to: 0.04, start: 0, length: clipDuration,
                      interpolation: "bezier", easing: "easeInOutQuart" }]
             };
-
-          // --- Pan + drift combos (pan left with slight zoom) ---
-          } else if (angle === "pullback-reveal-right" || angle === "crane-up-drift-right") {
+          } else if (angle === "pull-out" || angle === "drone-up" || angle === "pedestal-up") {
             clip.effect = "zoomOutSlow";
-            clip.offset = {
-              x: [{ from: 0, to: -0.03, start: 0, length: clipDuration,
-                     interpolation: "bezier", easing: "easeInOutQuart" }]
-            };
-          } else if (angle === "pullback-reveal-left" || angle === "crane-up-drift-left") {
-            clip.effect = "zoomOutSlow";
-            clip.offset = {
-              x: [{ from: 0, to: 0.03, start: 0, length: clipDuration,
-                     interpolation: "bezier", easing: "easeInOutQuart" }]
-            };
-
-          // --- Zoom-out intents (pullback, crane, float) ---
-          } else if (angle === "push-out" || angle === "pullback-wide" || angle === "crane-up"
-                     || angle === "float-back") {
-            clip.effect = "zoomOutSlow";
-
-          // --- Zoom-in intents (push, approach, gentle) ---
-          } else if (angle === "push-in" || angle === "gentle-push" || angle === "approach-gentle") {
+          } else if (angle === "push-in" || angle === "pedestal-down") {
             clip.effect = "zoomInSlow";
-
-          // --- Default: gentle zoom-in (better than static) ---
+          } else if (angle === "static") {
+            // No effect — locked shot
           } else {
             clip.effect = "zoomInSlow";
           }
@@ -594,9 +573,7 @@
           clip.transition = { in: "fade", out: "fade" };
           console.log(`Clip ${index}: Hybrid fallback — using original image with zoomInSlow`);
         } else {
-          // AI-generated clip: apply digital stabilization
-          // Scale 1.1 crops the edges to hide peripheral AI warping artifacts
-          clip.scale = 1.1;
+          // AI-generated clip
           clip.transition = { in: "fade", out: "fade" };
         }
 
