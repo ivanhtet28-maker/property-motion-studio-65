@@ -54,63 +54,41 @@ interface IntentConfig {
 }
 
 const INTENT_MAP: Record<string, IntentConfig> = {
-
-  // INTERIOR
-  "orbit-right": {
-    camera_motion: { zoom: 2, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
-    basePrompt: "Smooth cinematic orbit to the right, revealing the space. Eye-level, chest-height camera perspective.",
-  },
-  "orbit-left": {
-    camera_motion: { zoom: 2, horizontal: -3, pan: -1, tilt: 0, vertical: 0, roll: 0 },
-    basePrompt: "Smooth cinematic orbit to the left, revealing the space. Eye-level, chest-height camera perspective.",
-  },
-  "pullback-wide": {
-    camera_motion: { zoom: -1.5, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    basePrompt: "Gentle pullback revealing the full room. Eye-level, chest-height camera perspective. Showcase room scale and proportions.",
-  },
-  "pullback-reveal-right": {
-    camera_motion: { zoom: -1, horizontal: 2, pan: 0.5, tilt: 0, vertical: 0, roll: 0 },
-    basePrompt: "Gentle pullback drifting right, revealing room space and features. Eye-level, chest-height camera perspective.",
-  },
-  "pullback-reveal-left": {
-    camera_motion: { zoom: -1, horizontal: -2, pan: -0.5, tilt: 0, vertical: 0, roll: 0 },
-    basePrompt: "Gentle pullback drifting left, revealing room space and features. Eye-level, chest-height camera perspective.",
-  },
-  "gentle-push": {
+  "push-in": {
     camera_motion: { zoom: 2, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    basePrompt: "Slow forward reveal. Eye-level, chest-height camera perspective. Gentle motion toward focal point.",
+    basePrompt: "Slow forward dolly toward the focal point. Eye-level, chest-height camera perspective.",
   },
-  "drift-through": {
+  "pull-out": {
+    camera_motion: { zoom: -2, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
+    basePrompt: "Gentle pullback revealing the full space. Eye-level, chest-height camera perspective.",
+  },
+  "truck-left": {
+    camera_motion: { zoom: 0, horizontal: -3, pan: 0, tilt: 0, vertical: 0, roll: 0 },
+    basePrompt: "Smooth lateral slide to the left. Eye-level, chest-height camera perspective.",
+  },
+  "truck-right": {
+    camera_motion: { zoom: 0, horizontal: 3, pan: 0, tilt: 0, vertical: 0, roll: 0 },
+    basePrompt: "Smooth lateral slide to the right. Eye-level, chest-height camera perspective.",
+  },
+  "pedestal-up": {
+    camera_motion: { zoom: 0, horizontal: 0, pan: 0, tilt: -1, vertical: 2, roll: 0 },
+    basePrompt: "Camera rises vertically, tilting down to hold the subject in frame.",
+  },
+  "pedestal-down": {
+    camera_motion: { zoom: 0, horizontal: 0, pan: 0, tilt: 1, vertical: -2, roll: 0 },
+    basePrompt: "Camera lowers vertically, tilting up to hold the subject in frame.",
+  },
+  "orbit": {
     camera_motion: { zoom: 0, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
-    basePrompt: "Floating lateral drift through the space. Eye-level, chest-height camera perspective. Showcase flow and connection between areas.",
+    basePrompt: "Cinematic orbit arc around the subject. Eye-level, chest-height camera perspective.",
   },
-
-  // EXTERIOR
-  "crane-up": {
-    camera_motion: { zoom: 0, horizontal: 0, pan: 0, tilt: -1.5, vertical: 2, roll: 0 },
-    basePrompt: "Majestic vertical crane reveal. Camera rises straight up from street level, clearing the foreground. Maintain perfect centered composition.",
+  "static": {
+    camera_motion: { zoom: 0, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
+    basePrompt: "Locked tripod shot. Minimal camera movement. Let the space speak for itself.",
   },
-  "crane-up-drift-right": {
-    camera_motion: { zoom: 0, horizontal: 2, pan: 0.5, tilt: -1.5, vertical: 2, roll: 0 },
-    basePrompt: "Rising crane reveal drifting right toward the main entrance. Camera lifts from street level to clear the foreground.",
-  },
-  "crane-up-drift-left": {
-    camera_motion: { zoom: 0, horizontal: -2, pan: -0.5, tilt: -1.5, vertical: 2, roll: 0 },
-    basePrompt: "Rising crane reveal drifting left toward the main entrance. Camera lifts from street level to clear the foreground.",
-  },
-  "approach-gentle": {
-    camera_motion: { zoom: 1.5, horizontal: 0, pan: 0, tilt: -0.5, vertical: 0.5, roll: 0 },
-    basePrompt: "Cinematic approach toward the main entrance. Gentle forward motion with subtle camera rise. Focus on the front door.",
-  },
-  "parallax-exterior": {
-    camera_motion: { zoom: 0.5, horizontal: 2, pan: 0.5, tilt: 0, vertical: 0.3, roll: 0 },
-    basePrompt: "Smooth lateral glide past the facade. Gentle parallax revealing building frontage.",
-  },
-
-  // OUTDOOR
-  "float-back": {
-    camera_motion: { zoom: -3, horizontal: 0, pan: 0, tilt: -1, vertical: 1, roll: 0 },
-    basePrompt: "Floating outdoor pullback reveal. Elevated drone-level camera perspective. Gentle rising motion over the space.",
+  "drone-up": {
+    camera_motion: { zoom: -1, horizontal: 0, pan: 0, tilt: -2, vertical: 3, roll: 0 },
+    basePrompt: "Rising drone reveal. Camera lifts and tilts down to showcase the property from above.",
   },
 };
 
@@ -126,7 +104,7 @@ const ROOM_STABILITY: Record<string, string> = {
   "outdoor": "Stable paving, fixed pool edges and fence line.",
 };
 
-const ANTI_MORPHING = "Locked geometry. No morphing, no liquid surfaces, no structural movement.";
+const ANTI_HALLUCINATION = "Locked geometry. No morphing, no liquid surfaces, no structural movement. Do not add lens flares, light blooms, god rays, or modify existing light sources. Preserve exact lighting conditions from the source photo.";
 
 // --- ROOM GROUP HELPER ---
 
@@ -145,14 +123,14 @@ function getRoomGroup(roomType: string): string {
 function getDefaultIntent(roomType: string): string {
   const roomGroup = getRoomGroup(roomType);
   switch (roomGroup) {
-    case "exterior": return "crane-up";
-    case "entry": return "drift-through";
-    case "living-room": return "orbit-right";
-    case "kitchen": return "orbit-right";
-    case "bedroom": return "pullback-wide";
-    case "bathroom": return "gentle-push";
-    case "outdoor": return "float-back";
-    default: return "pullback-wide";
+    case "exterior": return "truck-right";
+    case "entry": return "push-in";
+    case "living-room": return "orbit";
+    case "kitchen": return "orbit";
+    case "bedroom": return "pull-out";
+    case "bathroom": return "push-in";
+    case "outdoor": return "drone-up";
+    default: return "pull-out";
   }
 }
 
@@ -165,7 +143,7 @@ function composeIntentPrompt(
   hazards: string,
 ): string {
   const config = INTENT_MAP[cameraIntent];
-  if (!config) return INTENT_MAP["pullback-wide"].basePrompt + " " + ANTI_MORPHING;
+  if (!config) return INTENT_MAP["pull-out"].basePrompt + " " + ANTI_HALLUCINATION;
 
   let prompt = config.basePrompt;
 
@@ -196,7 +174,7 @@ function composeIntentPrompt(
   }
 
   // Anti-morphing tail — always last
-  prompt += ` ${ANTI_MORPHING}`;
+  prompt += ` ${ANTI_HALLUCINATION}`;
 
   return prompt;
 }
@@ -246,14 +224,7 @@ function applySafetyClamps(
 }
 
 // --- USER DROPDOWN MAPPING ---
-
-const USER_ACTION_TO_INTENT: Record<string, string> = {
-  "parallax-glide": "orbit-right",
-  "space-sweep": "orbit-right",
-  "kitchen-sweep": "orbit-right",
-  "feature-push": "gentle-push",
-  "aerial-float": "float-back",
-};
+// Camera actions now map 1:1 to intent keys — no indirection needed.
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -309,16 +280,10 @@ Deno.serve(async (req) => {
         let effectiveIntent: string;
         let intentSource: string;
 
-        if (userOverridden && cameraAction) {
-          // User explicitly chose a different camera action in the dropdown
-          const mappedIntent = USER_ACTION_TO_INTENT[cameraAction];
-          if (mappedIntent) {
-            effectiveIntent = mappedIntent;
-          } else {
-            console.warn(`WARNING: cameraAction "${cameraAction}" not found in USER_ACTION_TO_INTENT map, using AI intent or fallback`);
-            effectiveIntent = aiCameraIntent && INTENT_MAP[aiCameraIntent] ? aiCameraIntent : getDefaultIntent(roomType);
-          }
-          intentSource = `USER OVERRIDE (dropdown="${cameraAction}" → "${effectiveIntent}")`;
+        if (userOverridden && cameraAction && INTENT_MAP[cameraAction]) {
+          // User explicitly chose a camera action — dropdown values map 1:1 to intents
+          effectiveIntent = cameraAction;
+          intentSource = `USER OVERRIDE (dropdown="${cameraAction}")`;
         } else if (aiCameraIntent && INTENT_MAP[aiCameraIntent]) {
           // Claude Vision's intelligent, photo-aware decision — PRIMARY path
           effectiveIntent = aiCameraIntent;
@@ -330,7 +295,7 @@ Deno.serve(async (req) => {
         }
 
         // 1. Look up motion values
-        const intentConfig = INTENT_MAP[effectiveIntent] || INTENT_MAP["pullback-wide"];
+        const intentConfig = INTENT_MAP[effectiveIntent] || INTENT_MAP["pull-out"];
         let finalMotion = { ...intentConfig.camera_motion };
 
         // 2. Compose prompt

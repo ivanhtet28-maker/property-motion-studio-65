@@ -572,7 +572,7 @@ Contact us today for a private inspection.`;
           url,
           cameraAction: metadata?.cameraAction || null,
           room_type: metadata?.room_type || "living-room-wide",
-          camera_intent: metadata?.camera_intent || "pullback-wide",
+          camera_intent: metadata?.camera_intent || "pull-out",
           hero_feature: metadata?.hero_feature || "none",
           hazards: metadata?.hazards || "none",
           cameraAngle: metadata?.cameraAngle || "auto",

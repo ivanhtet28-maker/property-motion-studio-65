@@ -488,11 +488,15 @@
 
       // Use provided clip durations or default to 3.5 seconds each.
       // Clamp every duration to a minimum of 1s — Shotstack rejects 0, negative, or NaN lengths.
-      const rawDurations = clipDurations || sourceUrls.map(() => 3.5);
-      const durations = rawDurations.map((d: number) => {
+      // IMPORTANT: Pad to match sourceUrls length — dual-crop expansion can produce more clips
+      // than the frontend's clipDurations array (e.g., 5 images → 7 clips after crop).
+      const rawDurations = clipDurations || [];
+      const durations = sourceUrls.map((_: string, i: number) => {
+        const d = rawDurations[i];
         const n = Number(d);
         return (Number.isFinite(n) && n >= 1) ? n : 3.5;
       });
+      console.log(`Duration alignment: ${rawDurations.length} provided → ${durations.length} needed (${sourceUrls.length} clips)`);
 
       // ── Pacing Lock: 3.5s hard cut + 0.5s crossfade ────────────────────────
       // Runway generates 5s clips (shortest it supports). Shotstack hard-cuts at
@@ -510,7 +514,7 @@
       // Calculate total duration (AI mode subtracts overlap between adjacent clips)
       const overlapCount = isKenBurns ? 0 : Math.max(0, effectiveDurations.length - 1);
       const videoClipsDuration = effectiveDurations.reduce((sum, duration) => sum + duration, 0) - (TRANSITION_OVERLAP * overlapCount);
-      const agentCardDuration = (agentInfo && agentInfo.name) ? Math.max(durations[0], 1) : 0; // Match first clip duration (min 1s)
+      const agentCardDuration = (agentInfo && agentInfo.name) ? Math.max(effectiveDurations[0] || 3.5, 1) : 0; // Use effective (not raw) duration for timeline consistency
       const totalDuration = videoClipsDuration + agentCardDuration;
 
       console.log("Clip durations (raw):", durations);
@@ -522,7 +526,9 @@
       // Build main clip track
       let currentStart = 0;
       const videoClips = sourceUrls.map((url, index) => {
-        const clipDuration = effectiveDurations[index];
+        // Guard: if durations array is shorter than sourceUrls, fall back to 3.5s
+        const rawDuration = effectiveDurations[index];
+        const clipDuration = (Number.isFinite(rawDuration) && rawDuration >= 0.5) ? rawDuration : 3.5;
         const isFallbackSlot = fallbackSet.has(index);
 
         const clip: any = {
@@ -537,46 +543,25 @@
         };
 
         if (isKenBurns) {
-          // Ken Burns: smooth motion using camera_intent (from AI detection) or cameraAngle.
-          // Maps each intent to a Shotstack-compatible effect or offset animation.
+          // Ken Burns: map camera intent to Shotstack effect or offset animation.
           const angle = cameraAngles?.[index] || "auto";
 
-          // --- Lateral pan intents (4% horizontal offset over clip duration) ---
-          if (angle === "orbit-right" || angle === "parallax-exterior" || angle === "drift-through") {
+          if (angle === "truck-right" || angle === "orbit") {
             clip.offset = {
               x: [{ from: 0, to: -0.04, start: 0, length: clipDuration,
                      interpolation: "bezier", easing: "easeInOutQuart" }]
             };
-          } else if (angle === "orbit-left") {
+          } else if (angle === "truck-left") {
             clip.offset = {
               x: [{ from: 0, to: 0.04, start: 0, length: clipDuration,
                      interpolation: "bezier", easing: "easeInOutQuart" }]
             };
-
-          // --- Pan + drift combos (pan left with slight zoom) ---
-          } else if (angle === "pullback-reveal-right" || angle === "crane-up-drift-right") {
+          } else if (angle === "pull-out" || angle === "drone-up" || angle === "pedestal-up") {
             clip.effect = "zoomOutSlow";
-            clip.offset = {
-              x: [{ from: 0, to: -0.03, start: 0, length: clipDuration,
-                     interpolation: "bezier", easing: "easeInOutQuart" }]
-            };
-          } else if (angle === "pullback-reveal-left" || angle === "crane-up-drift-left") {
-            clip.effect = "zoomOutSlow";
-            clip.offset = {
-              x: [{ from: 0, to: 0.03, start: 0, length: clipDuration,
-                     interpolation: "bezier", easing: "easeInOutQuart" }]
-            };
-
-          // --- Zoom-out intents (pullback, crane, float) ---
-          } else if (angle === "push-out" || angle === "pullback-wide" || angle === "crane-up"
-                     || angle === "float-back") {
-            clip.effect = "zoomOutSlow";
-
-          // --- Zoom-in intents (push, approach, gentle) ---
-          } else if (angle === "push-in" || angle === "gentle-push" || angle === "approach-gentle") {
+          } else if (angle === "push-in" || angle === "pedestal-down") {
             clip.effect = "zoomInSlow";
-
-          // --- Default: gentle zoom-in (better than static) ---
+          } else if (angle === "static") {
+            // No effect — locked shot
           } else {
             clip.effect = "zoomInSlow";
           }
@@ -588,9 +573,7 @@
           clip.transition = { in: "fade", out: "fade" };
           console.log(`Clip ${index}: Hybrid fallback — using original image with zoomInSlow`);
         } else {
-          // AI-generated clip: apply digital stabilization
-          // Scale 1.1 crops the edges to hide peripheral AI warping artifacts
-          clip.scale = 1.1;
+          // AI-generated clip
           clip.transition = { in: "fade", out: "fade" };
         }
 
@@ -762,6 +745,29 @@
           aspectRatio: outputFormat === "landscape" ? "16:9" : "9:16",
         },
       };
+
+      console.log("Video clips built:", videoClips.map((c: any, i: number) => `clip[${i}]: length=${c.length}, start=${c.start}`));
+
+      // ── Final safety net: sanitize ALL clip lengths in every track ──────────
+      // Catches any edge case where a length slipped through as 0, NaN, or undefined.
+      for (const track of edit.timeline.tracks) {
+        if (!track.clips || !Array.isArray(track.clips)) continue;
+        for (const clip of track.clips) {
+          if (!Number.isFinite(clip.length) || clip.length <= 0) {
+            console.warn(`Sanitized invalid clip length: ${clip.length} → 3.5`);
+            clip.length = 3.5;
+          }
+          // Also sanitize nested offset keyframe lengths (Ken Burns animations)
+          if (clip.offset?.x && Array.isArray(clip.offset.x)) {
+            for (const kf of clip.offset.x) {
+              if (!Number.isFinite(kf.length) || kf.length <= 0) {
+                console.warn(`Sanitized invalid keyframe length: ${kf.length} → ${clip.length}`);
+                kf.length = clip.length;
+              }
+            }
+          }
+        }
+      }
 
       console.log("Sending stitch job to Shotstack...");
       if (propertyData.streetAddress && propertyData.suburb && propertyData.state) {

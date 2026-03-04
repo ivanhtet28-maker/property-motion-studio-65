@@ -28,107 +28,58 @@ const VALID_ROOM_TYPES = [
 type RoomType = typeof VALID_ROOM_TYPES[number];
 
 const VALID_INTENTS = [
-  "orbit-right",
-  "orbit-left",
-  "pullback-wide",
-  "pullback-reveal-right",
-  "pullback-reveal-left",
-  "gentle-push",
-  "drift-through",
-  "crane-up",
-  "crane-up-drift-right",
-  "crane-up-drift-left",
-  "approach-gentle",
-  "parallax-exterior",
-  "float-back",
+  "push-in",
+  "pull-out",
+  "truck-left",
+  "truck-right",
+  "pedestal-up",
+  "pedestal-down",
+  "orbit",
+  "static",
+  "drone-up",
 ] as const;
 
-const DETECTION_PROMPT = `You are an elite real estate cinematographer scouting a property photo before filming a 9:16 portrait video for a luxury property listing. Your job: analyze this image and decide the single best camera move.
+const DETECTION_PROMPT = `You are an elite real estate videographer scouting a property photo before filming a 9:16 portrait video. Analyze this image and choose the single best camera move.
 
-THINK THROUGH THESE STEPS:
-
-Step 1 — ROOM TYPE: Classify this photo. Valid types: exterior-arrival, front-door, entry-foyer, living-room-wide, living-room-orbit, kitchen-orbit, kitchen-push, master-bedroom, bedroom, bathroom, outdoor-entertaining, backyard-pool, view-balcony
+Step 1 — ROOM TYPE: Classify this photo.
+Valid types: exterior-arrival, front-door, entry-foyer, living-room-wide, living-room-orbit, kitchen-orbit, kitchen-push, master-bedroom, bedroom, bathroom, outdoor-entertaining, backyard-pool, view-balcony
 
 Step 2 — READ THE SPACE: As a videographer standing at the camera position, assess:
 - What is the hero feature that a buyer would notice first?
-- What is on the left side of the frame?
-- What is on the right side of the frame?
-- Are there any obstructions (fences, gates, walls) in the foreground?
-- For exteriors: is the facade symmetrical? How many stories? Is there a fence?
-- For living rooms: is there a kitchen visible in the frame? Which side?
-- For bedrooms: where is the bed? What is more visually interesting — left or right side?
+- Are there obstructions (fences, gates, walls) in the foreground?
+- For exteriors: is the facade symmetrical? Is there a fence?
+- For living rooms: is there a kitchen visible? Which side?
+- For bedrooms: where is the bed?
 
-Step 3 — IDENTIFY HAZARDS that would ruin the shot:
-- window-glare (bright sky through windows — camera should avoid)
-- fence-obstruction (fence/gate/wall blocking foreground — camera must rise above)
-- driveway-flat (pavement dominates bottom third — camera should ignore ground)
-- bed-dominant (bed fills most of frame — camera must pull BACK, never push forward)
-- dead-wall (one direction leads to blank wall — avoid that direction)
+Step 3 — IDENTIFY HAZARDS:
+- window-glare, fence-obstruction, driveway-flat, bed-dominant, dead-wall
 - List all that apply, comma-separated. Or "none".
 
-Step 4 — CHOOSE YOUR SHOT: Pick the single best camera move.
+Step 4 — CHOOSE YOUR SHOT from these standard videography moves:
 
-Think like a real videographer. Where would you place the camera, and what would you reveal as it moves? Always move TOWARD the most impressive feature. Never move toward blank walls, fences, or empty space.
+- push-in: Dolly forward toward focal point. Use for bathrooms, hallways, front doors. NEVER for bedrooms.
+- pull-out: Dolly backward revealing space. Use for bedrooms, tight rooms, any "look how spacious" shot.
+- truck-left: Lateral slide left. Use when the best feature is on the left side of frame.
+- truck-right: Lateral slide right. Use when the best feature is on the right side of frame.
+- pedestal-up: Camera rises vertically. Use for exteriors with fences/obstructions to clear foreground.
+- pedestal-down: Camera lowers vertically. Rarely used — only for dramatic high-to-low reveals.
+- orbit: Circular arc around subject. Use for living rooms, kitchens, open-plan spaces with features to reveal.
+- static: Locked tripod, no movement. Use sparingly — only when the composition is already perfect.
+- drone-up: Rising aerial reveal. Use for pools, backyards, outdoor areas, large properties.
 
-Available camera intents:
+RULES:
+- Bedrooms: ALWAYS pull-out. Never push-in toward a bed.
+- Exteriors with fence: ALWAYS pedestal-up or drone-up. Never push-in through a fence.
+- Living rooms with visible kitchen: orbit toward the kitchen side.
+- Entries with staircase: truck toward the staircase.
 
-INTERIOR MOVES:
-- orbit-right: Smooth lateral orbit revealing what is on the right. Use when the best feature (kitchen, fireplace, staircase, feature wall) is on the right side.
-- orbit-left: Smooth lateral orbit revealing what is on the left. Use when the best feature is on the left side.
-- pullback-wide: Slow pull backward revealing room scale. Use for bedrooms with centered beds, tight bathrooms, or any room where the story is "look how spacious this is."
-- pullback-reveal-right: Pull back while subtly drifting right. Use for bedrooms where the bed is on the left — reveals floor space on the right while pulling back.
-- pullback-reveal-left: Pull back while subtly drifting left. Use for bedrooms where the bed is on the right — reveals floor space on the left while pulling back.
-- gentle-push: Very slow forward creep. ONLY for bathrooms approaching vanity/shower, or narrow hallways. NEVER for bedrooms. NEVER for living rooms with windows ahead.
-- drift-through: Floating lateral glide with minimal zoom. For long spaces like entries, hallways, open-plan rooms showing flow between areas.
-
-EXTERIOR MOVES:
-- crane-up: Pure vertical rise, no lateral. For symmetrical facades WITH fences. Rises above the fence, reveals upper stories, keeps centered.
-- crane-up-drift-right: Rising crane drifting right. For asymmetric facades with fence, entrance on right.
-- crane-up-drift-left: Rising crane drifting left. For asymmetric facades with fence, entrance on left.
-- approach-gentle: Slow forward with subtle rise. For homes WITHOUT fences where walking toward the front door works.
-- parallax-exterior: Lateral glide past facade. For single-story homes without fences where width is the statement.
-
-OUTDOOR MOVES:
-- float-back: Rising pullback from above. For pools, backyards, entertaining areas.
-
-BEDROOM RULES (critical):
-- NEVER choose gentle-push for a bedroom. The camera must NEVER move forward into a bed.
-- Always choose pullback-wide, pullback-reveal-left, or pullback-reveal-right.
-- If the bed is centered: pullback-wide.
-- If the bed is on the left: pullback-reveal-right (drift away from bed).
-- If the bed is on the right: pullback-reveal-left (drift away from bed).
-- If there is a standout feature (staircase, fireplace, feature wall, artwork) on one side, drift TOWARD it while pulling back.
-
-EXTERIOR RULES (critical):
-- If there is a fence, gate, or wall in the foreground: MUST choose crane-up or crane-up-drift. Never approach-gentle or parallax-exterior.
-- If the facade is symmetrical: MUST choose crane-up (pure vertical, no lateral drift).
-- If single story with no fence: parallax-exterior or approach-gentle are fine.
-
-LIVING ROOM RULES (critical):
-- If a kitchen is visible in the frame: ALWAYS orbit TOWARD the kitchen. The kitchen reveal is the payoff of an open-plan shot. This overrides everything else.
-- If no kitchen but a standout feature exists: orbit toward it.
-- If no kitchen and windows are causing glare: orbit AWAY from windows.
-
-ENTRY/FOYER RULES (critical):
-- If a staircase is visible: orbit TOWARD the staircase. The staircase reveal is the architectural highlight.
-- If the staircase is on the left side of the frame: MUST choose orbit-left.
-- If the staircase is on the right side of the frame: MUST choose orbit-right.
-- Never choose an orbit direction that moves AWAY from a visible staircase.
-- If no staircase but an open-plan flow to other rooms: drift-through.
-
-FINAL VALIDATION — Before you commit to your answer, run this checklist:
-1. Is this an exterior with a fence/gate/wall? → You MUST choose crane-up or crane-up-drift. If you chose orbit, approach, or parallax, CHANGE IT NOW.
-2. Is this a bedroom? → You MUST choose pullback-wide, pullback-reveal-left, or pullback-reveal-right. If you chose gentle-push, CHANGE IT NOW.
-3. Does your chosen direction move TOWARD the hero feature? → If not, flip the direction (orbit-left ↔ orbit-right).
-4. Does your chosen direction move TOWARD a blank wall, fence, or empty space? → If so, flip the direction.
-
-Step 5 — JUSTIFY in one sentence why this is the right shot.
+Step 5 — JUSTIFY in one sentence.
 
 OUTPUT FORMAT — exactly these 5 lines, no extra text:
 ROOM_TYPE: [type from valid list]
-CAMERA_INTENT: [intent from available list above]
-HERO_FEATURE: [2-5 word description of what the camera reveals]
-HAZARDS: [comma-separated list or "none"]
+CAMERA_INTENT: [intent from list above]
+HERO_FEATURE: [2-5 word description]
+HAZARDS: [comma-separated or "none"]
 REASONING: [one sentence]`;
 
 interface DetectionResult {
@@ -139,13 +90,13 @@ interface DetectionResult {
 }
 
 function getDefaultIntent(roomType: string): string {
-  if (roomType.startsWith("exterior") || roomType === "front-door") return "crane-up";
-  if (roomType === "entry-foyer") return "drift-through";
-  if (roomType.startsWith("living-room")) return "orbit-right";
-  if (roomType.startsWith("kitchen")) return "orbit-right";
-  if (roomType === "master-bedroom" || roomType === "bedroom") return "pullback-wide";
-  if (roomType === "bathroom") return "gentle-push";
-  return "float-back";
+  if (roomType.startsWith("exterior") || roomType === "front-door") return "truck-right";
+  if (roomType === "entry-foyer") return "push-in";
+  if (roomType.startsWith("living-room")) return "orbit";
+  if (roomType.startsWith("kitchen")) return "orbit";
+  if (roomType === "master-bedroom" || roomType === "bedroom") return "pull-out";
+  if (roomType === "bathroom") return "push-in";
+  return "drone-up";
 }
 
 async function detectSingleRoomType(
@@ -302,7 +253,7 @@ Deno.serve(async (req) => {
           return {
             id,
             room_type: "living-room-wide" as RoomType,
-            camera_intent: "pullback-wide",
+            camera_intent: "pull-out",
             hero_feature: "none",
             hazards: "none",
           };

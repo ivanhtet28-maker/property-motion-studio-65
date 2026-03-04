@@ -7,9 +7,14 @@ type CameraAngle =
   | "auto"
   | "wide-shot"
   | "push-in"
-  | "push-out"
-  | "orbit-right"
-  | "orbit-left";
+  | "pull-out"
+  | "truck-right"
+  | "truck-left"
+  | "orbit"
+  | "static"
+  | "pedestal-up"
+  | "pedestal-down"
+  | "drone-up";
 
 interface Transform {
   scale: number;
@@ -35,26 +40,32 @@ function getTransform(angle: CameraAngle, progress: number): Transform {
   switch (angle) {
     case "push-in":
     case "auto": {
-      // Gentle dolly forward — 4% zoom keeps the full room in frame
       const t = easeOut(progress);
       return { scale: 1 + 0.04 * t, offsetX: 0, offsetY: 0 };
     }
-    case "push-out": {
-      // Slow pull-back reveal — reverse of push-in
+    case "pull-out":
+    case "drone-up": {
       const t = easeIn(progress);
       return { scale: 1.04 - 0.04 * t, offsetX: 0, offsetY: 0 };
     }
-    case "orbit-right": {
-      // Pure pan right: NO simultaneous zoom — that's what makes it feel natural.
-      // 5% horizontal offset matches professional real estate pacing at 3.5s clips.
+    case "truck-right":
+    case "orbit": {
       const t = easeInOut(progress);
       return { scale: 1, offsetX: -0.05 * t, offsetY: 0 };
     }
-    case "orbit-left": {
-      // Pure pan left — mirror of orbit-right.
+    case "truck-left": {
       const t = easeInOut(progress);
       return { scale: 1, offsetX: 0.05 * t, offsetY: 0 };
     }
+    case "pedestal-up": {
+      const t = easeInOut(progress);
+      return { scale: 1, offsetX: 0, offsetY: 0.03 * t };
+    }
+    case "pedestal-down": {
+      const t = easeInOut(progress);
+      return { scale: 1, offsetX: 0, offsetY: -0.03 * t };
+    }
+    case "static":
     case "wide-shot":
     default:
       return { scale: 1, offsetX: 0, offsetY: 0 };

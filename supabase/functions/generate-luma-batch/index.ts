@@ -53,15 +53,17 @@ Deno.serve(async (req) => {
         // Long verbose prompts add noise when the model's content freedom is already
         // constrained by frame0 + frame1 being the same image.
         const motionDescription =
-          cameraAngle === "push-in" || cameraAngle === "zoom-in" || cameraAngle === "auto"
+          cameraAngle === "push-in" || cameraAngle === "auto"
             ? "Slow smooth push-in, camera glides gently forward."
-            : cameraAngle === "push-out"
+            : cameraAngle === "pull-out" || cameraAngle === "drone-up"
               ? "Slow smooth pull-back, camera glides gently backward."
-              : cameraAngle === "orbit-right"
+              : cameraAngle === "truck-right" || cameraAngle === "orbit"
                 ? "Slow smooth pan right, camera sweeps left to right."
-                : cameraAngle === "orbit-left"
+                : cameraAngle === "truck-left"
                   ? "Slow smooth pan left, camera sweeps right to left."
-                  : "Slow smooth camera movement.";
+                  : cameraAngle === "pedestal-up"
+                    ? "Slow smooth rise, camera glides gently upward."
+                    : "Slow smooth camera movement.";
 
         const fullPrompt = `High-end cinematic real estate video of ${propertyAddress}.
 ${motionDescription}

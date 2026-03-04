@@ -145,7 +145,7 @@ export function PropertySourceSelector({
         const roomType = (result?.room_type ?? "living-room-wide") as RoomType;
         const cameraAction =
           ROOM_TO_DEFAULT_ACTION[roomType] ??
-          ("space-sweep" as CameraAction);
+          ("orbit" as CameraAction);
         const label = ROOM_TYPE_TO_LABEL[roomType] ?? "Room";
 
         setDetectionResults((prev) => ({
@@ -154,7 +154,7 @@ export function PropertySourceSelector({
             roomType,
             label,
             cameraAction,
-            camera_intent: result?.camera_intent ?? "pullback-wide",
+            camera_intent: result?.camera_intent ?? "pull-out",
             hero_feature: result?.hero_feature ?? "none",
             hazards: result?.hazards ?? "none",
           },
@@ -167,8 +167,8 @@ export function PropertySourceSelector({
           [imageUrl]: {
             roomType: "living-room-wide" as RoomType,
             label: "Living Room",
-            cameraAction: "space-sweep" as CameraAction,
-            camera_intent: "pullback-wide",
+            cameraAction: "orbit" as CameraAction,
+            camera_intent: "pull-out",
             hero_feature: "none",
             hazards: "none",
           },
@@ -199,10 +199,10 @@ export function PropertySourceSelector({
           // File is a placeholder for URL-sourced images — the backend uses
           // the URL directly (stored in scrapedImageUrls state).
           file: new File([], url.split("/").pop() || "scraped.jpg"),
-          cameraAction: detection?.cameraAction ?? ("space-sweep" as CameraAction),
+          cameraAction: detection?.cameraAction ?? ("orbit" as CameraAction),
           detectedRoomLabel: detection?.label ?? null,
           room_type: detection?.roomType ?? ("living-room-wide" as RoomType),
-          camera_intent: detection?.camera_intent ?? "pullback-wide",
+          camera_intent: detection?.camera_intent ?? "pull-out",
           hero_feature: detection?.hero_feature ?? "none",
           hazards: detection?.hazards ?? "none",
           cameraAngle: "auto" as const,
