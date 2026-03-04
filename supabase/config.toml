@@ -1,17 +1,19 @@
 project_id = "pxhpfewunsetuxygeprp"
 
-# User-facing functions require JWT authentication
+# User-facing functions — JWT verified inside function code (not infra gate)
+# Supabase infra JWT verification was blocking valid tokens, so we verify
+# manually inside each function using the Authorization header.
 [functions.generate-video]
-verify_jwt = true
+verify_jwt = false
 
 [functions.generate-script]
-verify_jwt = true
+verify_jwt = false
 
 [functions.video-status]
-verify_jwt = true
+verify_jwt = false
 
 [functions.scrape-property]
-verify_jwt = true
+verify_jwt = false
 
 # Room detection is a stateless utility (no user data) — skip JWT
 [functions.detect-room-types]

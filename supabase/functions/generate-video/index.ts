@@ -300,6 +300,30 @@
     }
 
     try {
+      // Lightweight auth guard — verify a valid Supabase JWT is present.
+      // We disabled infra-level verify_jwt because it was rejecting valid tokens.
+      const authHeader = req.headers.get("authorization");
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        console.error("[generate-video] Missing or malformed Authorization header");
+        return new Response(
+          JSON.stringify({ error: "Authentication required" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const jwt = authHeader.replace("Bearer ", "");
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const authClient = createClient(supabaseUrl, supabaseServiceKey);
+      const { data: userData, error: authError } = await authClient.auth.getUser(jwt);
+      if (authError || !userData?.user) {
+        console.error("[generate-video] JWT verification failed:", authError?.message ?? "no user");
+        return new Response(
+          JSON.stringify({ error: "Invalid or expired token" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      console.log(`[generate-video] Authenticated user: ${userData.user.id}`);
+
       const { imageUrls, imageMetadata, propertyData, style, layout, customTitle, voice, music, userId, propertyId, script, source, agentInfo, preGeneratedVideoUrls, useKenBurns }: GenerateVideoRequest = await req.json();
 
       console.log("=== VIDEO GENERATION ===");

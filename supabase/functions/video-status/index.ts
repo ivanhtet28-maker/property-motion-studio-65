@@ -171,6 +171,26 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Lightweight auth guard — verify a valid Supabase JWT is present.
+    const authHeader = req.headers.get("authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Authentication required" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const jwt = authHeader.replace("Bearer ", "");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const authClient = createClient(supabaseUrl, supabaseServiceKey);
+    const { error: authError } = await authClient.auth.getUser(jwt);
+    if (authError) {
+      return new Response(
+        JSON.stringify({ error: "Invalid or expired token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const body = await req.json();
     const { generationIds, videoId, audioUrl, musicUrl, agentInfo, propertyData, style, layout, customTitle, stitchJobId, clipDurations, provider, imageUrls } = body;
 

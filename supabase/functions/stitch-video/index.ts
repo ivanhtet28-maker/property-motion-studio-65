@@ -486,8 +486,17 @@
         console.log("No agent photo provided in agentInfo");
       }
 
-      // Use provided clip durations or default to 3.5 seconds each
-      const durations = clipDurations || sourceUrls.map(() => 3.5);
+      // Use provided clip durations or default to 3.5 seconds each.
+      // Clamp every duration to a minimum of 1s — Shotstack rejects 0, negative, or NaN lengths.
+      // IMPORTANT: Pad to match sourceUrls length — dual-crop expansion can produce more clips
+      // than the frontend's clipDurations array (e.g., 5 images → 7 clips after crop).
+      const rawDurations = clipDurations || [];
+      const durations = sourceUrls.map((_: string, i: number) => {
+        const d = rawDurations[i];
+        const n = Number(d);
+        return (Number.isFinite(n) && n >= 1) ? n : 3.5;
+      });
+      console.log(`Duration alignment: ${rawDurations.length} provided → ${durations.length} needed (${sourceUrls.length} clips)`);
 
       // ── Pacing Lock: 3.5s hard cut + 0.5s crossfade ────────────────────────
       // Runway generates 5s clips (shortest it supports). Shotstack hard-cuts at
@@ -505,7 +514,7 @@
       // Calculate total duration (AI mode subtracts overlap between adjacent clips)
       const overlapCount = isKenBurns ? 0 : Math.max(0, effectiveDurations.length - 1);
       const videoClipsDuration = effectiveDurations.reduce((sum, duration) => sum + duration, 0) - (TRANSITION_OVERLAP * overlapCount);
-      const agentCardDuration = (agentInfo && agentInfo.name) ? durations[0] : 0; // Match first clip duration
+      const agentCardDuration = (agentInfo && agentInfo.name) ? Math.max(effectiveDurations[0] || 3.5, 1) : 0; // Use effective (not raw) duration for timeline consistency
       const totalDuration = videoClipsDuration + agentCardDuration;
 
       console.log("Clip durations (raw):", durations);
@@ -517,7 +526,9 @@
       // Build main clip track
       let currentStart = 0;
       const videoClips = sourceUrls.map((url, index) => {
-        const clipDuration = effectiveDurations[index];
+        // Guard: if durations array is shorter than sourceUrls, fall back to 3.5s
+        const rawDuration = effectiveDurations[index];
+        const clipDuration = (Number.isFinite(rawDuration) && rawDuration >= 0.5) ? rawDuration : 3.5;
         const isFallbackSlot = fallbackSet.has(index);
 
         const clip: any = {
@@ -640,7 +651,7 @@
                     src: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/luma-mattes/circle_square_white.png",
                   },
                   start: videoClipsDuration + 0.1,
-                  length: agentCardDuration - 0.1,
+                  length: Math.max(agentCardDuration - 0.1, 0.5),
                   position: "top",
                   offset: {
                     y: -0.22,
@@ -656,7 +667,7 @@
                     src: agentPhotoUrl || agentInfo.photo, // Use storage URL if available, fallback to base64
                   },
                   start: videoClipsDuration + 0.1,
-                  length: agentCardDuration - 0.1,
+                  length: Math.max(agentCardDuration - 0.1, 0.5),
                   position: "top",
                   offset: {
                     y: -0.15,
@@ -697,7 +708,7 @@
                     height: 1920,
                   },
                   start: videoClipsDuration + 0.1,
-                  length: agentCardDuration - 0.1,
+                  length: Math.max(agentCardDuration - 0.1, 0.5),
                 },
               ],
             }] : []),
@@ -714,7 +725,7 @@
                     height: 1920,
                   },
                   start: 0.1,
-                  length: effectiveDurations[0] - 0.1, // Match first clip effective duration (minus 0.1s offset)
+                  length: Math.max(effectiveDurations[0] - 0.1, 0.5),
                 },
               ],
             },
@@ -725,7 +736,7 @@
                 layout || "modern-luxe",
                 propertyData,
                 0.1,
-                effectiveDurations[0] - 0.1
+                Math.max(effectiveDurations[0] - 0.1, 0.5)
               ),
             },
 
@@ -757,6 +768,29 @@
           aspectRatio: outputFormat === "landscape" ? "16:9" : "9:16",
         },
       };
+
+      console.log("Video clips built:", videoClips.map((c: any, i: number) => `clip[${i}]: length=${c.length}, start=${c.start}`));
+
+      // ── Final safety net: sanitize ALL clip lengths in every track ──────────
+      // Catches any edge case where a length slipped through as 0, NaN, or undefined.
+      for (const track of edit.timeline.tracks) {
+        if (!track.clips || !Array.isArray(track.clips)) continue;
+        for (const clip of track.clips) {
+          if (!Number.isFinite(clip.length) || clip.length <= 0) {
+            console.warn(`Sanitized invalid clip length: ${clip.length} → 3.5`);
+            clip.length = 3.5;
+          }
+          // Also sanitize nested offset keyframe lengths (Ken Burns animations)
+          if (clip.offset?.x && Array.isArray(clip.offset.x)) {
+            for (const kf of clip.offset.x) {
+              if (!Number.isFinite(kf.length) || kf.length <= 0) {
+                console.warn(`Sanitized invalid keyframe length: ${kf.length} → ${clip.length}`);
+                kf.length = clip.length;
+              }
+            }
+          }
+        }
+      }
 
       console.log("Sending stitch job to Shotstack...");
       if (propertyData.streetAddress && propertyData.suburb && propertyData.state) {
