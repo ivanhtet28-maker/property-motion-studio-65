@@ -451,10 +451,10 @@
         );
       }
 
-      // --- Runway Gen-3a Turbo flow ---
-      // Uses numeric camera_motion sliders for consistent, predictable camera moves.
-      // gen3a_turbo is chosen over gen4_turbo because it exposes camera_motion via the REST API.
-      console.log("Starting Runway Gen-3a batch generation for", imageUrls.length, "images...");
+      // --- Runway Gen4 Turbo flow ---
+      // Uses prompt-driven camera control for superior motion quality.
+      // gen4_turbo produces cleaner orbits and zero hallucinations vs gen3a_turbo.
+      console.log("Starting Runway Gen4 Turbo batch generation for", imageUrls.length, "images...");
 
       const baseMetadata = imageMetadata || imageUrls.map(url => ({
         url,
