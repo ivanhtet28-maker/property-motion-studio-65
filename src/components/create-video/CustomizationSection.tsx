@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { ChevronDown, Settings, Mic, Music, Palette, Play, Pause } from "lucide-react";
+import { ChevronDown, Settings, Mic, Music, Palette, Play, Pause, Fingerprint, RefreshCw } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import { MUSIC_LIBRARY } from "@/config/musicLibrary";
@@ -36,6 +37,8 @@ export interface CustomizationSettings {
   selectedLayout: string; // "minimal-focus" | "bold-banner" | "modern-luxe"
   customTitle: string; // Custom title text (e.g., "Just Sold", "Open House")
   agentInfo: AgentInfo;
+  useGlobalSeed: boolean; // When true, all clips share a seed for consistent visual style
+  globalSeed: number;     // The shared seed value (1–999999)
 }
 
 const voiceOptions = [
@@ -353,6 +356,52 @@ export function CustomizationSection({ settings, onChange, previewImageUrl, prop
                 )}
               </Button>
             </div>
+          </div>
+
+          {/* Consistency Seed Section */}
+          <div className="space-y-4 p-4 bg-secondary/30 rounded-xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Fingerprint className="w-4 h-4 text-muted-foreground" />
+                <Label className="text-sm font-medium">Consistent Style (Seed)</Label>
+              </div>
+              <Switch
+                checked={settings.useGlobalSeed}
+                onCheckedChange={(checked) =>
+                  onChange({ ...settings, useGlobalSeed: checked })
+                }
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Lock a seed across all clips so Runway produces visually consistent output — same lighting style, color grading, and motion quality.
+            </p>
+
+            {settings.useGlobalSeed && (
+              <div className="flex items-center gap-2 pt-1">
+                <Input
+                  type="number"
+                  min={1}
+                  max={999999}
+                  value={settings.globalSeed}
+                  onChange={(e) =>
+                    onChange({ ...settings, globalSeed: Math.max(1, Math.min(999999, Number(e.target.value) || 1)) })
+                  }
+                  className="h-9 w-32 text-sm"
+                  placeholder="Seed"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 h-9"
+                  onClick={() =>
+                    onChange({ ...settings, globalSeed: Math.floor(Math.random() * 999999) + 1 })
+                  }
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Randomize
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Branding Section */}

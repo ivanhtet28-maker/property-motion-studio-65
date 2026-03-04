@@ -56,6 +56,8 @@ export default function CreateVideo() {
     selectedTemplate: "modern-luxe",
     selectedLayout: "modern-luxe",
     customTitle: "",
+    useGlobalSeed: false,
+    globalSeed: Math.floor(Math.random() * 999999) + 1,
     agentInfo: {
       photo: null,
       name: "",
@@ -555,16 +557,22 @@ Contact us today for a private inspection.`;
       // Convert frontend voice name to backend ID (only if voiceover is enabled)
       const voiceId = customization.includeVoiceover ? getVoiceId(customization.voiceType) : null;
 
-      // Prepare image metadata — user's manual camera choice + orientation
+      // Prepare image metadata — user's manual camera choice + orientation + optional seed
       const imageMetadataPayload = imageUrls.map((url, index) => {
         const metadata = imageMetadata[index];
-        return {
+        const payload: Record<string, unknown> = {
           url,
           cameraAction: metadata?.cameraAction || "push-in",
           cameraAngle: metadata?.cameraAngle || "auto",
           duration: metadata?.duration || 3.5,
           isLandscape: metadata?.isLandscape ?? true,
         };
+        // When global seed is enabled, all clips share the same seed for
+        // consistent visual style across the generated video clips.
+        if (customization.useGlobalSeed && customization.globalSeed) {
+          payload.seed = customization.globalSeed;
+        }
+        return payload;
       });
 
       // invokeEdgeFunction auto-injects a fresh JWT token
