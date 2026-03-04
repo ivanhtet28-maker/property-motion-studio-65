@@ -44,43 +44,47 @@ interface MotionConfig {
   duration: number; // 5 or 10 seconds — complex motions get 10s
 }
 
-const ANTI_HALLUCINATION = "Photorealistic interior. Locked geometry — all walls, floors, ceilings, doors, windows, and furniture remain perfectly rigid and stationary. No morphing, no liquid surfaces, no warping, no structural movement. Do not add lens flares, light blooms, god rays, or modify existing light sources. Preserve exact lighting conditions from the source photo. No objects appear or disappear. Maintain sharp edges on all architectural elements.";
+const ANTI_HALLUCINATION = "Photorealistic interior. Use the ENTIRE source image as reference — preserve every element visible in the photo including all edges, corners, and boundaries. Locked geometry — all walls, floors, ceilings, doors, windows, and furniture remain perfectly rigid and stationary. No morphing, no liquid surfaces, no warping, no structural movement. Do not add lens flares, light blooms, god rays, or modify existing light sources. Preserve exact lighting conditions from the source photo. No objects appear or disappear. Maintain sharp edges on all architectural elements. Do not hallucinate or invent new furniture, decor, people, or structural elements not present in the source image. The output must look like a real camera recording of the exact scene in the photo.";
 
 const MOTION_MAP: Record<string, MotionConfig> = {
   "push-in": {
-    promptText: `Smooth, slow cinematic dolly forward toward the center of the room. The camera glides straight ahead at chest height, gradually closing distance with the focal point. Steady, controlled movement with no lateral drift. ${ANTI_HALLUCINATION}`,
+    promptText: `Smooth, slow cinematic dolly forward toward the center of the room. The camera glides straight ahead at chest height, gradually closing distance with the focal point. Steady, controlled movement with no lateral drift. Frame the entire room composition visible in the source image. ${ANTI_HALLUCINATION}`,
     duration: 5,
   },
   "pull-out": {
-    promptText: `Gentle cinematic pullback revealing the full space. The camera slowly retreats backward at chest height in a straight line, gradually revealing more of the room. Steady, controlled backward movement. ${ANTI_HALLUCINATION}`,
+    promptText: `Gentle cinematic pullback revealing the full space. The camera slowly retreats backward at chest height in a straight line, gradually revealing more of the room. Steady, controlled backward movement. Start framed on the central subject and reveal the full room as shown in the source image. ${ANTI_HALLUCINATION}`,
     duration: 5,
   },
   "truck-left": {
-    promptText: `Smooth lateral tracking shot sliding to the left. The camera moves horizontally at chest height, maintaining a fixed forward-facing angle while gliding left. Steady, parallel movement along the room. ${ANTI_HALLUCINATION}`,
+    promptText: `Smooth lateral tracking shot sliding to the left. The camera moves horizontally at chest height, maintaining a fixed forward-facing angle while gliding left. Steady, parallel movement along the room. Keep the full vertical composition of the source image in frame throughout. ${ANTI_HALLUCINATION}`,
     duration: 5,
   },
   "truck-right": {
-    promptText: `Smooth lateral tracking shot sliding to the right. The camera moves horizontally at chest height, maintaining a fixed forward-facing angle while gliding right. Steady, parallel movement along the room. ${ANTI_HALLUCINATION}`,
+    promptText: `Smooth lateral tracking shot sliding to the right. The camera moves horizontally at chest height, maintaining a fixed forward-facing angle while gliding right. Steady, parallel movement along the room. Keep the full vertical composition of the source image in frame throughout. ${ANTI_HALLUCINATION}`,
     duration: 5,
   },
   "pedestal-up": {
-    promptText: `The camera rises slowly and vertically while gently tilting down to keep the subject centered in frame. Smooth upward crane movement from chest height. Controlled vertical lift with no horizontal drift. ${ANTI_HALLUCINATION}`,
+    promptText: `The camera rises slowly and vertically while gently tilting down to keep the subject centered in frame. Smooth upward crane movement from chest height. Controlled vertical lift with no horizontal drift. Maintain the full width of the room visible in the source image. ${ANTI_HALLUCINATION}`,
     duration: 5,
   },
   "pedestal-down": {
-    promptText: `The camera lowers slowly and vertically while gently tilting up to keep the subject centered in frame. Smooth downward crane movement. Controlled vertical descent with no horizontal drift. ${ANTI_HALLUCINATION}`,
+    promptText: `The camera lowers slowly and vertically while gently tilting up to keep the subject centered in frame. Smooth downward crane movement. Controlled vertical descent with no horizontal drift. Maintain the full width of the room visible in the source image. ${ANTI_HALLUCINATION}`,
     duration: 5,
   },
   "orbit": {
     promptText: `Slow, smooth cinematic orbit arc around the room. The camera moves in a gentle circular path around the center of the space at chest height, as if mounted on a curved dolly track. The room rotates naturally as the camera perspective shifts. Very slow, steady rotational movement — like a real estate showcase walkthrough. The camera maintains a consistent distance from the subject throughout the orbit. ${ANTI_HALLUCINATION}`,
     duration: 10,
   },
+  "orbit-360": {
+    promptText: `Full 360-degree cinematic orbit around the entire room. The camera travels in a complete circle around the center of the space at chest height, smoothly revealing every wall and angle of the room as if mounted on a circular dolly track. The movement is continuous, steady, and unhurried — a full revolution showcase of the property interior. The camera maintains a fixed distance from the center throughout the entire rotation. Show all architectural details visible in the source image during the full revolution. ${ANTI_HALLUCINATION}`,
+    duration: 10,
+  },
   "static": {
-    promptText: `Completely locked tripod shot. The camera is perfectly still, mounted on a rigid tripod. Zero camera movement. The scene is static and calm, like a high-end real estate photograph brought to life with only subtle ambient details. ${ANTI_HALLUCINATION}`,
+    promptText: `Completely locked tripod shot. The camera is perfectly still, mounted on a rigid tripod. Zero camera movement. The scene is static and calm, like a high-end real estate photograph brought to life with only subtle ambient details — gentle light shifts, natural shadows. Frame matches the source image exactly. ${ANTI_HALLUCINATION}`,
     duration: 5,
   },
   "drone-up": {
-    promptText: `Rising aerial drone reveal. The camera lifts upward and tilts down to showcase the property from above, as if a drone is ascending. Smooth, continuous upward movement with a gentle downward tilt to keep the subject visible. ${ANTI_HALLUCINATION}`,
+    promptText: `Rising aerial drone reveal. The camera lifts upward and tilts down to showcase the property from above, as if a drone is ascending. Smooth, continuous upward movement with a gentle downward tilt to keep the subject visible. Begin with the full composition of the source image and gradually reveal an overhead perspective. ${ANTI_HALLUCINATION}`,
     duration: 10,
   },
 };
@@ -133,7 +137,10 @@ Deno.serve(async (req) => {
         const clipDuration = getDuration(effectiveAction);
 
         // Gen4 Turbo supported ratios: 1280x768 (16:9), 768x1280 (9:16), 1104x832, 832x1104, 960x960 (1:1)
+        // Adapt output ratio to match the source image orientation so the full image
+        // is used without cropping or black bars — no content is lost.
         const ratio = isLandscape === false ? "768:1280" : "1280:768";
+        console.log(`  Adaptive ratio: source is ${isLandscape === false ? "portrait" : "landscape"} → output ${ratio}`);
 
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
         console.log(`  Image: ${imageUrl}`);

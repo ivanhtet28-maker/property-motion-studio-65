@@ -14,7 +14,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-export type CameraAngle = "auto" | "wide-shot" | "push-in" | "pull-out" | "truck-left" | "truck-right" | "orbit" | "static" | "pedestal-up" | "pedestal-down" | "drone-up";
+export type CameraAngle = "auto" | "wide-shot" | "push-in" | "pull-out" | "truck-left" | "truck-right" | "orbit" | "orbit-360" | "static" | "pedestal-up" | "pedestal-down" | "drone-up";
 
 const CLIP_DURATION = 3.5; // seconds — fixed for Ken Burns mode; Runway uses 5s
 
@@ -27,6 +27,7 @@ export type CameraAction =
   | "pedestal-up"
   | "pedestal-down"
   | "orbit"
+  | "orbit-360"
   | "static"
   | "drone-up";
 
@@ -37,7 +38,8 @@ export const CAMERA_ACTION_OPTIONS: { value: CameraAction; label: string; descri
   { value: "truck-right",   label: "Truck Right",   description: "Lateral slide to the right" },
   { value: "pedestal-up",   label: "Pedestal Up",   description: "Camera rises vertically" },
   { value: "pedestal-down", label: "Pedestal Down",  description: "Camera lowers vertically" },
-  { value: "orbit",         label: "Orbit",         description: "Circular arc around the subject" },
+  { value: "orbit",         label: "Orbit",         description: "Partial arc around the subject" },
+  { value: "orbit-360",     label: "Orbit 360",     description: "Full 360° rotation around the subject" },
   { value: "static",        label: "Static Shot",   description: "Locked camera, minimal movement" },
   { value: "drone-up",      label: "Drone Up",      description: "Rising aerial reveal" },
 ];
