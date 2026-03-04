@@ -522,7 +522,9 @@
       // Build main clip track
       let currentStart = 0;
       const videoClips = sourceUrls.map((url, index) => {
-        const clipDuration = effectiveDurations[index];
+        // Guard: if durations array is shorter than sourceUrls, fall back to 3.5s
+        const rawDuration = effectiveDurations[index];
+        const clipDuration = (Number.isFinite(rawDuration) && rawDuration >= 0.5) ? rawDuration : 3.5;
         const isFallbackSlot = fallbackSet.has(index);
 
         const clip: any = {
@@ -763,6 +765,7 @@
         },
       };
 
+      console.log("Video clips built:", videoClips.map((c: any, i: number) => `clip[${i}]: length=${c.length}, start=${c.start}`));
       console.log("Sending stitch job to Shotstack...");
       if (propertyData.streetAddress && propertyData.suburb && propertyData.state) {
         console.log("Property Address Line 1:", `${propertyData.streetAddress},`);
