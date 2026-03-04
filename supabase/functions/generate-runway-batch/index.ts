@@ -33,62 +33,68 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2, at
 }
 
 // ============================================
-// CAMERA MOTION SYSTEM — User's manual choice
-// No AI detection. User picks the camera move.
-// Runway receives the full uncropped image with
-// matching aspect ratio so it sees the whole picture.
+// GEN4 TURBO — Prompt-driven camera control
+// No numeric camera_motion sliders (Gen3a only).
+// Gen4 Turbo uses natural language in promptText
+// for superior motion quality and zero hallucinations.
 // ============================================
 
 interface MotionConfig {
-  camera_motion: { zoom: number; horizontal: number; pan: number; tilt: number; vertical: number; roll: number };
-  basePrompt: string;
+  promptText: string;
+  duration: number; // 5 or 10 seconds — complex motions get 10s
 }
+
+const ANTI_HALLUCINATION = "Photorealistic interior. Locked geometry — all walls, floors, ceilings, doors, windows, and furniture remain perfectly rigid and stationary. No morphing, no liquid surfaces, no warping, no structural movement. Do not add lens flares, light blooms, god rays, or modify existing light sources. Preserve exact lighting conditions from the source photo. No objects appear or disappear. Maintain sharp edges on all architectural elements.";
 
 const MOTION_MAP: Record<string, MotionConfig> = {
   "push-in": {
-    camera_motion: { zoom: 2, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    basePrompt: "Slow forward dolly toward the focal point. Eye-level, chest-height camera perspective.",
+    promptText: `Smooth, slow cinematic dolly forward toward the center of the room. The camera glides straight ahead at chest height, gradually closing distance with the focal point. Steady, controlled movement with no lateral drift. ${ANTI_HALLUCINATION}`,
+    duration: 5,
   },
   "pull-out": {
-    camera_motion: { zoom: -2, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    basePrompt: "Gentle pullback revealing the full space. Eye-level, chest-height camera perspective.",
+    promptText: `Gentle cinematic pullback revealing the full space. The camera slowly retreats backward at chest height in a straight line, gradually revealing more of the room. Steady, controlled backward movement. ${ANTI_HALLUCINATION}`,
+    duration: 5,
   },
   "truck-left": {
-    camera_motion: { zoom: 0, horizontal: -3, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    basePrompt: "Smooth lateral slide to the left. Eye-level, chest-height camera perspective.",
+    promptText: `Smooth lateral tracking shot sliding to the left. The camera moves horizontally at chest height, maintaining a fixed forward-facing angle while gliding left. Steady, parallel movement along the room. ${ANTI_HALLUCINATION}`,
+    duration: 5,
   },
   "truck-right": {
-    camera_motion: { zoom: 0, horizontal: 3, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    basePrompt: "Smooth lateral slide to the right. Eye-level, chest-height camera perspective.",
+    promptText: `Smooth lateral tracking shot sliding to the right. The camera moves horizontally at chest height, maintaining a fixed forward-facing angle while gliding right. Steady, parallel movement along the room. ${ANTI_HALLUCINATION}`,
+    duration: 5,
   },
   "pedestal-up": {
-    camera_motion: { zoom: 0, horizontal: 0, pan: 0, tilt: -1, vertical: 2, roll: 0 },
-    basePrompt: "Camera rises vertically, tilting down to hold the subject in frame.",
+    promptText: `The camera rises slowly and vertically while gently tilting down to keep the subject centered in frame. Smooth upward crane movement from chest height. Controlled vertical lift with no horizontal drift. ${ANTI_HALLUCINATION}`,
+    duration: 5,
   },
   "pedestal-down": {
-    camera_motion: { zoom: 0, horizontal: 0, pan: 0, tilt: 1, vertical: -2, roll: 0 },
-    basePrompt: "Camera lowers vertically, tilting up to hold the subject in frame.",
+    promptText: `The camera lowers slowly and vertically while gently tilting up to keep the subject centered in frame. Smooth downward crane movement. Controlled vertical descent with no horizontal drift. ${ANTI_HALLUCINATION}`,
+    duration: 5,
   },
   "orbit": {
-    camera_motion: { zoom: 0, horizontal: 3, pan: 1, tilt: 0, vertical: 0, roll: 0 },
-    basePrompt: "Cinematic orbit arc around the subject. Eye-level, chest-height camera perspective.",
+    promptText: `Slow, smooth cinematic orbit arc around the room. The camera moves in a gentle circular path around the center of the space at chest height, as if mounted on a curved dolly track. The room rotates naturally as the camera perspective shifts. Very slow, steady rotational movement — like a real estate showcase walkthrough. The camera maintains a consistent distance from the subject throughout the orbit. ${ANTI_HALLUCINATION}`,
+    duration: 10,
   },
   "static": {
-    camera_motion: { zoom: 0, horizontal: 0, pan: 0, tilt: 0, vertical: 0, roll: 0 },
-    basePrompt: "Locked tripod shot. Minimal camera movement. Let the space speak for itself.",
+    promptText: `Completely locked tripod shot. The camera is perfectly still, mounted on a rigid tripod. Zero camera movement. The scene is static and calm, like a high-end real estate photograph brought to life with only subtle ambient details. ${ANTI_HALLUCINATION}`,
+    duration: 5,
   },
   "drone-up": {
-    camera_motion: { zoom: -1, horizontal: 0, pan: 0, tilt: -2, vertical: 3, roll: 0 },
-    basePrompt: "Rising drone reveal. Camera lifts and tilts down to showcase the property from above.",
+    promptText: `Rising aerial drone reveal. The camera lifts upward and tilts down to showcase the property from above, as if a drone is ascending. Smooth, continuous upward movement with a gentle downward tilt to keep the subject visible. ${ANTI_HALLUCINATION}`,
+    duration: 10,
   },
 };
 
-const ANTI_HALLUCINATION = "Locked geometry. No morphing, no liquid surfaces, no structural movement. Do not add lens flares, light blooms, god rays, or modify existing light sources. Preserve exact lighting conditions from the source photo. Keep all walls, floors, ceilings, and furniture perfectly stable.";
-
 function composePrompt(cameraAction: string): string {
   const config = MOTION_MAP[cameraAction];
-  if (!config) return MOTION_MAP["push-in"].basePrompt + " " + ANTI_HALLUCINATION;
-  return config.basePrompt + " " + ANTI_HALLUCINATION;
+  if (!config) return MOTION_MAP["push-in"].promptText;
+  return config.promptText;
+}
+
+function getDuration(cameraAction: string): number {
+  const config = MOTION_MAP[cameraAction];
+  if (!config) return 5;
+  return config.duration;
 }
 
 Deno.serve(async (req) => {
@@ -97,7 +103,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    console.log("=== generate-runway-batch INVOKED (MANUAL CAMERA SYSTEM) ===");
+    console.log("=== generate-runway-batch INVOKED (GEN4 TURBO — PROMPT-DRIVEN CAMERA) ===");
     const { imageMetadata, propertyAddress } = await req.json();
 
     if (!imageMetadata || !Array.isArray(imageMetadata) || imageMetadata.length === 0) {
@@ -109,7 +115,7 @@ Deno.serve(async (req) => {
       throw new Error("RUNWAY_API_KEY not configured");
     }
 
-    console.log(`=== RUNWAY GEN3A TURBO BATCH: ${imageMetadata.length} clips ===`);
+    console.log(`=== RUNWAY GEN4 TURBO BATCH: ${imageMetadata.length} clips ===`);
 
     const generationPromises = imageMetadata.map(async (metadata: {
       url: string;
@@ -123,11 +129,10 @@ Deno.serve(async (req) => {
       try {
         // Use the user's chosen camera action (no AI override)
         const effectiveAction = (cameraAction && MOTION_MAP[cameraAction]) ? cameraAction : "push-in";
-        const motionConfig = MOTION_MAP[effectiveAction];
-        const finalMotion = { ...motionConfig.camera_motion };
         const promptText = composePrompt(effectiveAction);
+        const clipDuration = getDuration(effectiveAction);
 
-        // Match Runway ratio to image orientation so the full picture is visible
+        // Gen4 Turbo supported ratios: 1280x768 (16:9), 768x1280 (9:16), 1104x832, 832x1104, 960x960 (1:1)
         const ratio = isLandscape === false ? "768:1280" : "1280:768";
 
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
@@ -135,16 +140,15 @@ Deno.serve(async (req) => {
         console.log(`  cameraAction: ${effectiveAction}`);
         console.log(`  isLandscape: ${isLandscape}`);
         console.log(`  ratio: ${ratio}`);
-        console.log(`  motion: ${JSON.stringify(finalMotion)}`);
-        console.log(`  prompt: ${promptText}`);
+        console.log(`  duration: ${clipDuration}s`);
+        console.log(`  prompt: ${promptText.substring(0, 120)}...`);
 
         const requestBody: Record<string, unknown> = {
-          model: "gen3a_turbo",
+          model: "gen4_turbo",
           promptImage: imageUrl,
           promptText: promptText,
-          camera_motion: finalMotion,
           ratio: ratio,
-          duration: 5,
+          duration: clipDuration,
         };
 
         if (seed) {
@@ -191,6 +195,7 @@ Deno.serve(async (req) => {
           imageUrl,
           generationId: data.id,
           status: "queued" as const,
+          duration: clipDuration,
         };
       } catch (error) {
         console.error(`Error creating clip ${index + 1}:`, error);
