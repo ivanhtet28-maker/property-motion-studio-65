@@ -46,41 +46,43 @@ interface MotionConfig {
 
 const ANTI_HALLUCINATION = "Photorealistic. Locked geometry — all walls, floors, ceilings, roofs, doors, windows, furniture, landscaping, and exterior structures remain perfectly rigid and stationary. No morphing, no liquid surfaces, no warping, no structural movement. Do not add lens flares, light blooms, god rays, or modify existing light sources. Preserve exact lighting conditions from the source photo. No objects appear or disappear. Maintain sharp edges on all architectural elements.";
 
+const WIDE_ANGLE = "Maintain the full wide-angle composition from the source image throughout the entire video. Do not crop, zoom in, or narrow the field of view. Every element visible in the original photo must remain visible in every frame.";
+
 const MOTION_MAP: Record<string, MotionConfig> = {
   "push-in": {
-    promptText: `Smooth, slow cinematic dolly forward toward the center of the room. The camera glides straight ahead at chest height, gradually closing distance with the focal point. Steady, controlled movement with no lateral drift. ${ANTI_HALLUCINATION}`,
+    promptText: `Very slow, subtle cinematic dolly forward toward the center of the scene. The camera glides straight ahead, gradually and gently closing distance with the focal point. Extremely slow movement — the camera barely advances. No lateral drift, no zoom, no cropping. ${WIDE_ANGLE} ${ANTI_HALLUCINATION}`,
     duration: 5,
   },
   "pull-out": {
-    promptText: `Gentle cinematic pullback revealing the full space. The camera slowly retreats backward at chest height in a straight line, gradually revealing more of the room. Steady, controlled backward movement. ${ANTI_HALLUCINATION}`,
+    promptText: `Very slow, gentle cinematic pullback revealing the full space. The camera retreats backward in a straight line at an extremely slow pace, gradually revealing slightly more of the scene. No lateral drift, no zoom, no cropping. ${WIDE_ANGLE} ${ANTI_HALLUCINATION}`,
     duration: 5,
   },
   "truck-left": {
-    promptText: `Smooth lateral tracking shot sliding to the left. The camera moves horizontally at chest height, maintaining a fixed forward-facing angle while gliding left. Steady, parallel movement along the room. ${ANTI_HALLUCINATION}`,
+    promptText: `Very slow, smooth lateral tracking shot sliding gently to the left. The camera moves horizontally while maintaining a fixed forward-facing angle. Extremely subtle lateral movement — the shift is barely perceptible. No zoom, no cropping, no forward/backward movement. The entire scene remains visible throughout. ${WIDE_ANGLE} ${ANTI_HALLUCINATION}`,
     duration: 5,
   },
   "truck-right": {
-    promptText: `Smooth lateral tracking shot sliding to the right. The camera moves horizontally at chest height, maintaining a fixed forward-facing angle while gliding right. Steady, parallel movement along the room. ${ANTI_HALLUCINATION}`,
+    promptText: `Very slow, smooth lateral tracking shot sliding gently to the right. The camera moves horizontally while maintaining a fixed forward-facing angle. Extremely subtle lateral movement — the shift is barely perceptible. No zoom, no cropping, no forward/backward movement. The entire scene remains visible throughout. ${WIDE_ANGLE} ${ANTI_HALLUCINATION}`,
     duration: 5,
   },
   "pedestal-up": {
-    promptText: `The camera rises slowly and vertically while gently tilting down to keep the subject centered in frame. Smooth upward crane movement from chest height. Controlled vertical lift with no horizontal drift. ${ANTI_HALLUCINATION}`,
+    promptText: `The camera rises very slowly and vertically while gently tilting down to keep the entire scene centered in frame. Extremely subtle upward crane movement. No horizontal drift, no zoom, no cropping. The full wide-angle composition is preserved as the camera gently lifts. ${WIDE_ANGLE} ${ANTI_HALLUCINATION}`,
     duration: 5,
   },
   "pedestal-down": {
-    promptText: `The camera lowers slowly and vertically while gently tilting up to keep the subject centered in frame. Smooth downward crane movement. Controlled vertical descent with no horizontal drift. ${ANTI_HALLUCINATION}`,
+    promptText: `The camera lowers very slowly and vertically while gently tilting up to keep the entire scene centered in frame. Extremely subtle downward crane movement. No horizontal drift, no zoom, no cropping. The full wide-angle composition is preserved as the camera gently descends. ${WIDE_ANGLE} ${ANTI_HALLUCINATION}`,
     duration: 5,
   },
   "orbit": {
-    promptText: `Slow, smooth cinematic orbit arc around the room. The camera moves in a gentle circular path around the center of the space at chest height, as if mounted on a curved dolly track. The room rotates naturally as the camera perspective shifts. Very slow, steady rotational movement — like a real estate showcase walkthrough. The camera maintains a consistent distance from the subject throughout the orbit. ${ANTI_HALLUCINATION}`,
+    promptText: `Very slow, smooth cinematic orbit arc. The camera moves in a gentle circular path around the center of the scene, as if mounted on a curved dolly track. Extremely slow rotational movement — like a premium real estate showcase. The camera maintains a consistent distance and the full wide-angle view throughout. No zoom, no cropping. Every element visible in the original photo stays visible throughout the orbit. ${WIDE_ANGLE} ${ANTI_HALLUCINATION}`,
     duration: 10,
   },
   "static": {
-    promptText: `Completely locked tripod shot. The camera is perfectly still, mounted on a rigid tripod. Zero camera movement. The scene is static and calm, like a high-end real estate photograph brought to life with only subtle ambient details. ${ANTI_HALLUCINATION}`,
+    promptText: `Completely locked tripod shot. The camera is perfectly still, mounted on a rigid tripod. Zero camera movement. Zero zoom. The scene is static and calm, like a high-end real estate photograph brought to life with only subtle ambient details such as gentle light shifts or faint reflections. ${WIDE_ANGLE} ${ANTI_HALLUCINATION}`,
     duration: 5,
   },
   "drone-up": {
-    promptText: `Rising aerial drone reveal shot of a property exterior. The camera ascends straight up vertically, as if a drone is lifting off from ground level. The camera tilts gently downward as it rises to keep the property centered in frame. Strictly vertical movement only — absolutely no horizontal drift, no lateral sliding, no zoom, no forward or backward movement, no orbiting. The camera rises in a perfectly straight vertical column. Smooth, continuous upward ascent. ${ANTI_HALLUCINATION}`,
+    promptText: `Rising aerial drone reveal of the property. The camera ascends straight up vertically, as if a drone is lifting off from ground level. The camera tilts gently downward as it rises to keep the full property centered in frame. Strictly vertical movement only — absolutely no horizontal drift, no lateral sliding, no zoom, no forward or backward movement. The camera rises in a perfectly straight vertical column. The full wide-angle view of the property is maintained throughout the ascent. ${WIDE_ANGLE} ${ANTI_HALLUCINATION}`,
     duration: 10,
   },
 };
