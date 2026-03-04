@@ -488,8 +488,7 @@
 
       // Use provided clip durations or default to 3.5 seconds each.
       // Clamp every duration to a minimum of 1s — Shotstack rejects 0, negative, or NaN lengths.
-      // IMPORTANT: Pad to match sourceUrls length — dual-crop expansion can produce more clips
-      // than the frontend's clipDurations array (e.g., 5 images → 7 clips after crop).
+      // Pad to match sourceUrls length if arrays differ in length.
       const rawDurations = clipDurations || [];
       const durations = sourceUrls.map((_: string, i: number) => {
         const d = rawDurations[i];

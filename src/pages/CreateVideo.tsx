@@ -601,7 +601,7 @@ Contact us today for a private inspection.`;
         body: {
           imageUrls: imageUrls,
           imageMetadata: imageMetadataPayload,
-          useKenBurns: false, // Runway Gen-3a with dual-crop for landscape images
+          useKenBurns: false, // Runway Gen-3a — each image generates one clip
           propertyData: propertyDataPayload,
           style: customization.selectedTemplate,
           layout: customization.selectedLayout,
