@@ -25,13 +25,9 @@
   interface ImageMetadata {
     url: string;
     cameraAngle: string;
-    cameraAction?: string;    // Camera Action dropdown (e.g., "orbit", "push-in")
-    room_type?: string;       // AI-detected room (e.g., "kitchen-orbit")
-    camera_intent?: string;   // AI-decided camera move (e.g., "orbit", "push-in")
-    hero_feature?: string;    // What the camera reveals (e.g., "marble kitchen island")
-    hazards?: string;         // Comma-separated hazards or "none"
+    cameraAction?: string;    // User's chosen camera motion (e.g., "orbit", "push-in")
     duration: number;
-    userOverridden?: boolean; // true when user manually changed the camera dropdown
+    isLandscape?: boolean;    // true if image width > height
   }
 
   interface GenerateVideoRequest {
@@ -328,10 +324,9 @@
       if (useKenBurns) {
         console.log("Ken Burns flow: bypassing AI generation, applying Shotstack effects to photos");
 
-        // Use camera_intent from AI detection as primary motion source.
-        // Only fall back to the legacy cameraAngle dropdown if the user manually overrode it.
+        // Use user's chosen camera action as motion source.
         const cameraAngles = metadataSource.map((m: ImageMetadata) =>
-          m.userOverridden ? (m.cameraAngle || "auto") : (m.camera_intent || m.cameraAngle || "auto")
+          m.cameraAction || m.cameraAngle || "auto"
         );
         const clipDurations = metadataSource.map((m: ImageMetadata) => m.duration ?? 3.5);
 

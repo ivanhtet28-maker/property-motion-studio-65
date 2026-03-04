@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,31 +15,12 @@ import {
   PhotoUpload,
   ImageMetadata,
   CameraAction,
-  RoomType,
-  ROOM_TO_DEFAULT_ACTION,
-  CAMERA_INTENT_TO_LABEL,
 } from "./PhotoUpload";
 import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { useToast } from "@/hooks/use-toast";
 import { PropertyDetails } from "./index";
 
 const MAX_SELECTIONS = 10;
-
-const ROOM_TYPE_TO_LABEL: Record<string, string> = {
-  "exterior-arrival": "Exterior",
-  "front-door": "Exterior",
-  "entry-foyer": "Entry / Foyer",
-  "living-room-wide": "Living Room",
-  "living-room-orbit": "Living Room",
-  "kitchen-orbit": "Kitchen",
-  "kitchen-push": "Kitchen",
-  "master-bedroom": "Master Bedroom",
-  bedroom: "Bedroom",
-  bathroom: "Bathroom",
-  "outdoor-entertaining": "Outdoor",
-  "backyard-pool": "Pool / Backyard",
-  "view-balcony": "Balcony / View",
-};
 
 interface PropertySourceSelectorProps {
   photos: File[];
@@ -75,150 +56,25 @@ export function PropertySourceSelector({
   // Images the user has selected (up to 10)
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
 
-  // Track which images are currently being detected by AI
-  const [detectingImages, setDetectingImages] = useState<Set<string>>(
-    new Set()
-  );
-
-  // Store detection results keyed by URL
-  const [detectionResults, setDetectionResults] = useState<
-    Record<string, { roomType: RoomType; label: string; cameraAction: CameraAction; camera_intent?: string; hero_feature?: string; hazards?: string }>
-  >({});
-
-  // Prevent duplicate AI detection calls
-  const detectingRef = useRef<Set<string>>(new Set());
-
-  // ── AI Room Detection for a scraped image URL ──────────────────────────────
-  // Fetches the image, resizes it client-side, sends to detect-room-types,
-  // and maps the result to a Core 5 camera action.
-  const detectRoomForUrl = useCallback(
-    async (imageUrl: string) => {
-      if (detectingRef.current.has(imageUrl)) return;
-      detectingRef.current.add(imageUrl);
-      setDetectingImages((prev) => new Set(prev).add(imageUrl));
-
-      try {
-        // Fetch image and resize to base64 for Claude Vision
-        const response = await fetch(imageUrl);
-        const blob = await response.blob();
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const canvas = document.createElement("canvas");
-          const ctx = canvas.getContext("2d");
-          if (!ctx) {
-            reject(new Error("No canvas context"));
-            return;
-          }
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          const objUrl = URL.createObjectURL(blob);
-          img.onload = () => {
-            const maxWidth = 800;
-            const ratio = Math.min(maxWidth / img.width, 1);
-            canvas.width = Math.round(img.width * ratio);
-            canvas.height = Math.round(img.height * ratio);
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            URL.revokeObjectURL(objUrl);
-            resolve(canvas.toDataURL("image/jpeg", 0.8).split(",")[1]);
-          };
-          img.onerror = () => {
-            URL.revokeObjectURL(objUrl);
-            reject(new Error("Image load failed"));
-          };
-          img.src = objUrl;
-        });
-
-        console.log("[PropertySourceSelector] CALLING detect-room-types for", imageUrl, { base64Length: base64.length });
-        const invokeStart = performance.now();
-        const data = await invokeEdgeFunction<{ results?: Array<{ room_type?: string; camera_intent?: string; hero_feature?: string; hazards?: string }> }>(
-          "detect-room-types",
-          {
-            body: {
-              images: [{ id: imageUrl, base64, mimeType: "image/jpeg" }],
-            },
-            requireAuth: false,
-          }
-        );
-        const invokeMs = Math.round(performance.now() - invokeStart);
-        console.log(`[PropertySourceSelector] detect-room-types responded in ${invokeMs}ms`, { data });
-
-        const result = data.results?.[0];
-        const roomType = (result?.room_type ?? "living-room-wide") as RoomType;
-        const cameraAction =
-          ROOM_TO_DEFAULT_ACTION[roomType] ??
-          ("orbit" as CameraAction);
-        const label = ROOM_TYPE_TO_LABEL[roomType] ?? "Room";
-
-        setDetectionResults((prev) => ({
-          ...prev,
-          [imageUrl]: {
-            roomType,
-            label,
-            cameraAction,
-            camera_intent: result?.camera_intent ?? "pull-out",
-            hero_feature: result?.hero_feature ?? "none",
-            hazards: result?.hazards ?? "none",
-          },
-        }));
-      } catch (err) {
-        console.error("Room detection failed for", imageUrl, err);
-        // Fallback defaults
-        setDetectionResults((prev) => ({
-          ...prev,
-          [imageUrl]: {
-            roomType: "living-room-wide" as RoomType,
-            label: "Living Room",
-            cameraAction: "orbit" as CameraAction,
-            camera_intent: "pull-out",
-            hero_feature: "none",
-            hazards: "none",
-          },
-        }));
-      } finally {
-        detectingRef.current.delete(imageUrl);
-        setDetectingImages((prev) => {
-          const next = new Set(prev);
-          next.delete(imageUrl);
-          return next;
-        });
-      }
-    },
-    []
-  );
-
-  // ── Build ImageMetadata for selected scraped images ────────────────────────
-  // Called whenever selection changes, maps each selected URL to an
-  // ImageMetadata entry with AI-detected room type and Core 5 camera action.
+  // Build ImageMetadata for selected scraped images — no AI detection
   const buildMetadataForSelection = useCallback(
     (selected: string[]) => {
       if (!onScrapedMetadataChange) return;
 
-      const metadata: ImageMetadata[] = selected.map((url) => {
-        const detection = detectionResults[url];
-        const isDetecting = detectingImages.has(url);
-        return {
-          // File is a placeholder for URL-sourced images — the backend uses
-          // the URL directly (stored in scrapedImageUrls state).
-          file: new File([], url.split("/").pop() || "scraped.jpg"),
-          cameraAction: detection?.cameraAction ?? ("orbit" as CameraAction),
-          detectedRoomLabel: detection?.label ?? null,
-          room_type: detection?.roomType ?? ("living-room-wide" as RoomType),
-          camera_intent: detection?.camera_intent ?? "pull-out",
-          hero_feature: detection?.hero_feature ?? "none",
-          hazards: detection?.hazards ?? "none",
-          cameraAngle: "auto" as const,
-          duration: 3.5,
-          isDetecting,
-          autoDetected: !!detection,
-          userOverridden: false,
-        };
-      });
+      const metadata: ImageMetadata[] = selected.map((url) => ({
+        file: new File([], url.split("/").pop() || "scraped.jpg"),
+        cameraAction: "push-in" as CameraAction,
+        cameraAngle: "auto" as const,
+        duration: 3.5,
+        isLandscape: true, // scraped listing photos are almost always landscape
+      }));
 
       onScrapedMetadataChange(metadata);
     },
-    [detectionResults, detectingImages, onScrapedMetadataChange]
+    [onScrapedMetadataChange]
   );
 
-  // ── Toggle image selection ─────────────────────────────────────────────────
+  // Toggle image selection
   const toggleImageSelection = useCallback(
     (imageUrl: string) => {
       setSelectedImages((prev) => {
@@ -226,10 +82,8 @@ export function PropertySourceSelector({
 
         let next: string[];
         if (isSelected) {
-          // Deselect
           next = prev.filter((url) => url !== imageUrl);
         } else {
-          // Select (respect max)
           if (prev.length >= MAX_SELECTIONS) {
             toast({
               title: "Maximum reached",
@@ -239,31 +93,20 @@ export function PropertySourceSelector({
             return prev;
           }
           next = [...prev, imageUrl];
-
-          // Trigger AI detection immediately when selected
-          if (!detectionResults[imageUrl] && !detectingRef.current.has(imageUrl)) {
-            detectRoomForUrl(imageUrl);
-          }
         }
 
-        // Notify parent of selected URLs
         if (onScrapedImagesChange) {
           onScrapedImagesChange(next);
         }
-        // Clear manual upload photos when using scrape
         if (next.length > 0) {
           onPhotosChange([]);
         }
-        // Build metadata for the new selection
-        // Small delay to let detection state update
         setTimeout(() => buildMetadataForSelection(next), 0);
 
         return next;
       });
     },
     [
-      detectionResults,
-      detectRoomForUrl,
       onScrapedImagesChange,
       onPhotosChange,
       buildMetadataForSelection,
@@ -271,7 +114,7 @@ export function PropertySourceSelector({
     ]
   );
 
-  // ── Scrape listing images ──────────────────────────────────────────────────
+  // Scrape listing images
   const handleScrapeImages = async () => {
     if (!propertyUrl.trim()) {
       toast({
@@ -282,7 +125,6 @@ export function PropertySourceSelector({
       return;
     }
 
-    // Validate URL format
     try {
       new URL(propertyUrl);
     } catch {
@@ -295,7 +137,6 @@ export function PropertySourceSelector({
       return;
     }
 
-    // Check supported sites
     if (
       !propertyUrl.includes("realestate.com.au") &&
       !propertyUrl.includes("domain.com.au")
@@ -313,7 +154,6 @@ export function PropertySourceSelector({
     setScrapeError(null);
     setAllScrapedImages([]);
     setSelectedImages([]);
-    setDetectionResults({});
     if (onScrapedImagesChange) onScrapedImagesChange([]);
     if (onScrapedMetadataChange) onScrapedMetadataChange([]);
 
@@ -382,17 +222,10 @@ export function PropertySourceSelector({
         className="w-full"
         onValueChange={(value) => {
           if (value === "upload") {
-            // Clear scrape-specific state when switching to manual upload.
-            // IMPORTANT: Only clear scraped images/metadata, NOT upload metadata.
-            // onScrapedMetadataChange and onMetadataChange share the same setter,
-            // so we must NOT call onScrapedMetadataChange([]) here — it would
-            // wipe the upload detection results too.
             setAllScrapedImages([]);
             setSelectedImages([]);
-            setDetectionResults({});
             setScrapeError(null);
             if (onScrapedImagesChange) onScrapedImagesChange([]);
-            // Do NOT call onScrapedMetadataChange([]) — it clears upload metadata!
           }
         }}
       >
@@ -407,7 +240,7 @@ export function PropertySourceSelector({
           </TabsTrigger>
         </TabsList>
 
-        {/* ── Manual Upload Tab ─────────────────────────────────────────── */}
+        {/* Manual Upload Tab */}
         <TabsContent value="upload" className="mt-6">
           <PhotoUpload
             photos={photos}
@@ -419,7 +252,7 @@ export function PropertySourceSelector({
           />
         </TabsContent>
 
-        {/* ── Import from Link Tab ──────────────────────────────────────── */}
+        {/* Import from Link Tab */}
         <TabsContent value="scrape" className="mt-6 space-y-4">
           {/* URL Input */}
           <div className="space-y-2">
@@ -486,19 +319,16 @@ export function PropertySourceSelector({
             </div>
           )}
 
-          {/* Scrollable Image Selection Grid */}
+          {/* Image Selection Grid */}
           {allScrapedImages.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">
-                Click images to select them for your video. AI room detection
-                runs automatically on selection.
+                Click images to select them for your video. You can set camera motion after selecting.
               </p>
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-80 overflow-y-auto p-2 bg-secondary/20 rounded-lg">
                 {allScrapedImages.map((url, index) => {
                   const isSelected = selectedImages.includes(url);
                   const selectionIndex = selectedImages.indexOf(url);
-                  const isDetecting = detectingImages.has(url);
-                  const detection = detectionResults[url];
 
                   return (
                     <button
@@ -537,26 +367,6 @@ export function PropertySourceSelector({
                           <Check className="w-3.5 h-3.5 text-white" />
                         </div>
                       )}
-
-                      {/* AI detection badge */}
-                      {isSelected && isDetecting && (
-                        <div className="absolute bottom-1.5 left-1.5 px-2 py-0.5 bg-purple-600/80 text-white text-[10px] font-medium rounded-full flex items-center gap-1 shadow-sm backdrop-blur-sm">
-                          <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                          Detecting...
-                        </div>
-                      )}
-                      {isSelected && !isDetecting && detection && (
-                        <div className="absolute bottom-1.5 left-1.5 flex flex-col gap-0.5">
-                          <span className="px-2 py-0.5 bg-purple-600/80 text-white text-[10px] font-medium rounded-full leading-tight shadow-sm backdrop-blur-sm">
-                            AI: {detection.label}
-                          </span>
-                          {detection.camera_intent && (
-                            <span className="px-2 py-0.5 bg-blue-600/80 text-white text-[10px] font-medium rounded-full leading-tight shadow-sm backdrop-blur-sm">
-                              {CAMERA_INTENT_TO_LABEL[detection.camera_intent] ?? detection.camera_intent}
-                            </span>
-                          )}
-                        </div>
-                      )}
                     </button>
                   );
                 })}
@@ -569,38 +379,21 @@ export function PropertySourceSelector({
             <div className="space-y-2">
               <Label>Your Upload Queue ({selectedImages.length} photos)</Label>
               <div className="flex gap-2 overflow-x-auto p-2 bg-card rounded-lg border border-border/50">
-                {selectedImages.map((url, index) => {
-                  const detection = detectionResults[url];
-                  const isDetecting = detectingImages.has(url);
-                  return (
-                    <div
-                      key={url}
-                      className="relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border border-border/50"
-                    >
-                      <img
-                        src={url}
-                        alt={`Selected ${index + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                      <span className="absolute top-1 left-1 w-5 h-5 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-[10px] font-bold shadow">
-                        {index + 1}
-                      </span>
-                      {isDetecting && (
-                        <Loader2 className="absolute bottom-1 right-1 w-3.5 h-3.5 text-white animate-spin drop-shadow" />
-                      )}
-                      {!isDetecting && detection && (
-                        <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[9px] text-center py-0.5 px-1">
-                          <div className="truncate">{detection.label}</div>
-                          {detection.camera_intent && (
-                            <div className="truncate text-blue-200">
-                              {CAMERA_INTENT_TO_LABEL[detection.camera_intent] ?? detection.camera_intent}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                {selectedImages.map((url, index) => (
+                  <div
+                    key={url}
+                    className="relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border border-border/50"
+                  >
+                    <img
+                      src={url}
+                      alt={`Selected ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                    <span className="absolute top-1 left-1 w-5 h-5 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-[10px] font-bold shadow">
+                      {index + 1}
+                    </span>
+                  </div>
+                ))}
               </div>
               {selectedImages.length < 3 && (
                 <p className="text-xs text-warning font-medium">
@@ -611,7 +404,7 @@ export function PropertySourceSelector({
             </div>
           )}
 
-          {/* How it works — show when no images yet */}
+          {/* How it works */}
           {allScrapedImages.length === 0 && !isScraping && !scrapeError && (
             <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
               <h4 className="text-sm font-medium text-foreground mb-2">
@@ -630,8 +423,7 @@ export function PropertySourceSelector({
                   video
                 </li>
                 <li>
-                  4. AI automatically detects each room and sets the best camera
-                  action
+                  4. Choose your preferred camera motion for each shot
                 </li>
               </ul>
             </div>
