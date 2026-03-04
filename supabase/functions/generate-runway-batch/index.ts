@@ -44,7 +44,7 @@ interface MotionConfig {
   duration: number; // 5 or 10 seconds — complex motions get 10s
 }
 
-const ANTI_HALLUCINATION = "Photorealistic interior. Locked geometry — all walls, floors, ceilings, doors, windows, and furniture remain perfectly rigid and stationary. No morphing, no liquid surfaces, no warping, no structural movement. Do not add lens flares, light blooms, god rays, or modify existing light sources. Preserve exact lighting conditions from the source photo. No objects appear or disappear. Maintain sharp edges on all architectural elements.";
+const ANTI_HALLUCINATION = "Photorealistic. Locked geometry — all walls, floors, ceilings, roofs, doors, windows, furniture, landscaping, and exterior structures remain perfectly rigid and stationary. No morphing, no liquid surfaces, no warping, no structural movement. Do not add lens flares, light blooms, god rays, or modify existing light sources. Preserve exact lighting conditions from the source photo. No objects appear or disappear. Maintain sharp edges on all architectural elements.";
 
 const MOTION_MAP: Record<string, MotionConfig> = {
   "push-in": {
@@ -80,7 +80,7 @@ const MOTION_MAP: Record<string, MotionConfig> = {
     duration: 5,
   },
   "drone-up": {
-    promptText: `Rising aerial drone reveal. The camera lifts upward and tilts down to showcase the property from above, as if a drone is ascending. Smooth, continuous upward movement with a gentle downward tilt to keep the subject visible. ${ANTI_HALLUCINATION}`,
+    promptText: `Rising aerial drone reveal shot of a property exterior. The camera ascends straight up vertically, as if a drone is lifting off from ground level. The camera tilts gently downward as it rises to keep the property centered in frame. Strictly vertical movement only — absolutely no horizontal drift, no lateral sliding, no zoom, no forward or backward movement, no orbiting. The camera rises in a perfectly straight vertical column. Smooth, continuous upward ascent. ${ANTI_HALLUCINATION}`,
     duration: 10,
   },
 };
