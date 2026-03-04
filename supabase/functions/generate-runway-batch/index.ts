@@ -332,7 +332,6 @@ Deno.serve(async (req) => {
           duration: clipDuration,
         };
 
-        // Shared seed ensures consistent lighting/colors across dual-crop pairs
         if (seed) {
           requestBody.seed = seed;
         }
