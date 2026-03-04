@@ -222,7 +222,8 @@ export default function CreateVideo() {
     clipDurations: number[],
     initialStitchJobId?: string | null,
     provider?: string,
-    imageUrls?: string[]
+    imageUrls?: string[],
+    outputFormat?: "portrait" | "landscape"
   ) => {
     const maxAttempts = 120; // 10 minutes max (120 * 5 seconds)
     let attempts = 0;
@@ -276,6 +277,7 @@ export default function CreateVideo() {
               clipDurations: clipDurations,
               provider: provider || "runway",
               imageUrls: imageUrls,  // For hybrid fallback — original photos replace failed AI clips
+              outputFormat: outputFormat || "landscape",
             },
           });
         } catch (invokeErr) {
@@ -387,18 +389,6 @@ export default function CreateVideo() {
 
     if (imageCount > 10) {
       setError(`Maximum 10 photos allowed for 15-50 second video (you have ${imageCount})`);
-      return;
-    }
-
-    // Block generation if AI room detection is still running
-    const stillDetecting = imageMetadata.some(m => m.isDetecting);
-    if (stillDetecting) {
-      setError("AI is still analyzing your photos. Please wait a moment...");
-      toast({
-        title: "Detection in progress",
-        description: "AI room detection is still running. Please wait for it to finish.",
-        variant: "destructive",
-      });
       return;
     }
 
@@ -565,19 +555,15 @@ Contact us today for a private inspection.`;
       // Convert frontend voice name to backend ID (only if voiceover is enabled)
       const voiceId = customization.includeVoiceover ? getVoiceId(customization.voiceType) : null;
 
-      // Prepare image metadata with camera intents, room types, and durations
+      // Prepare image metadata — user's manual camera choice + orientation
       const imageMetadataPayload = imageUrls.map((url, index) => {
         const metadata = imageMetadata[index];
         return {
           url,
-          cameraAction: metadata?.cameraAction || null,
-          room_type: metadata?.room_type || "living-room-wide",
-          camera_intent: metadata?.camera_intent || "pull-out",
-          hero_feature: metadata?.hero_feature || "none",
-          hazards: metadata?.hazards || "none",
+          cameraAction: metadata?.cameraAction || "push-in",
           cameraAngle: metadata?.cameraAngle || "auto",
           duration: metadata?.duration || 3.5,
-          userOverridden: metadata?.userOverridden || false,
+          isLandscape: metadata?.isLandscape ?? true,
         };
       });
 
@@ -671,6 +657,10 @@ Contact us today for a private inspection.`;
             description: `Generating ${data.totalClips} cinematic clips with Runway... this may take ${estimatedMinutes}-${estimatedMinutes + 2} minutes.`,
           });
 
+          // Determine output format from image orientations
+          const landscapeCount = imageMetadata.filter(m => m.isLandscape).length;
+          const videoOutputFormat = landscapeCount >= imageMetadata.length / 2 ? "landscape" : "portrait";
+
           pollVideoStatus(
             data.generationIds,
             data.videoId,
@@ -684,7 +674,8 @@ Contact us today for a private inspection.`;
             clipDurations,
             null,
             data.provider,
-            data.imageUrls || imageUrls  // Original photos for hybrid fallback
+            data.imageUrls || imageUrls,  // Original photos for hybrid fallback
+            videoOutputFormat as "portrait" | "landscape"
           );
         }
       } else {

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Upload, X, ImageIcon, GripVertical, Star, Info, Loader2 } from "lucide-react";
-import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
+import { Upload, X, ImageIcon, GripVertical, Star, Info } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -8,32 +7,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useToast } from "@/hooks/use-toast";
 
 export type CameraAngle = "auto" | "wide-shot" | "push-in" | "pull-out" | "truck-left" | "truck-right" | "orbit" | "static" | "pedestal-up" | "pedestal-down" | "drone-up";
-
-// Room types — still used for AI detection and backend prompt anchors.
-export type RoomType =
-  | "exterior-arrival"
-  | "front-door"
-  | "entry-foyer"
-  | "living-room-wide"
-  | "living-room-orbit"
-  | "kitchen-orbit"
-  | "kitchen-push"
-  | "master-bedroom"
-  | "bedroom"
-  | "bathroom"
-  | "outdoor-entertaining"
-  | "backyard-pool"
-  | "view-balcony";
 
 const CLIP_DURATION = 3.5; // seconds — fixed for Ken Burns mode; Runway uses 5s
 
@@ -61,66 +42,12 @@ export const CAMERA_ACTION_OPTIONS: { value: CameraAction; label: string; descri
   { value: "drone-up",      label: "Drone Up",      description: "Rising aerial reveal" },
 ];
 
-// Smart Default: AI-detected room → best camera action
-export const ROOM_TO_DEFAULT_ACTION: Record<string, CameraAction> = {
-  "exterior-arrival":     "truck-right",
-  "front-door":           "push-in",
-  "entry-foyer":          "push-in",
-  "living-room-wide":     "orbit",
-  "living-room-orbit":    "orbit",
-  "kitchen-orbit":        "orbit",
-  "kitchen-push":         "push-in",
-  "master-bedroom":       "pull-out",
-  "bedroom":              "pull-out",
-  "bathroom":             "push-in",
-  "outdoor-entertaining": "drone-up",
-  "backyard-pool":        "drone-up",
-  "view-balcony":         "pull-out",
-};
-
-// Human-readable labels for AI camera intent (the "Shot" tag)
-export const CAMERA_INTENT_TO_LABEL: Record<string, string> = {
-  "push-in":       "Push In",
-  "pull-out":      "Pull Out",
-  "truck-left":    "Truck Left",
-  "truck-right":   "Truck Right",
-  "pedestal-up":   "Pedestal Up",
-  "pedestal-down": "Pedestal Down",
-  "orbit":         "Orbit",
-  "static":        "Static Shot",
-  "drone-up":      "Drone Up",
-};
-
-// AI detection display label (the "What" tag)
-const ROOM_TYPE_TO_LABEL: Record<string, string> = {
-  "exterior-arrival": "Exterior",
-  "front-door":       "Exterior",
-  "entry-foyer":      "Entry / Foyer",
-  "living-room-wide": "Living Room",
-  "living-room-orbit":"Living Room",
-  "kitchen-orbit":    "Kitchen",
-  "kitchen-push":     "Kitchen",
-  "master-bedroom":   "Master Bedroom",
-  "bedroom":          "Bedroom",
-  "bathroom":         "Bathroom",
-  "outdoor-entertaining": "Outdoor",
-  "backyard-pool":    "Pool / Backyard",
-  "view-balcony":     "Balcony / View",
-};
-
 export interface ImageMetadata {
   file: File;
-  cameraAction: CameraAction;          // dropdown value (the "How")
-  detectedRoomLabel: string | null;     // AI tag display (the "What")
-  room_type: RoomType;                  // raw AI detection — sent to backend for prompt anchors
-  camera_intent?: string;              // AI-decided camera move (e.g., "orbit", "push-in")
-  hero_feature?: string;               // what the camera reveals (e.g., "marble kitchen island")
-  hazards?: string;                    // comma-separated hazards or "none"
+  cameraAction: CameraAction;          // user's chosen camera motion
   cameraAngle: CameraAngle;            // legacy compat
   duration: number;
-  isDetecting?: boolean;               // true while Claude Vision is classifying
-  autoDetected?: boolean;              // true after AI has set the camera action
-  userOverridden?: boolean;            // true ONLY when user manually changed the dropdown
+  isLandscape: boolean;                 // true if image width > height
 }
 
 interface PhotoUploadProps {
@@ -132,35 +59,19 @@ interface PhotoUploadProps {
   maxPhotos?: number;
 }
 
-// Default intent fallback when AI detection doesn't return one
-function getDefaultIntent(roomType: string): string {
-  if (roomType.startsWith("exterior") || roomType === "front-door") return "truck-right";
-  if (roomType === "entry-foyer") return "push-in";
-  if (roomType.startsWith("living-room")) return "orbit";
-  if (roomType.startsWith("kitchen")) return "orbit";
-  if (roomType === "master-bedroom" || roomType === "bedroom") return "pull-out";
-  if (roomType === "bathroom") return "push-in";
-  return "drone-up";
-}
-
-// Resize an image File to a small JPEG base64 string suitable for Claude Vision.
-// Keeps payload well under the Supabase Edge Function ~2MB limit.
-function resizeImageForDetection(file: File, maxWidth = 800): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    if (!ctx) { reject(new Error("No canvas context")); return; }
+// Detect image dimensions to determine landscape vs portrait
+function detectImageOrientation(file: File): Promise<boolean> {
+  return new Promise((resolve) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
-      const ratio = Math.min(maxWidth / img.width, 1);
-      canvas.width = Math.round(img.width * ratio);
-      canvas.height = Math.round(img.height * ratio);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       URL.revokeObjectURL(url);
-      resolve(canvas.toDataURL("image/jpeg", 0.8).split(",")[1]);
+      resolve(img.naturalWidth > img.naturalHeight);
     };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Image load failed")); };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(true); // default to landscape for real estate photos
+    };
     img.src = url;
   });
 }
@@ -173,147 +84,73 @@ export function PhotoUpload({
   minPhotos = 3,
   maxPhotos = 10,
 }: PhotoUploadProps) {
-  const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  // Tracks which file names are currently being detected to avoid duplicate calls
-  const detectingRef = useRef<Set<string>>(new Set());
+  const initRef = useRef<Set<string>>(new Set());
 
-  // Initialize metadata when photos change, then trigger AI detection for new images
+  // Initialize metadata for new photos — detect orientation only (no AI calls)
   const syncMetadata = useCallback((newPhotos: File[]) => {
-    if (!onMetadataChange) {
-      console.warn("[PhotoUpload] syncMetadata called but onMetadataChange is null/undefined — detection skipped!");
-      return;
-    }
+    if (!onMetadataChange) return;
 
-    console.log("[PhotoUpload] syncMetadata called", {
-      photoCount: newPhotos.length,
-      existingMetadata: imageMetadata.length,
-      detectingRefSize: detectingRef.current.size,
-    });
+    // Keep existing metadata for photos we already processed
+    const existingMetadata: ImageMetadata[] = newPhotos
+      .map((file) => imageMetadata.find(m => m.file.name === file.name))
+      .filter((m): m is ImageMetadata => !!m);
 
-    const newMetadata: ImageMetadata[] = newPhotos.map((file) => {
+    // Find new files that need orientation detection
+    const newFiles = newPhotos.filter(
+      f => !imageMetadata.find(m => m.file.name === f.name) && !initRef.current.has(f.name)
+    );
+
+    // Set initial metadata immediately (default to landscape)
+    const initialMetadata: ImageMetadata[] = newPhotos.map((file) => {
       const existing = imageMetadata.find(m => m.file.name === file.name);
       if (existing) return existing;
-      // New file — mark as detecting so UI shows spinner immediately
       return {
         file,
-        cameraAction: "orbit" as CameraAction,
-        detectedRoomLabel: null,
-        room_type: "living-room-wide" as RoomType,
+        cameraAction: "push-in" as CameraAction,
         cameraAngle: "auto" as CameraAngle,
         duration: CLIP_DURATION,
-        isDetecting: true,
-        autoDetected: false,
-        userOverridden: false,
+        isLandscape: true,
       };
     });
+    onMetadataChange(initialMetadata);
 
-    onMetadataChange(newMetadata);
-
-    // Detect room types for newly added files only
-    const newFiles = newPhotos.filter(
-      f => !imageMetadata.find(m => m.file.name === f.name) && !detectingRef.current.has(f.name)
-    );
     if (newFiles.length === 0) return;
+    newFiles.forEach(f => initRef.current.add(f.name));
 
-    newFiles.forEach(f => detectingRef.current.add(f.name));
-
+    // Detect orientation for new files
     (async () => {
-      try {
-        const images = await Promise.all(
-          newFiles.map(async (file) => ({
-            id: file.name,
-            base64: await resizeImageForDetection(file),
-            mimeType: "image/jpeg",
-          }))
-        );
+      const orientations = await Promise.all(
+        newFiles.map(async (file) => ({
+          name: file.name,
+          isLandscape: await detectImageOrientation(file),
+        }))
+      );
 
-        console.log("[PhotoUpload] CALLING detect-room-types", {
-          count: images.length,
-          ids: images.map(i => i.id),
-          base64Lengths: images.map(i => `${i.id}=${i.base64.length}`),
-        });
-        const invokeStart = performance.now();
-        const data = await invokeEdgeFunction<{ results?: Array<{ id: string; room_type: string; camera_intent?: string; hero_feature?: string; hazards?: string }> }>(
-          "detect-room-types",
-          {
-            body: { images },
-            requireAuth: false,
-          }
-        );
-        const invokeMs = Math.round(performance.now() - invokeStart);
-        console.log(`[PhotoUpload] detect-room-types responded in ${invokeMs}ms`, { data });
+      onMetadataChange(
+        newPhotos.map((file) => {
+          const existing = imageMetadata.find(m => m.file.name === file.name);
+          if (existing) return existing;
+          const orientation = orientations.find(o => o.name === file.name);
+          return {
+            file,
+            cameraAction: "push-in" as CameraAction,
+            cameraAngle: "auto" as CameraAngle,
+            duration: CLIP_DURATION,
+            isLandscape: orientation?.isLandscape ?? true,
+          };
+        })
+      );
 
-        const results: Array<{ id: string; room_type: string; camera_intent?: string; hero_feature?: string; hazards?: string }> = data?.results ?? [];
-        console.log("[PhotoUpload] Detection results received:", JSON.stringify(results, null, 2));
-
-        onMetadataChange(
-          newPhotos.map((file) => {
-            const existing = imageMetadata.find(m => m.file.name === file.name);
-            if (existing) return existing;
-            const detected = results.find(r => r.id === file.name);
-            const roomType = (detected?.room_type ?? "living-room-wide") as RoomType;
-            const detectedIntent = detected?.camera_intent ?? getDefaultIntent(roomType);
-            const detectedHero = detected?.hero_feature ?? "none";
-            const detectedHazards = detected?.hazards ?? "none";
-            return {
-              file,
-              cameraAction: ROOM_TO_DEFAULT_ACTION[roomType] ?? ("orbit" as CameraAction),
-              detectedRoomLabel: ROOM_TYPE_TO_LABEL[roomType] ?? null,
-              room_type: roomType,
-              camera_intent: detectedIntent,
-              hero_feature: detectedHero,
-              hazards: detectedHazards,
-              cameraAngle: "auto" as CameraAngle,
-              duration: CLIP_DURATION,
-              isDetecting: false,
-              autoDetected: !!detected,
-              userOverridden: false,
-            };
-          })
-        );
-      } catch (err) {
-        console.error("Room type detection FAILED:", err);
-        toast({
-          title: "AI Detection Failed",
-          description: "Could not analyze photos. Using defaults. Check console for details.",
-          variant: "destructive",
-        });
-        // Set defaults with visible label so user sees SOMETHING (not blank)
-        onMetadataChange(
-          newPhotos.map((file) => {
-            const existing = imageMetadata.find(m => m.file.name === file.name);
-            if (existing) return existing;
-            const fallbackRoom = "living-room-wide" as RoomType;
-            return {
-              file,
-              cameraAction: "orbit" as CameraAction,
-              detectedRoomLabel: ROOM_TYPE_TO_LABEL[fallbackRoom] + " (default)",
-              room_type: fallbackRoom,
-              camera_intent: getDefaultIntent(fallbackRoom),
-              hero_feature: "none",
-              hazards: "none",
-              cameraAngle: "auto" as CameraAngle,
-              duration: CLIP_DURATION,
-              isDetecting: false,
-              autoDetected: false,
-              userOverridden: false,
-            };
-          })
-        );
-      } finally {
-        newFiles.forEach(f => detectingRef.current.delete(f.name));
-      }
+      newFiles.forEach(f => initRef.current.delete(f.name));
     })();
-  }, [imageMetadata, onMetadataChange, toast]);
+  }, [imageMetadata, onMetadataChange]);
 
-  // Re-sync: if photos exist but metadata is empty/mismatched, re-trigger detection.
-  // This catches cases where metadata was wiped (tab switching, state resets, etc.)
+  // Re-sync if photos exist but metadata is empty
   useEffect(() => {
     if (!onMetadataChange || photos.length === 0) return;
     if (imageMetadata.length === 0) {
-      console.log("[PhotoUpload] metadata empty but photos exist — re-syncing", { photoCount: photos.length });
       syncMetadata(photos);
     }
   }, [photos, imageMetadata.length, syncMetadata, onMetadataChange]);
@@ -379,13 +216,13 @@ export function PhotoUpload({
   const updateImageCameraAction = (index: number, action: CameraAction) => {
     if (!onMetadataChange) return;
     const newMetadata = [...imageMetadata];
-    newMetadata[index] = { ...newMetadata[index], cameraAction: action, autoDetected: false, userOverridden: true };
+    newMetadata[index] = { ...newMetadata[index], cameraAction: action };
     onMetadataChange(newMetadata);
   };
 
   const setAllCameraActions = (action: CameraAction) => {
     if (!onMetadataChange) return;
-    const newMetadata = imageMetadata.map(meta => ({ ...meta, cameraAction: action, autoDetected: false, userOverridden: true }));
+    const newMetadata = imageMetadata.map(meta => ({ ...meta, cameraAction: action }));
     onMetadataChange(newMetadata);
   };
 
@@ -571,91 +408,48 @@ export function PhotoUpload({
                       </span>
                     )}
 
-                    {/* AI room detection tag — bottom-left of image */}
-                    {metadata && !metadata.isDetecting && metadata.detectedRoomLabel && (
-                      <div className="absolute bottom-2 left-2 flex flex-col gap-0.5">
-                        <span className="px-2 py-0.5 bg-purple-600/80 text-white text-[10px] font-medium rounded-full leading-tight shadow-sm backdrop-blur-sm">
-                          AI: {metadata.detectedRoomLabel}
-                        </span>
-                        {metadata.camera_intent && (
-                          <span className="px-2 py-0.5 bg-blue-600/80 text-white text-[10px] font-medium rounded-full leading-tight shadow-sm backdrop-blur-sm">
-                            Shot: {CAMERA_INTENT_TO_LABEL[metadata.camera_intent] ?? metadata.camera_intent}
-                          </span>
-                        )}
-                      </div>
+                    {/* Orientation badge — bottom-left of image */}
+                    {metadata && (
+                      <span className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/60 text-white text-[10px] font-medium rounded-full leading-tight shadow-sm backdrop-blur-sm">
+                        {metadata.isLandscape ? "Landscape" : "Portrait"}
+                      </span>
                     )}
                   </div>
 
                   {/* Camera Action Controls */}
                   {onMetadataChange && metadata && (
-                    <div className="space-y-2">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-1">
-                          <label className="text-xs font-medium text-muted-foreground">Camera Action</label>
-                          {metadata.autoDetected && !metadata.isDetecting && (
-                            <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-medium rounded-full leading-none">
-                              AI
-                            </span>
-                          )}
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Info className="w-3 h-3 text-muted-foreground" />
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs">
-                                <p className="text-xs">
-                                  {metadata.isDetecting
-                                    ? "Detecting room and selecting best camera action..."
-                                    : CAMERA_ACTION_OPTIONS.find(o => o.value === metadata.cameraAction)?.description ?? "Choose how the camera moves for this shot"}
-                                </p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                        {metadata.isDetecting ? (
-                          <div className="h-8 flex items-center gap-2 px-3 border border-border rounded-md bg-secondary/30">
-                            <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
-                            <span className="text-xs text-muted-foreground">Detecting...</span>
-                          </div>
-                        ) : (
-                          <Select
-                            value={metadata.cameraAction ?? "orbit"}
-                            onValueChange={(value) => updateImageCameraAction(index, value as CameraAction)}
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {CAMERA_ACTION_OPTIONS.map(({ value, label, description }) => (
-                                <SelectItem key={value} value={value} className="text-xs">
-                                  <span>{label}</span>
-                                  <span className="ml-1 text-muted-foreground">— {description}</span>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1">
+                        <label className="text-xs font-medium text-muted-foreground">Camera Motion</label>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Info className="w-3 h-3 text-muted-foreground" />
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="text-xs">
+                                {CAMERA_ACTION_OPTIONS.find(o => o.value === metadata.cameraAction)?.description ?? "Choose how the camera moves for this shot"}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
-
-                      {/* AI Shot Details — camera_intent + hero_feature */}
-                      {!metadata.isDetecting && metadata.autoDetected && metadata.camera_intent && (
-                        <div className="px-2 py-1.5 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50 rounded-md space-y-0.5">
-                          <p className="text-[10px] font-semibold text-blue-700 dark:text-blue-300 flex items-center gap-1">
-                            AI Shot: {CAMERA_INTENT_TO_LABEL[metadata.camera_intent] ?? metadata.camera_intent}
-                          </p>
-                          {metadata.hero_feature && metadata.hero_feature !== "none" && (
-                            <p className="text-[10px] text-blue-600/80 dark:text-blue-400/70">
-                              Reveals: {metadata.hero_feature}
-                            </p>
-                          )}
-                          {metadata.hazards && metadata.hazards !== "none" && (
-                            <p className="text-[10px] text-amber-600 dark:text-amber-400">
-                              Hazards: {metadata.hazards}
-                            </p>
-                          )}
-                        </div>
-                      )}
-
+                      <Select
+                        value={metadata.cameraAction ?? "push-in"}
+                        onValueChange={(value) => updateImageCameraAction(index, value as CameraAction)}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CAMERA_ACTION_OPTIONS.map(({ value, label, description }) => (
+                            <SelectItem key={value} value={value} className="text-xs">
+                              <span>{label}</span>
+                              <span className="ml-1 text-muted-foreground">— {description}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
                 </div>
@@ -686,7 +480,7 @@ export function PhotoUpload({
 
       {/* Helper text — directly above status bar */}
       <p className="text-sm text-muted-foreground/80 text-center py-2">
-        Upload your photos and we&apos;ll handle the rest. Just click generate when ready.
+        Upload your photos, choose a camera motion for each, then click generate.
       </p>
 
       {/* Status Bar */}
