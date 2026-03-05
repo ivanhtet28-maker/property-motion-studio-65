@@ -123,12 +123,13 @@ Deno.serve(async (req) => {
 
     console.log(`=== RUNWAY GEN4 TURBO BATCH: ${imageMetadata.length} clips ===`);
 
-    // All clips MUST share the same aspect ratio as the final Shotstack output.
-    // If Runway produces landscape (1280x768) but Shotstack renders portrait (9:16),
-    // the cover-crop discards ~60% of the frame — causing severe zoom/crop artefacts.
-    // Let Runway handle framing internally; it's much smarter than a post-hoc center-crop.
-    const globalRatio = outputFormat === "landscape" ? "1280:768" : "768:1280";
-    console.log(`Global output format: ${outputFormat || "portrait (default)"} → all clips at ${globalRatio}`);
+    // Generate each clip at the SOURCE IMAGE's native aspect ratio.
+    // Landscape photos → 1280:768, Portrait photos → 768:1280.
+    // This ensures Runway sees the FULL image (no center-crop) and can apply
+    // camera motions (orbit, drone-up, etc.) to the complete scene.
+    // Shotstack will later composite landscape clips into portrait output
+    // using a blurred-background + contain technique (no zoom/crop artifacts).
+    console.log(`Output format: ${outputFormat || "portrait (default)"} — clips generated at native source ratio`);
 
     const generationPromises = imageMetadata.map(async (metadata: {
       url: string;
@@ -138,15 +139,16 @@ Deno.serve(async (req) => {
       seed?: number;
       isLandscape?: boolean;
     }, index: number) => {
-      const { url: imageUrl, cameraAction, seed } = metadata;
+      const { url: imageUrl, cameraAction, seed, isLandscape } = metadata;
       try {
         // Use the user's chosen camera action (no AI override)
         const effectiveAction = (cameraAction && MOTION_MAP[cameraAction]) ? cameraAction : "push-in";
         const promptText = composePrompt(effectiveAction);
         const clipDuration = getDuration(effectiveAction);
 
-        // All clips use the same ratio matching the final Shotstack output format.
-        const ratio = globalRatio;
+        // Use native aspect ratio so Runway sees the full image.
+        // Landscape source → 1280:768, Portrait source → 768:1280.
+        const ratio = (isLandscape !== false) ? "1280:768" : "768:1280";
 
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
         console.log(`  Image: ${imageUrl}`);
@@ -208,6 +210,7 @@ Deno.serve(async (req) => {
           generationId: data.id,
           status: "queued" as const,
           duration: clipDuration,
+          isLandscape: isLandscape !== false,
         };
       } catch (error) {
         console.error(`Error creating clip ${index + 1}:`, error);
