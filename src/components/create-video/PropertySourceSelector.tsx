@@ -15,7 +15,15 @@ import {
   PhotoUpload,
   ImageMetadata,
   CameraAction,
+  CAMERA_ACTION_OPTIONS,
 } from "./PhotoUpload";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { useToast } from "@/hooks/use-toast";
 import { PropertyDetails } from "./index";
@@ -56,14 +64,19 @@ export function PropertySourceSelector({
   // Images the user has selected (up to 10)
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
 
-  // Build ImageMetadata for selected scraped images — no AI detection
+  // Per-image camera action state — persists across selection toggles.
+  // Keyed by image URL so toggling other images doesn't reset your choices.
+  const [scrapedCameraActions, setScrapedCameraActions] = useState<Record<string, CameraAction>>({});
+
+  // Build ImageMetadata for selected scraped images — preserves user camera action choices
   const buildMetadataForSelection = useCallback(
-    (selected: string[]) => {
+    (selected: string[], cameraActions?: Record<string, CameraAction>) => {
       if (!onScrapedMetadataChange) return;
 
+      const actions = cameraActions || scrapedCameraActions;
       const metadata: ImageMetadata[] = selected.map((url) => ({
         file: new File([], url.split("/").pop() || "scraped.jpg"),
-        cameraAction: "push-in" as CameraAction,
+        cameraAction: actions[url] || ("push-in" as CameraAction),
         cameraAngle: "auto" as const,
         duration: 3.5,
         isLandscape: true, // scraped listing photos are almost always landscape
@@ -71,7 +84,33 @@ export function PropertySourceSelector({
 
       onScrapedMetadataChange(metadata);
     },
-    [onScrapedMetadataChange]
+    [onScrapedMetadataChange, scrapedCameraActions]
+  );
+
+  // Update camera action for a single scraped image
+  const updateScrapedCameraAction = useCallback(
+    (imageUrl: string, action: CameraAction) => {
+      setScrapedCameraActions((prev) => {
+        const next = { ...prev, [imageUrl]: action };
+        // Rebuild metadata with updated actions
+        buildMetadataForSelection(selectedImages, next);
+        return next;
+      });
+    },
+    [buildMetadataForSelection, selectedImages]
+  );
+
+  // Apply one camera action to all selected scraped images
+  const setAllScrapedCameraAction = useCallback(
+    (action: CameraAction) => {
+      setScrapedCameraActions((prev) => {
+        const next = { ...prev };
+        selectedImages.forEach((url) => { next[url] = action; });
+        buildMetadataForSelection(selectedImages, next);
+        return next;
+      });
+    },
+    [buildMetadataForSelection, selectedImages]
   );
 
   // Toggle image selection
@@ -323,7 +362,7 @@ export function PropertySourceSelector({
           {allScrapedImages.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">
-                Click images to select them for your video. You can set camera motion after selecting.
+                Click images to select them for your video. Set camera motion per image below, or use "Apply to all".
               </p>
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-80 overflow-y-auto p-2 bg-secondary/20 rounded-lg">
                 {allScrapedImages.map((url, index) => {
@@ -374,24 +413,52 @@ export function PropertySourceSelector({
             </div>
           )}
 
-          {/* Selected Images Queue Preview */}
+          {/* Selected Images with Camera Motion Controls */}
           {selectedImages.length > 0 && (
-            <div className="space-y-2">
-              <Label>Your Upload Queue ({selectedImages.length} photos)</Label>
-              <div className="flex gap-2 overflow-x-auto p-2 bg-card rounded-lg border border-border/50">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Your Upload Queue ({selectedImages.length} photos)</Label>
+                {/* Apply to All dropdown */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Apply to all:</span>
+                  <Select onValueChange={(v) => setAllScrapedCameraAction(v as CameraAction)}>
+                    <SelectTrigger className="h-7 w-[130px] text-xs">
+                      <SelectValue placeholder="Camera motion" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CAMERA_ACTION_OPTIONS.map(({ value, label }) => (
+                        <SelectItem key={value} value={value} className="text-xs">{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-96 overflow-y-auto p-2 bg-card rounded-lg border border-border/50">
                 {selectedImages.map((url, index) => (
-                  <div
-                    key={url}
-                    className="relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border border-border/50"
-                  >
-                    <img
-                      src={url}
-                      alt={`Selected ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                    <span className="absolute top-1 left-1 w-5 h-5 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-[10px] font-bold shadow">
-                      {index + 1}
-                    </span>
+                  <div key={url} className="space-y-1.5">
+                    <div className="relative aspect-video rounded-lg overflow-hidden border border-border/50">
+                      <img
+                        src={url}
+                        alt={`Selected ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                      <span className="absolute top-1.5 left-1.5 w-5 h-5 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-[10px] font-bold shadow">
+                        {index + 1}
+                      </span>
+                    </div>
+                    <Select
+                      value={scrapedCameraActions[url] || "push-in"}
+                      onValueChange={(v) => updateScrapedCameraAction(url, v as CameraAction)}
+                    >
+                      <SelectTrigger className="h-7 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CAMERA_ACTION_OPTIONS.map(({ value, label }) => (
+                          <SelectItem key={value} value={value} className="text-xs">{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 ))}
               </div>
