@@ -20,6 +20,9 @@ verify_jwt = false
 verify_jwt = false
 
 # Internal functions called by other edge functions (not browser-facing)
+[functions.smart-crop-portrait]
+verify_jwt = false
+
 [functions.crop-image]
 verify_jwt = false
 
