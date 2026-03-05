@@ -468,12 +468,11 @@
       const metadataForRunway = baseMetadata.slice(0, 10); // Max 10 clips
       const finalImageUrls = imageUrls.slice(0, 10);
 
-      // Determine final output format from image orientations so Runway
-      // generates clips at the matching aspect ratio — avoids brutal
-      // cover-crop when landscape clips land in a portrait timeline.
-      const landscapeImages = metadataForRunway.filter((m: ImageMetadata) => m.isLandscape !== false).length;
-      const computedOutputFormat = landscapeImages >= metadataForRunway.length / 2 ? "landscape" : "portrait";
-      console.log(`Sending ${metadataForRunway.length} images to Runway, outputFormat=${computedOutputFormat}`);
+      // Always generate portrait (9:16) clips — the app targets social media reels.
+      // Runway Gen4 Turbo intelligently reframes landscape source photos into portrait
+      // without losing important content, which is far superior to a post-hoc center-crop.
+      const computedOutputFormat = "portrait";
+      console.log(`Sending ${metadataForRunway.length} images to Runway, outputFormat=${computedOutputFormat} (always portrait for social reels)`);
 
       const runwayResponse = await fetch(
         `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-runway-batch`,
@@ -511,6 +510,13 @@
       );
       const generationIds = generations.map((g) => g.generationId).filter(Boolean) as string[];
 
+      // Track which clip indices are landscape — needed for Shotstack compositing
+      const landscapeSlots: number[] = [];
+      (runwayData.generations as any[]).forEach((g: any, i: number) => {
+        if (g.status === "queued" && g.isLandscape) landscapeSlots.push(i);
+      });
+      console.log(`Landscape slots: [${landscapeSlots.join(", ")}]`);
+
       console.log(`Started ${generations.length} Runway generations`);
       console.log("Generation IDs:", generationIds);
 
@@ -547,6 +553,7 @@
                 layout: layout || style,
                 customTitle: customTitle || "",
                 imageUrls: finalImageUrls,  // Expanded for hybrid fallback recovery
+                landscapeSlots,  // Which clips are landscape (for Shotstack compositing)
               }),
             })
             .eq("id", videoRecordId);
@@ -573,6 +580,7 @@
           propertyData: propertyData,
           style: style,
           imageUrls: finalImageUrls,  // Expanded array for hybrid fallback
+          landscapeSlots,  // Which clip indices are landscape source photos
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

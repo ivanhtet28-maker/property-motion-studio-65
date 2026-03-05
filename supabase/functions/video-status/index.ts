@@ -192,7 +192,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { generationIds, videoId, audioUrl, musicUrl, agentInfo, propertyData, style, layout, customTitle, stitchJobId, clipDurations, provider, imageUrls, outputFormat } = body;
+    const { generationIds, videoId, audioUrl, musicUrl, agentInfo, propertyData, style, layout, customTitle, stitchJobId, clipDurations, provider, imageUrls, outputFormat, landscapeSlots } = body;
 
     // If stitchJobId is provided, we're polling Shotstack stitching job instead of Runway
     if (stitchJobId) {
@@ -439,8 +439,9 @@ Deno.serve(async (req) => {
           layout: layout || "modern-luxe",
           customTitle: customTitle || null,
           videoId: videoId,
-          outputFormat: outputFormat || "landscape",
+          outputFormat: outputFormat || "portrait",
           fallbackSlots: fallbackSlots.length > 0 ? fallbackSlots : undefined,
+          landscapeSlots: landscapeSlots || [],
         }),
       }
     );

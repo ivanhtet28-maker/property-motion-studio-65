@@ -225,7 +225,8 @@ export default function CreateVideo() {
     initialStitchJobId?: string | null,
     provider?: string,
     imageUrls?: string[],
-    outputFormat?: "portrait" | "landscape"
+    outputFormat?: "portrait" | "landscape",
+    landscapeSlots?: number[]
   ) => {
     const maxAttempts = 120; // 10 minutes max (120 * 5 seconds)
     let attempts = 0;
@@ -279,7 +280,8 @@ export default function CreateVideo() {
               clipDurations: clipDurations,
               provider: provider || "runway",
               imageUrls: imageUrls,  // For hybrid fallback — original photos replace failed AI clips
-              outputFormat: outputFormat || "landscape",
+              outputFormat: outputFormat || "portrait",
+              landscapeSlots: landscapeSlots || [],  // Which clips are landscape (for Shotstack compositing)
             },
           });
         } catch (invokeErr) {
@@ -665,9 +667,9 @@ Contact us today for a private inspection.`;
             description: `Generating ${data.totalClips} cinematic clips with Runway... this may take ${estimatedMinutes}-${estimatedMinutes + 2} minutes.`,
           });
 
-          // Determine output format from image orientations
-          const landscapeCount = imageMetadata.filter(m => m.isLandscape).length;
-          const videoOutputFormat = landscapeCount >= imageMetadata.length / 2 ? "landscape" : "portrait";
+          // Always portrait — social media reels are 9:16. Runway reframes landscape
+          // source photos into portrait intelligently (no brutal center-crop).
+          const videoOutputFormat = "portrait";
 
           pollVideoStatus(
             data.generationIds,
@@ -683,7 +685,8 @@ Contact us today for a private inspection.`;
             null,
             data.provider,
             data.imageUrls || imageUrls,  // Original photos for hybrid fallback
-            videoOutputFormat as "portrait" | "landscape"
+            videoOutputFormat as "portrait" | "landscape",
+            data.landscapeSlots || []  // Which clips are landscape (for Shotstack compositing)
           );
         }
       } else {
