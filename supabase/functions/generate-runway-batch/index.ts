@@ -34,7 +34,7 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2, at
 
 // ============================================
 // GEN4 TURBO — Prompt-driven camera control
-// No numeric camera_motion sliders (Gen3a only).
+// No numeric camera_motion sliders.
 // Gen4 Turbo uses natural language in promptText
 // for superior motion quality and zero hallucinations.
 // ============================================
@@ -53,47 +53,49 @@ interface MotionConfig {
 // 4. Short, direct, cinematic language
 // ============================================
 
-const SCENE_ANCHOR = "Photorealistic cinematic real estate showcase. Rigid architecture, stable lighting, sharp edges throughout.";
+// Gen4 Turbo best practice: short prompts focused on MOTION only.
+// The image provides all visual context — the prompt just directs camera movement.
+const SCENE_ANCHOR = "Cinematic real estate. Stable architecture, sharp detail.";
 
 const MOTION_MAP: Record<string, MotionConfig> = {
   "push-in": {
-    promptText: `Slow, steady cinematic dolly forward toward the focal point of the scene. The camera glides straight ahead at a gentle pace. Smooth, subtle forward movement. ${SCENE_ANCHOR}`,
+    promptText: `Slow steady dolly forward toward the focal point. Smooth, gentle forward glide. ${SCENE_ANCHOR}`,
     duration: 5,
   },
   "pull-out": {
-    promptText: `Slow cinematic pullback revealing the full space. The camera retreats backward in a straight line, gradually revealing more of the room. Smooth, steady backward glide. ${SCENE_ANCHOR}`,
+    promptText: `Slow cinematic pullback revealing the full space. Steady backward glide. ${SCENE_ANCHOR}`,
     duration: 5,
   },
   "truck-left": {
-    promptText: `Slow, smooth lateral tracking shot sliding to the left. The camera moves horizontally while facing forward. Gentle, cinematic side-to-side movement. ${SCENE_ANCHOR}`,
+    promptText: `Smooth lateral tracking shot sliding left. Camera faces forward while moving sideways. ${SCENE_ANCHOR}`,
     duration: 5,
   },
   "truck-right": {
-    promptText: `Slow, smooth lateral tracking shot sliding to the right. The camera moves horizontally while facing forward. Gentle, cinematic side-to-side movement. ${SCENE_ANCHOR}`,
+    promptText: `Smooth lateral tracking shot sliding right. Camera faces forward while moving sideways. ${SCENE_ANCHOR}`,
     duration: 5,
   },
   "pedestal-up": {
-    promptText: `The camera rises slowly and vertically, like a crane shot, gently tilting down to keep the scene centered. Smooth upward lift. ${SCENE_ANCHOR}`,
+    promptText: `Camera rises vertically like a crane shot, tilting down to keep the scene centered. ${SCENE_ANCHOR}`,
     duration: 5,
   },
   "pedestal-down": {
-    promptText: `The camera lowers slowly and vertically, like a descending crane, gently tilting up to keep the scene centered. Smooth downward movement. ${SCENE_ANCHOR}`,
+    promptText: `Camera lowers vertically like a descending crane, tilting up to keep the scene centered. ${SCENE_ANCHOR}`,
     duration: 5,
   },
   "orbit": {
-    promptText: `Slow cinematic orbit arc around the center of the scene. The camera moves in a gentle circular path, like a dolly on a curved track. Premium real estate showcase movement, smooth and steady. ${SCENE_ANCHOR}`,
+    promptText: `Slow cinematic arc orbit around the center of the scene. Gentle circular dolly path. ${SCENE_ANCHOR}`,
     duration: 10,
   },
   "orbit-360": {
-    promptText: `Full 360-degree cinematic orbit around the room. The camera travels in a complete circle at chest height, smoothly revealing every angle. Continuous, steady rotation like a circular dolly track. ${SCENE_ANCHOR}`,
+    promptText: `Full 360-degree orbit around the room at chest height, revealing every angle. Steady circular dolly track. ${SCENE_ANCHOR}`,
     duration: 10,
   },
   "static": {
-    promptText: `Locked tripod shot. The camera is perfectly still. The scene is calm and stable, with only subtle ambient details like gentle light shifts. High-end real estate photograph brought to life. ${SCENE_ANCHOR}`,
+    promptText: `Locked tripod shot. Camera perfectly still with only subtle ambient light shifts. ${SCENE_ANCHOR}`,
     duration: 5,
   },
   "drone-up": {
-    promptText: `Rising aerial drone reveal. The camera ascends vertically, tilting gently downward to keep the property centered. Smooth, cinematic upward lift like a drone taking off. ${SCENE_ANCHOR}`,
+    promptText: `Rising aerial drone reveal. Camera ascends vertically, tilting down to keep the property centered. ${SCENE_ANCHOR}`,
     duration: 10,
   },
 };

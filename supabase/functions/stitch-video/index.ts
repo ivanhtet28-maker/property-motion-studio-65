@@ -573,11 +573,27 @@
           }
           clip.transition = { in: "fade", out: "fade" };
         } else if (isFallbackSlot) {
-          // Hybrid Fallback: failed AI clip → original image with zoomInSlow
+          // Hybrid Fallback: failed AI clip → original image with user's camera motion
           // The tour must always finish — never break the sequence.
-          clip.effect = "zoomInSlow";
+          const angle = cameraAngles?.[index] || "push-in";
+
+          if (angle === "truck-right" || angle === "orbit") {
+            clip.offset = {
+              x: [{ from: 0, to: -0.04, start: 0, length: clipDuration,
+                     interpolation: "bezier", easing: "easeInOutQuart" }]
+            };
+          } else if (angle === "truck-left") {
+            clip.offset = {
+              x: [{ from: 0, to: 0.04, start: 0, length: clipDuration,
+                     interpolation: "bezier", easing: "easeInOutQuart" }]
+            };
+          } else if (angle === "pull-out" || angle === "drone-up" || angle === "pedestal-up") {
+            clip.effect = "zoomOutSlow";
+          } else {
+            clip.effect = "zoomInSlow";
+          }
           clip.transition = { in: "fade", out: "fade" };
-          console.log(`Clip ${index}: Hybrid fallback — using original image with zoomInSlow`);
+          console.log(`Clip ${index}: Hybrid fallback — using original image with camera motion "${angle}"`);
         } else {
           // AI-generated clip
           clip.transition = { in: "fade", out: "fade" };

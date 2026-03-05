@@ -226,6 +226,7 @@ export default function CreateVideo() {
     provider?: string,
     imageUrls?: string[],
     outputFormat?: "portrait" | "landscape",
+    cameraAngles?: string[],
   ) => {
     const maxAttempts = 120; // 10 minutes max (120 * 5 seconds)
     let attempts = 0;
@@ -280,6 +281,7 @@ export default function CreateVideo() {
               provider: provider || "runway",
               imageUrls: imageUrls,  // For hybrid fallback — original photos replace failed AI clips
               outputFormat: outputFormat || "portrait",
+              cameraAngles: cameraAngles,  // For fallback slot motions
             },
           });
         } catch (invokeErr) {
@@ -591,11 +593,12 @@ Contact us today for a private inspection.`;
         provider?: string;
         stitchJobId?: string;
         imageUrls?: string[];
+        cameraAngles?: string[];
       }>("generate-video", {
         body: {
           imageUrls: imageUrls,
           imageMetadata: imageMetadataPayload,
-          useKenBurns: false, // Runway Gen-3a — each image generates one clip
+          useKenBurns: false, // Runway Gen4 Turbo — each image generates one AI clip
           propertyData: propertyDataPayload,
           style: customization.selectedTemplate,
           layout: customization.selectedLayout,
@@ -652,12 +655,12 @@ Contact us today for a private inspection.`;
             data.stitchJobId
           );
         } else {
-          // AI generation flow (Runway Gen-3a): poll generationIds until clips are ready
+          // AI generation flow (Runway Gen4 Turbo): poll generationIds until clips are ready
           if (!data.generationIds || data.generationIds.length === 0) {
             throw new Error("No generation IDs returned from server. Check edge function logs.");
           }
           setGenerationIds(data.generationIds);
-          console.log(`Started ${data.totalClips} Runway Gen-3a generations`);
+          console.log(`Started ${data.totalClips} Runway Gen4 Turbo generations`);
 
           const estimatedMinutes = Math.ceil(data.estimatedTime / 60);
           toast({
@@ -683,7 +686,8 @@ Contact us today for a private inspection.`;
             null,
             data.provider,
             data.imageUrls || imageUrls,  // Original photos for hybrid fallback
-            videoOutputFormat as "portrait" | "landscape"
+            videoOutputFormat as "portrait" | "landscape",
+            data.cameraAngles || imageMetadataPayload.map(m => m.cameraAction || "push-in"),
           );
         }
       } else {

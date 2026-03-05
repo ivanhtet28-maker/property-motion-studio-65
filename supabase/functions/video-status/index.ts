@@ -192,7 +192,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { generationIds, videoId, audioUrl, musicUrl, agentInfo, propertyData, style, layout, customTitle, stitchJobId, clipDurations, provider, imageUrls, outputFormat } = body;
+    const { generationIds, videoId, audioUrl, musicUrl, agentInfo, propertyData, style, layout, customTitle, stitchJobId, clipDurations, provider, imageUrls, outputFormat, cameraAngles } = body;
 
     // If stitchJobId is provided, we're polling Shotstack stitching job instead of Runway
     if (stitchJobId) {
@@ -431,6 +431,7 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           videoUrls: finalVideoUrls,
           clipDurations: clipDurations,
+          cameraAngles: cameraAngles || undefined,  // For fallback slot motions
           audioUrl: audioUrl,
           musicUrl: musicUrl,
           agentInfo: agentInfo,
