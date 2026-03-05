@@ -426,7 +426,7 @@
     }
 
     try {
-      const { videoUrls, imageUrls, imageEffects, cameraAngles, clipDurations, propertyData, audioUrl, musicUrl, agentInfo, style, layout, customTitle, videoId, outputFormat, fallbackSlots, landscapeSlots }: StitchVideoRequest & { landscapeSlots?: number[] } = await req.json();
+      const { videoUrls, imageUrls, imageEffects, cameraAngles, clipDurations, propertyData, audioUrl, musicUrl, agentInfo, style, layout, customTitle, videoId, outputFormat, fallbackSlots }: StitchVideoRequest = await req.json();
 
       // Ken Burns mode: raw property photos + Shotstack effects
       // AI mode: pre-generated video clips from Luma/Runway
@@ -440,7 +440,6 @@
       console.log("=== SHOTSTACK VIDEO STITCHING ===");
       console.log("Mode:", isKenBurns ? "Ken Burns (still images)" : "AI video clips");
       console.log("Stitching", sourceUrls.length, isKenBurns ? "photos" : "AI clips");
-      console.log("Landscape slots:", landscapeSlots || []);
       console.log("Output format:", outputFormat || "portrait (default)");
       console.log("Layout:", layout || "modern-luxe (default)");
       console.log("Custom Title:", customTitle || "(using template name)");
@@ -508,8 +507,6 @@
       const TRANSITION_OVERLAP = 0.5;
 
       const fallbackSet = new Set(fallbackSlots || []);
-      const landscapeSet = new Set(landscapeSlots || []);
-      const isPortraitOutput = outputFormat !== "landscape";
       const effectiveDurations = isKenBurns
         ? durations
         : durations.map(() => CLIP_HARD_CUT);
@@ -526,20 +523,17 @@
       console.log("Video clips duration:", videoClipsDuration);
       console.log("Total duration:", totalDuration);
 
-      // Build main clip track + blurred background track for landscape clips in portrait output.
-      // When a landscape Runway clip (1280:768) lands in a portrait (9:16) timeline,
-      // we use TWO layers: blurred cover-fill background + contained foreground.
-      // This shows the FULL image without cropping — industry standard for social reels.
+      // Build main clip track. All Runway clips are now generated at the
+      // target output ratio (720:1280 portrait or 1280:720 landscape),
+      // so they fit directly with "cover" — no compositing needed.
       let currentStart = 0;
       const videoClips: any[] = [];
-      const blurredBgClips: any[] = [];  // Blurred background for landscape-in-portrait clips
 
       sourceUrls.forEach((url, index) => {
         // Guard: if durations array is shorter than sourceUrls, fall back to 3.5s
         const rawDuration = effectiveDurations[index];
         const clipDuration = (Number.isFinite(rawDuration) && rawDuration >= 0.5) ? rawDuration : 3.5;
         const isFallbackSlot = fallbackSet.has(index);
-        const isLandscapeClip = landscapeSet.has(index) && isPortraitOutput && !isKenBurns && !isFallbackSlot;
 
         const assetDef = isKenBurns
           ? { type: "image", src: url }
@@ -547,27 +541,12 @@
             ? { type: "image", src: url }
             : { type: "video", src: url };
 
-        // For landscape clips in portrait output: foreground uses "contain" to show full image
-        // For everything else: "cover" fills the frame as before
         const clip: any = {
           asset: { ...assetDef },
           start: currentStart,
           length: clipDuration,
-          fit: isLandscapeClip ? "contain" : "cover",
+          fit: "cover",
         };
-
-        // Landscape clips get a blurred background fill so there are no black bars
-        if (isLandscapeClip) {
-          blurredBgClips.push({
-            asset: { ...assetDef },
-            start: currentStart,
-            length: clipDuration,
-            fit: "cover",
-            filter: "blur",
-            transition: { in: "fade", out: "fade" },
-          });
-          console.log(`Clip ${index}: Landscape-in-portrait — using blurred background + contain`);
-        }
 
         if (isKenBurns) {
           // Ken Burns: map camera intent to Shotstack effect or offset animation.
@@ -765,12 +744,6 @@
               clips: videoClips,
             },
 
-            // Blurred background track for landscape-in-portrait clips.
-            // Sits BELOW the main clips. Only has entries for landscape clips;
-            // portrait clips use cover-fit in the main track and need no background.
-            ...(blurredBgClips.length > 0 ? [{
-              clips: blurredBgClips,
-            }] : []),
           ],
         },
         output: {
