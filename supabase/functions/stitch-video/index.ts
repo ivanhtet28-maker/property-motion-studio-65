@@ -515,7 +515,7 @@
       // Calculate total duration (AI mode subtracts overlap between adjacent clips)
       const overlapCount = isKenBurns ? 0 : Math.max(0, effectiveDurations.length - 1);
       const videoClipsDuration = effectiveDurations.reduce((sum, duration) => sum + duration, 0) - (TRANSITION_OVERLAP * overlapCount);
-      const agentCardDuration = (agentInfo && agentInfo.name) ? Math.max(effectiveDurations[0] || 3.5, 1) : 0; // Use effective (not raw) duration for timeline consistency
+      const agentCardDuration = (agentInfo && agentInfo.name) ? 4 : 0; // Fixed 4s outro — enough to read CTA without dragging
       const totalDuration = videoClipsDuration + agentCardDuration;
 
       console.log("Clip durations (raw):", durations);
@@ -650,30 +650,35 @@
                     type: "luma",
                     src: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/luma-mattes/circle_square_white.png",
                   },
-                  start: videoClipsDuration + 0.1,
-                  length: Math.max(agentCardDuration - 0.1, 0.5),
+                  start: videoClipsDuration + 0.3,
+                  length: agentCardDuration - 0.3,
                   position: "top",
                   offset: {
                     y: -0.22,
                   },
                   scale: 0.35,
-                  fit: "contain"
+                  fit: "contain",
+                  transition: {
+                    in: "fade",
+                  },
                 },
                 // Agent photo (masked by luma matte above)
-
                 {
                   asset: {
                     type: "image",
-                    src: agentPhotoUrl || agentInfo.photo, // Use storage URL if available, fallback to base64
+                    src: agentPhotoUrl || agentInfo.photo,
                   },
-                  start: videoClipsDuration + 0.1,
-                  length: Math.max(agentCardDuration - 0.1, 0.5),
+                  start: videoClipsDuration + 0.3,
+                  length: agentCardDuration - 0.3,
                   position: "top",
                   offset: {
                     y: -0.15,
                   },
-                  scale: 0.35, // Match luma matte scale exactly
-                  fit: "contain", // Match luma matte fit parameter
+                  scale: 0.35,
+                  fit: "contain",
+                  transition: {
+                    in: "fade",
+                  },
                 },
               ],
             }] : []),
@@ -686,29 +691,63 @@
                     type: "html",
                     html: `
                       <div style="
+                        position: relative;
                         width: 100%;
                         height: 100%;
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: center;
-                        text-align: center;
                         font-family: Helvetica, Arial, sans-serif;
                         color: white;
-                        padding-top: 100px;
                       ">
-                        <div style="font-size: 42px; font-weight: 700; margin-bottom: 15px; letter-spacing: 1px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.name}</div>
-                        ${agentInfo.phone ? `<div style="font-size: 38px; margin-bottom: 10px; font-weight: 600; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.phone}</div>` : ''}
-                        ${agentInfo.email ? `<div style="font-size: 38px; font-weight: 600; text-shadow: 3px 3px 6px rgba(0,0,0,1);">${agentInfo.email}</div>` : ''}
-                        <div style="margin-top: 40px; font-size: 42px; font-weight: 700; letter-spacing: 2px; text-shadow: 3px 3px 6px rgba(0,0,0,1);">CONTACT ME TODAY</div>
+                        <!-- Semi-transparent overlay for readability on blurred background -->
+                        <div style="
+                          position: absolute;
+                          top: 0; left: 0; right: 0; bottom: 0;
+                          background: rgba(0, 0, 0, 0.45);
+                        "></div>
+
+                        <!-- Agent info centered with photo space above -->
+                        <div style="
+                          position: absolute;
+                          top: 55%;
+                          left: 50%;
+                          transform: translate(-50%, -50%);
+                          text-align: center;
+                          width: 85%;
+                        ">
+                          <div style="font-size: 44px; font-weight: 800; margin-bottom: 20px; letter-spacing: 1px; text-shadow: 2px 2px 6px rgba(0,0,0,0.8);">${agentInfo.name}</div>
+                          ${agentInfo.phone ? `<div style="font-size: 32px; margin-bottom: 12px; font-weight: 500; opacity: 0.9; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">${agentInfo.phone}</div>` : ''}
+                          ${agentInfo.email ? `<div style="font-size: 28px; font-weight: 500; opacity: 0.85; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">${agentInfo.email}</div>` : ''}
+                        </div>
+
+                        <!-- CTA button at bottom -->
+                        <div style="
+                          position: absolute;
+                          bottom: 180px;
+                          left: 50%;
+                          transform: translateX(-50%);
+                          text-align: center;
+                        ">
+                          <table style="margin: 0 auto;"><tr><td style="
+                            background: linear-gradient(135deg, #c8a84e, #e8c84e);
+                            padding: 22px 60px;
+                            border-radius: 12px;
+                            font-size: 34px;
+                            font-weight: 800;
+                            color: #1a1a1a;
+                            letter-spacing: 2px;
+                            text-transform: uppercase;
+                          ">Schedule a Showing</td></tr></table>
+                        </div>
                       </div>
                     `,
                     css: "",
                     width: 1080,
                     height: 1920,
                   },
-                  start: videoClipsDuration + 0.1,
-                  length: Math.max(agentCardDuration - 0.1, 0.5),
+                  start: videoClipsDuration,
+                  length: agentCardDuration,
+                  transition: {
+                    in: "fade",
+                  },
                 },
               ],
             }] : []),
