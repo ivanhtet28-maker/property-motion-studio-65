@@ -11,6 +11,7 @@ type CameraAngle =
   | "truck-right"
   | "truck-left"
   | "orbit"
+  | "orbit-360"
   | "static"
   | "pedestal-up"
   | "pedestal-down"
@@ -52,6 +53,12 @@ function getTransform(angle: CameraAngle, progress: number): Transform {
     case "orbit": {
       const t = easeInOut(progress);
       return { scale: 1, offsetX: -0.05 * t, offsetY: 0 };
+    }
+    case "orbit-360": {
+      // Full 360° pan — sweeps left across the entire image then returns
+      const t = easeInOut(progress);
+      const angle = t * Math.PI * 2;
+      return { scale: 1.02, offsetX: -0.06 * Math.sin(angle), offsetY: -0.02 * Math.cos(angle) };
     }
     case "truck-left": {
       const t = easeInOut(progress);

@@ -77,6 +77,10 @@ const MOTION_MAP: Record<string, MotionConfig> = {
     promptText: `Very slow, smooth cinematic orbit arc. The camera moves in a gentle circular path around the center of the scene, as if mounted on a curved dolly track. Extremely slow rotational movement — like a premium real estate showcase. The camera maintains a consistent distance and the full wide-angle view throughout. No zoom, no cropping. Every element visible in the original photo stays visible throughout the orbit. ${WIDE_ANGLE} ${ANTI_HALLUCINATION}`,
     duration: 10,
   },
+  "orbit-360": {
+    promptText: `Full 360-degree cinematic orbit around the entire room. The camera travels in a complete circle around the center of the space at chest height, smoothly revealing every wall and angle of the room as if mounted on a circular dolly track. The movement is continuous, steady, and unhurried — a full revolution showcase of the property interior. The camera maintains a fixed distance from the center throughout the entire rotation. Show all architectural details visible in the source image during the full revolution. ${ANTI_HALLUCINATION}`,
+    duration: 10,
+  },
   "static": {
     promptText: `Completely locked tripod shot. The camera is perfectly still, mounted on a rigid tripod. Zero camera movement. Zero zoom. The scene is static and calm, like a high-end real estate photograph brought to life with only subtle ambient details such as gentle light shifts or faint reflections. ${WIDE_ANGLE} ${ANTI_HALLUCINATION}`,
     duration: 5,
@@ -106,7 +110,7 @@ Deno.serve(async (req) => {
 
   try {
     console.log("=== generate-runway-batch INVOKED (GEN4 TURBO — PROMPT-DRIVEN CAMERA) ===");
-    const { imageMetadata, propertyAddress } = await req.json();
+    const { imageMetadata, propertyAddress, outputFormat } = await req.json();
 
     if (!imageMetadata || !Array.isArray(imageMetadata) || imageMetadata.length === 0) {
       throw new Error("imageMetadata array is required");
@@ -119,6 +123,13 @@ Deno.serve(async (req) => {
 
     console.log(`=== RUNWAY GEN4 TURBO BATCH: ${imageMetadata.length} clips ===`);
 
+    // All clips MUST share the same aspect ratio as the final Shotstack output.
+    // If Runway produces landscape (1280x768) but Shotstack renders portrait (9:16),
+    // the cover-crop discards ~60% of the frame — causing severe zoom/crop artefacts.
+    // Let Runway handle framing internally; it's much smarter than a post-hoc center-crop.
+    const globalRatio = outputFormat === "landscape" ? "1280:768" : "768:1280";
+    console.log(`Global output format: ${outputFormat || "portrait (default)"} → all clips at ${globalRatio}`);
+
     const generationPromises = imageMetadata.map(async (metadata: {
       url: string;
       cameraAction?: string;
@@ -127,20 +138,19 @@ Deno.serve(async (req) => {
       seed?: number;
       isLandscape?: boolean;
     }, index: number) => {
-      const { url: imageUrl, cameraAction, seed, isLandscape } = metadata;
+      const { url: imageUrl, cameraAction, seed } = metadata;
       try {
         // Use the user's chosen camera action (no AI override)
         const effectiveAction = (cameraAction && MOTION_MAP[cameraAction]) ? cameraAction : "push-in";
         const promptText = composePrompt(effectiveAction);
         const clipDuration = getDuration(effectiveAction);
 
-        // Gen4 Turbo supported ratios: 1280x768 (16:9), 768x1280 (9:16), 1104x832, 832x1104, 960x960 (1:1)
-        const ratio = isLandscape === false ? "768:1280" : "1280:768";
+        // All clips use the same ratio matching the final Shotstack output format.
+        const ratio = globalRatio;
 
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
         console.log(`  Image: ${imageUrl}`);
         console.log(`  cameraAction: ${effectiveAction}`);
-        console.log(`  isLandscape: ${isLandscape}`);
         console.log(`  ratio: ${ratio}`);
         console.log(`  duration: ${clipDuration}s`);
         console.log(`  prompt: ${promptText.substring(0, 120)}...`);

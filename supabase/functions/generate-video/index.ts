@@ -65,6 +65,7 @@
       case "pedestal-up":  return "zoomOutSlow";
       case "truck-right":
       case "orbit":        return "slideLeftSlow";
+      case "orbit-360":    return "slideLeftSlow"; // Ken Burns approximation of full orbit
       case "truck-left":   return "slideRightSlow";
       case "static":       return "zoomInSlow"; // subtle motion better than none
       case "push-in":
@@ -282,7 +283,7 @@
               car_spaces: propertyData.carSpaces ?? null,
               template_used: style,
               music_used: music,
-              aspect_ratio: "9:16",
+              aspect_ratio: "9:16", // DB default — updated by stitch-video based on actual outputFormat
               status: "processing",
               agent_name: agentInfo?.name || null,
               agent_phone: agentInfo?.phone || null,
@@ -466,7 +467,13 @@
       // Runway handles framing internally; no pre-cropping needed.
       const metadataForRunway = baseMetadata.slice(0, 10); // Max 10 clips
       const finalImageUrls = imageUrls.slice(0, 10);
-      console.log(`Sending ${metadataForRunway.length} images to Runway (1:1, no dual-crop)`);
+
+      // Determine final output format from image orientations so Runway
+      // generates clips at the matching aspect ratio — avoids brutal
+      // cover-crop when landscape clips land in a portrait timeline.
+      const landscapeImages = metadataForRunway.filter((m: ImageMetadata) => m.isLandscape !== false).length;
+      const computedOutputFormat = landscapeImages >= metadataForRunway.length / 2 ? "landscape" : "portrait";
+      console.log(`Sending ${metadataForRunway.length} images to Runway, outputFormat=${computedOutputFormat}`);
 
       const runwayResponse = await fetch(
         `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-runway-batch`,
@@ -479,6 +486,7 @@
           body: JSON.stringify({
             imageMetadata: metadataForRunway,
             propertyAddress: propertyData.address,
+            outputFormat: computedOutputFormat,
           }),
         }
       );
