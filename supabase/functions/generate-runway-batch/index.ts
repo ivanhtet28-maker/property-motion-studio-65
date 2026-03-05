@@ -1,7 +1,8 @@
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
+const ALLOWED_ORIGIN = (Deno.env.get("CORS_ALLOWED_ORIGIN") || "*").replace(/\/+$/, "");
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
@@ -34,69 +35,64 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2, at
 
 // ============================================
 // GEN4 TURBO — Prompt-driven camera control
-// No numeric camera_motion sliders.
-// Gen4 Turbo uses natural language in promptText
-// for superior motion quality and zero hallucinations.
+//
+// PROMPTING RULES (Runway Gen-4 official guide + research):
+// 1. Describe MOTION only — the image provides all visuals
+// 2. Use POSITIVE phrasing — "don't X" produces unpredictable results
+// 3. One scene, one camera move per clip
+// 4. Short, specific, cinematic language
+// 5. Use filmmaker vocabulary: dolly, crane, orbit, tracking, truck
+// 6. Include lighting cues for atmosphere
+// 7. ALL clips are 5s — quality degrades in longer generations
+//    (research shows 73% perfect consistency at 5s vs significant
+//     drift at 10s, especially for architecture/interiors)
 // ============================================
 
 interface MotionConfig {
   promptText: string;
-  duration: number; // 5 or 10 seconds — complex motions get 10s
+  duration: 5; // Always 5s — research shows best quality and consistency
 }
-
-// ============================================
-// PROMPTING RULES (from Runway Gen-4 official guide):
-// 1. Focus prompts on MOTION, not visual description (image provides visuals)
-// 2. Use POSITIVE phrasing only — negative phrasing ("no X", "don't X")
-//    produces unpredictable or OPPOSITE results
-// 3. Keep it simple — one scene, one motion per clip
-// 4. Short, direct, cinematic language
-// ============================================
-
-// Gen4 Turbo best practice: short prompts focused on MOTION only.
-// The image provides all visual context — the prompt just directs camera movement.
-const SCENE_ANCHOR = "Cinematic real estate. Stable architecture, sharp detail.";
 
 const MOTION_MAP: Record<string, MotionConfig> = {
   "push-in": {
-    promptText: `Slow steady dolly forward toward the focal point. Smooth, gentle forward glide. ${SCENE_ANCHOR}`,
+    promptText: "Slow steady dolly forward toward the focal point. Smooth gentle forward glide. Natural window light. Cinematic real estate footage.",
     duration: 5,
   },
   "pull-out": {
-    promptText: `Slow cinematic pullback revealing the full space. Steady backward glide. ${SCENE_ANCHOR}`,
+    promptText: "Slow cinematic pullback revealing the full space. Steady backward dolly glide. Natural ambient lighting. Cinematic real estate footage.",
     duration: 5,
   },
   "truck-left": {
-    promptText: `Smooth lateral tracking shot sliding left. Camera faces forward while moving sideways. ${SCENE_ANCHOR}`,
+    promptText: "Smooth lateral tracking shot sliding left. Camera faces forward while gliding sideways. Soft natural light. Cinematic real estate footage.",
     duration: 5,
   },
   "truck-right": {
-    promptText: `Smooth lateral tracking shot sliding right. Camera faces forward while moving sideways. ${SCENE_ANCHOR}`,
+    promptText: "Smooth lateral tracking shot sliding right. Camera faces forward while gliding sideways. Soft natural light. Cinematic real estate footage.",
     duration: 5,
   },
   "pedestal-up": {
-    promptText: `Camera rises vertically like a crane shot, tilting down to keep the scene centered. ${SCENE_ANCHOR}`,
+    promptText: "Camera rises vertically like a crane shot, tilting down to keep the scene centered. Smooth upward movement. Cinematic real estate footage.",
     duration: 5,
   },
   "pedestal-down": {
-    promptText: `Camera lowers vertically like a descending crane, tilting up to keep the scene centered. ${SCENE_ANCHOR}`,
+    promptText: "Camera lowers vertically like a descending crane, tilting up to keep the scene centered. Smooth downward movement. Cinematic real estate footage.",
     duration: 5,
   },
   "orbit": {
-    promptText: `Slow cinematic arc orbit around the center of the scene. Gentle circular dolly path. ${SCENE_ANCHOR}`,
-    duration: 10,
+    promptText: "Slow cinematic arc orbit around the center of the scene. Gentle partial circular dolly path. Warm natural light. Cinematic real estate footage.",
+    duration: 5,
   },
   "orbit-360": {
-    promptText: `Full 360-degree orbit around the room at chest height, revealing every angle. Steady circular dolly track. ${SCENE_ANCHOR}`,
-    duration: 10,
+    promptText: "Smooth circular orbit arc around the room, revealing the space from a new angle. Steady circular dolly track. Cinematic real estate footage.",
+    duration: 5,
   },
   "static": {
-    promptText: `Locked tripod shot. Camera perfectly still with only subtle ambient light shifts. ${SCENE_ANCHOR}`,
+    promptText: "Locked tripod shot. Camera perfectly still with only subtle ambient light shifts across the scene. Cinematic real estate footage.",
     duration: 5,
   },
   "drone-up": {
-    promptText: `Rising aerial drone reveal. Camera ascends vertically, tilting down to keep the property centered. ${SCENE_ANCHOR}`,
-    duration: 10,
+    promptText: "Rising aerial drone reveal. Camera ascends vertically, tilting down to keep the property centered. Golden hour light. Cinematic real estate footage.",
+    duration: 5,
   },
 };
 
@@ -106,19 +102,13 @@ function composePrompt(cameraAction: string): string {
   return config.promptText;
 }
 
-function getDuration(cameraAction: string): number {
-  const config = MOTION_MAP[cameraAction];
-  if (!config) return 5;
-  return config.duration;
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { status: 200, headers: corsHeaders });
   }
 
   try {
-    console.log("=== generate-runway-batch INVOKED (GEN4 TURBO — PROMPT-DRIVEN CAMERA) ===");
+    console.log("=== generate-runway-batch INVOKED (GEN4 TURBO — 5s CLIPS ONLY) ===");
     const { imageMetadata, propertyAddress, outputFormat } = await req.json();
 
     if (!imageMetadata || !Array.isArray(imageMetadata) || imageMetadata.length === 0) {
@@ -132,10 +122,9 @@ Deno.serve(async (req) => {
 
     console.log(`=== RUNWAY GEN4 TURBO BATCH: ${imageMetadata.length} clips ===`);
 
-    // All clips generated in portrait (9:16) at 720:1280 — the Gen4 Turbo
-    // native portrait ratio. Runway center-crops landscape source images
-    // to fill the portrait frame, which is the standard approach for
-    // portrait reels (same as Auto Reel, etc.).
+    // Portrait 9:16 at 720:1280 — Gen4 Turbo native portrait ratio.
+    // Runway center-crops landscape source images to fill the frame.
+    // Pre-cropping to 9:16 before submission prevents losing important content.
     const ratio = outputFormat === "landscape" ? "1280:720" : "720:1280";
     console.log(`Output format: ${outputFormat || "portrait (default)"} — ratio: ${ratio}`);
 
@@ -149,10 +138,14 @@ Deno.serve(async (req) => {
     }, index: number) => {
       const { url: imageUrl, cameraAction, seed } = metadata;
       try {
-        // Use the user's chosen camera action (no AI override)
         const effectiveAction = (cameraAction && MOTION_MAP[cameraAction]) ? cameraAction : "push-in";
         const promptText = composePrompt(effectiveAction);
-        const clipDuration = getDuration(effectiveAction);
+
+        // All clips are 5s — research shows quality degrades significantly
+        // after 5s with Gen4 Turbo, especially for architecture/interiors.
+        // Social media pacing (3.5s hard-cut in Shotstack) means we only
+        // use the first 3.5s anyway — the extra 1.5s is buffer.
+        const clipDuration = 5;
 
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
         console.log(`  Image: ${imageUrl}`);

@@ -375,19 +375,68 @@ Deno.serve(async (req) => {
       );
     }
 
-    // --- Hybrid Fallback: Build final URL array, substituting failed clips ---
+    // --- Quality Gate + Hybrid Fallback ---
+    // Before stitching, verify each completed clip is actually usable:
+    // 1. URL must be accessible (HEAD check)
+    // 2. Content-Type must be video/* (not error page HTML)
+    // 3. File size must be > 50KB (tiny files = corrupted/empty)
+    // Failed clips get replaced with original images (Ken Burns fallback in Shotstack)
     const fallbackSlots: number[] = [];
     const finalVideoUrls: string[] = [];
+    const MIN_VIDEO_SIZE_BYTES = 50_000; // 50KB minimum for a valid 5s video clip
 
     if (statuses && Array.isArray(statuses)) {
+      // Run quality checks in parallel for all completed clips
+      const qualityChecks = await Promise.all(
+        statuses.map(async (s, i) => {
+          if (s.status !== "completed" || !s.videoUrl) {
+            return { index: i, pass: false, reason: "generation_failed" };
+          }
+
+          try {
+            const headResp = await fetch(s.videoUrl, {
+              method: "HEAD",
+              signal: AbortSignal.timeout(10_000),
+            });
+
+            if (!headResp.ok) {
+              return { index: i, pass: false, reason: `http_${headResp.status}` };
+            }
+
+            const contentType = headResp.headers.get("content-type") || "";
+            if (!contentType.startsWith("video/")) {
+              return { index: i, pass: false, reason: `bad_content_type: ${contentType}` };
+            }
+
+            const contentLength = parseInt(headResp.headers.get("content-length") || "0", 10);
+            if (contentLength > 0 && contentLength < MIN_VIDEO_SIZE_BYTES) {
+              return { index: i, pass: false, reason: `too_small: ${contentLength} bytes` };
+            }
+
+            return { index: i, pass: true, reason: "ok" };
+          } catch (err) {
+            return { index: i, pass: false, reason: `check_error: ${err instanceof Error ? err.message : err}` };
+          }
+        })
+      );
+
+      const qualityFailed = qualityChecks.filter(q => !q.pass && q.reason !== "generation_failed");
+      if (qualityFailed.length > 0) {
+        console.warn(`Quality gate: ${qualityFailed.length} clips failed validation:`);
+        qualityFailed.forEach(q => console.warn(`  Clip ${q.index}: ${q.reason}`));
+      }
+
       for (let i = 0; i < statuses.length; i++) {
         const s = statuses[i];
-        if (s.status === "completed" && s.videoUrl) {
+        const quality = qualityChecks[i];
+
+        if (s.status === "completed" && s.videoUrl && quality.pass) {
           finalVideoUrls.push(s.videoUrl);
         } else if (imageUrls && imageUrls[i]) {
           finalVideoUrls.push(imageUrls[i]);
           fallbackSlots.push(i);
-          console.log(`Clip ${i}: FAILED — hybrid fallback to original image: ${imageUrls[i]}`);
+          const reason = quality.reason === "generation_failed" ? "generation failed" : `quality gate: ${quality.reason}`;
+          console.log(`Clip ${i}: ${reason} — hybrid fallback to original image`);
         } else {
           console.warn(`Clip ${i}: FAILED with no fallback image available`);
         }
@@ -462,6 +511,23 @@ Deno.serve(async (req) => {
     }
 
     console.log("Stitching job started with Shotstack:", stitchData.jobId);
+
+    // Save render_id to DB so Dashboard can resume polling if user navigates away
+    if (videoId && stitchData.jobId) {
+      try {
+        const supabaseAdmin = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        );
+        await supabaseAdmin
+          .from("videos")
+          .update({ render_id: stitchData.jobId })
+          .eq("id", videoId);
+        console.log("Saved render_id to DB for recovery:", stitchData.jobId);
+      } catch (err) {
+        console.error("Failed to save render_id:", err);
+      }
+    }
 
     return new Response(
       JSON.stringify({

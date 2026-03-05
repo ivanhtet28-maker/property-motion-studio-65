@@ -114,7 +114,7 @@ export default function Dashboard() {
           address: propertyAddress,
           status: status,
           createdAt: createdAt,
-          videoUrl: v.download_url,
+          videoUrl: v.video_url,
           thumbnailUrl: v.thumbnail_url,
           renderId: v.render_id || undefined,
           generationContext: v.photos || undefined,
