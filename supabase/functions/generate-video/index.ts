@@ -534,26 +534,56 @@
       // Ensure all images are accessible by Runway (re-upload external CDN URLs to Storage)
       const reliableImageUrls = await ensureStorageUrls(imageUrls.slice(0, 10));
 
-      const baseMetadata = imageMetadata || reliableImageUrls.map(url => ({
+      // Smart 9:16 pre-crop: Runway center-crops blindly when aspect ratio doesn't match.
+      // Pre-cropping landscape images to 9:16 ensures the most important content is preserved.
+      console.log("Running smart 9:16 portrait crop on", reliableImageUrls.length, "images...");
+      let portraitImageUrls = reliableImageUrls;
+      try {
+        const cropResponse = await fetch(
+          `${Deno.env.get("SUPABASE_URL")}/functions/v1/smart-crop-portrait`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+            },
+            body: JSON.stringify({
+              images: reliableImageUrls.map(url => ({ imageUrl: url })),
+            }),
+          }
+        );
+
+        if (cropResponse.ok) {
+          const cropData = await cropResponse.json();
+          if (cropData.success && Array.isArray(cropData.results)) {
+            portraitImageUrls = cropData.results.map((r: { url: string }) => r.url);
+            const croppedCount = cropData.results.filter((r: { cropped: boolean }) => r.cropped).length;
+            console.log(`Smart crop: ${croppedCount}/${reliableImageUrls.length} images cropped to 9:16`);
+          }
+        } else {
+          console.warn("Smart crop failed, using original images:", cropResponse.status);
+        }
+      } catch (cropErr) {
+        console.warn("Smart crop error, using original images:", cropErr instanceof Error ? cropErr.message : cropErr);
+      }
+
+      const baseMetadata = imageMetadata || portraitImageUrls.map(url => ({
         url,
         cameraAngle: "auto",
         duration: 5
       }));
 
-      // Pass each image directly to Runway — 1 image = 1 clip.
-      // Runway handles framing internally; no pre-cropping needed.
-      // Update metadata URLs to use reliable storage URLs
+      // Update metadata URLs to use the pre-cropped portrait versions
       const metadataForRunway = baseMetadata.slice(0, 10).map((m: ImageMetadata, i: number) => ({
         ...m,
-        url: reliableImageUrls[i] || m.url,
+        url: portraitImageUrls[i] || m.url,
       }));
-      const finalImageUrls = reliableImageUrls;
+      const finalImageUrls = portraitImageUrls;
 
       // Always generate portrait (9:16) clips — the app targets social media reels.
-      // Runway Gen4 Turbo intelligently reframes landscape source photos into portrait
-      // without losing important content, which is far superior to a post-hoc center-crop.
+      // Images are now pre-cropped to 9:16, so Runway won't need to center-crop blindly.
       const computedOutputFormat = "portrait";
-      console.log(`Sending ${metadataForRunway.length} images to Runway, outputFormat=${computedOutputFormat} (always portrait for social reels)`);
+      console.log(`Sending ${metadataForRunway.length} images to Runway, outputFormat=${computedOutputFormat} (pre-cropped to 9:16)`);
 
       const runwayResponse = await fetch(
         `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-runway-batch`,
