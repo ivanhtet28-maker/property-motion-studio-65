@@ -468,12 +468,11 @@
       const metadataForRunway = baseMetadata.slice(0, 10); // Max 10 clips
       const finalImageUrls = imageUrls.slice(0, 10);
 
-      // Determine final output format from image orientations so Runway
-      // generates clips at the matching aspect ratio — avoids brutal
-      // cover-crop when landscape clips land in a portrait timeline.
-      const landscapeImages = metadataForRunway.filter((m: ImageMetadata) => m.isLandscape !== false).length;
-      const computedOutputFormat = landscapeImages >= metadataForRunway.length / 2 ? "landscape" : "portrait";
-      console.log(`Sending ${metadataForRunway.length} images to Runway, outputFormat=${computedOutputFormat}`);
+      // Always generate portrait (9:16) clips — the app targets social media reels.
+      // Runway Gen4 Turbo intelligently reframes landscape source photos into portrait
+      // without losing important content, which is far superior to a post-hoc center-crop.
+      const computedOutputFormat = "portrait";
+      console.log(`Sending ${metadataForRunway.length} images to Runway, outputFormat=${computedOutputFormat} (always portrait for social reels)`);
 
       const runwayResponse = await fetch(
         `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-runway-batch`,

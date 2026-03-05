@@ -439,7 +439,7 @@ Deno.serve(async (req) => {
           layout: layout || "modern-luxe",
           customTitle: customTitle || null,
           videoId: videoId,
-          outputFormat: outputFormat || "landscape",
+          outputFormat: outputFormat || "portrait",
           fallbackSlots: fallbackSlots.length > 0 ? fallbackSlots : undefined,
         }),
       }
