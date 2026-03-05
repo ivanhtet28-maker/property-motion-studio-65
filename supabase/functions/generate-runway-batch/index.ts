@@ -44,49 +44,56 @@ interface MotionConfig {
   duration: number; // 5 or 10 seconds — complex motions get 10s
 }
 
-const ANTI_HALLUCINATION = "Photorealistic. Locked geometry — all walls, floors, ceilings, roofs, doors, windows, furniture, landscaping, and exterior structures remain perfectly rigid and stationary. No morphing, no liquid surfaces, no warping, no structural movement. Do not add lens flares, light blooms, god rays, or modify existing light sources. Preserve exact lighting conditions from the source photo. No objects appear or disappear. Maintain sharp edges on all architectural elements.";
+// ============================================
+// PROMPTING RULES (from Runway Gen-4 official guide):
+// 1. Focus prompts on MOTION, not visual description (image provides visuals)
+// 2. Use POSITIVE phrasing only — negative phrasing ("no X", "don't X")
+//    produces unpredictable or OPPOSITE results
+// 3. Keep it simple — one scene, one motion per clip
+// 4. Short, direct, cinematic language
+// ============================================
 
-const WIDE_ANGLE = "Maintain the full wide-angle composition from the source image throughout the entire video. Do not crop, zoom in, or narrow the field of view. Every element visible in the original photo must remain visible in every frame.";
+const SCENE_ANCHOR = "Photorealistic cinematic real estate showcase. Rigid architecture, stable lighting, sharp edges throughout.";
 
 const MOTION_MAP: Record<string, MotionConfig> = {
   "push-in": {
-    promptText: `Very slow, subtle cinematic dolly forward toward the center of the scene. The camera glides straight ahead, gradually and gently closing distance with the focal point. Extremely slow movement — the camera barely advances. No lateral drift, no zoom, no cropping. ${WIDE_ANGLE} ${ANTI_HALLUCINATION}`,
+    promptText: `Slow, steady cinematic dolly forward toward the focal point of the scene. The camera glides straight ahead at a gentle pace. Smooth, subtle forward movement. ${SCENE_ANCHOR}`,
     duration: 5,
   },
   "pull-out": {
-    promptText: `Very slow, gentle cinematic pullback revealing the full space. The camera retreats backward in a straight line at an extremely slow pace, gradually revealing slightly more of the scene. No lateral drift, no zoom, no cropping. ${WIDE_ANGLE} ${ANTI_HALLUCINATION}`,
+    promptText: `Slow cinematic pullback revealing the full space. The camera retreats backward in a straight line, gradually revealing more of the room. Smooth, steady backward glide. ${SCENE_ANCHOR}`,
     duration: 5,
   },
   "truck-left": {
-    promptText: `Very slow, smooth lateral tracking shot sliding gently to the left. The camera moves horizontally while maintaining a fixed forward-facing angle. Extremely subtle lateral movement — the shift is barely perceptible. No zoom, no cropping, no forward/backward movement. The entire scene remains visible throughout. ${WIDE_ANGLE} ${ANTI_HALLUCINATION}`,
+    promptText: `Slow, smooth lateral tracking shot sliding to the left. The camera moves horizontally while facing forward. Gentle, cinematic side-to-side movement. ${SCENE_ANCHOR}`,
     duration: 5,
   },
   "truck-right": {
-    promptText: `Very slow, smooth lateral tracking shot sliding gently to the right. The camera moves horizontally while maintaining a fixed forward-facing angle. Extremely subtle lateral movement — the shift is barely perceptible. No zoom, no cropping, no forward/backward movement. The entire scene remains visible throughout. ${WIDE_ANGLE} ${ANTI_HALLUCINATION}`,
+    promptText: `Slow, smooth lateral tracking shot sliding to the right. The camera moves horizontally while facing forward. Gentle, cinematic side-to-side movement. ${SCENE_ANCHOR}`,
     duration: 5,
   },
   "pedestal-up": {
-    promptText: `The camera rises very slowly and vertically while gently tilting down to keep the entire scene centered in frame. Extremely subtle upward crane movement. No horizontal drift, no zoom, no cropping. The full wide-angle composition is preserved as the camera gently lifts. ${WIDE_ANGLE} ${ANTI_HALLUCINATION}`,
+    promptText: `The camera rises slowly and vertically, like a crane shot, gently tilting down to keep the scene centered. Smooth upward lift. ${SCENE_ANCHOR}`,
     duration: 5,
   },
   "pedestal-down": {
-    promptText: `The camera lowers very slowly and vertically while gently tilting up to keep the entire scene centered in frame. Extremely subtle downward crane movement. No horizontal drift, no zoom, no cropping. The full wide-angle composition is preserved as the camera gently descends. ${WIDE_ANGLE} ${ANTI_HALLUCINATION}`,
+    promptText: `The camera lowers slowly and vertically, like a descending crane, gently tilting up to keep the scene centered. Smooth downward movement. ${SCENE_ANCHOR}`,
     duration: 5,
   },
   "orbit": {
-    promptText: `Very slow, smooth cinematic orbit arc. The camera moves in a gentle circular path around the center of the scene, as if mounted on a curved dolly track. Extremely slow rotational movement — like a premium real estate showcase. The camera maintains a consistent distance and the full wide-angle view throughout. No zoom, no cropping. Every element visible in the original photo stays visible throughout the orbit. ${WIDE_ANGLE} ${ANTI_HALLUCINATION}`,
+    promptText: `Slow cinematic orbit arc around the center of the scene. The camera moves in a gentle circular path, like a dolly on a curved track. Premium real estate showcase movement, smooth and steady. ${SCENE_ANCHOR}`,
     duration: 10,
   },
   "orbit-360": {
-    promptText: `Full 360-degree cinematic orbit around the entire room. The camera travels in a complete circle around the center of the space at chest height, smoothly revealing every wall and angle of the room as if mounted on a circular dolly track. The movement is continuous, steady, and unhurried — a full revolution showcase of the property interior. The camera maintains a fixed distance from the center throughout the entire rotation. Show all architectural details visible in the source image during the full revolution. ${ANTI_HALLUCINATION}`,
+    promptText: `Full 360-degree cinematic orbit around the room. The camera travels in a complete circle at chest height, smoothly revealing every angle. Continuous, steady rotation like a circular dolly track. ${SCENE_ANCHOR}`,
     duration: 10,
   },
   "static": {
-    promptText: `Completely locked tripod shot. The camera is perfectly still, mounted on a rigid tripod. Zero camera movement. Zero zoom. The scene is static and calm, like a high-end real estate photograph brought to life with only subtle ambient details such as gentle light shifts or faint reflections. ${WIDE_ANGLE} ${ANTI_HALLUCINATION}`,
+    promptText: `Locked tripod shot. The camera is perfectly still. The scene is calm and stable, with only subtle ambient details like gentle light shifts. High-end real estate photograph brought to life. ${SCENE_ANCHOR}`,
     duration: 5,
   },
   "drone-up": {
-    promptText: `Rising aerial drone reveal of the property. The camera ascends straight up vertically, as if a drone is lifting off from ground level. The camera tilts gently downward as it rises to keep the full property centered in frame. Strictly vertical movement only — absolutely no horizontal drift, no lateral sliding, no zoom, no forward or backward movement. The camera rises in a perfectly straight vertical column. The full wide-angle view of the property is maintained throughout the ascent. ${WIDE_ANGLE} ${ANTI_HALLUCINATION}`,
+    promptText: `Rising aerial drone reveal. The camera ascends vertically, tilting gently downward to keep the property centered. Smooth, cinematic upward lift like a drone taking off. ${SCENE_ANCHOR}`,
     duration: 10,
   },
 };
@@ -123,13 +130,12 @@ Deno.serve(async (req) => {
 
     console.log(`=== RUNWAY GEN4 TURBO BATCH: ${imageMetadata.length} clips ===`);
 
-    // Generate each clip at the SOURCE IMAGE's native aspect ratio.
-    // Landscape photos → 1280:768, Portrait photos → 768:1280.
-    // This ensures Runway sees the FULL image (no center-crop) and can apply
-    // camera motions (orbit, drone-up, etc.) to the complete scene.
-    // Shotstack will later composite landscape clips into portrait output
-    // using a blurred-background + contain technique (no zoom/crop artifacts).
-    console.log(`Output format: ${outputFormat || "portrait (default)"} — clips generated at native source ratio`);
+    // All clips generated in portrait (9:16) at 720:1280 — the Gen4 Turbo
+    // native portrait ratio. Runway center-crops landscape source images
+    // to fill the portrait frame, which is the standard approach for
+    // portrait reels (same as Auto Reel, etc.).
+    const ratio = outputFormat === "landscape" ? "1280:720" : "720:1280";
+    console.log(`Output format: ${outputFormat || "portrait (default)"} — ratio: ${ratio}`);
 
     const generationPromises = imageMetadata.map(async (metadata: {
       url: string;
@@ -139,16 +145,12 @@ Deno.serve(async (req) => {
       seed?: number;
       isLandscape?: boolean;
     }, index: number) => {
-      const { url: imageUrl, cameraAction, seed, isLandscape } = metadata;
+      const { url: imageUrl, cameraAction, seed } = metadata;
       try {
         // Use the user's chosen camera action (no AI override)
         const effectiveAction = (cameraAction && MOTION_MAP[cameraAction]) ? cameraAction : "push-in";
         const promptText = composePrompt(effectiveAction);
         const clipDuration = getDuration(effectiveAction);
-
-        // Use native aspect ratio so Runway sees the full image.
-        // Landscape source → 1280:768, Portrait source → 768:1280.
-        const ratio = (isLandscape !== false) ? "1280:768" : "768:1280";
 
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
         console.log(`  Image: ${imageUrl}`);
@@ -210,7 +212,6 @@ Deno.serve(async (req) => {
           generationId: data.id,
           status: "queued" as const,
           duration: clipDuration,
-          isLandscape: isLandscape !== false,
         };
       } catch (error) {
         console.error(`Error creating clip ${index + 1}:`, error);

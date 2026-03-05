@@ -226,7 +226,6 @@ export default function CreateVideo() {
     provider?: string,
     imageUrls?: string[],
     outputFormat?: "portrait" | "landscape",
-    landscapeSlots?: number[]
   ) => {
     const maxAttempts = 120; // 10 minutes max (120 * 5 seconds)
     let attempts = 0;
@@ -281,7 +280,6 @@ export default function CreateVideo() {
               provider: provider || "runway",
               imageUrls: imageUrls,  // For hybrid fallback — original photos replace failed AI clips
               outputFormat: outputFormat || "portrait",
-              landscapeSlots: landscapeSlots || [],  // Which clips are landscape (for Shotstack compositing)
             },
           });
         } catch (invokeErr) {
@@ -685,8 +683,7 @@ Contact us today for a private inspection.`;
             null,
             data.provider,
             data.imageUrls || imageUrls,  // Original photos for hybrid fallback
-            videoOutputFormat as "portrait" | "landscape",
-            data.landscapeSlots || []  // Which clips are landscape (for Shotstack compositing)
+            videoOutputFormat as "portrait" | "landscape"
           );
         }
       } else {
