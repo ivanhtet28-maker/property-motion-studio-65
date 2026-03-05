@@ -2,8 +2,9 @@
 
   import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+  const ALLOWED_ORIGIN = (Deno.env.get("CORS_ALLOWED_ORIGIN") || "*").replace(/\/+$/, "");
   const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   };
 
@@ -614,7 +615,7 @@
           soundtrack: musicUrl ? {
             src: musicUrl,
             effect: "fadeInFadeOut",
-            volume: 0.3,
+            volume: 0.2,
           } : undefined,
           fonts: [
             {
@@ -765,7 +766,12 @@
         output: {
           format: "mp4",
           resolution: "hd",
+          size: outputFormat === "landscape"
+            ? { width: 1920, height: 1080 }
+            : { width: 1080, height: 1920 },
+          fps: 30,
           aspectRatio: outputFormat === "landscape" ? "16:9" : "9:16",
+          quality: "high",
         },
       };
 

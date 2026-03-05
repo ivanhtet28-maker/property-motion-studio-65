@@ -194,9 +194,9 @@
       const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
       const { error } = await supabase
-        .from("users")
+        .from("user_preferences")
         .update({ free_video_used: true })
-        .eq("id", userId);
+        .eq("user_id", userId);
       if (error) {
         console.error("Failed to mark free trial as used:", error);
       } else {
@@ -267,9 +267,9 @@
         }
       }
 
-      // Calculate expected duration from clamped per-clip durations (Runway: 5-10s)
+      // Calculate expected duration — all Runway clips are 5s, Shotstack hard-cuts at 3.5s
       const metadataSource = imageMetadata || imageUrls.map(url => ({ url, cameraAngle: "auto", duration: 5 }));
-      const expectedDuration = metadataSource.reduce((sum: number, m: { duration?: number }) => sum + Math.min(Math.max(m.duration ?? 5, 2), 10), 0);
+      const expectedDuration = metadataSource.length * 3.5; // 3.5s per clip after Shotstack hard-cut
       console.log("Expected video duration:", expectedDuration, "seconds");
 
       let audioUrl: string | null = null;
@@ -651,7 +651,7 @@
           generationIds: generationIds,
           totalClips: generationIds.length,
           estimatedDuration: expectedDuration,
-          estimatedTime: generationIds.length * 60,
+          estimatedTime: generationIds.length * 30, // ~30s per 5s clip with Gen4 Turbo
           message: `Started ${generationIds.length} Runway Gen4 Turbo generations. Poll video-status to track progress.`,
           audioUrl: audioUrl,
           musicUrl: musicUrl,

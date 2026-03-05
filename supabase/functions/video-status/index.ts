@@ -463,6 +463,23 @@ Deno.serve(async (req) => {
 
     console.log("Stitching job started with Shotstack:", stitchData.jobId);
 
+    // Save render_id to DB so Dashboard can resume polling if user navigates away
+    if (videoId && stitchData.jobId) {
+      try {
+        const supabaseAdmin = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        );
+        await supabaseAdmin
+          .from("videos")
+          .update({ render_id: stitchData.jobId })
+          .eq("id", videoId);
+        console.log("Saved render_id to DB for recovery:", stitchData.jobId);
+      } catch (err) {
+        console.error("Failed to save render_id:", err);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         status: "stitching",
