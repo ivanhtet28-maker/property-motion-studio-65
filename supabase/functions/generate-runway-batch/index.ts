@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
 
   try {
     console.log("=== generate-runway-batch INVOKED (GEN4 TURBO — PROMPT-DRIVEN CAMERA) ===");
-    const { imageMetadata, propertyAddress } = await req.json();
+    const { imageMetadata, propertyAddress, outputFormat } = await req.json();
 
     if (!imageMetadata || !Array.isArray(imageMetadata) || imageMetadata.length === 0) {
       throw new Error("imageMetadata array is required");
@@ -121,6 +121,13 @@ Deno.serve(async (req) => {
 
     console.log(`=== RUNWAY GEN4 TURBO BATCH: ${imageMetadata.length} clips ===`);
 
+    // All clips MUST share the same aspect ratio as the final Shotstack output.
+    // If Runway produces landscape (1280x768) but Shotstack renders portrait (9:16),
+    // the cover-crop discards ~60% of the frame — causing severe zoom/crop artefacts.
+    // Let Runway handle framing internally; it's much smarter than a post-hoc center-crop.
+    const globalRatio = outputFormat === "landscape" ? "1280:768" : "768:1280";
+    console.log(`Global output format: ${outputFormat || "portrait (default)"} → all clips at ${globalRatio}`);
+
     const generationPromises = imageMetadata.map(async (metadata: {
       url: string;
       cameraAction?: string;
@@ -129,23 +136,19 @@ Deno.serve(async (req) => {
       seed?: number;
       isLandscape?: boolean;
     }, index: number) => {
-      const { url: imageUrl, cameraAction, seed, isLandscape } = metadata;
+      const { url: imageUrl, cameraAction, seed } = metadata;
       try {
         // Use the user's chosen camera action (no AI override)
         const effectiveAction = (cameraAction && MOTION_MAP[cameraAction]) ? cameraAction : "push-in";
         const promptText = composePrompt(effectiveAction);
         const clipDuration = getDuration(effectiveAction);
 
-        // Gen4 Turbo supported ratios: 1280x768 (16:9), 768x1280 (9:16), 1104x832, 832x1104, 960x960 (1:1)
-        // Adapt output ratio to match the source image orientation so the full image
-        // is used without cropping or black bars — no content is lost.
-        const ratio = isLandscape === false ? "768:1280" : "1280:768";
-        console.log(`  Adaptive ratio: source is ${isLandscape === false ? "portrait" : "landscape"} → output ${ratio}`);
+        // All clips use the same ratio matching the final Shotstack output format.
+        const ratio = globalRatio;
 
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
         console.log(`  Image: ${imageUrl}`);
         console.log(`  cameraAction: ${effectiveAction}`);
-        console.log(`  isLandscape: ${isLandscape}`);
         console.log(`  ratio: ${ratio}`);
         console.log(`  duration: ${clipDuration}s`);
         console.log(`  prompt: ${promptText.substring(0, 120)}...`);
