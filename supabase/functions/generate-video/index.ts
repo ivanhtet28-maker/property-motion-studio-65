@@ -1,4 +1,4 @@
-// Edge function for video generation using Runway Gen-3 Alpha Turbo
+// Edge function for video generation using Runway Gen4 Turbo
   /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
   import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -113,6 +113,80 @@
     error?: string;
   }
 
+  // ── Re-upload external images to Supabase Storage ──────────────────────────
+  // Scraped images (images-only mode) are raw CDN URLs from reastatic.net,
+  // domainstatic.com.au, etc. These may be blocked by Runway (hotlink
+  // protection, geo-blocking, token expiry). Re-uploading to Supabase Storage
+  // gives Runway a reliable, always-accessible URL.
+  const SUPABASE_STORAGE_HOST = Deno.env.get("SUPABASE_URL")?.replace("https://", "") || "";
+
+  async function ensureStorageUrls(urls: string[]): Promise<string[]> {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const results: string[] = [];
+    const folder = `scraped-${Date.now()}`;
+
+    for (let i = 0; i < urls.length; i++) {
+      const url = urls[i];
+
+      // Already in Supabase Storage — skip
+      if (url.includes(SUPABASE_STORAGE_HOST)) {
+        results.push(url);
+        continue;
+      }
+
+      // External URL — download and re-upload
+      try {
+        console.log(`Re-uploading external image ${i + 1}/${urls.length}: ${url.substring(0, 80)}...`);
+        const response = await fetch(url, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Accept": "image/*,*/*;q=0.8",
+          },
+          signal: AbortSignal.timeout(15_000),
+        });
+
+        if (!response.ok) {
+          console.warn(`Failed to fetch external image ${i + 1}: HTTP ${response.status}`);
+          results.push(url); // Keep original URL as fallback
+          continue;
+        }
+
+        const blob = await response.blob();
+        const contentType = blob.type || "image/jpeg";
+        const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
+        const filePath = `${folder}/image-${i + 1}.${ext}`;
+
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        const { error: uploadError } = await supabase.storage
+          .from("video-assets")
+          .upload(filePath, bytes, { contentType, upsert: true });
+
+        if (uploadError) {
+          console.warn(`Upload failed for image ${i + 1}:`, uploadError.message);
+          results.push(url); // Keep original URL as fallback
+          continue;
+        }
+
+        const { data: urlData } = supabase.storage
+          .from("video-assets")
+          .getPublicUrl(filePath);
+
+        console.log(`Image ${i + 1} re-uploaded: ${urlData.publicUrl.substring(0, 80)}...`);
+        results.push(urlData.publicUrl);
+      } catch (err) {
+        console.warn(`Error re-uploading image ${i + 1}:`, err instanceof Error ? err.message : err);
+        results.push(url); // Keep original URL as fallback
+      }
+    }
+
+    const reUploaded = results.filter((r, i) => r !== urls[i]).length;
+    console.log(`Image URL check: ${reUploaded} re-uploaded to Storage, ${urls.length - reUploaded} already accessible`);
+    return results;
+  }
+
   // Mark free trial as consumed — called only AFTER generation successfully starts.
   async function markFreeTrialUsed(userId: string) {
     try {
@@ -166,7 +240,7 @@
       const { imageUrls, imageMetadata, propertyData, style, layout, customTitle, voice, music, userId, propertyId, script, source, agentInfo, preGeneratedVideoUrls, useKenBurns }: GenerateVideoRequest = await req.json();
 
       console.log("=== VIDEO GENERATION ===");
-      console.log("Mode:", useKenBurns ? "Ken Burns (Shotstack direct)" : "Runway Gen-3a");
+      console.log("Mode:", useKenBurns ? "Ken Burns (Shotstack direct)" : "Runway Gen4 Turbo");
       console.log("Total images:", imageUrls?.length || 0);
       console.log("Property:", propertyData?.address);
 
@@ -454,10 +528,13 @@
 
       // --- Runway Gen4 Turbo flow ---
       // Uses prompt-driven camera control for superior motion quality.
-      // gen4_turbo produces cleaner orbits and zero hallucinations vs gen3a_turbo.
+      // gen4_turbo produces cleaner orbits and zero hallucinations.
       console.log("Starting Runway Gen4 Turbo batch generation for", imageUrls.length, "images...");
 
-      const baseMetadata = imageMetadata || imageUrls.map(url => ({
+      // Ensure all images are accessible by Runway (re-upload external CDN URLs to Storage)
+      const reliableImageUrls = await ensureStorageUrls(imageUrls.slice(0, 10));
+
+      const baseMetadata = imageMetadata || reliableImageUrls.map(url => ({
         url,
         cameraAngle: "auto",
         duration: 5
@@ -465,8 +542,12 @@
 
       // Pass each image directly to Runway — 1 image = 1 clip.
       // Runway handles framing internally; no pre-cropping needed.
-      const metadataForRunway = baseMetadata.slice(0, 10); // Max 10 clips
-      const finalImageUrls = imageUrls.slice(0, 10);
+      // Update metadata URLs to use reliable storage URLs
+      const metadataForRunway = baseMetadata.slice(0, 10).map((m: ImageMetadata, i: number) => ({
+        ...m,
+        url: reliableImageUrls[i] || m.url,
+      }));
+      const finalImageUrls = reliableImageUrls;
 
       // Always generate portrait (9:16) clips — the app targets social media reels.
       // Runway Gen4 Turbo intelligently reframes landscape source photos into portrait
@@ -522,6 +603,11 @@
       // Mark free trial consumed now that at least one Runway generation started
       if (isFreeTrial && userId) await markFreeTrialUsed(userId);
 
+      // Extract camera actions for fallback slots and stitch-video
+      const cameraAngles = metadataForRunway.map((m: ImageMetadata) =>
+        m.cameraAction || m.cameraAngle || "push-in"
+      );
+
       // Save generation context to DB so Dashboard can resume polling if user navigates away
       if (videoRecordId) {
         try {
@@ -529,7 +615,7 @@
           const supabaseAdminKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
           const supabaseAdmin = createClient(supabaseAdminUrl, supabaseAdminKey);
 
-          const clipDurations = metadataForRunway.map(m => m.duration ?? 5);
+          const clipDurations = metadataForRunway.map((m: ImageMetadata) => m.duration ?? 5);
 
           await supabaseAdmin
             .from("videos")
@@ -540,12 +626,13 @@
                 audioUrl,
                 musicUrl,
                 clipDurations,
+                cameraAngles,
                 agentInfo: agentInfo || null,
                 propertyData: propertyData,
                 style: style,
                 layout: layout || style,
                 customTitle: customTitle || "",
-                imageUrls: finalImageUrls,  // Expanded for hybrid fallback recovery
+                imageUrls: finalImageUrls,
               }),
             })
             .eq("id", videoRecordId);
@@ -565,13 +652,14 @@
           totalClips: generationIds.length,
           estimatedDuration: expectedDuration,
           estimatedTime: generationIds.length * 60,
-          message: `Started ${generationIds.length} Runway Gen-3a generations. Poll video-status to track progress.`,
+          message: `Started ${generationIds.length} Runway Gen4 Turbo generations. Poll video-status to track progress.`,
           audioUrl: audioUrl,
           musicUrl: musicUrl,
           agentInfo: agentInfo,
           propertyData: propertyData,
           style: style,
-          imageUrls: finalImageUrls,  // Expanded array for hybrid fallback
+          imageUrls: finalImageUrls,
+          cameraAngles: cameraAngles,  // For fallback slot motions in stitch-video
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
