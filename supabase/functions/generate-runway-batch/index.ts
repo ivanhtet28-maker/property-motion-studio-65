@@ -114,7 +114,21 @@ const MOTION_MAP: Record<string, MotionConfig> = {
   },
 };
 
-function composePrompt(cameraAction: string): string {
+// Portrait 9:16 orbit on wide-angle interior photos loses the sides of the room.
+// A wider arc (35°) lets Runway's camera sweep far enough to reveal connected
+// spaces (e.g. kitchen visible in the source but cropped out by the portrait frame).
+const ORBIT_PORTRAIT_PROMPT =
+  "Slow cinematic orbit arc of approximately 35 degrees around the center of the scene. " +
+  "Camera moves along a wide curved dolly track, sweeping from the left side of the room toward the right, " +
+  "maintaining a fixed distance from the subject. " +
+  "Ease in from stillness, constant arc speed, ease out to stillness. Noticeable parallax shift between foreground and background. " +
+  STABILITY_SUFFIX;
+
+function composePrompt(cameraAction: string, outputFormat?: string): string {
+  // Use the wider orbit prompt for portrait format to compensate for the crop
+  if (cameraAction === "orbit" && outputFormat !== "landscape") {
+    return ORBIT_PORTRAIT_PROMPT;
+  }
   const config = MOTION_MAP[cameraAction];
   if (!config) return MOTION_MAP["push-in"].promptText;
   return config.promptText;
@@ -157,7 +171,7 @@ Deno.serve(async (req) => {
       const { url: imageUrl, cameraAction, seed } = metadata;
       try {
         const effectiveAction = (cameraAction && MOTION_MAP[cameraAction]) ? cameraAction : "push-in";
-        const promptText = composePrompt(effectiveAction);
+        const promptText = composePrompt(effectiveAction, outputFormat);
 
         // All clips are 5s — research shows quality degrades significantly
         // after 5s with Gen4 Turbo, especially for architecture/interiors.

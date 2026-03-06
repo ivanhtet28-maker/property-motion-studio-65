@@ -34,7 +34,26 @@ function easeInOut(t: number): number {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 }
 
-function getTransform(angle: CameraAngle, progress: number): Transform {
+// How much of the image is hidden by the crop. Returns a 0-1 fraction of the
+// scaled image width that overflows the canvas on ONE side.
+// e.g. a 3:2 photo in a 9:16 canvas → baseW/canvasW ≈ 2.69 → overflow ~0.31
+function cropOverflow(baseW: number, canvasW: number): number {
+  if (baseW <= canvasW) return 0;
+  return (baseW - canvasW) / (2 * baseW);
+}
+
+function getTransform(
+  angle: CameraAngle,
+  progress: number,
+  /** fraction of image hidden on one side by the crop (0 = no crop) */
+  sideOverflow: number = 0,
+): Transform {
+  // For orbit/tracking in a heavily cropped portrait frame, scale offset so
+  // the camera travels far enough to reveal hidden content (e.g. kitchen).
+  // Base 5% offset, boosted up to ~20% when 30%+ of the image is cropped.
+  // Capped at 0.22 to keep the motion cinematic (not a full side-to-side pan).
+  const panRange = Math.min(0.22, 0.05 + sideOverflow * 0.55);
+
   switch (angle) {
     case "push-in":
     case "auto": {
@@ -47,11 +66,11 @@ function getTransform(angle: CameraAngle, progress: number): Transform {
     }
     case "tracking": {
       const t = easeInOut(progress);
-      return { scale: 1, offsetX: -0.05 * t, offsetY: 0 };
+      return { scale: 1, offsetX: -panRange * t, offsetY: 0 };
     }
     case "orbit": {
       const t = easeInOut(progress);
-      return { scale: 1, offsetX: -0.05 * t, offsetY: 0 };
+      return { scale: 1, offsetX: -panRange * t, offsetY: 0 };
     }
     case "crane-up": {
       const t = easeInOut(progress);
@@ -162,6 +181,7 @@ export async function generateCanvasVideo(
         }
       }
 
+      const sideOverflow = cropOverflow(baseW, canvas.width);
       const durationMs = durationSeconds * 1000;
       const startTime = performance.now();
 
@@ -171,7 +191,8 @@ export async function generateCanvasVideo(
         const progress = Math.min(elapsed / durationMs, 1);
         const { scale, offsetX, offsetY } = getTransform(
           cameraAngle as CameraAngle,
-          progress
+          progress,
+          sideOverflow
         );
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
