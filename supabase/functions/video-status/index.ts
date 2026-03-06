@@ -482,7 +482,6 @@ Deno.serve(async (req) => {
     await updateVideoRecord(videoId, "processing", null, 85, "Stitching video clips...");
 
     const internalAuthKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY");
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
 
     const stitchResponse = await fetch(
       `${supabaseUrl}/functions/v1/stitch-video`,
