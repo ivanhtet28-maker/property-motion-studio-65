@@ -580,6 +580,8 @@
             };
           } else if (angle === "pull-out" || angle === "drone-up" || angle === "crane-up") {
             clip.effect = "zoomOutSlow";
+          } else if (angle === "static") {
+            // No effect — locked shot
           } else {
             clip.effect = "zoomInSlow";
           }

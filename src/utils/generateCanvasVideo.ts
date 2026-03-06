@@ -59,7 +59,7 @@ function getTransform(angle: CameraAngle, progress: number): Transform {
     }
     case "drone-up": {
       const t = easeIn(progress);
-      return { scale: 1.04 - 0.04 * t, offsetX: 0, offsetY: 0 };
+      return { scale: 1.04 - 0.04 * t, offsetX: 0, offsetY: 0.02 * t };
     }
     case "static":
     case "wide-shot":

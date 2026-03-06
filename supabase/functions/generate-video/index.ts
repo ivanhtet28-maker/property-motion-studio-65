@@ -64,7 +64,7 @@
       case "crane-up":     return "zoomOutSlow";
       case "tracking":
       case "orbit":        return "slideLeftSlow";
-      case "static":       return "zoomInSlow"; // subtle motion better than none
+      case "static":       return "none"; // locked shot — no Ken Burns effect
       case "push-in":
       default:             return "zoomInSlow";
     }
