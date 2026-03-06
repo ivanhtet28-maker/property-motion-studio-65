@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
@@ -134,9 +134,19 @@ export default function Dashboard() {
     loadVideos();
   }, [loadVideos]);
 
-  // Auto-check stuck "processing" videos that have recovery data
+  // Auto-check stuck "processing" videos that have recovery data.
+  // Uses a ref to avoid re-render loops — the effect only re-runs when
+  // the set of processing video IDs actually changes.
+  const processingIdsRef = useRef<string>("");
+
   useEffect(() => {
     const processingVideos = videos.filter(v => v.status === "processing" && (v.renderId || v.generationContext));
+    const processingKey = processingVideos.map(v => v.id).join(",");
+
+    // Skip if the processing set hasn't changed
+    if (processingKey === processingIdsRef.current) return;
+    processingIdsRef.current = processingKey;
+
     if (processingVideos.length === 0) return;
 
     let cancelled = false;
@@ -148,13 +158,11 @@ export default function Dashboard() {
           let body: Record<string, unknown>;
 
           if (video.renderId) {
-            // Video is in Shotstack stitching stage - poll with render_id
             body = {
               stitchJobId: video.renderId,
               videoId: video.id,
             };
           } else if (video.generationContext) {
-            // Video is still in Luma generation stage - resume full polling
             const ctx = JSON.parse(video.generationContext);
             body = {
               generationIds: ctx.generationIds,
@@ -167,7 +175,7 @@ export default function Dashboard() {
               layout: ctx.layout || "modern-luxe",
               customTitle: ctx.customTitle || "",
               clipDurations: ctx.clipDurations,
-              imageUrls: ctx.imageUrls,  // For hybrid fallback recovery
+              imageUrls: ctx.imageUrls,
             };
           } else {
             continue;
@@ -182,7 +190,6 @@ export default function Dashboard() {
           }
 
           if (data.status === "done" || data.status === "failed") {
-            // Video finished or failed - reload the list
             loadVideos();
             break;
           }
@@ -192,10 +199,7 @@ export default function Dashboard() {
       }
     };
 
-    // Check immediately
     checkStuckVideos();
-
-    // Then poll every 10 seconds
     const interval = setInterval(checkStuckVideos, 10000);
 
     return () => {

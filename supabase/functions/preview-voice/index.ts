@@ -1,8 +1,8 @@
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
-const ALLOWED_ORIGIN = (Deno.env.get("CORS_ALLOWED_ORIGIN") || "*").replace(/\/+$/, "");
 const corsHeaders = {
-  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
@@ -30,6 +30,13 @@ Deno.serve(async (req) => {
 
     if (!voiceType) {
       throw new Error("voiceType is required");
+    }
+
+    if (!ELEVENLABS_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: "Voice preview service not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const elevenLabsVoiceId = VOICE_IDS[voiceType] || VOICE_IDS["Australian Male"];

@@ -107,6 +107,12 @@ export default function CreateVideo() {
 
   // Reset video generation state to create another video
   const handleReset = () => {
+    // Cancel any active polling before resetting state
+    pollCancelledRef.current = true;
+    if (pollTimeoutRef.current) {
+      clearTimeout(pollTimeoutRef.current);
+      pollTimeoutRef.current = null;
+    }
     setIsGenerating(false);
     setGeneratingProgress(0);
     setVideoReady(false);
@@ -337,9 +343,12 @@ export default function CreateVideo() {
           setError(data.message || "Video generation failed. Please try again.");
           setIsGenerating(false);
         } else {
-          // Still processing - update progress
-          const newProgress = data.progress || Math.min(generatingProgress + 2, 95);
-          setGeneratingProgress(newProgress);
+          // Still processing - update progress (use functional updater to avoid stale closure)
+          if (data.progress) {
+            setGeneratingProgress(data.progress as number);
+          } else {
+            setGeneratingProgress(prev => Math.min(prev + 2, 95));
+          }
           pollTimeoutRef.current = setTimeout(poll, 5000);
         }
       } catch (err) {

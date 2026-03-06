@@ -1,8 +1,8 @@
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
-const ALLOWED_ORIGIN = (Deno.env.get("CORS_ALLOWED_ORIGIN") || "*").replace(/\/+$/, "");
 const corsHeaders = {
-  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
@@ -209,7 +209,7 @@ Deno.serve(async (req) => {
     console.log(`[detect-room-types] Auth header present: ${!!req.headers.get("authorization")}`);
     console.log(`[detect-room-types] Content-Type: ${req.headers.get("content-type") ?? "(none)"}`);
     console.log(`[detect-room-types] ANTHROPIC_API_KEY set: ${!!ANTHROPIC_API_KEY}`);
-    console.log(`[detect-room-types] CORS_ALLOWED_ORIGIN: ${ALLOWED_ORIGIN}`);
+    console.log(`[detect-room-types] CORS: wildcard origin`);
 
     if (!ANTHROPIC_API_KEY) {
       console.error(`[detect-room-types] FATAL: ANTHROPIC_API_KEY is not set in environment`);
