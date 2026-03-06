@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { invokeEdgeFunction, EdgeFunctionError } from "@/lib/invokeEdgeFunction";
+import { callVideoStatus } from "@/lib/callVideoStatus";
 import {
   LeftSidebar,
   PropertyDetailsForm,
@@ -175,8 +176,7 @@ export default function CreateVideo() {
       let landscapeVideoUrl: string | null = null;
       for (let attempt = 0; attempt < 60 && !landscapeVideoUrl; attempt++) {
         await new Promise(resolve => setTimeout(resolve, 5000));
-        const statusData = await invokeEdgeFunction<{ status: string; videoUrl?: string }>("video-status", {
-          body: {
+        const statusData = await callVideoStatus<{ status: string; videoUrl?: string }>({
             generationIds: [],
             videoId: null,
             stitchJobId: landscapeJobId,
@@ -186,7 +186,6 @@ export default function CreateVideo() {
             agentInfo: null,
             propertyData: generationData.propertyData,
             style: generationData.style,
-          },
         });
         if (statusData?.status === "done" && statusData?.videoUrl) {
           landscapeVideoUrl = statusData.videoUrl;
@@ -270,9 +269,9 @@ export default function CreateVideo() {
 
         let data: Record<string, unknown>;
         try {
-          // invokeEdgeFunction handles fresh-token injection and real error extraction
-          data = await invokeEdgeFunction("video-status", {
-            body: {
+          // Use callVideoStatus — bypasses CORS preflight by sending
+          // text/plain with JWT in body instead of Authorization header
+          data = await callVideoStatus({
               generationIds,
               videoId,
               audioUrl,
@@ -288,7 +287,6 @@ export default function CreateVideo() {
               imageUrls: imageUrls,  // For hybrid fallback — original photos replace failed AI clips
               outputFormat: outputFormat || "portrait",
               cameraAngles: cameraAngles,  // For fallback slot motions
-            },
           });
         } catch (invokeErr) {
           const isAuth = invokeErr instanceof EdgeFunctionError && invokeErr.isAuthError;

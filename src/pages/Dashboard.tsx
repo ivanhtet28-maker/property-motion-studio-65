@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
+import { callVideoStatus } from "@/lib/callVideoStatus";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import {
@@ -183,7 +184,7 @@ export default function Dashboard() {
 
           let data: Record<string, unknown>;
           try {
-            data = await invokeEdgeFunction("video-status", { body });
+            data = await callVideoStatus(body);
           } catch (err) {
             console.error("Error checking stuck video:", video.id, err);
             continue;

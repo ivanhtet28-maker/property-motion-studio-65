@@ -47,7 +47,7 @@ export function LeftSidebar({ onNewVideo, selectedTemplate, onSelectTemplate, re
     try {
       const { data, error } = await supabase
         .from("videos")
-        .select("id, created_at, thumbnail_url, video_url, property_address")
+        .select("id, created_at, thumbnail_url, video_url")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(3);
@@ -56,7 +56,7 @@ export function LeftSidebar({ onNewVideo, selectedTemplate, onSelectTemplate, re
 
       const transformedVideos: RecentVideo[] = (data || []).map(v => ({
         id: v.id,
-        title: v.property_address || "Property Video",
+        title: "Property Video",
         date: new Date(v.created_at).toLocaleDateString('en-US', {
           day: 'numeric',
           month: 'short',
