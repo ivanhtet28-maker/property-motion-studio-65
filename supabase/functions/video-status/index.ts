@@ -171,15 +171,31 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Lightweight auth guard — verify a valid Supabase JWT is present.
+    // Parse body — supports both JSON and text/plain (CORS-preflight bypass mode).
+    // When the frontend sends Content-Type: text/plain, the browser skips the
+    // CORS preflight request entirely, avoiding Supabase gateway CORS issues.
+    let body: Record<string, unknown>;
+    const contentType = req.headers.get("content-type") || "";
+    if (contentType.includes("text/plain")) {
+      body = JSON.parse(await req.text());
+    } else {
+      body = await req.json();
+    }
+
+    // Lightweight auth guard — accept JWT from Authorization header OR body._jwt
+    // (body._jwt is used in CORS-preflight bypass mode where no headers are sent).
     const authHeader = req.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    const jwt = authHeader?.startsWith("Bearer ")
+      ? authHeader.replace("Bearer ", "")
+      : (body._jwt as string | undefined);
+
+    if (!jwt) {
       return new Response(
         JSON.stringify({ error: "Authentication required" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    const jwt = authHeader.replace("Bearer ", "");
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const authClient = createClient(supabaseUrl, supabaseServiceKey);
@@ -191,7 +207,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    const body = await req.json();
     const { generationIds, videoId, audioUrl, musicUrl, agentInfo, propertyData, style, layout, customTitle, stitchJobId, clipDurations, provider, imageUrls, outputFormat, cameraAngles } = body;
 
     // If stitchJobId is provided, we're polling Shotstack stitching job instead of Runway
