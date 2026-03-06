@@ -56,14 +56,14 @@ Deno.serve(async (req) => {
         const motionDescription =
           cameraAngle === "push-in" || cameraAngle === "auto"
             ? "Slow smooth push-in, camera glides gently forward."
-            : cameraAngle === "pull-out" || cameraAngle === "drone-up"
+            : cameraAngle === "pull-out"
               ? "Slow smooth pull-back, camera glides gently backward."
-              : cameraAngle === "truck-right" || cameraAngle === "orbit"
+              : cameraAngle === "tracking" || cameraAngle === "orbit"
                 ? "Slow smooth pan right, camera sweeps left to right."
-                : cameraAngle === "truck-left"
-                  ? "Slow smooth pan left, camera sweeps right to left."
-                  : cameraAngle === "pedestal-up"
-                    ? "Slow smooth rise, camera glides gently upward."
+                : cameraAngle === "crane-up"
+                  ? "Slow smooth rise, camera glides gently upward."
+                  : cameraAngle === "drone-up"
+                    ? "Slow smooth aerial rise, camera ascends revealing the property."
                     : "Slow smooth camera movement.";
 
         const fullPrompt = `High-end cinematic real estate video of ${propertyAddress}.

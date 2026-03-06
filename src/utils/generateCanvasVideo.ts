@@ -8,14 +8,11 @@ type CameraAngle =
   | "wide-shot"
   | "push-in"
   | "pull-out"
-  | "truck-right"
-  | "truck-left"
+  | "tracking"
   | "orbit"
-  | "orbit-360"
-  | "static"
-  | "pedestal-up"
-  | "pedestal-down"
-  | "drone-up";
+  | "crane-up"
+  | "drone-up"
+  | "static";
 
 interface Transform {
   scale: number;
@@ -44,33 +41,25 @@ function getTransform(angle: CameraAngle, progress: number): Transform {
       const t = easeOut(progress);
       return { scale: 1 + 0.04 * t, offsetX: 0, offsetY: 0 };
     }
-    case "pull-out":
-    case "drone-up": {
+    case "pull-out": {
       const t = easeIn(progress);
       return { scale: 1.04 - 0.04 * t, offsetX: 0, offsetY: 0 };
     }
-    case "truck-right":
+    case "tracking": {
+      const t = easeInOut(progress);
+      return { scale: 1, offsetX: -0.05 * t, offsetY: 0 };
+    }
     case "orbit": {
       const t = easeInOut(progress);
       return { scale: 1, offsetX: -0.05 * t, offsetY: 0 };
     }
-    case "orbit-360": {
-      // Full 360° pan — sweeps left across the entire image then returns
-      const t = easeInOut(progress);
-      const angle = t * Math.PI * 2;
-      return { scale: 1.02, offsetX: -0.06 * Math.sin(angle), offsetY: -0.02 * Math.cos(angle) };
-    }
-    case "truck-left": {
-      const t = easeInOut(progress);
-      return { scale: 1, offsetX: 0.05 * t, offsetY: 0 };
-    }
-    case "pedestal-up": {
+    case "crane-up": {
       const t = easeInOut(progress);
       return { scale: 1, offsetX: 0, offsetY: 0.03 * t };
     }
-    case "pedestal-down": {
-      const t = easeInOut(progress);
-      return { scale: 1, offsetX: 0, offsetY: -0.03 * t };
+    case "drone-up": {
+      const t = easeIn(progress);
+      return { scale: 1.04 - 0.04 * t, offsetX: 0, offsetY: 0 };
     }
     case "static":
     case "wide-shot":

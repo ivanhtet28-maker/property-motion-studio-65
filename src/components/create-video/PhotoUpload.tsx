@@ -14,34 +14,28 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-export type CameraAngle = "auto" | "wide-shot" | "push-in" | "pull-out" | "truck-left" | "truck-right" | "orbit" | "orbit-360" | "static" | "pedestal-up" | "pedestal-down" | "drone-up";
+export type CameraAngle = "auto" | "wide-shot" | "push-in" | "pull-out" | "tracking" | "orbit" | "static" | "crane-up" | "drone-up";
 
 const CLIP_DURATION = 3.5; // seconds — fixed for Ken Burns mode; Runway uses 5s
 
-// ── Camera Actions (user-facing dropdown — standard videography terms) ───────
+// ── Camera Actions (user-facing dropdown — 7 high-impact motions) ────────────
 export type CameraAction =
   | "push-in"
   | "pull-out"
-  | "truck-left"
-  | "truck-right"
-  | "pedestal-up"
-  | "pedestal-down"
+  | "tracking"
   | "orbit"
-  | "orbit-360"
-  | "static"
-  | "drone-up";
+  | "crane-up"
+  | "drone-up"
+  | "static";
 
 export const CAMERA_ACTION_OPTIONS: { value: CameraAction; label: string; description: string }[] = [
-  { value: "push-in",       label: "Push In",       description: "Dolly forward toward the subject" },
-  { value: "pull-out",      label: "Pull Out",      description: "Dolly backward revealing the space" },
-  { value: "truck-left",    label: "Truck Left",    description: "Lateral slide to the left" },
-  { value: "truck-right",   label: "Truck Right",   description: "Lateral slide to the right" },
-  { value: "pedestal-up",   label: "Pedestal Up",   description: "Camera rises vertically" },
-  { value: "pedestal-down", label: "Pedestal Down",  description: "Camera lowers vertically" },
-  { value: "orbit",         label: "Orbit",         description: "Partial arc around the subject" },
-  { value: "orbit-360",     label: "Orbit 360",     description: "Full 360° rotation around the subject" },
-  { value: "static",        label: "Static Shot",   description: "Locked camera, minimal movement" },
-  { value: "drone-up",      label: "Drone Up",      description: "Rising aerial reveal" },
+  { value: "push-in",   label: "Push In",   description: "Dolly forward into the scene" },
+  { value: "pull-out",  label: "Pull Out",   description: "Dolly backward revealing the space" },
+  { value: "tracking",  label: "Tracking",   description: "Smooth lateral slide across the scene" },
+  { value: "orbit",     label: "Orbit",      description: "Cinematic arc around the subject" },
+  { value: "crane-up",  label: "Crane Up",   description: "Camera rises vertically" },
+  { value: "drone-up",  label: "Drone Up",   description: "Aerial rising reveal for exteriors" },
+  { value: "static",    label: "Static",     description: "Locked tripod, zero movement" },
 ];
 
 export interface ImageMetadata {

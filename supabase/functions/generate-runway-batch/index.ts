@@ -76,54 +76,25 @@ const MOTION_MAP: Record<string, MotionConfig> = {
       STABILITY_SUFFIX,
     duration: 5,
   },
-  "truck-left": {
+  "tracking": {
     promptText:
-      "Smooth lateral tracking shot moving left at a steady pace. Camera faces forward while the entire rig slides sideways on a dolly track. " +
+      "Smooth lateral tracking shot sliding sideways at a steady pace. Camera faces forward while the entire rig glides on a dolly track. " +
       "Ease in gently from stillness, hold constant speed, ease out in the final half-second. " +
-      STABILITY_SUFFIX,
-    duration: 5,
-  },
-  "truck-right": {
-    promptText:
-      "Smooth lateral tracking shot moving right at a steady pace. Camera faces forward while the entire rig slides sideways on a dolly track. " +
-      "Ease in gently from stillness, hold constant speed, ease out in the final half-second. " +
-      STABILITY_SUFFIX,
-    duration: 5,
-  },
-  "pedestal-up": {
-    promptText:
-      "Slow vertical crane rise. Camera ascends straight up while tilting gently downward to keep the scene centered in frame. " +
-      "Ease in from stillness, constant ascent speed, ease out at the top. " +
-      STABILITY_SUFFIX,
-    duration: 5,
-  },
-  "pedestal-down": {
-    promptText:
-      "Slow vertical crane descent. Camera lowers straight down while tilting gently upward to keep the scene centered in frame. " +
-      "Ease in from stillness, constant descent speed, ease out at the bottom. " +
       STABILITY_SUFFIX,
     duration: 5,
   },
   "orbit": {
     promptText:
-      "Slow partial orbit arc of approximately 15 degrees around the center of the scene. " +
+      "Slow cinematic orbit arc of approximately 20 degrees around the center of the scene. " +
       "Camera moves along a curved dolly track, maintaining a fixed distance from the subject. " +
       "Ease in from stillness, constant arc speed, ease out to stillness. Subtle parallax shift between foreground and background. " +
       STABILITY_SUFFIX,
     duration: 5,
   },
-  "orbit-360": {
+  "crane-up": {
     promptText:
-      "Wide sweeping orbit arc of approximately 45 degrees around the center of the scene. " +
-      "Camera travels along a broad curved dolly track, revealing the space from a significantly new angle. " +
-      "Ease in from stillness, steady arc speed throughout, ease out in the final second. Strong parallax between layers. " +
-      STABILITY_SUFFIX,
-    duration: 5,
-  },
-  "static": {
-    promptText:
-      "Locked-off tripod shot. Camera is perfectly stationary on a heavy tripod with zero movement. " +
-      "Only the natural ambient environment has subtle life — gentle light shifts, soft atmosphere. The frame is completely stable. " +
+      "Slow vertical crane rise. Camera ascends straight up while tilting gently downward to keep the scene centered in frame. " +
+      "Ease in from stillness, constant ascent speed, ease out at the top. " +
       STABILITY_SUFFIX,
     duration: 5,
   },
@@ -131,6 +102,13 @@ const MOTION_MAP: Record<string, MotionConfig> = {
     promptText:
       "Rising aerial drone reveal. Camera ascends vertically while tilting down to keep the property centered in frame. " +
       "Smooth constant rise speed with gentle ease-in from the ground. The landscape gradually enters the frame from the edges. " +
+      STABILITY_SUFFIX,
+    duration: 5,
+  },
+  "static": {
+    promptText:
+      "Locked-off tripod shot. Camera is perfectly stationary on a heavy tripod with zero movement. " +
+      "Only the natural ambient environment has subtle life — gentle light shifts, soft atmosphere. The frame is completely stable. " +
       STABILITY_SUFFIX,
     duration: 5,
   },

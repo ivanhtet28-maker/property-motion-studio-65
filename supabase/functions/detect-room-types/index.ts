@@ -30,13 +30,11 @@ type RoomType = typeof VALID_ROOM_TYPES[number];
 const VALID_INTENTS = [
   "push-in",
   "pull-out",
-  "truck-left",
-  "truck-right",
-  "pedestal-up",
-  "pedestal-down",
+  "tracking",
   "orbit",
-  "static",
+  "crane-up",
   "drone-up",
+  "static",
 ] as const;
 
 const DETECTION_PROMPT = `You are an elite real estate videographer scouting a property photo before filming a 9:16 portrait video. Analyze this image and choose the single best camera move.
@@ -59,19 +57,17 @@ Step 4 — CHOOSE YOUR SHOT from these standard videography moves:
 
 - push-in: Dolly forward toward focal point. Use for bathrooms, hallways, front doors. NEVER for bedrooms.
 - pull-out: Dolly backward revealing space. Use for bedrooms, tight rooms, any "look how spacious" shot.
-- truck-left: Lateral slide left. Use when the best feature is on the left side of frame.
-- truck-right: Lateral slide right. Use when the best feature is on the right side of frame.
-- pedestal-up: Camera rises vertically. Use for exteriors with fences/obstructions to clear foreground.
-- pedestal-down: Camera lowers vertically. Rarely used — only for dramatic high-to-low reveals.
-- orbit: Circular arc around subject. Use for living rooms, kitchens, open-plan spaces with features to reveal.
+- tracking: Smooth lateral slide across the scene. Use for entries with staircases, rooms with side features to reveal.
+- orbit: Cinematic arc around subject. Use for living rooms, kitchens, open-plan spaces with features to reveal.
+- crane-up: Camera rises vertically. Use for exteriors with fences/obstructions to clear foreground.
+- drone-up: Aerial rising reveal. Use for pools, backyards, outdoor areas, large properties.
 - static: Locked tripod, no movement. Use sparingly — only when the composition is already perfect.
-- drone-up: Rising aerial reveal. Use for pools, backyards, outdoor areas, large properties.
 
 RULES:
 - Bedrooms: ALWAYS pull-out. Never push-in toward a bed.
-- Exteriors with fence: ALWAYS pedestal-up or drone-up. Never push-in through a fence.
+- Exteriors with fence: ALWAYS crane-up or drone-up. Never push-in through a fence.
 - Living rooms with visible kitchen: orbit toward the kitchen side.
-- Entries with staircase: truck toward the staircase.
+- Entries with staircase: tracking to reveal the staircase.
 
 Step 5 — JUSTIFY in one sentence.
 
@@ -90,7 +86,7 @@ interface DetectionResult {
 }
 
 function getDefaultIntent(roomType: string): string {
-  if (roomType.startsWith("exterior") || roomType === "front-door") return "truck-right";
+  if (roomType.startsWith("exterior") || roomType === "front-door") return "tracking";
   if (roomType === "entry-foyer") return "push-in";
   if (roomType.startsWith("living-room")) return "orbit";
   if (roomType.startsWith("kitchen")) return "orbit";
