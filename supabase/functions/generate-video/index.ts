@@ -61,14 +61,11 @@
     switch (cameraAngle) {
       case "pull-out":
       case "drone-up":
-      case "pedestal-up":  return "zoomOutSlow";
-      case "truck-right":
+      case "crane-up":     return "zoomOutSlow";
+      case "tracking":
       case "orbit":        return "slideLeftSlow";
-      case "orbit-360":    return "slideLeftSlow"; // Ken Burns approximation of full orbit
-      case "truck-left":   return "slideRightSlow";
-      case "static":       return "zoomInSlow"; // subtle motion better than none
+      case "static":       return "none"; // locked shot — no Ken Burns effect
       case "push-in":
-      case "pedestal-down":
       default:             return "zoomInSlow";
     }
   }

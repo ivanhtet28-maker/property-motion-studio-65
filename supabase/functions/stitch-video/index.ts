@@ -553,19 +553,14 @@
           // Ken Burns: map camera intent to Shotstack effect or offset animation.
           const angle = cameraAngles?.[index] || "auto";
 
-          if (angle === "truck-right" || angle === "orbit") {
+          if (angle === "tracking" || angle === "orbit") {
             clip.offset = {
               x: [{ from: 0, to: -0.04, start: 0, length: clipDuration,
                      interpolation: "bezier", easing: "easeInOutQuart" }]
             };
-          } else if (angle === "truck-left") {
-            clip.offset = {
-              x: [{ from: 0, to: 0.04, start: 0, length: clipDuration,
-                     interpolation: "bezier", easing: "easeInOutQuart" }]
-            };
-          } else if (angle === "pull-out" || angle === "drone-up" || angle === "pedestal-up") {
+          } else if (angle === "pull-out" || angle === "drone-up" || angle === "crane-up") {
             clip.effect = "zoomOutSlow";
-          } else if (angle === "push-in" || angle === "pedestal-down") {
+          } else if (angle === "push-in") {
             clip.effect = "zoomInSlow";
           } else if (angle === "static") {
             // No effect — locked shot
@@ -578,18 +573,15 @@
           // The tour must always finish — never break the sequence.
           const angle = cameraAngles?.[index] || "push-in";
 
-          if (angle === "truck-right" || angle === "orbit") {
+          if (angle === "tracking" || angle === "orbit") {
             clip.offset = {
               x: [{ from: 0, to: -0.04, start: 0, length: clipDuration,
                      interpolation: "bezier", easing: "easeInOutQuart" }]
             };
-          } else if (angle === "truck-left") {
-            clip.offset = {
-              x: [{ from: 0, to: 0.04, start: 0, length: clipDuration,
-                     interpolation: "bezier", easing: "easeInOutQuart" }]
-            };
-          } else if (angle === "pull-out" || angle === "drone-up" || angle === "pedestal-up") {
+          } else if (angle === "pull-out" || angle === "drone-up" || angle === "crane-up") {
             clip.effect = "zoomOutSlow";
+          } else if (angle === "static") {
+            // No effect — locked shot
           } else {
             clip.effect = "zoomInSlow";
           }
