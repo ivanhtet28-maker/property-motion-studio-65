@@ -36,17 +36,25 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2, at
 // ============================================
 // GEN4 TURBO — Prompt-driven camera control
 //
-// PROMPTING RULES (Runway Gen-4 official guide + research):
-// 1. Describe MOTION only — the image provides all visuals
-// 2. Use POSITIVE phrasing — "don't X" produces unpredictable results
+// PROMPTING RULES (Runway Gen-4 Turbo best practices):
+// 1. Describe MOTION only — the source image provides all visuals
+// 2. Use POSITIVE phrasing — negative instructions cause unpredictable results
 // 3. One scene, one camera move per clip
-// 4. Short, specific, cinematic language
-// 5. Use filmmaker vocabulary: dolly, crane, orbit, tracking, truck
-// 6. Include lighting cues for atmosphere
-// 7. ALL clips are 5s — quality degrades in longer generations
-//    (research shows 73% perfect consistency at 5s vs significant
-//     drift at 10s, especially for architecture/interiors)
+// 4. Include STABILITY language — preserve surfaces, geometry, lighting
+// 5. Specify EASING — ease-in/ease-out prevents jarring starts/stops
+// 6. Specify SPEED precisely — "2 inches per second" beats "slow"
+// 7. Reference the SOURCE IMAGE lighting — never invent lighting
+// 8. ALL clips are 5s — quality degrades in longer generations
+//    (73% perfect consistency at 5s vs significant drift at 10s)
 // ============================================
+
+// Shared stability suffix appended to every prompt.
+// Prevents Gen4 from hallucinating new objects, warping geometry,
+// or shifting the lighting away from the source image.
+const STABILITY_SUFFIX =
+  "Maintain all visible surfaces, furniture, and architectural geometry exactly as shown. " +
+  "Preserve the existing lighting and color temperature throughout. " +
+  "Photo-realistic cinematography, 24fps filmic motion blur.";
 
 interface MotionConfig {
   promptText: string;
@@ -55,43 +63,75 @@ interface MotionConfig {
 
 const MOTION_MAP: Record<string, MotionConfig> = {
   "push-in": {
-    promptText: "Slow steady dolly forward toward the focal point. Smooth gentle forward glide. Natural window light. Cinematic real estate footage.",
+    promptText:
+      "Steady dolly forward at a gentle pace, easing in from stillness over the first half-second and maintaining constant speed. " +
+      "Camera advances straight ahead toward the center of the frame on a smooth rail. " +
+      STABILITY_SUFFIX,
     duration: 5,
   },
   "pull-out": {
-    promptText: "Slow cinematic pullback revealing the full space. Steady backward dolly glide. Natural ambient lighting. Cinematic real estate footage.",
+    promptText:
+      "Steady dolly backward at a gentle pace, easing in from stillness and maintaining constant speed. " +
+      "Camera retreats straight back along a smooth rail, gradually revealing the full extent of the space. " +
+      STABILITY_SUFFIX,
     duration: 5,
   },
   "truck-left": {
-    promptText: "Smooth lateral tracking shot sliding left. Camera faces forward while gliding sideways. Soft natural light. Cinematic real estate footage.",
+    promptText:
+      "Smooth lateral tracking shot moving left at a steady pace. Camera faces forward while the entire rig slides sideways on a dolly track. " +
+      "Ease in gently from stillness, hold constant speed, ease out in the final half-second. " +
+      STABILITY_SUFFIX,
     duration: 5,
   },
   "truck-right": {
-    promptText: "Smooth lateral tracking shot sliding right. Camera faces forward while gliding sideways. Soft natural light. Cinematic real estate footage.",
+    promptText:
+      "Smooth lateral tracking shot moving right at a steady pace. Camera faces forward while the entire rig slides sideways on a dolly track. " +
+      "Ease in gently from stillness, hold constant speed, ease out in the final half-second. " +
+      STABILITY_SUFFIX,
     duration: 5,
   },
   "pedestal-up": {
-    promptText: "Camera rises vertically like a crane shot, tilting down to keep the scene centered. Smooth upward movement. Cinematic real estate footage.",
+    promptText:
+      "Slow vertical crane rise. Camera ascends straight up while tilting gently downward to keep the scene centered in frame. " +
+      "Ease in from stillness, constant ascent speed, ease out at the top. " +
+      STABILITY_SUFFIX,
     duration: 5,
   },
   "pedestal-down": {
-    promptText: "Camera lowers vertically like a descending crane, tilting up to keep the scene centered. Smooth downward movement. Cinematic real estate footage.",
+    promptText:
+      "Slow vertical crane descent. Camera lowers straight down while tilting gently upward to keep the scene centered in frame. " +
+      "Ease in from stillness, constant descent speed, ease out at the bottom. " +
+      STABILITY_SUFFIX,
     duration: 5,
   },
   "orbit": {
-    promptText: "Slow cinematic arc orbit around the center of the scene. Gentle partial circular dolly path. Warm natural light. Cinematic real estate footage.",
+    promptText:
+      "Slow partial orbit arc of approximately 15 degrees around the center of the scene. " +
+      "Camera moves along a curved dolly track, maintaining a fixed distance from the subject. " +
+      "Ease in from stillness, constant arc speed, ease out to stillness. Subtle parallax shift between foreground and background. " +
+      STABILITY_SUFFIX,
     duration: 5,
   },
   "orbit-360": {
-    promptText: "Smooth circular orbit arc around the room, revealing the space from a new angle. Steady circular dolly track. Cinematic real estate footage.",
+    promptText:
+      "Wide sweeping orbit arc of approximately 45 degrees around the center of the scene. " +
+      "Camera travels along a broad curved dolly track, revealing the space from a significantly new angle. " +
+      "Ease in from stillness, steady arc speed throughout, ease out in the final second. Strong parallax between layers. " +
+      STABILITY_SUFFIX,
     duration: 5,
   },
   "static": {
-    promptText: "Locked tripod shot. Camera perfectly still with only subtle ambient light shifts across the scene. Cinematic real estate footage.",
+    promptText:
+      "Locked-off tripod shot. Camera is perfectly stationary on a heavy tripod with zero movement. " +
+      "Only the natural ambient environment has subtle life — gentle light shifts, soft atmosphere. The frame is completely stable. " +
+      STABILITY_SUFFIX,
     duration: 5,
   },
   "drone-up": {
-    promptText: "Rising aerial drone reveal. Camera ascends vertically, tilting down to keep the property centered. Golden hour light. Cinematic real estate footage.",
+    promptText:
+      "Rising aerial drone reveal. Camera ascends vertically while tilting down to keep the property centered in frame. " +
+      "Smooth constant rise speed with gentle ease-in from the ground. The landscape gradually enters the frame from the edges. " +
+      STABILITY_SUFFIX,
     duration: 5,
   },
 };
