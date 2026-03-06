@@ -91,8 +91,11 @@ async function directFetch(url: string): Promise<string> {
 // ── Headless Fetch via Scrapingdog ──────────────────────────────────────────
 
 async function scrapePropertyData(url: string): Promise<string> {
+  const hasApiKey = !!SCRAPINGDOG_API_KEY;
+  console.log(`SCRAPINGDOG_API_KEY configured: ${hasApiKey} (length: ${SCRAPINGDOG_API_KEY.length})`);
+
   // Strategy 1: Try Scrapingdog if key is available
-  if (SCRAPINGDOG_API_KEY) {
+  if (hasApiKey) {
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -117,7 +120,7 @@ async function scrapePropertyData(url: string): Promise<string> {
         if (!response.ok) {
           const errorBody = await response.text().catch(() => "");
           console.error(`Scrapingdog error (attempt ${attempt + 1}):`, response.status, errorBody);
-          throw new Error(`Scrapingdog error: ${response.status} ${response.statusText}`);
+          throw new Error(`Scrapingdog error: ${response.status} ${response.statusText} - ${errorBody}`);
         }
 
         const html = await response.text();
@@ -135,13 +138,21 @@ async function scrapePropertyData(url: string): Promise<string> {
       }
     }
 
-    console.warn("Scrapingdog failed, falling back to direct fetch. Last error:", lastError?.message);
+    console.warn("Scrapingdog failed after 2 attempts, falling back to direct fetch. Last error:", lastError?.message);
   } else {
-    console.log("No SCRAPINGDOG_API_KEY set, using direct fetch");
+    console.warn("No SCRAPINGDOG_API_KEY set — add this secret in the Supabase dashboard under Edge Function Secrets");
   }
 
   // Strategy 2: Direct fetch fallback (works for REA server-rendered pages)
-  return await directFetch(url);
+  try {
+    return await directFetch(url);
+  } catch (directErr) {
+    // Provide a clear error that tells the user what happened
+    const reason = hasApiKey
+      ? "Scrapingdog API failed (check API key / credits), and direct fetch was also blocked"
+      : "No SCRAPINGDOG_API_KEY secret configured, and direct fetch was blocked by the website";
+    throw new Error(`${reason}: ${directErr.message}`);
+  }
 }
 
 // ── REA (realestate.com.au) Image Extraction ─────────────────────────────────
