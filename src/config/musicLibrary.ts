@@ -5,7 +5,16 @@
  * Music files are stored in Supabase Storage at video-assets/music/
  *
  * URL format: https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/[filename].mp3
+ *
+ * To add a new track:
+ * 1. Upload the MP3 to Supabase Storage under video-assets/music/
+ * 2. Add an entry here with the matching ID
+ * 3. Add a display name entry in musicMapping.ts
+ * 4. Add a UI entry in StepBranding.tsx MUSIC_TRACKS array
  */
+
+const MUSIC_BASE =
+  "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music";
 
 interface MusicTrack {
   url: string;
@@ -15,104 +24,164 @@ interface MusicTrack {
 }
 
 export const MUSIC_LIBRARY: Record<string, MusicTrack> = {
-  // Modern Chill tracks
-  "modern-chill-1": {
-    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/modern-chill-1.mp3",
-    name: "Modern Chill 1",
-    duration: 120,
-    category: "modern",
+  // ─── Cinematic (5 tracks) ──────────────────────────
+  "cinematic-1": {
+    url: `${MUSIC_BASE}/cinematic-1.mp3`,
+    name: "Horizon - Epic Journey",
+    duration: 165,
+    category: "cinematic",
   },
-  "modern-chill-2": {
-    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/modern-chill-2.mp3",
-    name: "Modern Chill 2",
-    duration: 130,
-    category: "modern",
+  "cinematic-2": {
+    url: `${MUSIC_BASE}/cinematic-2.mp3`,
+    name: "Summit - Orchestral Rise",
+    duration: 192,
+    category: "cinematic",
   },
-  "modern-chill-3": {
-    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/modern-chill-3.mp3",
-    name: "Modern Chill 3",
-    duration: 125,
-    category: "modern",
-  },
-
-  // Ambient Relaxing tracks
-  "ambient-relaxing-1": {
-    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/ambient-relaxing-1.mp3",
-    name: "Ambient Relaxing 1",
+  "cinematic-3": {
+    url: `${MUSIC_BASE}/cinematic-3.mp3`,
+    name: "Grand Estate - Dramatic Reveal",
     duration: 150,
-    category: "ambient",
-  },
-  "ambient-relaxing-2": {
-    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/ambient-relaxing-2.mp3",
-    name: "Ambient Relaxing 2",
-    duration: 140,
-    category: "ambient",
-  },
-  "ambient-relaxing-3": {
-    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/ambient-relaxing-3.mp3",
-    name: "Ambient Relaxing 3",
-    duration: 145,
-    category: "ambient",
-  },
-
-  // Cinematic Epic tracks
-  "cinematic-epic-1": {
-    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/cinematic-epic-1.mp3",
-    name: "Cinematic Epic 1",
-    duration: 135,
     category: "cinematic",
   },
-  "cinematic-epic-2": {
-    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/cinematic-epic-2.mp3",
-    name: "Cinematic Epic 2",
-    duration: 128,
+  "cinematic-4": {
+    url: `${MUSIC_BASE}/cinematic-4.mp3`,
+    name: "Prestige - Luxury Showcase",
+    duration: 178,
     category: "cinematic",
   },
-  "cinematic-epic-3": {
-    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/cinematic-epic-3.mp3",
-    name: "Cinematic Epic 3",
-    duration: 142,
+  "cinematic-5": {
+    url: `${MUSIC_BASE}/cinematic-5.mp3`,
+    name: "Skyline - Aerial Sweep",
+    duration: 185,
     category: "cinematic",
   },
 
-  // Upbeat Energetic tracks
-  "upbeat-energetic-1": {
-    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/upbeat-energetic-1.mp3",
-    name: "Upbeat Energetic 1",
-    duration: 118,
-    category: "energetic",
-  },
-  "upbeat-energetic-2": {
-    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/upbeat-energetic-2.mp3",
-    name: "Upbeat Energetic 2",
-    duration: 122,
-    category: "energetic",
-  },
-  "upbeat-energetic-3": {
-    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/upbeat-energetic-3.mp3",
-    name: "Upbeat Energetic 3",
-    duration: 115,
-    category: "energetic",
-  },
-
-  // Classical Elegant tracks
-  "classical-elegant-1": {
-    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/classical-elegant-1.mp3",
-    name: "Classical Elegant 1",
+  // ─── Modern (5 tracks) ─────────────────────────────
+  "modern-1": {
+    url: `${MUSIC_BASE}/modern-1.mp3`,
+    name: "Daylight - Acoustic Pop",
     duration: 160,
-    category: "classical",
+    category: "modern",
   },
-  "classical-elegant-2": {
-    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/classical-elegant-2.mp3",
-    name: "Classical Elegant 2",
+  "modern-2": {
+    url: `${MUSIC_BASE}/modern-2.mp3`,
+    name: "Waves - Lo-fi Beats",
+    duration: 175,
+    category: "modern",
+  },
+  "modern-3": {
+    url: `${MUSIC_BASE}/modern-3.mp3`,
+    name: "Sunset - Acoustic Vibes",
+    duration: 190,
+    category: "modern",
+  },
+  "modern-4": {
+    url: `${MUSIC_BASE}/modern-4.mp3`,
+    name: "Cornerstone - Indie Folk",
+    duration: 168,
+    category: "modern",
+  },
+  "modern-5": {
+    url: `${MUSIC_BASE}/modern-5.mp3`,
+    name: "Blueprint - Minimal House",
+    duration: 180,
+    category: "modern",
+  },
+
+  // ─── Energetic (5 tracks) ──────────────────────────
+  "energetic-1": {
+    url: `${MUSIC_BASE}/energetic-1.mp3`,
+    name: "Open Door - Upbeat Pop",
     duration: 155,
+    category: "energetic",
+  },
+  "energetic-2": {
+    url: `${MUSIC_BASE}/energetic-2.mp3`,
+    name: "Drive - Electronic",
+    duration: 170,
+    category: "energetic",
+  },
+  "energetic-3": {
+    url: `${MUSIC_BASE}/energetic-3.mp3`,
+    name: "Welcome Home - Feel Good",
+    duration: 162,
+    category: "energetic",
+  },
+  "energetic-4": {
+    url: `${MUSIC_BASE}/energetic-4.mp3`,
+    name: "First Look - Bright & Fun",
+    duration: 148,
+    category: "energetic",
+  },
+  "energetic-5": {
+    url: `${MUSIC_BASE}/energetic-5.mp3`,
+    name: "Move In - Happy Bounce",
+    duration: 175,
+    category: "energetic",
+  },
+
+  // ─── Classical (5 tracks) ──────────────────────────
+  "classical-1": {
+    url: `${MUSIC_BASE}/classical-1.mp3`,
+    name: "Nocturne - Piano Solo",
+    duration: 200,
     category: "classical",
   },
-  "classical-elegant-3": {
-    url: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/classical-elegant-3.mp3",
-    name: "Classical Elegant 3",
-    duration: 148,
+  "classical-2": {
+    url: `${MUSIC_BASE}/classical-2.mp3`,
+    name: "Adagio - String Quartet",
+    duration: 225,
     category: "classical",
+  },
+  "classical-3": {
+    url: `${MUSIC_BASE}/classical-3.mp3`,
+    name: "Heritage - Piano & Cello",
+    duration: 195,
+    category: "classical",
+  },
+  "classical-4": {
+    url: `${MUSIC_BASE}/classical-4.mp3`,
+    name: "Elegance - Chamber Music",
+    duration: 210,
+    category: "classical",
+  },
+  "classical-5": {
+    url: `${MUSIC_BASE}/classical-5.mp3`,
+    name: "Manor - Harp & Strings",
+    duration: 190,
+    category: "classical",
+  },
+
+  // ─── Ambient (5 tracks) ────────────────────────────
+  "ambient-1": {
+    url: `${MUSIC_BASE}/ambient-1.mp3`,
+    name: "Drift - Ambient Tones",
+    duration: 180,
+    category: "ambient",
+  },
+  "ambient-2": {
+    url: `${MUSIC_BASE}/ambient-2.mp3`,
+    name: "Serenity - Soft Pads",
+    duration: 205,
+    category: "ambient",
+  },
+  "ambient-3": {
+    url: `${MUSIC_BASE}/ambient-3.mp3`,
+    name: "Retreat - Nature & Keys",
+    duration: 195,
+    category: "ambient",
+  },
+  "ambient-4": {
+    url: `${MUSIC_BASE}/ambient-4.mp3`,
+    name: "Sanctuary - Warm Textures",
+    duration: 220,
+    category: "ambient",
+  },
+  "ambient-5": {
+    url: `${MUSIC_BASE}/ambient-5.mp3`,
+    name: "Harbour - Coastal Calm",
+    duration: 185,
+    category: "ambient",
   },
 };
 
