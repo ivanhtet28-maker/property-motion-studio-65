@@ -46,24 +46,39 @@ const INTRO_TEMPLATES = [
   { id: "modern-treehouse", name: "Modern Treehouse" },
 ];
 
-// Music categories and tracks
+// Music categories and tracks (5 per category, 25 total)
 const MUSIC_CATEGORIES = ["All", "Cinematic", "Modern", "Energetic", "Classical", "Ambient"];
-const MUSIC_TRACKS: { name: string; category: string; id: string }[] = [
-  { name: "Horizon - Epic Journey", category: "Cinematic", id: "cinematic-epic-1" },
-  { name: "Summit - Orchestral Rise", category: "Cinematic", id: "cinematic-epic-2" },
-  { name: "Vast - Dramatic Sweep", category: "Cinematic", id: "cinematic-epic-3" },
-  { name: "Asteroid - Modern & Chill", category: "Modern", id: "modern-chill-1" },
-  { name: "Waves - Lo-fi Beats", category: "Modern", id: "modern-chill-2" },
-  { name: "Sunset - Acoustic Vibes", category: "Modern", id: "modern-chill-3" },
-  { name: "Pulse - Dance Pop", category: "Energetic", id: "upbeat-energetic-1" },
-  { name: "Drive - Electronic", category: "Energetic", id: "upbeat-energetic-2" },
-  { name: "Spark - Indie Rock", category: "Energetic", id: "upbeat-energetic-3" },
-  { name: "Nocturne - Piano Solo", category: "Classical", id: "classical-elegant-1" },
-  { name: "Adagio - String Quartet", category: "Classical", id: "classical-elegant-2" },
-  { name: "Grace - Chamber Music", category: "Classical", id: "classical-elegant-3" },
-  { name: "Drift - Ambient Tones", category: "Ambient", id: "ambient-relaxing-1" },
-  { name: "Serenity - Nature Sounds", category: "Ambient", id: "ambient-relaxing-2" },
-  { name: "Flow - Meditation", category: "Ambient", id: "ambient-relaxing-3" },
+const MUSIC_TRACKS: { name: string; category: string; id: string; duration: string }[] = [
+  // Cinematic — sweeping orchestral, dramatic reveals
+  { name: "Horizon - Epic Journey", category: "Cinematic", id: "cinematic-1", duration: "2:45" },
+  { name: "Summit - Orchestral Rise", category: "Cinematic", id: "cinematic-2", duration: "3:12" },
+  { name: "Grand Estate - Dramatic Reveal", category: "Cinematic", id: "cinematic-3", duration: "2:30" },
+  { name: "Prestige - Luxury Showcase", category: "Cinematic", id: "cinematic-4", duration: "2:58" },
+  { name: "Skyline - Aerial Sweep", category: "Cinematic", id: "cinematic-5", duration: "3:05" },
+  // Modern — clean, contemporary feel
+  { name: "Daylight - Acoustic Pop", category: "Modern", id: "modern-1", duration: "2:40" },
+  { name: "Waves - Lo-fi Beats", category: "Modern", id: "modern-2", duration: "2:55" },
+  { name: "Sunset - Acoustic Vibes", category: "Modern", id: "modern-3", duration: "3:10" },
+  { name: "Cornerstone - Indie Folk", category: "Modern", id: "modern-4", duration: "2:48" },
+  { name: "Blueprint - Minimal House", category: "Modern", id: "modern-5", duration: "3:00" },
+  // Energetic — upbeat, open house energy
+  { name: "Open Door - Upbeat Pop", category: "Energetic", id: "energetic-1", duration: "2:35" },
+  { name: "Drive - Electronic", category: "Energetic", id: "energetic-2", duration: "2:50" },
+  { name: "Welcome Home - Feel Good", category: "Energetic", id: "energetic-3", duration: "2:42" },
+  { name: "First Look - Bright & Fun", category: "Energetic", id: "energetic-4", duration: "2:28" },
+  { name: "Move In - Happy Bounce", category: "Energetic", id: "energetic-5", duration: "2:55" },
+  // Classical — elegant piano & strings
+  { name: "Nocturne - Piano Solo", category: "Classical", id: "classical-1", duration: "3:20" },
+  { name: "Adagio - String Quartet", category: "Classical", id: "classical-2", duration: "3:45" },
+  { name: "Heritage - Piano & Cello", category: "Classical", id: "classical-3", duration: "3:15" },
+  { name: "Elegance - Chamber Music", category: "Classical", id: "classical-4", duration: "3:30" },
+  { name: "Manor - Harp & Strings", category: "Classical", id: "classical-5", duration: "3:10" },
+  // Ambient — calm, lifestyle feel
+  { name: "Drift - Ambient Tones", category: "Ambient", id: "ambient-1", duration: "3:00" },
+  { name: "Serenity - Soft Pads", category: "Ambient", id: "ambient-2", duration: "3:25" },
+  { name: "Retreat - Nature & Keys", category: "Ambient", id: "ambient-3", duration: "3:15" },
+  { name: "Sanctuary - Warm Textures", category: "Ambient", id: "ambient-4", duration: "3:40" },
+  { name: "Harbour - Coastal Calm", category: "Ambient", id: "ambient-5", duration: "3:05" },
 ];
 
 const VOICE_OPTIONS = [
@@ -352,21 +367,15 @@ export function StepBranding({
               Select a track to feature in your video.
             </p>
 
-            {/* Search + Upload */}
-            <div className="flex gap-2 mb-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search audio tracks..."
-                  value={musicSearch}
-                  onChange={(e) => setMusicSearch(e.target.value)}
-                  className="pl-9 h-9"
-                />
-              </div>
-              <Button variant="outline" size="sm" className="h-9">
-                <Upload className="w-3.5 h-3.5 mr-1.5" />
-                Upload Audio
-              </Button>
+            {/* Search */}
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search audio tracks..."
+                value={musicSearch}
+                onChange={(e) => setMusicSearch(e.target.value)}
+                className="pl-9 h-9"
+              />
             </div>
 
             {/* Category pills */}
@@ -387,7 +396,7 @@ export function StepBranding({
             </div>
 
             {/* Track list */}
-            <div className="space-y-0.5 max-h-[350px] overflow-y-auto">
+            <div className="space-y-0.5 max-h-[400px] overflow-y-auto">
               {filteredTracks.map((track) => {
                 const isSelected = settings.musicTrack === track.name;
                 const isPlaying = playingTrack === track.id;
@@ -401,20 +410,25 @@ export function StepBranding({
                         : "text-foreground hover:bg-accent"
                     }`}
                   >
-                    <span>{track.name}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPlayingTrack(isPlaying ? null : track.id);
-                      }}
-                      className="p-1 hover:bg-accent rounded"
-                    >
-                      {isPlaying ? (
-                        <Pause className="w-4 h-4" />
-                      ) : (
-                        <Play className="w-4 h-4" />
-                      )}
-                    </button>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPlayingTrack(isPlaying ? null : track.id);
+                        }}
+                        className="p-1 hover:bg-accent rounded flex-shrink-0"
+                      >
+                        {isPlaying ? (
+                          <Pause className="w-4 h-4" />
+                        ) : (
+                          <Play className="w-4 h-4" />
+                        )}
+                      </button>
+                      <span className="truncate">{track.name}</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">
+                      {track.duration}
+                    </span>
                   </button>
                 );
               })}
