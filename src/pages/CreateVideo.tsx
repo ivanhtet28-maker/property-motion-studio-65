@@ -16,6 +16,7 @@ import { uploadVideoToStorage } from "@/utils/uploadVideoToStorage";
 import { generateCanvasVideo } from "@/utils/generateCanvasVideo";
 import { getMusicId } from "@/config/musicMapping";
 import { getVoiceId } from "@/config/voiceMapping";
+import { cropImageToFile } from "@/utils/cropImage";
 import { type CameraAction, type ImageMetadata } from "@/components/create-video/PhotoUpload";
 import { StepUpload } from "@/components/create-video/StepUpload";
 import { StepSelect } from "@/components/create-video/StepSelect";
@@ -389,10 +390,24 @@ export default function CreateVideo() {
         return;
       }
 
-      // Upload selected photos
+      // Crop images that have crop data applied, then upload
+      const targetAspect = orientation === "portrait" ? 9 / 16 : 16 / 9;
+      const photosToUpload: File[] = [];
+      for (let i = 0; i < selectedPhotos.length; i++) {
+        const photoIdx = selectedIndices[i];
+        const crop = cropData[photoIdx];
+        if (crop && (crop.x !== 0.5 || crop.y !== 0.5)) {
+          photosToUpload.push(
+            await cropImageToFile(selectedPhotos[i], crop.x, crop.y, targetAspect)
+          );
+        } else {
+          photosToUpload.push(selectedPhotos[i]);
+        }
+      }
+
       const folder = `property-${Date.now()}`;
       const imageUrls = await uploadImagesToStorage(
-        selectedPhotos,
+        photosToUpload,
         folder,
         (completed, total) => setGeneratingProgress((completed / total) * 30)
       );
