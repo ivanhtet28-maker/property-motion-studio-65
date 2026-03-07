@@ -1,14 +1,26 @@
-import { useState } from "react";
-import { Camera, Crop, Smartphone, Monitor } from "lucide-react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Camera, Crop, Smartphone, Monitor, X, Move } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import {
   type CameraAction,
   CAMERA_ACTION_OPTIONS,
 } from "./PhotoUpload";
+
+export interface CropData {
+  x: number; // 0-1 offset from left
+  y: number; // 0-1 offset from top
+}
 
 interface StepEditProps {
   photos: File[];
@@ -17,6 +29,8 @@ interface StepEditProps {
   onCameraActionChange: (index: number, action: CameraAction) => void;
   orientation: "portrait" | "landscape";
   onOrientationChange: (orientation: "portrait" | "landscape") => void;
+  cropData?: Record<number, CropData>;
+  onCropChange?: (index: number, crop: CropData) => void;
 }
 
 export function StepEdit({
@@ -26,7 +40,17 @@ export function StepEdit({
   onCameraActionChange,
   orientation,
   onOrientationChange,
+  cropData = {},
+  onCropChange,
 }: StepEditProps) {
+  const [cropDialogOpen, setCropDialogOpen] = useState(false);
+  const [croppingIndex, setCroppingIndex] = useState<number | null>(null);
+
+  const openCrop = (photoIndex: number) => {
+    setCroppingIndex(photoIndex);
+    setCropDialogOpen(true);
+  };
+
   return (
     <div>
       {/* Header */}
@@ -86,7 +110,11 @@ export function StepEdit({
           return (
             <div key={photoIndex} className="relative group">
               {/* Thumbnail */}
-              <div className="aspect-[4/3] rounded-lg overflow-hidden border border-border bg-secondary">
+              <div
+                className={`rounded-lg overflow-hidden border border-border bg-secondary ${
+                  orientation === "portrait" ? "aspect-[9/16]" : "aspect-[4/3]"
+                }`}
+              >
                 <img
                   src={URL.createObjectURL(file)}
                   alt={`Scene ${pos + 1}`}
@@ -106,8 +134,11 @@ export function StepEdit({
                   onChange={(a) => onCameraActionChange(photoIndex, a)}
                   label={actionLabel}
                 />
-                {/* Crop button (placeholder) */}
-                <button className="flex items-center gap-1 px-2 py-1 bg-white/90 backdrop-blur rounded text-xs font-medium text-foreground hover:bg-white transition-colors shadow-sm">
+                {/* Crop button */}
+                <button
+                  onClick={() => openCrop(photoIndex)}
+                  className="flex items-center gap-1 px-2 py-1 bg-white/90 backdrop-blur rounded text-xs font-medium text-foreground hover:bg-white transition-colors shadow-sm"
+                >
                   <Crop className="w-3 h-3" />
                   Crop
                 </button>
@@ -116,9 +147,221 @@ export function StepEdit({
           );
         })}
       </div>
+
+      {/* Crop dialog */}
+      {croppingIndex !== null && (
+        <CropDialog
+          open={cropDialogOpen}
+          onOpenChange={(open) => {
+            setCropDialogOpen(open);
+            if (!open) setCroppingIndex(null);
+          }}
+          file={photos[croppingIndex]}
+          orientation={orientation}
+          initialCrop={cropData[croppingIndex]}
+          onSave={(crop) => {
+            onCropChange?.(croppingIndex, crop);
+            setCropDialogOpen(false);
+            setCroppingIndex(null);
+          }}
+        />
+      )}
     </div>
   );
 }
+
+// ─── Crop Dialog ────────────────────────────────────────
+
+function CropDialog({
+  open,
+  onOpenChange,
+  file,
+  orientation,
+  initialCrop,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  file: File;
+  orientation: "portrait" | "landscape";
+  initialCrop?: CropData;
+  onSave: (crop: CropData) => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [imageUrl, setImageUrl] = useState<string>("");
+  const [imageDims, setImageDims] = useState({ w: 0, h: 0 });
+  const [offset, setOffset] = useState<CropData>(initialCrop || { x: 0.5, y: 0.5 });
+  const [dragging, setDragging] = useState(false);
+
+  useEffect(() => {
+    const url = URL.createObjectURL(file);
+    setImageUrl(url);
+    const img = new Image();
+    img.onload = () => setImageDims({ w: img.width, h: img.height });
+    img.src = url;
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  useEffect(() => {
+    if (initialCrop) setOffset(initialCrop);
+    else setOffset({ x: 0.5, y: 0.5 });
+  }, [initialCrop, open]);
+
+  // Target aspect ratio
+  const targetAspect = orientation === "portrait" ? 9 / 16 : 16 / 9;
+
+  // Compute crop rect dimensions relative to image
+  const getCropRect = useCallback(() => {
+    if (!imageDims.w || !imageDims.h) return { cw: 1, ch: 1 };
+    const imgAspect = imageDims.w / imageDims.h;
+    let cw: number, ch: number;
+    if (imgAspect > targetAspect) {
+      // Image is wider than target — crop width
+      ch = 1;
+      cw = targetAspect / imgAspect;
+    } else {
+      // Image is taller — crop height
+      cw = 1;
+      ch = imgAspect / targetAspect;
+    }
+    return { cw, ch };
+  }, [imageDims, targetAspect]);
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!dragging || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+      setOffset({ x, y });
+    },
+    [dragging]
+  );
+
+  const { cw, ch } = getCropRect();
+
+  // Clamp offset so crop rect stays inside image
+  const clampedX = Math.max(cw / 2, Math.min(1 - cw / 2, offset.x));
+  const clampedY = Math.max(ch / 2, Math.min(1 - ch / 2, offset.y));
+
+  // Crop rect in percent
+  const cropLeft = (clampedX - cw / 2) * 100;
+  const cropTop = (clampedY - ch / 2) * 100;
+  const cropWidth = cw * 100;
+  const cropHeight = ch * 100;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Crop className="w-4 h-4" />
+            Adjust crop area
+          </DialogTitle>
+        </DialogHeader>
+
+        <p className="text-sm text-muted-foreground -mt-2 mb-3">
+          Drag the highlighted area to choose which part of the image to show in the{" "}
+          {orientation === "portrait" ? "9:16 portrait" : "16:9 landscape"} video.
+        </p>
+
+        {/* Crop canvas */}
+        <div
+          ref={containerRef}
+          className="relative w-full bg-black rounded-lg overflow-hidden cursor-crosshair select-none"
+          style={{ aspectRatio: `${imageDims.w || 4} / ${imageDims.h || 3}` }}
+          onPointerDown={() => setDragging(true)}
+          onPointerMove={handlePointerMove}
+          onPointerUp={() => setDragging(false)}
+          onPointerLeave={() => setDragging(false)}
+        >
+          {imageUrl && (
+            <img
+              src={imageUrl}
+              alt="Crop preview"
+              className="w-full h-full object-contain pointer-events-none"
+              draggable={false}
+            />
+          )}
+
+          {/* Dim overlay — outside crop */}
+          <div className="absolute inset-0 pointer-events-none">
+            {/* Top dim */}
+            <div
+              className="absolute left-0 right-0 top-0 bg-black/50"
+              style={{ height: `${cropTop}%` }}
+            />
+            {/* Bottom dim */}
+            <div
+              className="absolute left-0 right-0 bottom-0 bg-black/50"
+              style={{ height: `${100 - cropTop - cropHeight}%` }}
+            />
+            {/* Left dim */}
+            <div
+              className="absolute left-0 bg-black/50"
+              style={{
+                top: `${cropTop}%`,
+                height: `${cropHeight}%`,
+                width: `${cropLeft}%`,
+              }}
+            />
+            {/* Right dim */}
+            <div
+              className="absolute right-0 bg-black/50"
+              style={{
+                top: `${cropTop}%`,
+                height: `${cropHeight}%`,
+                width: `${100 - cropLeft - cropWidth}%`,
+              }}
+            />
+          </div>
+
+          {/* Crop rect border */}
+          <div
+            className="absolute border-2 border-white/80 rounded pointer-events-none"
+            style={{
+              left: `${cropLeft}%`,
+              top: `${cropTop}%`,
+              width: `${cropWidth}%`,
+              height: `${cropHeight}%`,
+            }}
+          >
+            {/* Center crosshair */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Move className="w-5 h-5 text-white/60" />
+            </div>
+            {/* Grid lines */}
+            <div className="absolute left-1/3 top-0 bottom-0 w-px bg-white/30" />
+            <div className="absolute left-2/3 top-0 bottom-0 w-px bg-white/30" />
+            <div className="absolute top-1/3 left-0 right-0 h-px bg-white/30" />
+            <div className="absolute top-2/3 left-0 right-0 h-px bg-white/30" />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between mt-2">
+          <Button variant="outline" onClick={() => {
+            setOffset({ x: 0.5, y: 0.5 });
+          }}>
+            Reset to center
+          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="hero"
+              onClick={() => onSave({ x: clampedX, y: clampedY })}
+            >
+              Apply crop
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Camera Action Picker ───────────────────────────────
 
 function CameraActionPicker({
   value,
