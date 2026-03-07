@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { Camera, Crop, Smartphone, Monitor, X, Move } from "lucide-react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { Camera, Crop, Smartphone, Monitor, X, Move, Check } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -45,6 +45,16 @@ export function StepEdit({
 }: StepEditProps) {
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [croppingIndex, setCroppingIndex] = useState<number | null>(null);
+
+  // Stable blob URLs — created once per file, cleaned up on unmount
+  const blobUrls = useMemo(() => {
+    return photos.map((file) => URL.createObjectURL(file));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photos.length]);
+
+  useEffect(() => {
+    return () => blobUrls.forEach((url) => URL.revokeObjectURL(url));
+  }, [blobUrls]);
 
   const openCrop = (photoIndex: number) => {
     setCroppingIndex(photoIndex);
@@ -106,24 +116,39 @@ export function StepEdit({
           const action = cameraActions[photoIndex] || "push-in";
           const actionLabel =
             CAMERA_ACTION_OPTIONS.find((o) => o.value === action)?.label || "Auto";
+          const crop = cropData[photoIndex];
+          const isCropped = !!crop && (crop.x !== 0.5 || crop.y !== 0.5);
+          // background-position: percentage maps focal point to container
+          const bgPosition = crop
+            ? `${(crop.x * 100).toFixed(1)}% ${(crop.y * 100).toFixed(1)}%`
+            : "center";
+          const thumbUrl = blobUrls[photoIndex] || "";
 
           return (
             <div key={photoIndex} className="relative group">
-              {/* Thumbnail */}
+              {/* Thumbnail — using background-image for reliable crop positioning */}
               <div
-                className={`rounded-lg overflow-hidden border border-border bg-secondary ${
+                className={`rounded-lg overflow-hidden border bg-secondary ${
                   orientation === "portrait" ? "aspect-[9/16]" : "aspect-[4/3]"
-                }`}
+                } ${isCropped ? "border-primary" : "border-border"}`}
+                style={{
+                  backgroundImage: `url(${thumbUrl})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: bgPosition,
+                  backgroundRepeat: "no-repeat",
+                }}
               >
-                <img
-                  src={URL.createObjectURL(file)}
-                  alt={`Scene ${pos + 1}`}
-                  className="w-full h-full object-cover"
-                />
                 {/* Scene number */}
                 <div className="absolute top-2 left-2 w-6 h-6 rounded-full bg-primary flex items-center justify-center text-[11px] font-bold text-primary-foreground shadow">
                   {pos + 1}
                 </div>
+                {/* Cropped badge */}
+                {isCropped && (
+                  <div className="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 bg-primary text-primary-foreground rounded text-[10px] font-semibold shadow">
+                    <Check className="w-3 h-3" />
+                    Cropped
+                  </div>
+                )}
               </div>
 
               {/* Controls */}
@@ -153,16 +178,23 @@ export function StepEdit({
         <CropDialog
           open={cropDialogOpen}
           onOpenChange={(open) => {
-            setCropDialogOpen(open);
-            if (!open) setCroppingIndex(null);
+            if (!open) {
+              setCropDialogOpen(false);
+              setCroppingIndex(null);
+            }
           }}
           file={photos[croppingIndex]}
           orientation={orientation}
           initialCrop={cropData[croppingIndex]}
           onSave={(crop) => {
-            onCropChange?.(croppingIndex, crop);
+            // Save crop first, then close dialog
+            const idx = croppingIndex;
+            if (idx !== null && onCropChange) {
+              onCropChange(idx, crop);
+            }
             setCropDialogOpen(false);
-            setCroppingIndex(null);
+            // Delay unmount so state propagates
+            setTimeout(() => setCroppingIndex(null), 50);
           }}
         />
       )}
