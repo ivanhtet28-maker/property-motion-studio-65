@@ -12,7 +12,17 @@ import {
   Play,
   Plus,
   X,
+  Pencil,
+  Clapperboard,
+  Share2,
+  ChevronDown,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { SubscriptionModal } from "@/components/SubscriptionModal";
 import { useToast } from "@/hooks/use-toast";
 
@@ -327,6 +337,34 @@ export default function Dashboard() {
                       {video.address}
                     </h3>
                     <p className="text-xs text-muted-foreground mt-0.5">Edited {video.createdAt}</p>
+
+                    {/* Edit / Share buttons */}
+                    {video.status === "ready" && (
+                      <div className="flex items-center gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button className="flex items-center gap-1 px-3 py-1.5 border border-border rounded-lg text-xs font-medium text-foreground hover:bg-accent transition-colors">
+                              Edit
+                              <ChevronDown className="w-3 h-3" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start">
+                            <DropdownMenuItem onClick={() => navigate(`/quick-edit/${video.id}`)}>
+                              <Pencil className="w-4 h-4 mr-2" />
+                              Quick Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/studio/${video.id}`)}>
+                              <Clapperboard className="w-4 h-4 mr-2" />
+                              Studio
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        <button className="flex items-center gap-1 px-3 py-1.5 border border-border rounded-lg text-xs font-medium text-foreground hover:bg-accent transition-colors">
+                          Share
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
