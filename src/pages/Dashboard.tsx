@@ -2,32 +2,15 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
-import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { callVideoStatus } from "@/lib/callVideoStatus";
 import { useAuth } from "@/contexts/AuthContext";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Navbar } from "@/components/layout/Navbar";
+import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import {
   Video,
-  Search,
   Download,
   Trash2,
   Play,
   Plus,
-  ChevronUp,
   X,
 } from "lucide-react";
 import { SubscriptionModal } from "@/components/SubscriptionModal";
@@ -52,14 +35,9 @@ export default function Dashboard() {
   const { toast } = useToast();
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [dateFilter, setDateFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [playingVideoUrl, setPlayingVideoUrl] = useState<string | null>(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
-  const videosUsed = videos.length;
-  const videosLimit = 30;
 
   const loadVideos = useCallback(async () => {
     if (!user?.id) {
@@ -256,98 +234,21 @@ export default function Dashboard() {
     window.open(videoUrl, "_blank");
   };
 
-  const filteredVideos = videos.filter((video) => {
-    const matchesSearch = video.address.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "all" || video.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredVideos = videos;
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-
-      <main className="pt-20 pb-12">
-        {/* Usage Banner */}
-        <div className="bg-accent border-b border-border">
-          <div className="container mx-auto px-6 py-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex-1 w-full sm:w-auto">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-foreground">
-                    {videosUsed} of {videosLimit} videos used this month
-                  </span>
-                  <span className="text-sm text-muted-foreground sm:hidden">
-                    {Math.round((videosUsed / videosLimit) * 100)}%
-                  </span>
-                </div>
-                <div className="h-2 bg-border rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-primary rounded-full transition-all duration-500"
-                    style={{ width: `${(videosUsed / videosLimit) * 100}%` }}
-                  />
-                </div>
-              </div>
-              <Link
-                to="/settings?tab=plan"
-                className="text-sm text-primary hover:text-primary/80 font-medium flex items-center gap-1"
-              >
-                <ChevronUp className="w-4 h-4" />
-                Upgrade Plan
-              </Link>
-            </div>
-          </div>
+    <DashboardLayout>
+      <div className="p-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-2xl font-bold text-foreground">Videos</h1>
+          <Button asChild variant="hero" size="default">
+            <Link to="/create">
+              <Plus className="w-4 h-4" />
+              New video
+            </Link>
+          </Button>
         </div>
-
-        <div className="container mx-auto px-6 mt-8">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">My Videos</h1>
-              <p className="text-muted-foreground mt-1">
-                Manage and download your property videos
-              </p>
-            </div>
-            <Button asChild variant="hero" size="lg">
-              <Link to="/create">
-                <Plus className="w-5 h-5" />
-                Create Video
-              </Link>
-            </Button>
-          </div>
-
-          {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-8">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <Input
-                placeholder="Search by address..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-11"
-              />
-            </div>
-            <Select value={dateFilter} onValueChange={setDateFilter}>
-              <SelectTrigger className="w-full sm:w-40 h-11">
-                <SelectValue placeholder="Date" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Time</SelectItem>
-                <SelectItem value="week">This Week</SelectItem>
-                <SelectItem value="month">This Month</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-40 h-11">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="ready">Ready</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
 
           {/* Video Grid */}
           {loading ? (
@@ -358,76 +259,74 @@ export default function Dashboard() {
               <p className="text-muted-foreground">Loading videos...</p>
             </div>
           ) : filteredVideos.length > 0 ? (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filteredVideos.map((video) => (
                 <div
                   key={video.id}
-                  className="group bg-card rounded-xl border border-border overflow-hidden hover-lift"
+                  className="group cursor-pointer"
+                  onClick={() => {
+                    if (video.status === "ready" && video.videoUrl) {
+                      setPlayingVideoUrl(video.videoUrl);
+                    }
+                  }}
                 >
                   {/* Thumbnail */}
-                  <div className="aspect-video bg-secondary relative">
-                    {video.thumbnailUrl && (
+                  <div className="aspect-[4/3] bg-secondary rounded-lg overflow-hidden relative border border-border">
+                    {video.thumbnailUrl ? (
                       <img
                         src={video.thumbnailUrl}
                         alt={video.address}
                         className="absolute inset-0 w-full h-full object-cover"
                       />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Video className="w-8 h-8 text-muted-foreground" />
+                      </div>
                     )}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      {video.status === "ready" ? (
-                        <button
-                          onClick={() => video.videoUrl && setPlayingVideoUrl(video.videoUrl)}
-                          className="w-14 h-14 rounded-full bg-primary/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                        >
-                          <Play className="w-6 h-6 text-primary-foreground ml-1" />
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Video className="w-6 h-6 animate-pulse" />
-                          <span className="text-sm">Processing...</span>
-                        </div>
-                      )}
-                    </div>
 
-                    {/* Status Badge */}
-                    <span
-                      className={`absolute top-3 right-3 px-2 py-1 rounded-full text-xs font-medium ${
-                        video.status === "ready"
-                          ? "bg-success text-success-foreground"
-                          : video.status === "failed"
-                          ? "bg-destructive text-destructive-foreground"
-                          : "bg-warning text-warning-foreground"
-                      }`}
-                    >
-                      {video.status === "ready" ? "Ready" : video.status === "failed" ? "Failed" : "Processing"}
-                    </span>
-
-                    {/* Action Buttons (visible on hover) */}
+                    {/* Play overlay on hover */}
                     {video.status === "ready" && (
-                      <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20">
+                        <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center">
+                          <Play className="w-5 h-5 text-foreground ml-0.5" />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Processing indicator */}
+                    {video.status === "processing" && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <Video className="w-6 h-6 text-white animate-pulse" />
+                      </div>
+                    )}
+
+                    {/* Hover actions */}
+                    {video.status === "ready" && (
+                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
-                          onClick={() => handleDownload(video.videoUrl)}
-                          className="p-2 rounded-lg bg-background/90 text-foreground hover:bg-background transition-colors"
-                          aria-label="Download video"
+                          onClick={(e) => { e.stopPropagation(); handleDownload(video.videoUrl); }}
+                          className="p-1.5 rounded-md bg-white/90 text-foreground hover:bg-white transition-colors"
+                          aria-label="Download"
                         >
-                          <Download className="w-4 h-4" />
+                          <Download className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          className="p-2 rounded-lg bg-background/90 text-destructive hover:bg-background transition-colors"
-                          aria-label="Delete video"
+                          onClick={(e) => e.stopPropagation()}
+                          className="p-1.5 rounded-md bg-white/90 text-destructive hover:bg-white transition-colors"
+                          aria-label="Delete"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     )}
                   </div>
 
                   {/* Info */}
-                  <div className="p-4">
-                    <h3 className="font-semibold text-foreground truncate" title={video.address}>
+                  <div className="mt-2.5">
+                    <h3 className="text-sm font-medium text-foreground truncate" title={video.address}>
                       {video.address}
                     </h3>
-                    <p className="text-sm text-muted-foreground mt-1">{video.createdAt}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Edited {video.createdAt}</p>
                   </div>
                 </div>
               ))}
@@ -450,8 +349,7 @@ export default function Dashboard() {
               </Button>
             </div>
           )}
-        </div>
-      </main>
+      </div>
 
       {/* Video Player Modal */}
       {playingVideoUrl && (
@@ -488,6 +386,6 @@ export default function Dashboard() {
         open={showSubscriptionModal}
         onOpenChange={setShowSubscriptionModal}
       />
-    </div>
+    </DashboardLayout>
   );
 }

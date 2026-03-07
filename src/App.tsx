@@ -12,6 +12,8 @@ import Dashboard from "./pages/Dashboard";
 import CreateVideo from "./pages/CreateVideo";
 import CreateComplete from "./pages/CreateComplete";
 import Settings from "./pages/Settings";
+import Team from "./pages/Team";
+import Billing from "./pages/Billing";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,6 +47,16 @@ const App = () => (
             <Route path="/settings" element={
               <ProtectedRoute>
                 <Settings />
+              </ProtectedRoute>
+            } />
+            <Route path="/team" element={
+              <ProtectedRoute>
+                <Team />
+              </ProtectedRoute>
+            } />
+            <Route path="/billing" element={
+              <ProtectedRoute>
+                <Billing />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
