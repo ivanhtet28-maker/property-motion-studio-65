@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   LayoutTemplate,
   Music,
@@ -10,6 +10,7 @@ import {
   Search,
   Upload,
   X,
+  MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { PropertyDetailsForm } from "./PropertyDetailsForm";
 import type { CustomizationSettings, AgentInfo } from "./CustomizationSection";
 import type { PropertyDetails } from "./PropertyDetailsForm";
 
@@ -77,6 +79,7 @@ interface StepBrandingProps {
   settings: CustomizationSettings;
   onChange: (settings: CustomizationSettings) => void;
   propertyDetails: PropertyDetails;
+  onPropertyDetailsChange: (details: PropertyDetails) => void;
   previewImageUrl?: string;
   orientation: "portrait" | "landscape";
   onOrientationChange: (o: "portrait" | "landscape") => void;
@@ -86,15 +89,18 @@ export function StepBranding({
   settings,
   onChange,
   propertyDetails,
+  onPropertyDetailsChange,
   previewImageUrl,
   orientation,
   onOrientationChange,
 }: StepBrandingProps) {
-  const [activeTab, setActiveTab] = useState("templates");
+  const [activeTab, setActiveTab] = useState("property");
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [musicCategory, setMusicCategory] = useState("All");
   const [musicSearch, setMusicSearch] = useState("");
   const [playingTrack, setPlayingTrack] = useState<string | null>(null);
+  const [customTemplates, setCustomTemplates] = useState<{ id: string; name: string; previewUrl: string }[]>([]);
+  const templateInputRef = useRef<HTMLInputElement>(null);
 
   const filteredTracks = MUSIC_TRACKS.filter((t) => {
     const matchesCategory = musicCategory === "All" || t.category === musicCategory;
@@ -102,8 +108,13 @@ export function StepBranding({
     return matchesCategory && matchesSearch;
   });
 
+  const allTemplates = [
+    ...INTRO_TEMPLATES,
+    ...customTemplates.map((t) => ({ id: t.id, name: t.name })),
+  ];
+
   const selectedTemplate =
-    INTRO_TEMPLATES.find((t) => t.id === settings.selectedTemplate) ||
+    allTemplates.find((t) => t.id === settings.selectedTemplate) ||
     INTRO_TEMPLATES[0];
 
   const updateSettings = (partial: Partial<CustomizationSettings>) => {
@@ -114,15 +125,34 @@ export function StepBranding({
     onChange({ ...settings, agentInfo: { ...settings.agentInfo, ...partial } });
   };
 
+  const handleTemplateUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+
+    Array.from(files).forEach((file) => {
+      const url = URL.createObjectURL(file);
+      const id = `custom-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const name = file.name.replace(/\.[^.]+$/, "");
+      setCustomTemplates((prev) => [...prev, { id, name, previewUrl: url }]);
+      updateSettings({ selectedTemplate: id, selectedLayout: id });
+    });
+
+    // Reset input
+    if (templateInputRef.current) templateInputRef.current.value = "";
+  };
+
+  const TAB_LIST = [
+    { id: "property", icon: MapPin, label: "Property" },
+    { id: "templates", icon: LayoutTemplate, label: "Templates" },
+    { id: "music", icon: Music, label: "Music" },
+    { id: "voiceover", icon: Mic, label: "Voiceover\nand Agent" },
+  ];
+
   return (
     <div className="flex gap-6 h-full">
       {/* Left: Icon tabs */}
       <div className="flex flex-col gap-2 pt-1">
-        {[
-          { id: "templates", icon: LayoutTemplate, label: "Templates" },
-          { id: "music", icon: Music, label: "Music" },
-          { id: "voiceover", icon: Mic, label: "Voiceover\nand Agent" },
-        ].map((tab) => {
+        {TAB_LIST.map((tab) => {
           const Icon = tab.icon;
           const active = activeTab === tab.id;
           return (
@@ -151,7 +181,17 @@ export function StepBranding({
       </div>
 
       {/* Center: Settings panel */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 overflow-y-auto max-h-[calc(100vh-200px)]">
+        {/* Property tab */}
+        {activeTab === "property" && (
+          <div>
+            <PropertyDetailsForm
+              details={propertyDetails}
+              onChange={onPropertyDetailsChange}
+            />
+          </div>
+        )}
+
         {/* Templates tab */}
         {activeTab === "templates" && (
           <div>
@@ -160,10 +200,88 @@ export function StepBranding({
               Templates
             </h3>
             <p className="text-sm text-muted-foreground mt-1 mb-5">
-              Customize your video with pre-built templates.
+              Customize your video with pre-built templates or upload your own.
             </p>
 
             <div className="space-y-5">
+              {/* Upload template */}
+              <div>
+                <input
+                  ref={templateInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  className="hidden"
+                  onChange={handleTemplateUpload}
+                  multiple
+                />
+                <Button
+                  variant="outline"
+                  className="w-full h-12 border-dashed"
+                  onClick={() => templateInputRef.current?.click()}
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload custom template
+                </Button>
+              </div>
+
+              {/* Custom templates */}
+              {customTemplates.length > 0 && (
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Your templates</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {customTemplates.map((ct) => {
+                      const isSelected = settings.selectedTemplate === ct.id;
+                      return (
+                        <button
+                          key={ct.id}
+                          onClick={() =>
+                            updateSettings({
+                              selectedTemplate: ct.id,
+                              selectedLayout: ct.id,
+                            })
+                          }
+                          className={`rounded-lg border-2 overflow-hidden transition-all ${
+                            isSelected
+                              ? "border-primary ring-2 ring-primary/20"
+                              : "border-border hover:border-primary/40"
+                          }`}
+                        >
+                          <div className="aspect-video bg-secondary">
+                            <img
+                              src={ct.previewUrl}
+                              alt={ct.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="p-1.5 flex items-center justify-between">
+                            <p className="text-[11px] font-medium text-foreground truncate">
+                              {ct.name}
+                            </p>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCustomTemplates((prev) =>
+                                  prev.filter((t) => t.id !== ct.id)
+                                );
+                                if (settings.selectedTemplate === ct.id) {
+                                  updateSettings({
+                                    selectedTemplate: "none",
+                                    selectedLayout: "none",
+                                  });
+                                }
+                              }}
+                              className="p-0.5 rounded hover:bg-accent"
+                            >
+                              <X className="w-3 h-3 text-muted-foreground" />
+                            </button>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Template style */}
               <div>
                 <Label className="text-sm font-medium">Template style</Label>
@@ -467,8 +585,9 @@ export function StepBranding({
             </DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-3 gap-4 mt-2">
-            {INTRO_TEMPLATES.map((template) => {
+            {allTemplates.map((template) => {
               const isSelected = settings.selectedTemplate === template.id;
+              const customPreview = customTemplates.find((c) => c.id === template.id)?.previewUrl;
               return (
                 <button
                   key={template.id}
@@ -488,6 +607,12 @@ export function StepBranding({
                   <div className="aspect-video bg-secondary flex items-center justify-center">
                     {template.id === "none" ? (
                       <X className="w-8 h-8 text-muted-foreground" />
+                    ) : customPreview ? (
+                      <img
+                        src={customPreview}
+                        alt={template.name}
+                        className="w-full h-full object-cover"
+                      />
                     ) : previewImageUrl ? (
                       <img
                         src={previewImageUrl}
@@ -507,6 +632,7 @@ export function StepBranding({
           </div>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }

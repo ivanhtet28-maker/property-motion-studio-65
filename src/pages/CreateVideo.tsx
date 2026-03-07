@@ -8,7 +8,6 @@ import { supabase } from "@/lib/supabase";
 import { invokeEdgeFunction, EdgeFunctionError } from "@/lib/invokeEdgeFunction";
 import { callVideoStatus } from "@/lib/callVideoStatus";
 import {
-  PropertyDetailsForm,
   PropertyDetails,
   CustomizationSettings,
 } from "@/components/create-video";
@@ -20,7 +19,7 @@ import { getVoiceId } from "@/config/voiceMapping";
 import { type CameraAction, type ImageMetadata } from "@/components/create-video/PhotoUpload";
 import { StepUpload } from "@/components/create-video/StepUpload";
 import { StepSelect } from "@/components/create-video/StepSelect";
-import { StepEdit } from "@/components/create-video/StepEdit";
+import { StepEdit, type CropData } from "@/components/create-video/StepEdit";
 import { StepBranding } from "@/components/create-video/StepBranding";
 
 // ─── Step definitions ───────────────────────────────────
@@ -28,8 +27,7 @@ const STEPS = [
   { id: 1, label: "Upload" },
   { id: 2, label: "Select" },
   { id: 3, label: "Edit" },
-  { id: 4, label: "Confirm" },
-  { id: 5, label: "Branding" },
+  { id: 4, label: "Branding" },
 ] as const;
 
 export default function CreateVideo() {
@@ -57,6 +55,7 @@ export default function CreateVideo() {
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [cameraActions, setCameraActions] = useState<Record<number, CameraAction>>({});
   const [orientation, setOrientation] = useState<"portrait" | "landscape">("portrait");
+  const [cropData, setCropData] = useState<Record<number, CropData>>({});
   const [imageMetadata, setImageMetadata] = useState<ImageMetadata[]>([]);
   const [script, setScript] = useState("");
 
@@ -136,8 +135,6 @@ export default function CreateVideo() {
       case 3:
         return selectedIndices.length >= 3;
       case 4:
-        return !!propertyDetails.streetAddress.trim();
-      case 5:
         return (
           !!customization.agentInfo.name.trim() &&
           !!customization.agentInfo.phone.trim()
@@ -148,7 +145,7 @@ export default function CreateVideo() {
   };
 
   const goNext = () => {
-    if (step < 5 && canGoNext()) setStep(step + 1);
+    if (step < 4 && canGoNext()) setStep(step + 1);
   };
   const goBack = () => {
     if (step > 1) setStep(step - 1);
@@ -603,33 +600,20 @@ export default function CreateVideo() {
               }
               orientation={orientation}
               onOrientationChange={setOrientation}
+              cropData={cropData}
+              onCropChange={(idx, crop) =>
+                setCropData((prev) => ({ ...prev, [idx]: crop }))
+              }
             />
           )}
 
-          {/* Step 4: Confirm (Property Details) */}
-          {step === 4 && (
-            <div className="max-w-2xl mx-auto">
-              <h2 className="text-lg font-semibold text-foreground mb-1">
-                Property details
-              </h2>
-              <p className="text-sm text-muted-foreground mb-6">
-                Add property information for the video overlay and voiceover.
-              </p>
-              <div className="bg-card rounded-xl border border-border p-6">
-                <PropertyDetailsForm
-                  details={propertyDetails}
-                  onChange={setPropertyDetails}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Step 5: Branding */}
-          {step === 5 && !isGenerating && !videoReady && (
+          {/* Step 4: Branding (includes property details) */}
+          {step === 4 && !isGenerating && !videoReady && (
             <StepBranding
               settings={customization}
               onChange={setCustomization}
               propertyDetails={propertyDetails}
+              onPropertyDetailsChange={setPropertyDetails}
               previewImageUrl={previewImageUrl}
               orientation={orientation}
               onOrientationChange={setOrientation}
@@ -637,7 +621,7 @@ export default function CreateVideo() {
           )}
 
           {/* Generating state */}
-          {step === 5 && isGenerating && (
+          {step === 4 && isGenerating && (
             <div className="max-w-md mx-auto text-center py-20">
               <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
               <h2 className="text-xl font-bold text-foreground mb-2">
@@ -660,7 +644,7 @@ export default function CreateVideo() {
           )}
 
           {/* Video ready state */}
-          {step === 5 && videoReady && videoUrl && (
+          {step === 4 && videoReady && videoUrl && (
             <div className="max-w-lg mx-auto text-center py-12">
               <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
                 <Check className="w-8 h-8 text-green-600" />
@@ -715,7 +699,7 @@ export default function CreateVideo() {
           Back
         </Button>
 
-        {step < 5 ? (
+        {step < 4 ? (
           <Button
             variant="hero"
             onClick={goNext}
