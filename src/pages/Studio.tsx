@@ -94,14 +94,19 @@ const ICON_STICKERS = [
 
 // ─── Music tracks ────────────────────────────────────
 const MUSIC_TRACKS = [
-  "Horizon - Epic Journey",
-  "Summit - Orchestral Rise",
-  "Asteroid - Modern & Chill",
-  "Waves - Lo-fi Beats",
-  "Pulse - Dance Pop",
-  "Nocturne - Piano Solo",
-  "Drift - Ambient Tones",
-  "Serenity - Nature Sounds",
+  "ambient-relaxing-1",
+  "ambient-relaxing-2",
+  "cinematic-epic-1",
+  "cinematic-epic-2",
+  "cinematic-epic-3",
+  "classical-elegant-1",
+  "classical-elegant-2",
+  "Lofi 2 .mp3",
+  "Luxury 1.mp3",
+  "modern-chill-1",
+  "modern-chill-2",
+  "Upbeat 1 .mp3",
+  "upbeat-energetic-3.mp3",
 ];
 
 // ─── Timeline clip type ──────────────────────────────

@@ -64,7 +64,7 @@ export default function CreateVideo() {
     includeVoiceover: true,
     voiceType: "Australian Male",
     musicStyle: "Cinematic & Epic",
-    musicTrack: "Horizon - Epic Journey",
+    musicTrack: "cinematic-epic-1",
     customAudioUrl: null,
     customAudioFile: null,
     musicTrimStart: 0,

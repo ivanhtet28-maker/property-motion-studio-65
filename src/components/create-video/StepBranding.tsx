@@ -51,24 +51,19 @@ const INTRO_TEMPLATES = [
 // All music tracks — IDs and filenames match actual Supabase Storage files
 // Storage bucket: video-assets/music/
 const MUSIC_TRACKS: { name: string; id: string; filename: string; duration: string }[] = [
-  // Cinematic
-  { name: "Horizon - Epic Journey", id: "cinematic-epic-1", filename: "cinematic-epic-1", duration: "2:45" },
-  { name: "Summit - Orchestral Rise", id: "cinematic-epic-2", filename: "cinematic-epic-2", duration: "3:12" },
-  { name: "Grand Estate - Dramatic Reveal", id: "cinematic-epic-3", filename: "cinematic-epic-3", duration: "2:30" },
-  { name: "Luxury Showcase", id: "luxury-1", filename: "Luxury 1.mp3", duration: "2:58" },
-  // Modern
-  { name: "Daylight - Acoustic Pop", id: "modern-chill-1", filename: "modern-chill-1", duration: "2:40" },
-  { name: "Waves - Lo-fi Beats", id: "modern-chill-2", filename: "modern-chill-2", duration: "2:55" },
-  { name: "Lofi Chill Beats", id: "lofi-2", filename: "Lofi 2 .mp3", duration: "3:00" },
-  // Energetic
-  { name: "Welcome Home - Feel Good", id: "upbeat-energetic-3", filename: "upbeat-energetic-3.mp3", duration: "2:42" },
-  { name: "Upbeat Energy", id: "upbeat-1", filename: "Upbeat 1 .mp3", duration: "2:35" },
-  // Classical
-  { name: "Nocturne - Piano Solo", id: "classical-elegant-1", filename: "classical-elegant-1", duration: "3:20" },
-  { name: "Adagio - String Quartet", id: "classical-elegant-2", filename: "classical-elegant-2", duration: "3:45" },
-  // Ambient
-  { name: "Drift - Ambient Tones", id: "ambient-relaxing-1", filename: "ambient-relaxing-1", duration: "3:00" },
-  { name: "Serenity - Soft Pads", id: "ambient-relaxing-2", filename: "ambient-relaxing-2", duration: "3:25" },
+  { name: "ambient-relaxing-1", id: "ambient-relaxing-1", filename: "ambient-relaxing-1", duration: "3:00" },
+  { name: "ambient-relaxing-2", id: "ambient-relaxing-2", filename: "ambient-relaxing-2", duration: "3:25" },
+  { name: "cinematic-epic-1", id: "cinematic-epic-1", filename: "cinematic-epic-1", duration: "2:45" },
+  { name: "cinematic-epic-2", id: "cinematic-epic-2", filename: "cinematic-epic-2", duration: "3:12" },
+  { name: "cinematic-epic-3", id: "cinematic-epic-3", filename: "cinematic-epic-3", duration: "2:30" },
+  { name: "classical-elegant-1", id: "classical-elegant-1", filename: "classical-elegant-1", duration: "3:20" },
+  { name: "classical-elegant-2", id: "classical-elegant-2", filename: "classical-elegant-2", duration: "3:45" },
+  { name: "Lofi 2 .mp3", id: "lofi-2", filename: "Lofi 2 .mp3", duration: "3:00" },
+  { name: "Luxury 1.mp3", id: "luxury-1", filename: "Luxury 1.mp3", duration: "2:58" },
+  { name: "modern-chill-1", id: "modern-chill-1", filename: "modern-chill-1", duration: "2:40" },
+  { name: "modern-chill-2", id: "modern-chill-2", filename: "modern-chill-2", duration: "2:55" },
+  { name: "Upbeat 1 .mp3", id: "upbeat-1", filename: "Upbeat 1 .mp3", duration: "2:35" },
+  { name: "upbeat-energetic-3.mp3", id: "upbeat-energetic-3", filename: "upbeat-energetic-3.mp3", duration: "2:42" },
 ];
 
 const MUSIC_BASE_URL =

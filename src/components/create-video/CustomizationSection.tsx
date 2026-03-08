@@ -63,11 +63,11 @@ const musicStyles = [
 ];
 
 const musicTracks: Record<string, string[]> = {
-  "Cinematic & Epic": ["Horizon - Epic Journey", "Summit - Orchestral Rise", "Vast - Dramatic Sweep"],
-  "Modern & Chill": ["Asteroid - Modern & Chill", "Waves - Lo-fi Beats", "Sunset - Acoustic Vibes"],
-  "Upbeat & Energetic": ["Pulse - Dance Pop", "Drive - Electronic", "Spark - Indie Rock"],
-  "Classical Elegance": ["Nocturne - Piano Solo", "Adagio - String Quartet", "Grace - Chamber Music"],
-  "Ambient Relaxing": ["Drift - Ambient Tones", "Serenity - Nature Sounds", "Flow - Meditation"],
+  "Cinematic & Epic": ["cinematic-epic-1", "cinematic-epic-2", "cinematic-epic-3"],
+  "Modern & Chill": ["modern-chill-1", "modern-chill-2", "Lofi 2 .mp3"],
+  "Upbeat & Energetic": ["upbeat-energetic-3.mp3", "Upbeat 1 .mp3", "Luxury 1.mp3"],
+  "Classical Elegance": ["classical-elegant-1", "classical-elegant-2"],
+  "Ambient Relaxing": ["ambient-relaxing-1", "ambient-relaxing-2"],
 };
 
 interface CustomizationSectionProps {

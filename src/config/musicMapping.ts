@@ -6,28 +6,19 @@ const MUSIC_BASE_URL =
 // Map frontend music track names → Shotstack-compatible audio URLs.
 // Filenames must match exactly what's in Supabase Storage under video-assets/music/.
 export const MUSIC_TRACK_MAPPING: Record<string, { id: string; url: string }> = {
-  // ─── Cinematic ──────────────────────────────────────
-  "Horizon - Epic Journey":         { id: "cinematic-epic-1", url: `${MUSIC_BASE_URL}/cinematic-epic-1` },
-  "Summit - Orchestral Rise":       { id: "cinematic-epic-2", url: `${MUSIC_BASE_URL}/cinematic-epic-2` },
-  "Grand Estate - Dramatic Reveal": { id: "cinematic-epic-3", url: `${MUSIC_BASE_URL}/cinematic-epic-3` },
-  "Luxury Showcase":                { id: "luxury-1", url: `${MUSIC_BASE_URL}/${encodeURIComponent("Luxury 1.mp3")}` },
-
-  // ─── Modern ─────────────────────────────────────────
-  "Daylight - Acoustic Pop":  { id: "modern-chill-1", url: `${MUSIC_BASE_URL}/modern-chill-1` },
-  "Waves - Lo-fi Beats":      { id: "modern-chill-2", url: `${MUSIC_BASE_URL}/modern-chill-2` },
-  "Lofi Chill Beats":         { id: "lofi-2", url: `${MUSIC_BASE_URL}/${encodeURIComponent("Lofi 2 .mp3")}` },
-
-  // ─── Energetic ──────────────────────────────────────
-  "Welcome Home - Feel Good":  { id: "upbeat-energetic-3", url: `${MUSIC_BASE_URL}/upbeat-energetic-3.mp3` },
-  "Upbeat Energy":             { id: "upbeat-1", url: `${MUSIC_BASE_URL}/${encodeURIComponent("Upbeat 1 .mp3")}` },
-
-  // ─── Classical ──────────────────────────────────────
-  "Nocturne - Piano Solo":     { id: "classical-elegant-1", url: `${MUSIC_BASE_URL}/classical-elegant-1` },
-  "Adagio - String Quartet":   { id: "classical-elegant-2", url: `${MUSIC_BASE_URL}/classical-elegant-2` },
-
-  // ─── Ambient ────────────────────────────────────────
-  "Drift - Ambient Tones":     { id: "ambient-relaxing-1", url: `${MUSIC_BASE_URL}/ambient-relaxing-1` },
-  "Serenity - Soft Pads":      { id: "ambient-relaxing-2", url: `${MUSIC_BASE_URL}/ambient-relaxing-2` },
+  "ambient-relaxing-1":      { id: "ambient-relaxing-1", url: `${MUSIC_BASE_URL}/ambient-relaxing-1` },
+  "ambient-relaxing-2":      { id: "ambient-relaxing-2", url: `${MUSIC_BASE_URL}/ambient-relaxing-2` },
+  "cinematic-epic-1":        { id: "cinematic-epic-1", url: `${MUSIC_BASE_URL}/cinematic-epic-1` },
+  "cinematic-epic-2":        { id: "cinematic-epic-2", url: `${MUSIC_BASE_URL}/cinematic-epic-2` },
+  "cinematic-epic-3":        { id: "cinematic-epic-3", url: `${MUSIC_BASE_URL}/cinematic-epic-3` },
+  "classical-elegant-1":     { id: "classical-elegant-1", url: `${MUSIC_BASE_URL}/classical-elegant-1` },
+  "classical-elegant-2":     { id: "classical-elegant-2", url: `${MUSIC_BASE_URL}/classical-elegant-2` },
+  "Lofi 2 .mp3":             { id: "lofi-2", url: `${MUSIC_BASE_URL}/${encodeURIComponent("Lofi 2 .mp3")}` },
+  "Luxury 1.mp3":            { id: "luxury-1", url: `${MUSIC_BASE_URL}/${encodeURIComponent("Luxury 1.mp3")}` },
+  "modern-chill-1":          { id: "modern-chill-1", url: `${MUSIC_BASE_URL}/modern-chill-1` },
+  "modern-chill-2":          { id: "modern-chill-2", url: `${MUSIC_BASE_URL}/modern-chill-2` },
+  "Upbeat 1 .mp3":           { id: "upbeat-1", url: `${MUSIC_BASE_URL}/${encodeURIComponent("Upbeat 1 .mp3")}` },
+  "upbeat-energetic-3.mp3":  { id: "upbeat-energetic-3", url: `${MUSIC_BASE_URL}/upbeat-energetic-3.mp3` },
 };
 
 /**
