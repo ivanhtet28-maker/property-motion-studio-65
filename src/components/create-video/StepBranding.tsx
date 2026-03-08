@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   LayoutTemplate,
   Music,
@@ -11,6 +11,8 @@ import {
   Upload,
   X,
   MapPin,
+  Scissors,
+  Volume2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,40 +48,50 @@ const INTRO_TEMPLATES = [
   { id: "modern-treehouse", name: "Modern Treehouse" },
 ];
 
-// Music categories and tracks (5 per category, 25 total)
-const MUSIC_CATEGORIES = ["All", "Cinematic", "Modern", "Energetic", "Classical", "Ambient"];
-const MUSIC_TRACKS: { name: string; category: string; id: string; duration: string }[] = [
-  // Cinematic — sweeping orchestral, dramatic reveals
-  { name: "Horizon - Epic Journey", category: "Cinematic", id: "cinematic-1", duration: "2:45" },
-  { name: "Summit - Orchestral Rise", category: "Cinematic", id: "cinematic-2", duration: "3:12" },
-  { name: "Grand Estate - Dramatic Reveal", category: "Cinematic", id: "cinematic-3", duration: "2:30" },
-  { name: "Prestige - Luxury Showcase", category: "Cinematic", id: "cinematic-4", duration: "2:58" },
-  { name: "Skyline - Aerial Sweep", category: "Cinematic", id: "cinematic-5", duration: "3:05" },
-  // Modern — clean, contemporary feel
-  { name: "Daylight - Acoustic Pop", category: "Modern", id: "modern-1", duration: "2:40" },
-  { name: "Waves - Lo-fi Beats", category: "Modern", id: "modern-2", duration: "2:55" },
-  { name: "Sunset - Acoustic Vibes", category: "Modern", id: "modern-3", duration: "3:10" },
-  { name: "Cornerstone - Indie Folk", category: "Modern", id: "modern-4", duration: "2:48" },
-  { name: "Blueprint - Minimal House", category: "Modern", id: "modern-5", duration: "3:00" },
-  // Energetic — upbeat, open house energy
-  { name: "Open Door - Upbeat Pop", category: "Energetic", id: "energetic-1", duration: "2:35" },
-  { name: "Drive - Electronic", category: "Energetic", id: "energetic-2", duration: "2:50" },
-  { name: "Welcome Home - Feel Good", category: "Energetic", id: "energetic-3", duration: "2:42" },
-  { name: "First Look - Bright & Fun", category: "Energetic", id: "energetic-4", duration: "2:28" },
-  { name: "Move In - Happy Bounce", category: "Energetic", id: "energetic-5", duration: "2:55" },
-  // Classical — elegant piano & strings
-  { name: "Nocturne - Piano Solo", category: "Classical", id: "classical-1", duration: "3:20" },
-  { name: "Adagio - String Quartet", category: "Classical", id: "classical-2", duration: "3:45" },
-  { name: "Heritage - Piano & Cello", category: "Classical", id: "classical-3", duration: "3:15" },
-  { name: "Elegance - Chamber Music", category: "Classical", id: "classical-4", duration: "3:30" },
-  { name: "Manor - Harp & Strings", category: "Classical", id: "classical-5", duration: "3:10" },
-  // Ambient — calm, lifestyle feel
-  { name: "Drift - Ambient Tones", category: "Ambient", id: "ambient-1", duration: "3:00" },
-  { name: "Serenity - Soft Pads", category: "Ambient", id: "ambient-2", duration: "3:25" },
-  { name: "Retreat - Nature & Keys", category: "Ambient", id: "ambient-3", duration: "3:15" },
-  { name: "Sanctuary - Warm Textures", category: "Ambient", id: "ambient-4", duration: "3:40" },
-  { name: "Harbour - Coastal Calm", category: "Ambient", id: "ambient-5", duration: "3:05" },
+// All music tracks in a flat list (no categories)
+const MUSIC_TRACKS: { name: string; id: string; duration: string }[] = [
+  { name: "Horizon - Epic Journey", id: "cinematic-1", duration: "2:45" },
+  { name: "Summit - Orchestral Rise", id: "cinematic-2", duration: "3:12" },
+  { name: "Grand Estate - Dramatic Reveal", id: "cinematic-3", duration: "2:30" },
+  { name: "Prestige - Luxury Showcase", id: "cinematic-4", duration: "2:58" },
+  { name: "Skyline - Aerial Sweep", id: "cinematic-5", duration: "3:05" },
+  { name: "Daylight - Acoustic Pop", id: "modern-1", duration: "2:40" },
+  { name: "Waves - Lo-fi Beats", id: "modern-2", duration: "2:55" },
+  { name: "Sunset - Acoustic Vibes", id: "modern-3", duration: "3:10" },
+  { name: "Cornerstone - Indie Folk", id: "modern-4", duration: "2:48" },
+  { name: "Blueprint - Minimal House", id: "modern-5", duration: "3:00" },
+  { name: "Open Door - Upbeat Pop", id: "energetic-1", duration: "2:35" },
+  { name: "Drive - Electronic", id: "energetic-2", duration: "2:50" },
+  { name: "Welcome Home - Feel Good", id: "energetic-3", duration: "2:42" },
+  { name: "First Look - Bright & Fun", id: "energetic-4", duration: "2:28" },
+  { name: "Move In - Happy Bounce", id: "energetic-5", duration: "2:55" },
+  { name: "Nocturne - Piano Solo", id: "classical-1", duration: "3:20" },
+  { name: "Adagio - String Quartet", id: "classical-2", duration: "3:45" },
+  { name: "Heritage - Piano & Cello", id: "classical-3", duration: "3:15" },
+  { name: "Elegance - Chamber Music", id: "classical-4", duration: "3:30" },
+  { name: "Manor - Harp & Strings", id: "classical-5", duration: "3:10" },
+  { name: "Drift - Ambient Tones", id: "ambient-1", duration: "3:00" },
+  { name: "Serenity - Soft Pads", id: "ambient-2", duration: "3:25" },
+  { name: "Retreat - Nature & Keys", id: "ambient-3", duration: "3:15" },
+  { name: "Sanctuary - Warm Textures", id: "ambient-4", duration: "3:40" },
+  { name: "Harbour - Coastal Calm", id: "ambient-5", duration: "3:05" },
 ];
+
+const MUSIC_BASE_URL =
+  "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music";
+
+/** Convert "M:SS" to seconds */
+function parseDuration(d: string): number {
+  const [m, s] = d.split(":").map(Number);
+  return m * 60 + s;
+}
+
+/** Format seconds to M:SS */
+function formatTime(secs: number): string {
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
 
 const VOICE_OPTIONS = [
   "Australian Male",
@@ -111,17 +123,96 @@ export function StepBranding({
 }: StepBrandingProps) {
   const [activeTab, setActiveTab] = useState("property");
   const [showTemplateModal, setShowTemplateModal] = useState(false);
-  const [musicCategory, setMusicCategory] = useState("All");
   const [musicSearch, setMusicSearch] = useState("");
   const [playingTrack, setPlayingTrack] = useState<string | null>(null);
   const [customTemplates, setCustomTemplates] = useState<{ id: string; name: string; previewUrl: string }[]>([]);
+  const [audioDuration, setAudioDuration] = useState(0);
   const templateInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const filteredTracks = MUSIC_TRACKS.filter((t) => {
-    const matchesCategory = musicCategory === "All" || t.category === musicCategory;
-    const matchesSearch = t.name.toLowerCase().includes(musicSearch.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+  const filteredTracks = MUSIC_TRACKS.filter((t) =>
+    t.name.toLowerCase().includes(musicSearch.toLowerCase())
+  );
+
+  // Get the audio URL for a track (library or custom upload)
+  const getTrackAudioUrl = useCallback((trackId: string): string | null => {
+    if (trackId === "custom-upload" && settings.customAudioFile) {
+      return URL.createObjectURL(settings.customAudioFile);
+    }
+    const track = MUSIC_TRACKS.find((t) => t.id === trackId);
+    if (track) return `${MUSIC_BASE_URL}/${track.id}.mp3`;
+    return null;
+  }, [settings.customAudioFile]);
+
+  // Handle play/pause with real audio
+  useEffect(() => {
+    if (!playingTrack) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      return;
+    }
+    const url = getTrackAudioUrl(playingTrack);
+    if (!url) return;
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+    const audio = new Audio(url);
+    audioRef.current = audio;
+    audio.play().catch(() => setPlayingTrack(null));
+    audio.onended = () => setPlayingTrack(null);
+    return () => {
+      audio.pause();
+      audio.onended = null;
+    };
+  }, [playingTrack, getTrackAudioUrl]);
+
+  // Clean up audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  // Handle custom audio upload
+  const handleAudioUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Get audio duration
+    const tempAudio = new Audio(URL.createObjectURL(file));
+    tempAudio.onloadedmetadata = () => {
+      setAudioDuration(tempAudio.duration);
+      updateSettings({
+        musicTrack: file.name.replace(/\.[^.]+$/, ""),
+        customAudioFile: file,
+        customAudioUrl: null, // Will be uploaded during generation
+        musicTrimStart: 0,
+        musicTrimEnd: Math.floor(tempAudio.duration),
+      });
+    };
+
+    if (audioInputRef.current) audioInputRef.current.value = "";
+  };
+
+  // Remove custom audio
+  const handleRemoveCustomAudio = () => {
+    updateSettings({
+      musicTrack: "",
+      customAudioFile: null,
+      customAudioUrl: null,
+      musicTrimStart: 0,
+      musicTrimEnd: 0,
+    });
+    setAudioDuration(0);
+    setPlayingTrack(null);
+  };
 
   const allTemplates = [
     ...INTRO_TEMPLATES,
@@ -364,75 +455,183 @@ export function StepBranding({
               Music
             </h3>
             <p className="text-sm text-muted-foreground mt-1 mb-5">
-              Select a track to feature in your video.
+              Select a track or upload your own audio.
             </p>
 
-            {/* Search */}
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search audio tracks..."
-                value={musicSearch}
-                onChange={(e) => setMusicSearch(e.target.value)}
-                className="pl-9 h-9"
+            {/* Upload audio button */}
+            <div className="mb-4">
+              <input
+                ref={audioInputRef}
+                type="file"
+                accept="audio/*"
+                className="hidden"
+                onChange={handleAudioUpload}
               />
-            </div>
-
-            {/* Category pills */}
-            <div className="flex gap-1.5 mb-4 flex-wrap">
-              {MUSIC_CATEGORIES.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setMusicCategory(cat)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                    musicCategory === cat
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-
-            {/* Track list */}
-            <div className="space-y-0.5 max-h-[400px] overflow-y-auto">
-              {filteredTracks.map((track) => {
-                const isSelected = settings.musicTrack === track.name;
-                const isPlaying = playingTrack === track.id;
-                return (
-                  <button
-                    key={track.id}
-                    onClick={() => updateSettings({ musicTrack: track.name })}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                      isSelected
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "text-foreground hover:bg-accent"
-                    }`}
-                  >
+              {settings.customAudioFile ? (
+                <div className="border border-primary/30 bg-primary/5 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2 min-w-0">
+                      <Volume2 className="w-4 h-4 text-primary flex-shrink-0" />
+                      <span className="text-sm font-medium text-primary truncate">
+                        {settings.customAudioFile.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPlayingTrack(isPlaying ? null : track.id);
-                        }}
-                        className="p-1 hover:bg-accent rounded flex-shrink-0"
+                        onClick={() =>
+                          setPlayingTrack(
+                            playingTrack === "custom-upload" ? null : "custom-upload"
+                          )
+                        }
+                        className="p-1 hover:bg-accent rounded"
                       >
-                        {isPlaying ? (
+                        {playingTrack === "custom-upload" ? (
                           <Pause className="w-4 h-4" />
                         ) : (
                           <Play className="w-4 h-4" />
                         )}
                       </button>
-                      <span className="truncate">{track.name}</span>
+                      <button
+                        onClick={handleRemoveCustomAudio}
+                        className="p-1 hover:bg-accent rounded"
+                      >
+                        <X className="w-4 h-4 text-muted-foreground" />
+                      </button>
                     </div>
-                    <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">
-                      {track.duration}
-                    </span>
-                  </button>
-                );
-              })}
+                  </div>
+
+                  {/* Trim controls */}
+                  {audioDuration > 0 && (
+                    <div className="space-y-2 pt-2 border-t border-border/50">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Scissors className="w-3 h-3" />
+                        <span>Trim audio</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <label className="text-[10px] text-muted-foreground block mb-1">
+                            Start: {formatTime(settings.musicTrimStart)}
+                          </label>
+                          <input
+                            type="range"
+                            min={0}
+                            max={Math.max(0, (settings.musicTrimEnd || audioDuration) - 1)}
+                            step={1}
+                            value={settings.musicTrimStart}
+                            onChange={(e) =>
+                              updateSettings({ musicTrimStart: Number(e.target.value) })
+                            }
+                            className="w-full h-1.5 accent-primary"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className="text-[10px] text-muted-foreground block mb-1">
+                            End: {formatTime(settings.musicTrimEnd || audioDuration)}
+                          </label>
+                          <input
+                            type="range"
+                            min={settings.musicTrimStart + 1}
+                            max={Math.floor(audioDuration)}
+                            step={1}
+                            value={settings.musicTrimEnd || Math.floor(audioDuration)}
+                            onChange={(e) =>
+                              updateSettings({ musicTrimEnd: Number(e.target.value) })
+                            }
+                            className="w-full h-1.5 accent-primary"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground text-right">
+                        Duration: {formatTime((settings.musicTrimEnd || audioDuration) - settings.musicTrimStart)}
+                        {" / "}
+                        {formatTime(audioDuration)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="w-full h-12 border-dashed"
+                  onClick={() => audioInputRef.current?.click()}
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload your own audio
+                </Button>
+              )}
             </div>
+
+            {/* Divider */}
+            {!settings.customAudioFile && (
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-xs text-muted-foreground">or choose a track</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+            )}
+
+            {/* Search */}
+            {!settings.customAudioFile && (
+              <>
+                <div className="relative mb-4">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search audio tracks..."
+                    value={musicSearch}
+                    onChange={(e) => setMusicSearch(e.target.value)}
+                    className="pl-9 h-9"
+                  />
+                </div>
+
+                {/* Track list — flat, no categories */}
+                <div className="space-y-0.5 max-h-[400px] overflow-y-auto">
+                  {filteredTracks.map((track) => {
+                    const isSelected =
+                      settings.musicTrack === track.name && !settings.customAudioFile;
+                    const isPlaying = playingTrack === track.id;
+                    return (
+                      <button
+                        key={track.id}
+                        onClick={() =>
+                          updateSettings({
+                            musicTrack: track.name,
+                            customAudioFile: null,
+                            customAudioUrl: null,
+                            musicTrimStart: 0,
+                            musicTrimEnd: 0,
+                          })
+                        }
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                          isSelected
+                            ? "bg-primary/10 text-primary font-medium"
+                            : "text-foreground hover:bg-accent"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPlayingTrack(isPlaying ? null : track.id);
+                            }}
+                            className="p-1 hover:bg-accent rounded flex-shrink-0"
+                          >
+                            {isPlaying ? (
+                              <Pause className="w-4 h-4" />
+                            ) : (
+                              <Play className="w-4 h-4" />
+                            )}
+                          </button>
+                          <span className="truncate">{track.name}</span>
+                        </div>
+                        <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">
+                          {track.duration}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         )}
 

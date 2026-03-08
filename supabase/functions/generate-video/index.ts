@@ -38,6 +38,9 @@
     customTitle?: string;
     voice: string;
     music: string;
+    customMusicUrl?: string;   // Direct URL to user-uploaded audio
+    musicTrimStart?: number;   // Trim start in seconds
+    musicTrimEnd?: number;     // Trim end in seconds
     userId?: string;
     propertyId?: string;
     script?: string;
@@ -257,7 +260,7 @@
       }
       console.log(`[generate-video] Authenticated user: ${userData.user.id}`);
 
-      const { imageUrls, imageMetadata, propertyData, style, layout, customTitle, voice, music, userId, propertyId, script, source, agentInfo, preGeneratedVideoUrls, useKenBurns }: GenerateVideoRequest = await req.json();
+      const { imageUrls, imageMetadata, propertyData, style, layout, customTitle, voice, music, customMusicUrl, musicTrimStart, musicTrimEnd, userId, propertyId, script, source, agentInfo, preGeneratedVideoUrls, useKenBurns }: GenerateVideoRequest = await req.json();
 
       console.log("=== VIDEO GENERATION ===");
       console.log("Mode:", useKenBurns ? "Ken Burns (Shotstack direct)" : "Runway Gen4 Turbo");
@@ -325,7 +328,10 @@
       }
 
       let musicUrl: string | null = null;
-      if (music) {
+      if (customMusicUrl) {
+        musicUrl = customMusicUrl;
+        console.log("Using custom uploaded music:", customMusicUrl);
+      } else if (music) {
         musicUrl = getMusicUrl(music);
         if (musicUrl) {
           console.log("Using background music:", music);
@@ -705,6 +711,8 @@
           message: `Started ${generationIds.length} Runway Gen4 Turbo generations. Poll video-status to track progress.`,
           audioUrl: audioUrl,
           musicUrl: musicUrl,
+          musicTrimStart: musicTrimStart || 0,
+          musicTrimEnd: musicTrimEnd || 0,
           agentInfo: agentInfo,
           propertyData: propertyData,
           style: style,

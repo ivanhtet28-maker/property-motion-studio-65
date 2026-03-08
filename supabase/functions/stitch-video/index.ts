@@ -123,6 +123,8 @@
     };
     audioUrl?: string;
     musicUrl?: string;
+    musicTrimStart?: number;  // Trim start in seconds
+    musicTrimEnd?: number;    // Trim end in seconds
     agentInfo?: {
       name: string;
       phone: string;
@@ -427,7 +429,7 @@
     }
 
     try {
-      const { videoUrls, imageUrls, imageEffects, cameraAngles, clipDurations, propertyData, audioUrl, musicUrl, agentInfo, style, layout, customTitle, videoId, outputFormat, fallbackSlots }: StitchVideoRequest = await req.json();
+      const { videoUrls, imageUrls, imageEffects, cameraAngles, clipDurations, propertyData, audioUrl, musicUrl, musicTrimStart, musicTrimEnd, agentInfo, style, layout, customTitle, videoId, outputFormat, fallbackSlots }: StitchVideoRequest = await req.json();
 
       // Ken Burns mode: raw property photos + Shotstack effects
       // AI mode: pre-generated video clips from Luma/Runway
@@ -612,6 +614,7 @@
             src: musicUrl,
             effect: "fadeInFadeOut",
             volume: 0.2,
+            ...(musicTrimStart ? { trim: musicTrimStart } : {}),
           } : undefined,
           fonts: [
             {

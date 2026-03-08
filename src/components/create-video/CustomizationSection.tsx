@@ -33,6 +33,10 @@ export interface CustomizationSettings {
   voiceType: string;
   musicStyle: string;
   musicTrack: string;
+  customAudioUrl: string | null; // URL of user-uploaded audio in Supabase Storage
+  customAudioFile: File | null;  // Local file reference before upload
+  musicTrimStart: number;        // Trim start in seconds
+  musicTrimEnd: number;          // Trim end in seconds (0 = no trim)
   selectedTemplate: string;
   selectedLayout: string; // "minimal-focus" | "bold-banner" | "modern-luxe"
   customTitle: string; // Custom title text (e.g., "Just Sold", "Open House")
