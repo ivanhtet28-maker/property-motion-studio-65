@@ -38,6 +38,9 @@
     customTitle?: string;
     voice: string;
     music: string;
+    customMusicUrl?: string;   // Direct URL to user-uploaded audio
+    musicTrimStart?: number;   // Trim start in seconds
+    musicTrimEnd?: number;     // Trim end in seconds
     userId?: string;
     propertyId?: string;
     script?: string;
@@ -70,32 +73,56 @@
     }
   }
 
-  // Music library mapping - updated IDs to match frontend
+  // Music library mapping — 25 tracks (5 per category)
+    // Upload MP3s to Supabase Storage: video-assets/music/{id}.mp3
+    const MUSIC_BASE = "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music";
     const MUSIC_LIBRARY: Record<string, string> = {
-      // Cinematic & Epic
-      "cinematic-epic-1": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/cinematic-epic-1.mp3",
-      "cinematic-epic-2": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/cinematic-epic-2.mp3",
-      "cinematic-epic-3": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/cinematic-epic-3.mp3",
-
-      // Modern & Chill
-      "modern-chill-1": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/modern-chill-1.mp3",
-      "modern-chill-2": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/modern-chill-2.mp3",
-      "modern-chill-3": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/modern-chill-3.mp3",
-
-      // Upbeat & Energetic
-      "upbeat-energetic-1": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/upbeat-energetic-1.mp3",
-      "upbeat-energetic-2": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/upbeat-energetic-2.mp3",
-      "upbeat-energetic-3": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/upbeat-energetic-3.mp3",
-
-      // Classical Elegance
-      "classical-elegant-1": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/classical-elegant-1.mp3",
-      "classical-elegant-2": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/classical-elegant-2.mp3",
-      "classical-elegant-3": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/classical-elegant-3.mp3",
-
-      // Ambient Relaxing
-      "ambient-relaxing-1": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/ambient-relaxing-1.mp3",
-      "ambient-relaxing-2": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/ambient-relaxing-2.mp3",
-      "ambient-relaxing-3": "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music/ambient-relaxing-3.mp3",
+      // Cinematic
+      "cinematic-1": `${MUSIC_BASE}/cinematic-1.mp3`,
+      "cinematic-2": `${MUSIC_BASE}/cinematic-2.mp3`,
+      "cinematic-3": `${MUSIC_BASE}/cinematic-3.mp3`,
+      "cinematic-4": `${MUSIC_BASE}/cinematic-4.mp3`,
+      "cinematic-5": `${MUSIC_BASE}/cinematic-5.mp3`,
+      // Modern
+      "modern-1": `${MUSIC_BASE}/modern-1.mp3`,
+      "modern-2": `${MUSIC_BASE}/modern-2.mp3`,
+      "modern-3": `${MUSIC_BASE}/modern-3.mp3`,
+      "modern-4": `${MUSIC_BASE}/modern-4.mp3`,
+      "modern-5": `${MUSIC_BASE}/modern-5.mp3`,
+      // Energetic
+      "energetic-1": `${MUSIC_BASE}/energetic-1.mp3`,
+      "energetic-2": `${MUSIC_BASE}/energetic-2.mp3`,
+      "energetic-3": `${MUSIC_BASE}/energetic-3.mp3`,
+      "energetic-4": `${MUSIC_BASE}/energetic-4.mp3`,
+      "energetic-5": `${MUSIC_BASE}/energetic-5.mp3`,
+      // Classical
+      "classical-1": `${MUSIC_BASE}/classical-1.mp3`,
+      "classical-2": `${MUSIC_BASE}/classical-2.mp3`,
+      "classical-3": `${MUSIC_BASE}/classical-3.mp3`,
+      "classical-4": `${MUSIC_BASE}/classical-4.mp3`,
+      "classical-5": `${MUSIC_BASE}/classical-5.mp3`,
+      // Ambient
+      "ambient-1": `${MUSIC_BASE}/ambient-1.mp3`,
+      "ambient-2": `${MUSIC_BASE}/ambient-2.mp3`,
+      "ambient-3": `${MUSIC_BASE}/ambient-3.mp3`,
+      "ambient-4": `${MUSIC_BASE}/ambient-4.mp3`,
+      "ambient-5": `${MUSIC_BASE}/ambient-5.mp3`,
+      // Legacy IDs (backwards compatibility)
+      "cinematic-epic-1": `${MUSIC_BASE}/cinematic-1.mp3`,
+      "cinematic-epic-2": `${MUSIC_BASE}/cinematic-2.mp3`,
+      "cinematic-epic-3": `${MUSIC_BASE}/cinematic-3.mp3`,
+      "modern-chill-1": `${MUSIC_BASE}/modern-1.mp3`,
+      "modern-chill-2": `${MUSIC_BASE}/modern-2.mp3`,
+      "modern-chill-3": `${MUSIC_BASE}/modern-3.mp3`,
+      "upbeat-energetic-1": `${MUSIC_BASE}/energetic-1.mp3`,
+      "upbeat-energetic-2": `${MUSIC_BASE}/energetic-2.mp3`,
+      "upbeat-energetic-3": `${MUSIC_BASE}/energetic-3.mp3`,
+      "classical-elegant-1": `${MUSIC_BASE}/classical-1.mp3`,
+      "classical-elegant-2": `${MUSIC_BASE}/classical-2.mp3`,
+      "classical-elegant-3": `${MUSIC_BASE}/classical-3.mp3`,
+      "ambient-relaxing-1": `${MUSIC_BASE}/ambient-1.mp3`,
+      "ambient-relaxing-2": `${MUSIC_BASE}/ambient-2.mp3`,
+      "ambient-relaxing-3": `${MUSIC_BASE}/ambient-3.mp3`,
     };
 
   const getMusicUrl = (musicId: string): string | null => {
@@ -233,7 +260,7 @@
       }
       console.log(`[generate-video] Authenticated user: ${userData.user.id}`);
 
-      const { imageUrls, imageMetadata, propertyData, style, layout, customTitle, voice, music, userId, propertyId, script, source, agentInfo, preGeneratedVideoUrls, useKenBurns }: GenerateVideoRequest = await req.json();
+      const { imageUrls, imageMetadata, propertyData, style, layout, customTitle, voice, music, customMusicUrl, musicTrimStart, musicTrimEnd, userId, propertyId, script, source, agentInfo, preGeneratedVideoUrls, useKenBurns }: GenerateVideoRequest = await req.json();
 
       console.log("=== VIDEO GENERATION ===");
       console.log("Mode:", useKenBurns ? "Ken Burns (Shotstack direct)" : "Runway Gen4 Turbo");
@@ -301,7 +328,10 @@
       }
 
       let musicUrl: string | null = null;
-      if (music) {
+      if (customMusicUrl) {
+        musicUrl = customMusicUrl;
+        console.log("Using custom uploaded music:", customMusicUrl);
+      } else if (music) {
         musicUrl = getMusicUrl(music);
         if (musicUrl) {
           console.log("Using background music:", music);
@@ -681,6 +711,8 @@
           message: `Started ${generationIds.length} Runway Gen4 Turbo generations. Poll video-status to track progress.`,
           audioUrl: audioUrl,
           musicUrl: musicUrl,
+          musicTrimStart: musicTrimStart || 0,
+          musicTrimEnd: musicTrimEnd || 0,
           agentInfo: agentInfo,
           propertyData: propertyData,
           style: style,

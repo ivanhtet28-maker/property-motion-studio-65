@@ -16,6 +16,7 @@ import { uploadVideoToStorage } from "@/utils/uploadVideoToStorage";
 import { generateCanvasVideo } from "@/utils/generateCanvasVideo";
 import { getMusicId } from "@/config/musicMapping";
 import { getVoiceId } from "@/config/voiceMapping";
+import { cropImageToFile } from "@/utils/cropImage";
 import { type CameraAction, type ImageMetadata } from "@/components/create-video/PhotoUpload";
 import { StepUpload } from "@/components/create-video/StepUpload";
 import { StepSelect } from "@/components/create-video/StepSelect";
@@ -64,6 +65,10 @@ export default function CreateVideo() {
     voiceType: "Australian Male",
     musicStyle: "Cinematic & Epic",
     musicTrack: "Horizon - Epic Journey",
+    customAudioUrl: null,
+    customAudioFile: null,
+    musicTrimStart: 0,
+    musicTrimEnd: 0,
     selectedTemplate: "open-house",
     selectedLayout: "open-house",
     customTitle: "",
@@ -88,6 +93,8 @@ export default function CreateVideo() {
     estimatedTime: number;
     audioUrl: string | null;
     musicUrl: string | null;
+    musicTrimStart?: number;
+    musicTrimEnd?: number;
     agentInfo: CustomizationSettings["agentInfo"];
     propertyData: Record<string, unknown>;
     style: string;
@@ -243,7 +250,9 @@ export default function CreateVideo() {
     provider?: string,
     imageUrls?: string[],
     outputFormat?: "portrait" | "landscape",
-    cameraAngles?: string[]
+    cameraAngles?: string[],
+    musicTrimStart?: number,
+    musicTrimEnd?: number
   ) => {
     const maxAttempts = 120;
     let attempts = 0;
@@ -272,6 +281,8 @@ export default function CreateVideo() {
             videoId,
             audioUrl,
             musicUrl,
+            musicTrimStart: musicTrimStart || undefined,
+            musicTrimEnd: musicTrimEnd || undefined,
             agentInfo,
             propertyData,
             style,
@@ -389,10 +400,24 @@ export default function CreateVideo() {
         return;
       }
 
-      // Upload selected photos
+      // Crop images that have crop data applied, then upload
+      const targetAspect = orientation === "portrait" ? 9 / 16 : 16 / 9;
+      const photosToUpload: File[] = [];
+      for (let i = 0; i < selectedPhotos.length; i++) {
+        const photoIdx = selectedIndices[i];
+        const crop = cropData[photoIdx];
+        if (crop && (crop.x !== 0.5 || crop.y !== 0.5)) {
+          photosToUpload.push(
+            await cropImageToFile(selectedPhotos[i], crop.x, crop.y, targetAspect)
+          );
+        } else {
+          photosToUpload.push(selectedPhotos[i]);
+        }
+      }
+
       const folder = `property-${Date.now()}`;
       const imageUrls = await uploadImagesToStorage(
-        selectedPhotos,
+        photosToUpload,
         folder,
         (completed, total) => setGeneratingProgress((completed / total) * 30)
       );
@@ -427,7 +452,31 @@ export default function CreateVideo() {
         description: videoScript,
       };
 
-      const musicId = getMusicId(customization.musicTrack);
+      // Handle music: either custom uploaded audio or library track
+      let musicId: string | null = null;
+      let customMusicUrl: string | null = null;
+      let musicTrimStart = 0;
+      let musicTrimEnd = 0;
+
+      if (customization.customAudioFile) {
+        // Upload custom audio to Supabase Storage
+        const audioFile = customization.customAudioFile;
+        const ext = audioFile.name.split(".").pop() || "mp3";
+        const audioPath = `music/custom-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
+        const { data: audioUpload, error: audioUploadErr } = await supabase.storage
+          .from("video-assets")
+          .upload(audioPath, audioFile, { cacheControl: "3600", upsert: false });
+        if (audioUploadErr) throw new Error(`Failed to upload audio: ${audioUploadErr.message}`);
+        const { data: audioUrlData } = supabase.storage
+          .from("video-assets")
+          .getPublicUrl(audioUpload.path);
+        customMusicUrl = audioUrlData.publicUrl;
+        musicTrimStart = customization.musicTrimStart;
+        musicTrimEnd = customization.musicTrimEnd;
+      } else {
+        musicId = getMusicId(customization.musicTrack);
+      }
+
       const voiceId = customization.includeVoiceover ? getVoiceId(customization.voiceType) : null;
 
       const imageMetadataPayload = imageUrls.map((url, index) => {
@@ -472,6 +521,9 @@ export default function CreateVideo() {
           customTitle: customization.customTitle,
           voice: voiceId,
           music: musicId,
+          customMusicUrl,
+          musicTrimStart: musicTrimStart || undefined,
+          musicTrimEnd: musicTrimEnd || undefined,
           userId: user?.id,
           script: videoScript,
           source: "upload",
@@ -498,13 +550,13 @@ export default function CreateVideo() {
           setStitchJobId(data.stitchJobId);
           setGeneratingProgress(80);
           toast({ title: "Stitching Video", description: "Assembling your video now..." });
-          pollVideoStatus([], data.videoId ?? null, data.audioUrl ?? null, data.musicUrl ?? null, data.agentInfo!, propertyDataPayload, customization.selectedTemplate, customization.selectedLayout, customization.customTitle, clipDurations, data.stitchJobId);
+          pollVideoStatus([], data.videoId ?? null, data.audioUrl ?? null, data.musicUrl ?? null, data.agentInfo!, propertyDataPayload, customization.selectedTemplate, customization.selectedLayout, customization.customTitle, clipDurations, data.stitchJobId, undefined, undefined, undefined, undefined, musicTrimStart, musicTrimEnd);
         } else {
           if (!data.generationIds?.length) throw new Error("No generation IDs returned.");
           setGenerationIds(data.generationIds);
           const est = Math.ceil((data.estimatedTime || 120) / 60);
           toast({ title: "Generation Started", description: `Generating ${data.totalClips} clips... ~${est}-${est + 2} min.` });
-          pollVideoStatus(data.generationIds, data.videoId ?? null, data.audioUrl ?? null, data.musicUrl ?? null, data.agentInfo!, propertyDataPayload, customization.selectedTemplate, customization.selectedLayout, customization.customTitle, clipDurations, null, data.provider, data.imageUrls || imageUrls, orientation, data.cameraAngles || imageMetadataPayload.map((m: Record<string, unknown>) => (m.cameraAction as string) || "push-in"));
+          pollVideoStatus(data.generationIds, data.videoId ?? null, data.audioUrl ?? null, data.musicUrl ?? null, data.agentInfo!, propertyDataPayload, customization.selectedTemplate, customization.selectedLayout, customization.customTitle, clipDurations, null, data.provider, data.imageUrls || imageUrls, orientation, data.cameraAngles || imageMetadataPayload.map((m: Record<string, unknown>) => (m.cameraAction as string) || "push-in"), musicTrimStart, musicTrimEnd);
         }
       } else {
         throw new Error(data.error || "Video generation failed");
