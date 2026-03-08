@@ -10,14 +10,16 @@ import {
   Search,
   Upload,
   X,
-  MapPin,
   Scissors,
   Volume2,
+  Ban,
+  ImageIcon,
+  Pencil,
+  User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -33,11 +35,10 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { PropertyDetailsForm } from "./PropertyDetailsForm";
 import type { CustomizationSettings, AgentInfo } from "./CustomizationSection";
 import type { PropertyDetails } from "./PropertyDetailsForm";
 
-// Template options
+// Intro template options
 const INTRO_TEMPLATES = [
   { id: "none", name: "None" },
   { id: "big-bold", name: "Big and Bold" },
@@ -46,6 +47,13 @@ const INTRO_TEMPLATES = [
   { id: "newly-listed", name: "Newly Listed" },
   { id: "open-house", name: "Open House" },
   { id: "modern-treehouse", name: "Modern Treehouse" },
+];
+
+// Outro template options
+const OUTRO_TEMPLATES = [
+  { id: "none", name: "None" },
+  { id: "classic", name: "Classic" },
+  { id: "classic-dark", name: "Classic Dark" },
 ];
 
 // All music tracks — IDs and filenames match actual Supabase Storage files
@@ -69,12 +77,6 @@ const MUSIC_TRACKS: { name: string; id: string; filename: string; duration: stri
 const MUSIC_BASE_URL =
   "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music";
 
-/** Convert "M:SS" to seconds */
-function parseDuration(d: string): number {
-  const [m, s] = d.split(":").map(Number);
-  return m * 60 + s;
-}
-
 /** Format seconds to M:SS */
 function formatTime(secs: number): string {
   const m = Math.floor(secs / 60);
@@ -97,6 +99,7 @@ interface StepBrandingProps {
   propertyDetails: PropertyDetails;
   onPropertyDetailsChange: (details: PropertyDetails) => void;
   previewImageUrl?: string;
+  lastImageUrl?: string;
   orientation: "portrait" | "landscape";
   onOrientationChange: (o: "portrait" | "landscape") => void;
 }
@@ -107,18 +110,21 @@ export function StepBranding({
   propertyDetails,
   onPropertyDetailsChange,
   previewImageUrl,
+  lastImageUrl,
   orientation,
   onOrientationChange,
 }: StepBrandingProps) {
-  const [activeTab, setActiveTab] = useState("property");
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [activeTab, setActiveTab] = useState("templates");
+  const [templateStyleTab, setTemplateStyleTab] = useState<"intro" | "outro">("intro");
+  const [showIntroModal, setShowIntroModal] = useState(false);
+  const [showOutroModal, setShowOutroModal] = useState(false);
+  const [previewFocus, setPreviewFocus] = useState<"intro" | "outro">("intro");
   const [musicSearch, setMusicSearch] = useState("");
   const [playingTrack, setPlayingTrack] = useState<string | null>(null);
-  const [customTemplates, setCustomTemplates] = useState<{ id: string; name: string; previewUrl: string }[]>([]);
   const [audioDuration, setAudioDuration] = useState(0);
-  const templateInputRef = useRef<HTMLInputElement>(null);
   const audioInputRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const brandLogoInputRef = useRef<HTMLInputElement>(null);
 
   const filteredTracks = MUSIC_TRACKS.filter((t) =>
     t.name.toLowerCase().includes(musicSearch.toLowerCase())
@@ -174,14 +180,13 @@ export function StepBranding({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Get audio duration
     const tempAudio = new Audio(URL.createObjectURL(file));
     tempAudio.onloadedmetadata = () => {
       setAudioDuration(tempAudio.duration);
       updateSettings({
         musicTrack: file.name.replace(/\.[^.]+$/, ""),
         customAudioFile: file,
-        customAudioUrl: null, // Will be uploaded during generation
+        customAudioUrl: null,
         musicTrimStart: 0,
         musicTrimEnd: Math.floor(tempAudio.duration),
       });
@@ -203,14 +208,13 @@ export function StepBranding({
     setPlayingTrack(null);
   };
 
-  const allTemplates = [
-    ...INTRO_TEMPLATES,
-    ...customTemplates.map((t) => ({ id: t.id, name: t.name })),
-  ];
-
-  const selectedTemplate =
-    allTemplates.find((t) => t.id === settings.selectedTemplate) ||
+  const selectedIntroTemplate =
+    INTRO_TEMPLATES.find((t) => t.id === settings.selectedTemplate) ||
     INTRO_TEMPLATES[0];
+
+  const selectedOutroTemplate =
+    OUTRO_TEMPLATES.find((t) => t.id === settings.outroTemplate) ||
+    OUTRO_TEMPLATES[0];
 
   const updateSettings = (partial: Partial<CustomizationSettings>) => {
     onChange({ ...settings, ...partial });
@@ -220,28 +224,126 @@ export function StepBranding({
     onChange({ ...settings, agentInfo: { ...settings.agentInfo, ...partial } });
   };
 
-  const handleTemplateUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files?.length) return;
-
-    Array.from(files).forEach((file) => {
-      const url = URL.createObjectURL(file);
-      const id = `custom-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-      const name = file.name.replace(/\.[^.]+$/, "");
-      setCustomTemplates((prev) => [...prev, { id, name, previewUrl: url }]);
-      updateSettings({ selectedTemplate: id, selectedLayout: id });
-    });
-
-    // Reset input
-    if (templateInputRef.current) templateInputRef.current.value = "";
+  // Handle brand logo upload
+  const handleBrandLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      updateSettings({ brandLogo: ev.target?.result as string });
+    };
+    reader.readAsDataURL(file);
+    if (brandLogoInputRef.current) brandLogoInputRef.current.value = "";
   };
 
+  // Handle agent photo upload
+  const handleAgentPhotoSelect = (file: File) => {
+    if (!file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      updateAgent({ photo: e.target?.result as string });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const agentPhotoInputRef = useRef<HTMLInputElement>(null);
+
   const TAB_LIST = [
-    { id: "property", icon: MapPin, label: "Property" },
     { id: "templates", icon: LayoutTemplate, label: "Templates" },
     { id: "music", icon: Music, label: "Music" },
-    { id: "voiceover", icon: Mic, label: "Voiceover\nand Agent" },
+    { id: "voiceover", icon: Mic, label: "Voiceover\nand Avatar" },
   ];
+
+  // Sync previewFocus with templateStyleTab when on templates tab
+  const handleTemplateStyleChange = (tab: "intro" | "outro") => {
+    setTemplateStyleTab(tab);
+    setPreviewFocus(tab);
+  };
+
+  // Intro overlay for preview
+  const renderIntroOverlay = () => {
+    if (settings.selectedTemplate === "none") return null;
+    const heading = settings.customTitle || selectedIntroTemplate.name.toUpperCase();
+    const details = settings.detailsText || `${propertyDetails.streetAddress}${propertyDetails.suburb ? ", " + propertyDetails.suburb : ""}`;
+    return (
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#1a3a4a]/90 to-[#1a3a4a]/70 px-4 py-3">
+        <div className="flex items-end gap-3">
+          <h3 className="text-white font-black text-lg uppercase tracking-wide leading-tight">
+            {heading}
+          </h3>
+          {details && (
+            <div className="border-l-2 border-white/50 pl-3 mb-0.5">
+              <p className="text-white/90 text-[10px] leading-relaxed whitespace-pre-line">
+                {details}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Outro card preview
+  const renderOutroPreview = () => {
+    if (settings.outroTemplate === "none") {
+      return (
+        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
+          No outro template
+        </div>
+      );
+    }
+    const isDark = settings.outroTemplate === "classic-dark";
+    const bg = isDark ? "bg-black" : "bg-white";
+    const textColor = isDark ? "text-white" : "text-foreground";
+    const subtextColor = isDark ? "text-white/70" : "text-muted-foreground";
+
+    return (
+      <div className={`w-full h-full ${bg} flex flex-col items-center justify-center px-4 py-6`}>
+        {/* Agent photo */}
+        {settings.showProfilePhoto && (
+          <div className="w-16 h-16 rounded-full overflow-hidden bg-secondary mb-3 flex-shrink-0">
+            {settings.agentInfo.photo ? (
+              <img
+                src={settings.agentInfo.photo}
+                alt="Agent"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <User className={`w-6 h-6 ${subtextColor}`} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Agent name & phone */}
+        <p className={`text-sm font-bold ${textColor}`}>
+          {settings.agentInfo.name || "Agent Name"}
+        </p>
+        {settings.agentInfo.phone && (
+          <p className={`text-xs ${subtextColor} mt-0.5`}>
+            {settings.agentInfo.phone}
+          </p>
+        )}
+
+        {/* Brand logo */}
+        {settings.showBrandLogo && settings.brandLogo && (
+          <img
+            src={settings.brandLogo}
+            alt="Brand"
+            className="h-8 object-contain mt-3"
+          />
+        )}
+
+        {/* Outro text */}
+        {settings.outroText && (
+          <p className={`text-xs ${subtextColor} mt-3 text-center`}>
+            {settings.outroText}
+          </p>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="flex gap-6 h-full">
@@ -277,16 +379,6 @@ export function StepBranding({
 
       {/* Center: Settings panel */}
       <div className="flex-1 min-w-0 overflow-y-auto max-h-[calc(100vh-200px)]">
-        {/* Property tab */}
-        {activeTab === "property" && (
-          <div>
-            <PropertyDetailsForm
-              details={propertyDetails}
-              onChange={onPropertyDetailsChange}
-            />
-          </div>
-        )}
-
         {/* Templates tab */}
         {activeTab === "templates" && (
           <div>
@@ -295,144 +387,213 @@ export function StepBranding({
               Templates
             </h3>
             <p className="text-sm text-muted-foreground mt-1 mb-5">
-              Customize your video with pre-built templates or upload your own.
+              Customize your video with pre-built templates.
             </p>
 
-            <div className="space-y-5">
-              {/* Upload template */}
-              <div>
-                <input
-                  ref={templateInputRef}
-                  type="file"
-                  accept="image/*,video/*"
-                  className="hidden"
-                  onChange={handleTemplateUpload}
-                  multiple
-                />
-                <Button
-                  variant="outline"
-                  className="w-full h-12 border-dashed"
-                  onClick={() => templateInputRef.current?.click()}
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload custom template
-                </Button>
-              </div>
+            {/* Template style label */}
+            <Label className="text-sm font-medium">Template style</Label>
 
-              {/* Custom templates */}
-              {customTemplates.length > 0 && (
+            {/* Intro / Outro toggle */}
+            <div className="inline-flex items-center border border-border rounded-lg overflow-hidden mt-2 mb-4">
+              <button
+                onClick={() => handleTemplateStyleChange("intro")}
+                className={`px-4 py-1.5 text-xs font-medium transition-colors ${
+                  templateStyleTab === "intro"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Intro
+              </button>
+              <button
+                onClick={() => handleTemplateStyleChange("outro")}
+                className={`px-4 py-1.5 text-xs font-medium transition-colors ${
+                  templateStyleTab === "outro"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Outro
+              </button>
+            </div>
+
+            {/* INTRO settings */}
+            {templateStyleTab === "intro" && (
+              <div className="space-y-5">
+                {/* Intro template dropdown */}
+                <Select
+                  value={settings.selectedTemplate}
+                  onValueChange={(v) => updateSettings({ selectedTemplate: v, selectedLayout: v })}
+                >
+                  <SelectTrigger className="h-10">
+                    <SelectValue>{selectedIntroTemplate.name}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INTRO_TEMPLATES.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <div className="h-px bg-border" />
+
+                {/* Heading */}
                 <div>
-                  <Label className="text-sm font-medium mb-2 block">Your templates</Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {customTemplates.map((ct) => {
-                      const isSelected = settings.selectedTemplate === ct.id;
-                      return (
-                        <button
-                          key={ct.id}
-                          onClick={() =>
-                            updateSettings({
-                              selectedTemplate: ct.id,
-                              selectedLayout: ct.id,
-                            })
-                          }
-                          className={`rounded-lg border-2 overflow-hidden transition-all ${
-                            isSelected
-                              ? "border-primary ring-2 ring-primary/20"
-                              : "border-border hover:border-primary/40"
-                          }`}
-                        >
-                          <div className="aspect-video bg-secondary">
+                  <Label htmlFor="heading">Heading</Label>
+                  <Input
+                    id="heading"
+                    placeholder="OPEN HOUSE"
+                    value={settings.customTitle}
+                    onChange={(e) => updateSettings({ customTitle: e.target.value })}
+                    className="mt-1.5 h-10"
+                  />
+                </div>
+
+                {/* Details */}
+                <div>
+                  <Label htmlFor="details">Details</Label>
+                  <Textarea
+                    id="details"
+                    placeholder={"03.14.2026 | 2PM\n123 Anywhere St, Any City"}
+                    value={settings.detailsText}
+                    onChange={(e) => updateSettings({ detailsText: e.target.value })}
+                    rows={3}
+                    className="mt-1.5 text-sm"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* OUTRO settings */}
+            {templateStyleTab === "outro" && (
+              <div className="space-y-5">
+                {/* Outro template dropdown */}
+                <Select
+                  value={settings.outroTemplate}
+                  onValueChange={(v) => updateSettings({ outroTemplate: v })}
+                >
+                  <SelectTrigger className="h-10">
+                    <SelectValue>{selectedOutroTemplate.name}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {OUTRO_TEMPLATES.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {settings.outroTemplate !== "none" && (
+                  <>
+                    {/* Profile photo & Brand logo toggles */}
+                    <div className="flex items-center gap-6">
+                      <div className="flex items-center gap-2">
+                        <Label className="text-sm">Profile photo</Label>
+                        <Switch
+                          checked={settings.showProfilePhoto}
+                          onCheckedChange={(v) => updateSettings({ showProfilePhoto: v })}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-sm">Brand logo</Label>
+                        <Switch
+                          checked={settings.showBrandLogo}
+                          onCheckedChange={(v) => updateSettings({ showBrandLogo: v })}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Photo & Logo upload area */}
+                    <div className="flex gap-4">
+                      {/* Agent photo */}
+                      <div
+                        className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-dashed border-border hover:border-primary/50 cursor-pointer flex-shrink-0 flex items-center justify-center bg-secondary/50"
+                        onClick={() => agentPhotoInputRef.current?.click()}
+                      >
+                        <input
+                          ref={agentPhotoInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleAgentPhotoSelect(file);
+                          }}
+                        />
+                        {settings.agentInfo.photo ? (
+                          <>
                             <img
-                              src={ct.previewUrl}
-                              alt={ct.name}
+                              src={settings.agentInfo.photo}
+                              alt="Agent"
                               className="w-full h-full object-cover"
                             />
+                            <div className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-background border border-border flex items-center justify-center">
+                              <Pencil className="w-2.5 h-2.5 text-muted-foreground" />
+                            </div>
+                          </>
+                        ) : (
+                          <div className="text-center">
+                            <User className="w-6 h-6 text-muted-foreground mx-auto" />
                           </div>
-                          <div className="p-1.5 flex items-center justify-between">
-                            <p className="text-[11px] font-medium text-foreground truncate">
-                              {ct.name}
-                            </p>
+                        )}
+                      </div>
+
+                      {/* Brand logo */}
+                      <div
+                        className="relative w-24 h-20 rounded-lg border-2 border-dashed border-border hover:border-primary/50 cursor-pointer flex items-center justify-center bg-secondary/50"
+                        onClick={() => brandLogoInputRef.current?.click()}
+                      >
+                        <input
+                          ref={brandLogoInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleBrandLogoUpload}
+                        />
+                        {settings.brandLogo ? (
+                          <>
+                            <img
+                              src={settings.brandLogo}
+                              alt="Brand logo"
+                              className="max-w-full max-h-full object-contain p-1"
+                            />
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setCustomTemplates((prev) =>
-                                  prev.filter((t) => t.id !== ct.id)
-                                );
-                                if (settings.selectedTemplate === ct.id) {
-                                  updateSettings({
-                                    selectedTemplate: "none",
-                                    selectedLayout: "none",
-                                  });
-                                }
+                                updateSettings({ brandLogo: null });
                               }}
-                              className="p-0.5 rounded hover:bg-accent"
+                              className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-background border border-border flex items-center justify-center"
                             >
-                              <X className="w-3 h-3 text-muted-foreground" />
+                              <X className="w-2.5 h-2.5 text-muted-foreground" />
                             </button>
+                          </>
+                        ) : (
+                          <div className="text-center">
+                            <ImageIcon className="w-5 h-5 text-muted-foreground mx-auto" />
                           </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+                        )}
+                      </div>
+                    </div>
 
-              {/* Template style */}
-              <div>
-                <Label className="text-sm font-medium">Template style</Label>
-                <Tabs defaultValue="intro" className="mt-2">
-                  <TabsList className="h-9">
-                    <TabsTrigger value="intro" className="text-xs">
-                      Intro
-                    </TabsTrigger>
-                    <TabsTrigger value="outro" className="text-xs">
-                      Outro
-                    </TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="intro" className="mt-3">
-                    <button
-                      onClick={() => setShowTemplateModal(true)}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm text-left flex items-center justify-between hover:bg-accent/50 transition-colors"
-                    >
-                      <span>{selectedTemplate.name}</span>
-                      <svg className="w-3 h-3 text-muted-foreground" viewBox="0 0 10 12" fill="none">
-                        <path d="M3 1L7 6L3 11" stroke="currentColor" strokeWidth="1.5" />
-                      </svg>
-                    </button>
-                  </TabsContent>
-                  <TabsContent value="outro" className="mt-3">
-                    <p className="text-sm text-muted-foreground">
-                      Outro uses your agent branding automatically.
-                    </p>
-                  </TabsContent>
-                </Tabs>
+                    {/* Outro text */}
+                    <div>
+                      <Label htmlFor="outro-text">Outro text</Label>
+                      <Textarea
+                        id="outro-text"
+                        placeholder="Outro Text"
+                        value={settings.outroText}
+                        onChange={(e) => updateSettings({ outroText: e.target.value })}
+                        rows={3}
+                        className="mt-1.5 text-sm"
+                      />
+                    </div>
+                  </>
+                )}
               </div>
-
-              {/* Heading */}
-              <div>
-                <Label htmlFor="heading">Heading</Label>
-                <Input
-                  id="heading"
-                  placeholder="OPEN HOUSE"
-                  value={settings.customTitle}
-                  onChange={(e) => updateSettings({ customTitle: e.target.value })}
-                  className="mt-1.5 h-10"
-                />
-              </div>
-
-              {/* Details */}
-              <div>
-                <Label htmlFor="details">Details</Label>
-                <Textarea
-                  id="details"
-                  placeholder="03.14.2026 | 2PM&#10;123 Anywhere St, Any City"
-                  value={`${propertyDetails.price ? propertyDetails.price + "\n" : ""}${propertyDetails.streetAddress}${propertyDetails.suburb ? ", " + propertyDetails.suburb : ""}`}
-                  readOnly
-                  rows={3}
-                  className="mt-1.5 text-sm"
-                />
-              </div>
-            </div>
+            )}
           </div>
         )}
 
@@ -572,7 +733,7 @@ export function StepBranding({
                   />
                 </div>
 
-                {/* Track list — flat, no categories */}
+                {/* Track list */}
                 <div className="space-y-0.5 max-h-[400px] overflow-y-auto">
                   {filteredTracks.map((track) => {
                     const isSelected =
@@ -624,12 +785,12 @@ export function StepBranding({
           </div>
         )}
 
-        {/* Voiceover & Agent tab */}
+        {/* Voiceover & Avatar tab */}
         {activeTab === "voiceover" && (
           <div>
             <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
               <Mic className="w-4 h-4 text-primary" />
-              Voiceover & Agent
+              Voiceover & Avatar
             </h3>
             <p className="text-sm text-muted-foreground mt-1 mb-5">
               Configure voiceover and agent branding for the video.
@@ -744,41 +905,77 @@ export function StepBranding({
           </div>
         </div>
 
-        {/* Preview image */}
-        <div
-          className={`bg-secondary rounded-lg overflow-hidden border border-border mx-auto ${
-            orientation === "portrait" ? "w-[200px] aspect-[9/16]" : "w-full aspect-video"
-          }`}
-        >
-          {previewImageUrl ? (
-            <img
-              src={previewImageUrl}
-              alt="Preview"
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
-              No images selected
-            </div>
-          )}
-        </div>
-
-        {/* Summary tags */}
-        <div className="mt-3 space-y-1.5">
-          <div className="flex items-center gap-2 px-3 py-1.5 border border-dashed border-border rounded-lg text-xs text-muted-foreground">
-            <LayoutTemplate className="w-3 h-3" />
-            Intro: <span className="text-primary font-medium">{selectedTemplate.name}</span>
-            &nbsp;Outro: <span className="text-primary font-medium">Agent</span>
+        {/* Preview area with pills */}
+        <div className="flex gap-3">
+          {/* Preview image/outro */}
+          <div
+            className={`bg-secondary rounded-lg overflow-hidden border border-border flex-1 relative ${
+              orientation === "portrait" ? "aspect-[9/16]" : "aspect-video"
+            }`}
+          >
+            {previewFocus === "intro" ? (
+              <>
+                {previewImageUrl ? (
+                  <img
+                    src={previewImageUrl}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
+                    No images selected
+                  </div>
+                )}
+                {renderIntroOverlay()}
+              </>
+            ) : (
+              /* Outro preview */
+              renderOutroPreview()
+            )}
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 border border-dashed border-border rounded-lg text-xs text-muted-foreground">
-            <Music className="w-3 h-3" />
-            Music: <span className="text-primary font-medium">{settings.musicTrack || "None"}</span>
+
+          {/* Right-side Intro/Outro pills */}
+          <div className="flex flex-col gap-2 flex-shrink-0">
+            <button
+              onClick={() => {
+                setPreviewFocus("intro");
+                setTemplateStyleTab("intro");
+              }}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-colors whitespace-nowrap ${
+                previewFocus === "intro"
+                  ? "border-primary bg-primary/5 text-foreground"
+                  : "border-border text-muted-foreground hover:border-primary/40"
+              }`}
+            >
+              <LayoutTemplate className="w-3 h-3" />
+              <span>
+                Intro:{" "}
+                <span className="text-primary">{selectedIntroTemplate.name}</span>
+              </span>
+            </button>
+            <button
+              onClick={() => {
+                setPreviewFocus("outro");
+                setTemplateStyleTab("outro");
+              }}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-colors whitespace-nowrap ${
+                previewFocus === "outro"
+                  ? "border-primary bg-primary/5 text-foreground"
+                  : "border-border text-muted-foreground hover:border-primary/40"
+              }`}
+            >
+              <LayoutTemplate className="w-3 h-3" />
+              <span>
+                Outro:{" "}
+                <span className="text-primary">{selectedOutroTemplate.name}</span>
+              </span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Template selection modal */}
-      <Dialog open={showTemplateModal} onOpenChange={setShowTemplateModal}>
+      {/* Intro template selection modal */}
+      <Dialog open={showIntroModal} onOpenChange={setShowIntroModal}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -786,10 +983,9 @@ export function StepBranding({
               Select intro template
             </DialogTitle>
           </DialogHeader>
-          <div className="grid grid-cols-3 gap-4 mt-2">
-            {allTemplates.map((template) => {
+          <div className="grid grid-cols-4 gap-3 mt-2">
+            {INTRO_TEMPLATES.map((template) => {
               const isSelected = settings.selectedTemplate === template.id;
-              const customPreview = customTemplates.find((c) => c.id === template.id)?.previewUrl;
               return (
                 <button
                   key={template.id}
@@ -798,7 +994,7 @@ export function StepBranding({
                       selectedTemplate: template.id,
                       selectedLayout: template.id,
                     });
-                    setShowTemplateModal(false);
+                    setShowIntroModal(false);
                   }}
                   className={`rounded-xl border-2 overflow-hidden transition-all ${
                     isSelected
@@ -806,15 +1002,9 @@ export function StepBranding({
                       : "border-border hover:border-primary/40"
                   }`}
                 >
-                  <div className="aspect-video bg-secondary flex items-center justify-center">
+                  <div className="aspect-[9/16] bg-secondary flex items-center justify-center relative">
                     {template.id === "none" ? (
-                      <X className="w-8 h-8 text-muted-foreground" />
-                    ) : customPreview ? (
-                      <img
-                        src={customPreview}
-                        alt={template.name}
-                        className="w-full h-full object-cover"
-                      />
+                      <Ban className="w-8 h-8 text-muted-foreground" />
                     ) : previewImageUrl ? (
                       <img
                         src={previewImageUrl}
@@ -835,6 +1025,61 @@ export function StepBranding({
         </DialogContent>
       </Dialog>
 
+      {/* Outro template selection modal */}
+      <Dialog open={showOutroModal} onOpenChange={setShowOutroModal}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LayoutTemplate className="w-4 h-4" />
+              Select outro template
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-3 gap-4 mt-2">
+            {OUTRO_TEMPLATES.map((template) => {
+              const isSelected = settings.outroTemplate === template.id;
+              const isDark = template.id === "classic-dark";
+              return (
+                <button
+                  key={template.id}
+                  onClick={() => {
+                    updateSettings({ outroTemplate: template.id });
+                    setShowOutroModal(false);
+                  }}
+                  className={`rounded-xl border-2 overflow-hidden transition-all ${
+                    isSelected
+                      ? "border-primary ring-2 ring-primary/20"
+                      : "border-border hover:border-primary/40"
+                  }`}
+                >
+                  <div className={`aspect-[3/4] flex items-center justify-center ${
+                    template.id === "none" ? "bg-secondary" :
+                    isDark ? "bg-black" : "bg-white"
+                  }`}>
+                    {template.id === "none" ? (
+                      <Ban className="w-8 h-8 text-muted-foreground" />
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 px-3">
+                        <div className={`w-10 h-10 rounded-full ${isDark ? "bg-gray-700" : "bg-secondary"} flex items-center justify-center`}>
+                          <User className={`w-5 h-5 ${isDark ? "text-gray-400" : "text-muted-foreground"}`} />
+                        </div>
+                        <p className={`text-[10px] font-bold ${isDark ? "text-white" : "text-foreground"}`}>
+                          {settings.agentInfo.name || "Agent Name"}
+                        </p>
+                        <p className={`text-[8px] ${isDark ? "text-gray-400" : "text-muted-foreground"}`}>
+                          {settings.agentInfo.phone || "(415) 555-0137"}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-2 text-center">
+                    <p className="text-xs font-medium text-foreground">{template.name}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

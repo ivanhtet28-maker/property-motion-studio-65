@@ -40,6 +40,12 @@ export interface CustomizationSettings {
   selectedTemplate: string;
   selectedLayout: string; // "minimal-focus" | "bold-banner" | "modern-luxe"
   customTitle: string; // Custom title text (e.g., "Just Sold", "Open House")
+  detailsText: string; // Free-text details shown on intro overlay
+  outroTemplate: string; // "none" | "classic" | "classic-dark"
+  outroText: string; // Custom outro text
+  showProfilePhoto: boolean;
+  showBrandLogo: boolean;
+  brandLogo: string | null; // base64 brand logo
   agentInfo: AgentInfo;
   useGlobalSeed: boolean; // When true, all clips share a seed for consistent visual style
   globalSeed: number;     // The shared seed value (1–999999)
