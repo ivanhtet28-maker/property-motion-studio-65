@@ -73,56 +73,38 @@
     }
   }
 
-  // Music library mapping — 25 tracks (5 per category)
-    // Upload MP3s to Supabase Storage: video-assets/music/{id}.mp3
+  // Music library mapping — filenames match Supabase Storage: video-assets/music/
     const MUSIC_BASE = "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/music";
     const MUSIC_LIBRARY: Record<string, string> = {
       // Cinematic
-      "cinematic-1": `${MUSIC_BASE}/cinematic-1.mp3`,
-      "cinematic-2": `${MUSIC_BASE}/cinematic-2.mp3`,
-      "cinematic-3": `${MUSIC_BASE}/cinematic-3.mp3`,
-      "cinematic-4": `${MUSIC_BASE}/cinematic-4.mp3`,
-      "cinematic-5": `${MUSIC_BASE}/cinematic-5.mp3`,
+      "cinematic-epic-1": `${MUSIC_BASE}/cinematic-epic-1`,
+      "cinematic-epic-2": `${MUSIC_BASE}/cinematic-epic-2`,
+      "cinematic-epic-3": `${MUSIC_BASE}/cinematic-epic-3`,
+      "luxury-1": `${MUSIC_BASE}/${encodeURIComponent("Luxury 1.mp3")}`,
       // Modern
-      "modern-1": `${MUSIC_BASE}/modern-1.mp3`,
-      "modern-2": `${MUSIC_BASE}/modern-2.mp3`,
-      "modern-3": `${MUSIC_BASE}/modern-3.mp3`,
-      "modern-4": `${MUSIC_BASE}/modern-4.mp3`,
-      "modern-5": `${MUSIC_BASE}/modern-5.mp3`,
+      "modern-chill-1": `${MUSIC_BASE}/modern-chill-1`,
+      "modern-chill-2": `${MUSIC_BASE}/modern-chill-2`,
+      "lofi-2": `${MUSIC_BASE}/${encodeURIComponent("Lofi 2 .mp3")}`,
       // Energetic
-      "energetic-1": `${MUSIC_BASE}/energetic-1.mp3`,
-      "energetic-2": `${MUSIC_BASE}/energetic-2.mp3`,
-      "energetic-3": `${MUSIC_BASE}/energetic-3.mp3`,
-      "energetic-4": `${MUSIC_BASE}/energetic-4.mp3`,
-      "energetic-5": `${MUSIC_BASE}/energetic-5.mp3`,
+      "upbeat-energetic-3": `${MUSIC_BASE}/upbeat-energetic-3.mp3`,
+      "upbeat-1": `${MUSIC_BASE}/${encodeURIComponent("Upbeat 1 .mp3")}`,
       // Classical
-      "classical-1": `${MUSIC_BASE}/classical-1.mp3`,
-      "classical-2": `${MUSIC_BASE}/classical-2.mp3`,
-      "classical-3": `${MUSIC_BASE}/classical-3.mp3`,
-      "classical-4": `${MUSIC_BASE}/classical-4.mp3`,
-      "classical-5": `${MUSIC_BASE}/classical-5.mp3`,
+      "classical-elegant-1": `${MUSIC_BASE}/classical-elegant-1`,
+      "classical-elegant-2": `${MUSIC_BASE}/classical-elegant-2`,
       // Ambient
-      "ambient-1": `${MUSIC_BASE}/ambient-1.mp3`,
-      "ambient-2": `${MUSIC_BASE}/ambient-2.mp3`,
-      "ambient-3": `${MUSIC_BASE}/ambient-3.mp3`,
-      "ambient-4": `${MUSIC_BASE}/ambient-4.mp3`,
-      "ambient-5": `${MUSIC_BASE}/ambient-5.mp3`,
-      // Legacy IDs (backwards compatibility)
-      "cinematic-epic-1": `${MUSIC_BASE}/cinematic-1.mp3`,
-      "cinematic-epic-2": `${MUSIC_BASE}/cinematic-2.mp3`,
-      "cinematic-epic-3": `${MUSIC_BASE}/cinematic-3.mp3`,
-      "modern-chill-1": `${MUSIC_BASE}/modern-1.mp3`,
-      "modern-chill-2": `${MUSIC_BASE}/modern-2.mp3`,
-      "modern-chill-3": `${MUSIC_BASE}/modern-3.mp3`,
-      "upbeat-energetic-1": `${MUSIC_BASE}/energetic-1.mp3`,
-      "upbeat-energetic-2": `${MUSIC_BASE}/energetic-2.mp3`,
-      "upbeat-energetic-3": `${MUSIC_BASE}/energetic-3.mp3`,
-      "classical-elegant-1": `${MUSIC_BASE}/classical-1.mp3`,
-      "classical-elegant-2": `${MUSIC_BASE}/classical-2.mp3`,
-      "classical-elegant-3": `${MUSIC_BASE}/classical-3.mp3`,
-      "ambient-relaxing-1": `${MUSIC_BASE}/ambient-1.mp3`,
-      "ambient-relaxing-2": `${MUSIC_BASE}/ambient-2.mp3`,
-      "ambient-relaxing-3": `${MUSIC_BASE}/ambient-3.mp3`,
+      "ambient-relaxing-1": `${MUSIC_BASE}/ambient-relaxing-1`,
+      "ambient-relaxing-2": `${MUSIC_BASE}/ambient-relaxing-2`,
+      // Legacy IDs (backwards compatibility with old video records)
+      "cinematic-1": `${MUSIC_BASE}/cinematic-epic-1`,
+      "cinematic-2": `${MUSIC_BASE}/cinematic-epic-2`,
+      "cinematic-3": `${MUSIC_BASE}/cinematic-epic-3`,
+      "modern-1": `${MUSIC_BASE}/modern-chill-1`,
+      "modern-2": `${MUSIC_BASE}/modern-chill-2`,
+      "energetic-3": `${MUSIC_BASE}/upbeat-energetic-3.mp3`,
+      "classical-1": `${MUSIC_BASE}/classical-elegant-1`,
+      "classical-2": `${MUSIC_BASE}/classical-elegant-2`,
+      "ambient-1": `${MUSIC_BASE}/ambient-relaxing-1`,
+      "ambient-2": `${MUSIC_BASE}/ambient-relaxing-2`,
     };
 
   const getMusicUrl = (musicId: string): string | null => {

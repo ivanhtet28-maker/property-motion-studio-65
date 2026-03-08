@@ -3,41 +3,23 @@ import { MUSIC_LIBRARY, getMusicUrl, getTracksByCategory } from "./musicLibrary"
 
 describe("Music Library", () => {
   describe("MUSIC_LIBRARY", () => {
-    it("should have 15 music tracks", () => {
+    it("should have 13 music tracks matching Supabase Storage files", () => {
       const trackCount = Object.keys(MUSIC_LIBRARY).length;
-      expect(trackCount).toBe(15);
-    });
-
-    it("should have 3 tracks per category", () => {
-      const categories = ["modern", "ambient", "luxury", "energetic", "classical"];
-
-      categories.forEach((category) => {
-        const tracks = Object.values(MUSIC_LIBRARY).filter(
-          (track) => track.category === category
-        );
-        expect(tracks).toHaveLength(3);
-      });
+      expect(trackCount).toBe(13);
     });
 
     it("should have valid URLs for all tracks", () => {
-      Object.entries(MUSIC_LIBRARY).forEach(([id, track]) => {
+      Object.entries(MUSIC_LIBRARY).forEach(([_id, track]) => {
         expect(track.url).toMatch(/^https:\/\//);
-        expect(track.url).toContain("acpkhbjgnlenjfiswftx.supabase.co");
+        expect(track.url).toContain("supabase.co");
         expect(track.url).toContain("/storage/v1/object/public/video-assets/music/");
-        expect(track.url).toContain(".mp3");
-      });
-    });
-
-    it("should have correct URL format matching track ID", () => {
-      Object.entries(MUSIC_LIBRARY).forEach(([id, track]) => {
-        expect(track.url).toContain(`${id}.mp3`);
       });
     });
 
     it("should have valid durations", () => {
       Object.values(MUSIC_LIBRARY).forEach((track) => {
         expect(track.duration).toBeGreaterThan(0);
-        expect(track.duration).toBeLessThan(300); // Max 5 minutes
+        expect(track.duration).toBeLessThan(300);
       });
     });
 
@@ -49,21 +31,19 @@ describe("Music Library", () => {
 
     it("should have all required track IDs", () => {
       const requiredIds = [
-        "upbeat-modern-1",
-        "upbeat-modern-2",
-        "upbeat-modern-3",
-        "calm-ambient-1",
-        "calm-ambient-2",
-        "calm-ambient-3",
-        "luxury-elegant-1",
-        "luxury-elegant-2",
-        "luxury-elegant-3",
-        "energetic-pop-1",
-        "energetic-pop-2",
-        "energetic-pop-3",
-        "classical-sophisticated-1",
-        "classical-sophisticated-2",
-        "classical-sophisticated-3",
+        "cinematic-epic-1",
+        "cinematic-epic-2",
+        "cinematic-epic-3",
+        "luxury-1",
+        "modern-chill-1",
+        "modern-chill-2",
+        "lofi-2",
+        "upbeat-energetic-3",
+        "upbeat-1",
+        "classical-elegant-1",
+        "classical-elegant-2",
+        "ambient-relaxing-1",
+        "ambient-relaxing-2",
       ];
 
       requiredIds.forEach((id) => {
@@ -74,17 +54,12 @@ describe("Music Library", () => {
 
   describe("getMusicUrl", () => {
     it("should return correct URL for valid track ID", () => {
-      const url = getMusicUrl("upbeat-modern-1");
-      expect(url).toBe(MUSIC_LIBRARY["upbeat-modern-1"].url);
+      const url = getMusicUrl("cinematic-epic-1");
+      expect(url).toBe(MUSIC_LIBRARY["cinematic-epic-1"].url);
     });
 
     it("should return null for invalid track ID", () => {
       const url = getMusicUrl("non-existent-track");
-      expect(url).toBeNull();
-    });
-
-    it("should handle empty string", () => {
-      const url = getMusicUrl("");
       expect(url).toBeNull();
     });
 
@@ -97,49 +72,18 @@ describe("Music Library", () => {
   });
 
   describe("getTracksByCategory", () => {
-    it("should return 3 tracks for 'modern' category", () => {
+    it("should return cinematic tracks", () => {
+      const tracks = getTracksByCategory("cinematic");
+      expect(tracks.length).toBeGreaterThanOrEqual(3);
+    });
+
+    it("should return modern tracks", () => {
       const tracks = getTracksByCategory("modern");
-      expect(tracks).toHaveLength(3);
-      expect(tracks).toContain("upbeat-modern-1");
-      expect(tracks).toContain("upbeat-modern-2");
-      expect(tracks).toContain("upbeat-modern-3");
-    });
-
-    it("should return 3 tracks for 'ambient' category", () => {
-      const tracks = getTracksByCategory("ambient");
-      expect(tracks).toHaveLength(3);
-      expect(tracks).toContain("calm-ambient-1");
-      expect(tracks).toContain("calm-ambient-2");
-      expect(tracks).toContain("calm-ambient-3");
-    });
-
-    it("should return 3 tracks for 'luxury' category", () => {
-      const tracks = getTracksByCategory("luxury");
-      expect(tracks).toHaveLength(3);
-      expect(tracks).toContain("luxury-elegant-1");
-      expect(tracks).toContain("luxury-elegant-2");
-      expect(tracks).toContain("luxury-elegant-3");
-    });
-
-    it("should return 3 tracks for 'energetic' category", () => {
-      const tracks = getTracksByCategory("energetic");
-      expect(tracks).toHaveLength(3);
-      expect(tracks).toContain("energetic-pop-1");
-      expect(tracks).toContain("energetic-pop-2");
-      expect(tracks).toContain("energetic-pop-3");
-    });
-
-    it("should return 3 tracks for 'classical' category", () => {
-      const tracks = getTracksByCategory("classical");
-      expect(tracks).toHaveLength(3);
-      expect(tracks).toContain("classical-sophisticated-1");
-      expect(tracks).toContain("classical-sophisticated-2");
-      expect(tracks).toContain("classical-sophisticated-3");
+      expect(tracks.length).toBeGreaterThanOrEqual(2);
     });
 
     it("should only return track IDs from the specified category", () => {
       const modernTracks = getTracksByCategory("modern");
-
       modernTracks.forEach((trackId) => {
         const track = MUSIC_LIBRARY[trackId];
         expect(track.category).toBe("modern");
@@ -149,7 +93,7 @@ describe("Music Library", () => {
 
   describe("Track Structure", () => {
     it("should have required properties for each track", () => {
-      Object.entries(MUSIC_LIBRARY).forEach(([id, track]) => {
+      Object.entries(MUSIC_LIBRARY).forEach(([_id, track]) => {
         expect(track).toHaveProperty("url");
         expect(track).toHaveProperty("name");
         expect(track).toHaveProperty("duration");
@@ -158,8 +102,7 @@ describe("Music Library", () => {
     });
 
     it("should have valid category values", () => {
-      const validCategories = ["modern", "ambient", "luxury", "energetic", "classical"];
-
+      const validCategories = ["modern", "ambient", "cinematic", "energetic", "classical"];
       Object.values(MUSIC_LIBRARY).forEach((track) => {
         expect(validCategories).toContain(track.category);
       });

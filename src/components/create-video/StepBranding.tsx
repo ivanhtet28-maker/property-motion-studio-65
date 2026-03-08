@@ -48,33 +48,27 @@ const INTRO_TEMPLATES = [
   { id: "modern-treehouse", name: "Modern Treehouse" },
 ];
 
-// All music tracks in a flat list (no categories)
-const MUSIC_TRACKS: { name: string; id: string; duration: string }[] = [
-  { name: "Horizon - Epic Journey", id: "cinematic-1", duration: "2:45" },
-  { name: "Summit - Orchestral Rise", id: "cinematic-2", duration: "3:12" },
-  { name: "Grand Estate - Dramatic Reveal", id: "cinematic-3", duration: "2:30" },
-  { name: "Prestige - Luxury Showcase", id: "cinematic-4", duration: "2:58" },
-  { name: "Skyline - Aerial Sweep", id: "cinematic-5", duration: "3:05" },
-  { name: "Daylight - Acoustic Pop", id: "modern-1", duration: "2:40" },
-  { name: "Waves - Lo-fi Beats", id: "modern-2", duration: "2:55" },
-  { name: "Sunset - Acoustic Vibes", id: "modern-3", duration: "3:10" },
-  { name: "Cornerstone - Indie Folk", id: "modern-4", duration: "2:48" },
-  { name: "Blueprint - Minimal House", id: "modern-5", duration: "3:00" },
-  { name: "Open Door - Upbeat Pop", id: "energetic-1", duration: "2:35" },
-  { name: "Drive - Electronic", id: "energetic-2", duration: "2:50" },
-  { name: "Welcome Home - Feel Good", id: "energetic-3", duration: "2:42" },
-  { name: "First Look - Bright & Fun", id: "energetic-4", duration: "2:28" },
-  { name: "Move In - Happy Bounce", id: "energetic-5", duration: "2:55" },
-  { name: "Nocturne - Piano Solo", id: "classical-1", duration: "3:20" },
-  { name: "Adagio - String Quartet", id: "classical-2", duration: "3:45" },
-  { name: "Heritage - Piano & Cello", id: "classical-3", duration: "3:15" },
-  { name: "Elegance - Chamber Music", id: "classical-4", duration: "3:30" },
-  { name: "Manor - Harp & Strings", id: "classical-5", duration: "3:10" },
-  { name: "Drift - Ambient Tones", id: "ambient-1", duration: "3:00" },
-  { name: "Serenity - Soft Pads", id: "ambient-2", duration: "3:25" },
-  { name: "Retreat - Nature & Keys", id: "ambient-3", duration: "3:15" },
-  { name: "Sanctuary - Warm Textures", id: "ambient-4", duration: "3:40" },
-  { name: "Harbour - Coastal Calm", id: "ambient-5", duration: "3:05" },
+// All music tracks — IDs and filenames match actual Supabase Storage files
+// Storage bucket: video-assets/music/
+const MUSIC_TRACKS: { name: string; id: string; filename: string; duration: string }[] = [
+  // Cinematic
+  { name: "Horizon - Epic Journey", id: "cinematic-epic-1", filename: "cinematic-epic-1", duration: "2:45" },
+  { name: "Summit - Orchestral Rise", id: "cinematic-epic-2", filename: "cinematic-epic-2", duration: "3:12" },
+  { name: "Grand Estate - Dramatic Reveal", id: "cinematic-epic-3", filename: "cinematic-epic-3", duration: "2:30" },
+  { name: "Luxury Showcase", id: "luxury-1", filename: "Luxury 1.mp3", duration: "2:58" },
+  // Modern
+  { name: "Daylight - Acoustic Pop", id: "modern-chill-1", filename: "modern-chill-1", duration: "2:40" },
+  { name: "Waves - Lo-fi Beats", id: "modern-chill-2", filename: "modern-chill-2", duration: "2:55" },
+  { name: "Lofi Chill Beats", id: "lofi-2", filename: "Lofi 2 .mp3", duration: "3:00" },
+  // Energetic
+  { name: "Welcome Home - Feel Good", id: "upbeat-energetic-3", filename: "upbeat-energetic-3.mp3", duration: "2:42" },
+  { name: "Upbeat Energy", id: "upbeat-1", filename: "Upbeat 1 .mp3", duration: "2:35" },
+  // Classical
+  { name: "Nocturne - Piano Solo", id: "classical-elegant-1", filename: "classical-elegant-1", duration: "3:20" },
+  { name: "Adagio - String Quartet", id: "classical-elegant-2", filename: "classical-elegant-2", duration: "3:45" },
+  // Ambient
+  { name: "Drift - Ambient Tones", id: "ambient-relaxing-1", filename: "ambient-relaxing-1", duration: "3:00" },
+  { name: "Serenity - Soft Pads", id: "ambient-relaxing-2", filename: "ambient-relaxing-2", duration: "3:25" },
 ];
 
 const MUSIC_BASE_URL =
@@ -141,7 +135,7 @@ export function StepBranding({
       return URL.createObjectURL(settings.customAudioFile);
     }
     const track = MUSIC_TRACKS.find((t) => t.id === trackId);
-    if (track) return `${MUSIC_BASE_URL}/${track.id}.mp3`;
+    if (track) return `${MUSIC_BASE_URL}/${encodeURIComponent(track.filename)}`;
     return null;
   }, [settings.customAudioFile]);
 
