@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { invokeEdgeFunction, EdgeFunctionError } from "@/lib/invokeEdgeFunction";
 import { callVideoStatus } from "@/lib/callVideoStatus";
+import { callStitchVideo } from "@/lib/callStitchVideo";
 import {
   PropertyDetails,
   CustomizationSettings,
@@ -331,6 +332,42 @@ export default function CreateVideo() {
           setIsGenerating(false);
           setVideoReady(true);
           toast({ title: "Video Ready!", description: "Your property video has been generated!" });
+        } else if (data.status === "ready_to_stitch") {
+          // All clips resolved — call stitch-video directly from browser
+          // (bypasses internal edge-function-to-function gateway 401 issue)
+          setGeneratingProgress(87);
+          try {
+            const stitchResult = await callStitchVideo<{ success: boolean; jobId?: string; error?: string }>({
+              videoUrls: data.finalVideoUrls as string[],
+              clipDurations,
+              cameraAngles: cameraAngles || undefined,
+              audioUrl,
+              musicUrl,
+              musicTrimStart: musicTrimStart || undefined,
+              musicTrimEnd: musicTrimEnd || undefined,
+              agentInfo,
+              propertyData,
+              style,
+              layout,
+              customTitle,
+              videoId,
+              outputFormat: outputFormat || "portrait",
+              fallbackSlots: data.fallbackSlots || undefined,
+            });
+            if (stitchResult.success && stitchResult.jobId) {
+              currentStitchJobId = stitchResult.jobId;
+              setStitchJobId(stitchResult.jobId);
+              setGeneratingProgress(90);
+              pollTimeoutRef.current = setTimeout(poll, 5000);
+            } else {
+              setError(stitchResult.error || "Failed to start video stitching");
+              setIsGenerating(false);
+            }
+          } catch (stitchErr) {
+            console.error("Stitch call failed:", stitchErr);
+            setError(stitchErr instanceof Error ? stitchErr.message : "Failed to start video stitching");
+            setIsGenerating(false);
+          }
         } else if (data.status === "stitching") {
           if (data.stitchJobId && !currentStitchJobId) {
             currentStitchJobId = data.stitchJobId as string;

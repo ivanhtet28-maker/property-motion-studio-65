@@ -592,81 +592,22 @@ Deno.serve(async (req) => {
       console.log(`Hybrid fallback: ${fallbackSlots.length} of ${statuses.length} clips using original images`);
     }
 
-    // All terminal — start Shotstack stitching
-    console.log(`Clips resolved (${summary.completed} AI + ${fallbackSlots.length} fallback)! Starting Shotstack stitching...`);
+    // All terminal — return clips to frontend for stitching.
+    // Internal edge-function-to-function calls fail with 401 ("Invalid JWT") because
+    // the Supabase gateway's verify_jwt setting doesn't reliably apply.
+    // Instead, we return the resolved clip URLs and let the frontend call stitch-video
+    // directly (browser→function calls work because the SDK handles auth properly).
+    console.log(`Clips resolved (${summary.completed} AI + ${fallbackSlots.length} fallback)! Returning to frontend for stitch.`);
 
-    await updateVideoRecord(videoId, "processing", null, 85, "Stitching video clips...");
-
-    const internalAuthKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY");
-
-    const stitchResponse = await fetch(
-      `${supabaseUrl}/functions/v1/stitch-video`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${internalAuthKey}`,
-        },
-        body: JSON.stringify({
-          videoUrls: finalVideoUrls,
-          clipDurations: clipDurations,
-          cameraAngles: cameraAngles || undefined,  // For fallback slot motions
-          audioUrl: audioUrl,
-          musicUrl: musicUrl,
-          musicTrimStart: musicTrimStart || undefined,
-          musicTrimEnd: musicTrimEnd || undefined,
-          agentInfo: agentInfo,
-          propertyData: propertyData,
-          style: style || "modern-luxe",
-          layout: layout || "modern-luxe",
-          customTitle: customTitle || null,
-          videoId: videoId,
-          outputFormat: outputFormat || "portrait",
-          fallbackSlots: fallbackSlots.length > 0 ? fallbackSlots : undefined,
-        }),
-      }
-    );
-
-    const stitchData = await stitchResponse.json();
-
-    if (!stitchData.success) {
-      console.error("Stitching failed:", stitchData.error);
-      await updateVideoRecord(videoId, "failed", null, 0, stitchData.error || "Video stitching failed");
-      return new Response(
-        JSON.stringify({
-          status: "failed",
-          message: stitchData.error || "Failed to stitch video clips",
-          summary,
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log("Stitching job started with Shotstack:", stitchData.jobId);
-
-    // Save render_id to DB so Dashboard can resume polling if user navigates away
-    if (videoId && stitchData.jobId) {
-      try {
-        const supabaseAdmin = createClient(
-          Deno.env.get("SUPABASE_URL")!,
-          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-        );
-        await supabaseAdmin
-          .from("videos")
-          .update({ render_id: stitchData.jobId })
-          .eq("id", videoId);
-        console.log("Saved render_id to DB for recovery:", stitchData.jobId);
-      } catch (err) {
-        console.error("Failed to save render_id:", err);
-      }
-    }
+    await updateVideoRecord(videoId, "processing", null, 85, "Clips ready — starting stitch...");
 
     return new Response(
       JSON.stringify({
-        status: "stitching",
-        progress: 90,
-        message: "Stitching video clips with Shotstack...",
-        stitchJobId: stitchData.jobId,
+        status: "ready_to_stitch",
+        progress: 85,
+        message: `All ${summary.total} clips ready. Starting stitch...`,
+        finalVideoUrls,
+        fallbackSlots: fallbackSlots.length > 0 ? fallbackSlots : undefined,
         summary,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

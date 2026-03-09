@@ -112,6 +112,35 @@
     return MUSIC_LIBRARY[musicId] || null;
   };
 
+  // ── Shotstack Create API (image-to-video) — inlined to bypass Supabase gateway ──
+  // Internal edge-function-to-function calls via the Supabase gateway fail with 401
+  // even when verify_jwt=false is set in config.toml (deployment doesn't always apply).
+  // Calling the Shotstack API directly from here eliminates the gateway dependency.
+  const SHOTSTACK_API_KEY = Deno.env.get("SHOTSTACK_API_KEY");
+  const SHOTSTACK_CREATE_URL = "https://api.shotstack.io/create/v1/assets";
+
+  interface MotionConfig {
+    motion: number;
+    guidanceScale: number;
+  }
+
+  const MOTION_MAP: Record<string, MotionConfig> = {
+    "push-in":  { motion: 140, guidanceScale: 1.8 },
+    "pull-out": { motion: 140, guidanceScale: 1.8 },
+    "tracking": { motion: 160, guidanceScale: 1.8 },
+    "orbit":    { motion: 180, guidanceScale: 1.6 },
+    "crane-up": { motion: 150, guidanceScale: 1.8 },
+    "drone-up": { motion: 170, guidanceScale: 1.6 },
+    "static":   { motion: 40,  guidanceScale: 2.0 },
+  };
+
+  const DEFAULT_MOTION: MotionConfig = { motion: 127, guidanceScale: 1.8 };
+
+  function getMotionConfig(cameraAction?: string): MotionConfig {
+    if (!cameraAction) return DEFAULT_MOTION;
+    return MOTION_MAP[cameraAction] || DEFAULT_MOTION;
+  }
+
   interface LumaGeneration {
     imageUrl: string;
     generationId: string;
@@ -558,50 +587,71 @@
       }));
       const finalImageUrls = reliableImageUrls;
 
-      console.log(`Sending ${metadataForShotstack.length} images to Shotstack Create API`);
+      console.log(`Sending ${metadataForShotstack.length} images to Shotstack Create API (direct — bypassing gateway)`);
 
-      const shotstackResponse = await fetch(
-        `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-shotstack-batch`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-          },
-          body: JSON.stringify({
-            imageMetadata: metadataForShotstack,
-            propertyAddress: propertyData.address,
-          }),
-        }
+      if (!SHOTSTACK_API_KEY) {
+        throw new Error("SHOTSTACK_API_KEY not configured in Supabase secrets");
+      }
+
+      // Call Shotstack Create API directly for each image (parallel)
+      const batchResults = await Promise.all(
+        metadataForShotstack.map(async (metadata: ImageMetadata, index: number) => {
+          const effectiveAction = metadata.cameraAction || metadata.cameraAngle || "push-in";
+          const motionConfig = getMotionConfig(effectiveAction);
+          console.log(`Clip ${index + 1}/${metadataForShotstack.length}: motion=${motionConfig.motion}, guidance=${motionConfig.guidanceScale}`);
+
+          try {
+            const response = await fetch(SHOTSTACK_CREATE_URL, {
+              method: "POST",
+              headers: {
+                "x-api-key": SHOTSTACK_API_KEY!,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                provider: "shotstack",
+                options: {
+                  type: "image-to-video",
+                  url: metadata.url,
+                  motion: motionConfig.motion,
+                  guidanceScale: motionConfig.guidanceScale,
+                },
+              }),
+            });
+
+            if (!response.ok) {
+              const errorText = await response.text();
+              console.error(`Shotstack Create API error clip ${index + 1}: ${response.status} ${errorText}`);
+              return { imageUrl: metadata.url, generationId: null as string | null, status: "error" as const, error: `Shotstack API ${response.status}: ${errorText}` };
+            }
+
+            const data = await response.json();
+            const assetId = data.data?.id || data.id;
+            console.log(`Clip ${index + 1} started: ${assetId}`);
+
+            if (!assetId) {
+              return { imageUrl: metadata.url, generationId: null as string | null, status: "error" as const, error: `No asset ID: ${JSON.stringify(data)}` };
+            }
+
+            return { imageUrl: metadata.url, generationId: assetId as string, status: "queued" as const, error: undefined };
+          } catch (error) {
+            console.error(`Error creating clip ${index + 1}:`, error);
+            return { imageUrl: metadata.url, generationId: null as string | null, status: "error" as const, error: error instanceof Error ? error.message : "Unknown error" };
+          }
+        })
       );
 
-      if (!shotstackResponse.ok) {
-        const errorText = await shotstackResponse.text();
-        throw new Error(`generate-shotstack-batch HTTP ${shotstackResponse.status}: ${errorText}`);
-      }
-
-      const shotstackData = await shotstackResponse.json();
-
-      if (!shotstackData.success) {
-        throw new Error(shotstackData.error || "Failed to start Shotstack batch generation");
-      }
-
-      if (!Array.isArray(shotstackData.generations)) {
-        throw new Error(`Unexpected response from generate-shotstack-batch: ${JSON.stringify(shotstackData)}`);
-      }
-
-      const generations = (shotstackData.generations as LumaGeneration[]).filter(
-        (g) => g.status === "queued" && g.generationId
+      const generations = batchResults.filter(
+        (g): g is typeof g & { generationId: string; status: "queued" } => g.status === "queued" && !!g.generationId
       );
-      const generationIds = generations.map((g) => g.generationId).filter(Boolean) as string[];
+      const generationIds = generations.map((g) => g.generationId);
+      const failedCount = batchResults.length - generations.length;
 
-      console.log(`Started ${generations.length} Shotstack generations`);
+      console.log(`Shotstack batch: ${generations.length} queued, ${failedCount} failed`);
       console.log("Generation IDs:", generationIds);
 
       if (generationIds.length === 0) {
-        const failedGenerations = (shotstackData.generations as LumaGeneration[]).filter((g) => g.status === "error");
-        const errors = failedGenerations.map((g) => g.error).join("; ");
-        throw new Error(`No valid Shotstack generation IDs returned. All ${shotstackData.generations?.length ?? 0} submissions failed. Errors: ${errors || "unknown"}`);
+        const errors = batchResults.filter(g => g.status === "error").map(g => g.error).join("; ");
+        throw new Error(`No valid Shotstack generation IDs returned. All ${batchResults.length} submissions failed. Errors: ${errors || "unknown"}`);
       }
 
       // Mark free trial consumed now that at least one Shotstack generation started
