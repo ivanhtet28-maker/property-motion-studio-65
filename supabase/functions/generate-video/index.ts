@@ -422,7 +422,7 @@
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+              "Authorization": `Bearer ${jwt}`,
             },
             body: JSON.stringify({
               imageUrls,
@@ -566,7 +566,7 @@
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
+            "Authorization": `Bearer ${jwt}`,
           },
           body: JSON.stringify({
             imageMetadata: metadataForShotstack,
