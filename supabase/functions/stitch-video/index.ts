@@ -12,7 +12,15 @@
 
   // Template name mapping
   const TEMPLATE_NAMES: Record<string, string> = {
+    "open-house": "Open House",
+    "newly-listed": "Newly Listed",
+    "elegant-classic": "Elegant Classic",
     "modern-luxe": "Modern Luxe",
+    "minimal-focus": "Minimal Focus",
+    "big-bold": "Big and Bold",
+    "white-on-black": "White on Black",
+    "simple-white": "Simple White",
+    "modern-treehouse": "Modern Treehouse",
     "just-listed": "Just Listed",
     "minimalist": "Minimalist",
     "cinematic": "Cinematic",
@@ -132,8 +140,9 @@
       photo?: string | null;
     };
     style?: string;
-    layout?: string; // "minimal-focus" | "bold-banner" | "modern-luxe"
+    layout?: string; // "minimal-focus" | "bold-banner" | "modern-luxe" or template id
     customTitle?: string; // Custom title text (e.g., "Just Sold", "Open House")
+    detailsText?: string; // Free-text details shown on intro overlay (e.g. address, date)
     videoId?: string;
     outputFormat?: "portrait" | "landscape"; // "portrait" = 9:16 (default), "landscape" = 16:9
   }
@@ -276,26 +285,259 @@
     `;
   }
 
+  // ── Template-specific overlay generators ──────────────────
+
+  /** Open House: dark navy banner at bottom, heading left | divider | details right */
+  function generateOpenHouseLayout(
+    title: string,
+    detailsText: string,
+    propertyData: StitchVideoRequest["propertyData"]
+  ): string {
+    const details = detailsText || getAustralianAddress(propertyData);
+    return `
+      <div style="position:relative;width:100%;height:100%;font-family:Helvetica,Arial,sans-serif;color:white;">
+        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(43,58,74,0.92);padding:40px 48px;display:flex;align-items:center;">
+          <div style="font-size:52px;font-weight:900;letter-spacing:3px;text-transform:uppercase;white-space:nowrap;">${title}</div>
+          <div style="width:3px;align-self:stretch;background:rgba(255,255,255,0.4);margin:0 32px;"></div>
+          <div style="font-size:24px;font-weight:500;line-height:1.5;white-space:pre-line;">${details}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  /** Newly Listed: centered serif heading + italic address over bottom gradient */
+  function generateNewlyListedLayout(
+    title: string,
+    detailsText: string,
+    propertyData: StitchVideoRequest["propertyData"]
+  ): string {
+    const details = detailsText || getAustralianAddress(propertyData);
+    return `
+      <div style="position:relative;width:100%;height:100%;font-family:Georgia,'Times New Roman',serif;color:white;">
+        <div style="position:absolute;bottom:0;left:0;right:0;padding:80px 48px 60px;background:linear-gradient(to top,rgba(0,0,0,0.65),transparent);text-align:center;">
+          <div style="font-size:56px;font-weight:700;margin-bottom:16px;">${title}</div>
+          <div style="font-size:28px;font-weight:400;font-style:italic;opacity:0.85;line-height:1.5;white-space:pre-line;">${details}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  /** Big and Bold: large centered uppercase heading + small address */
+  function generateBigBoldLayout(
+    title: string,
+    detailsText: string,
+    propertyData: StitchVideoRequest["propertyData"]
+  ): string {
+    const details = detailsText || getAustralianAddress(propertyData);
+    return `
+      <div style="position:relative;width:100%;height:100%;font-family:Helvetica,Arial,sans-serif;color:white;">
+        <div style="position:absolute;bottom:0;left:0;right:0;padding:80px 48px 60px;background:linear-gradient(to top,rgba(0,0,0,0.7),rgba(0,0,0,0.3),transparent);text-align:center;">
+          <div style="font-size:72px;font-weight:900;letter-spacing:6px;text-transform:uppercase;margin-bottom:16px;">${title}</div>
+          <div style="font-size:22px;font-weight:400;opacity:0.8;letter-spacing:2px;white-space:pre-line;">${details}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  /** White on Black: solid black bar at bottom, white centered text */
+  function generateWhiteOnBlackLayout(
+    title: string,
+    detailsText: string,
+    propertyData: StitchVideoRequest["propertyData"]
+  ): string {
+    const details = detailsText || getAustralianAddress(propertyData);
+    return `
+      <div style="position:relative;width:100%;height:100%;font-family:Helvetica,Arial,sans-serif;color:white;">
+        <div style="position:absolute;bottom:0;left:0;right:0;background:#000;padding:40px 48px;text-align:center;">
+          <div style="font-size:44px;font-weight:800;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;">${title}</div>
+          <div style="font-size:22px;font-weight:400;opacity:0.7;white-space:pre-line;">${details}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  /** Simple White: white bar at bottom, dark text centered */
+  function generateSimpleWhiteLayout(
+    title: string,
+    detailsText: string,
+    propertyData: StitchVideoRequest["propertyData"]
+  ): string {
+    const details = detailsText || getAustralianAddress(propertyData);
+    return `
+      <div style="position:relative;width:100%;height:100%;font-family:Helvetica,Arial,sans-serif;">
+        <div style="position:absolute;bottom:0;left:0;right:0;background:#fff;padding:40px 48px;text-align:center;">
+          <div style="font-size:44px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:#111;margin-bottom:8px;">${title}</div>
+          <div style="font-size:22px;font-weight:400;color:#666;white-space:pre-line;">${details}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  /** Modern Treehouse: subtle bottom gradient, left-aligned text */
+  function generateModernTreehouseLayout(
+    title: string,
+    detailsText: string,
+    propertyData: StitchVideoRequest["propertyData"]
+  ): string {
+    const details = detailsText || getAustralianAddress(propertyData);
+    return `
+      <div style="position:relative;width:100%;height:100%;font-family:Helvetica,Arial,sans-serif;color:white;">
+        <div style="position:absolute;bottom:0;left:0;right:0;padding:60px 48px 48px;background:linear-gradient(to top,rgba(0,0,0,0.55),transparent);">
+          <div style="font-size:44px;font-weight:600;letter-spacing:1px;margin-bottom:8px;">${title}</div>
+          <div style="font-size:22px;font-weight:400;opacity:0.7;white-space:pre-line;">${details}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  /** Elegant Classic: centered serif heading, address, price, frosted specs pill */
+  function generateElegantClassicLayout(
+    title: string,
+    detailsText: string,
+    propertyData: StitchVideoRequest["propertyData"]
+  ): string {
+    const details = detailsText || getAustralianAddress(propertyData);
+    const price = propertyData.price ? `$${formatPrice(propertyData.price)}` : "";
+    const beds = propertyData.beds || 4;
+    const baths = propertyData.baths || 3;
+    const cars = propertyData.carSpaces || 2;
+    const land = propertyData.landSize;
+
+    const specsItems = [
+      `<span style="margin:0 10px;">${beds} <img src="${ICON_URLS.bed}" style="width:20px;height:20px;vertical-align:middle;" /></span>`,
+      `<span style="margin:0 10px;">${baths} <img src="${ICON_URLS.bath}" style="width:20px;height:20px;vertical-align:middle;" /></span>`,
+      `<span style="margin:0 10px;">${cars} <img src="${ICON_URLS.car}" style="width:20px;height:20px;vertical-align:middle;" /></span>`,
+    ].join("");
+
+    const landHtml = land ? `<div style="background:rgba(255,255,255,0.25);backdrop-filter:blur(12px);border-radius:999px;padding:6px 16px;margin-top:8px;font-size:18px;font-weight:600;display:inline-block;">${land}m²</div>` : "";
+
+    return `
+      <div style="position:relative;width:100%;height:100%;font-family:Georgia,'Times New Roman',serif;color:white;text-align:center;">
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:85%;">
+          <div style="font-size:56px;font-style:italic;font-weight:700;margin-bottom:12px;text-shadow:2px 2px 8px rgba(0,0,0,0.7);">${title}</div>
+          <div style="font-size:24px;font-weight:400;opacity:0.9;margin-bottom:8px;text-shadow:1px 1px 4px rgba(0,0,0,0.6);white-space:pre-line;">${details}</div>
+          ${price ? `<div style="font-size:28px;font-weight:700;font-style:italic;margin-bottom:20px;text-shadow:1px 1px 4px rgba(0,0,0,0.6);">${price}</div>` : ""}
+          <div style="display:inline-block;background:rgba(255,255,255,0.25);backdrop-filter:blur(12px);border-radius:999px;padding:10px 24px;font-family:Helvetica,Arial,sans-serif;font-size:20px;font-weight:600;">
+            ${specsItems}
+          </div>
+          ${landHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  /** Modern Luxe (competitor style): large bold heading top-area, address, bottom bar with specs + price */
+  function generateModernLuxeV2Layout(
+    title: string,
+    detailsText: string,
+    propertyData: StitchVideoRequest["propertyData"]
+  ): string {
+    const details = detailsText || getAustralianAddress(propertyData);
+    const price = propertyData.price ? `$${formatPrice(propertyData.price)}` : "";
+    const beds = propertyData.beds || 4;
+    const baths = propertyData.baths || 3;
+    const cars = propertyData.carSpaces || 2;
+    const land = propertyData.landSize;
+
+    const specsText = [
+      `${beds} <img src="${ICON_URLS.bed}" style="width:18px;height:18px;vertical-align:middle;margin-right:12px;" />`,
+      `${baths} <img src="${ICON_URLS.bath}" style="width:18px;height:18px;vertical-align:middle;margin-right:12px;" />`,
+      `${cars} <img src="${ICON_URLS.car}" style="width:18px;height:18px;vertical-align:middle;margin-right:12px;" />`,
+      land ? `${land}m²` : "",
+    ].filter(Boolean).join("");
+
+    return `
+      <div style="position:relative;width:100%;height:100%;font-family:Helvetica,Arial,sans-serif;color:white;">
+        <div style="position:absolute;top:35%;left:40px;right:40px;">
+          <div style="font-size:64px;font-weight:900;font-style:italic;text-shadow:3px 3px 10px rgba(0,0,0,0.7);">${title}</div>
+          <div style="font-size:22px;font-weight:500;opacity:0.85;margin-top:10px;text-shadow:2px 2px 6px rgba(0,0,0,0.6);white-space:pre-line;">${details}</div>
+        </div>
+        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(255,255,255,0.15);backdrop-filter:blur(8px);padding:20px 40px;display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-size:20px;font-weight:600;">${specsText}</div>
+          ${price ? `<div style="font-size:26px;font-weight:800;">${price}</div>` : ""}
+        </div>
+      </div>
+    `;
+  }
+
+  /** Minimal Focus (competitor style): centered uppercase heading, frosted glass address box */
+  function generateMinimalFocusV2Layout(
+    title: string,
+    detailsText: string,
+    propertyData: StitchVideoRequest["propertyData"]
+  ): string {
+    const details = detailsText || getAustralianAddress(propertyData);
+    return `
+      <div style="position:relative;width:100%;height:100%;font-family:Helvetica,Arial,sans-serif;color:white;text-align:center;">
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:85%;">
+          <div style="font-size:48px;font-weight:800;letter-spacing:4px;text-transform:uppercase;margin-bottom:20px;text-shadow:2px 2px 8px rgba(0,0,0,0.7);">${title}</div>
+          <table style="margin:0 auto;"><tr><td style="
+            border:1px solid rgba(255,255,255,0.4);
+            background:rgba(255,255,255,0.1);
+            backdrop-filter:blur(8px);
+            padding:16px 32px;
+            border-radius:6px;
+            font-size:24px;
+            font-weight:500;
+            white-space:pre-line;
+            line-height:1.5;
+          ">${details}</td></tr></table>
+        </div>
+      </div>
+    `;
+  }
+
+  /** Helper: build Australian-format address from property data */
+  function getAustralianAddress(propertyData: StitchVideoRequest["propertyData"]): string {
+    const parts: string[] = [];
+    if (propertyData.streetAddress) parts.push(propertyData.streetAddress);
+    const line2 = [propertyData.suburb, propertyData.state].filter(Boolean).join(" ");
+    if (line2) parts.push(line2);
+    if (parts.length > 0) return parts.join(",\n");
+    return propertyData.address || "27 Alamanda Blvd,\nPoint Cook VIC 3030";
+  }
+
   /**
-   * Get the property overlay HTML based on selected layout
+   * Get the property overlay HTML based on selected template/layout
    */
   function getPropertyOverlayHtml(
     layout: string,
     customTitle: string | undefined,
     style: string | undefined,
-    propertyData: StitchVideoRequest["propertyData"]
+    propertyData: StitchVideoRequest["propertyData"],
+    detailsText?: string
   ): string {
-    // Use custom title if provided, otherwise fall back to template name, then "Modern Luxe"
-    const title = customTitle || (style && TEMPLATE_NAMES[style]) || "Modern Luxe";
+    // Use custom title if provided, otherwise fall back to template name
+    const title = customTitle || (style && TEMPLATE_NAMES[style]) || "Open House";
+    const details = detailsText || "";
 
+    // Route by template-specific layout id first
     switch (layout) {
+      case "open-house":
+        return generateOpenHouseLayout(title, details, propertyData);
+      case "newly-listed":
+        return generateNewlyListedLayout(title, details, propertyData);
+      case "big-bold":
+        return generateBigBoldLayout(title, details, propertyData);
+      case "white-on-black":
+        return generateWhiteOnBlackLayout(title, details, propertyData);
+      case "simple-white":
+        return generateSimpleWhiteLayout(title, details, propertyData);
+      case "modern-treehouse":
+        return generateModernTreehouseLayout(title, details, propertyData);
+      case "elegant-classic":
+        return generateElegantClassicLayout(title, details, propertyData);
+      case "modern-luxe":
+        return generateModernLuxeV2Layout(title, details, propertyData);
       case "minimal-focus":
-        return generateMinimalFocusLayout(title, propertyData);
+        return generateMinimalFocusV2Layout(title, details, propertyData);
+      case "none":
+        return ""; // No overlay
+      // Legacy layout ids
       case "bold-banner":
         return generateBoldBannerLayout(title, propertyData);
-      case "modern-luxe":
       default:
-        return generateModernLuxeLayout(title, propertyData);
+        return generateOpenHouseLayout(title, details, propertyData);
     }
   }
 
@@ -429,7 +671,7 @@
     }
 
     try {
-      const { videoUrls, imageUrls, imageEffects, cameraAngles, clipDurations, propertyData, audioUrl, musicUrl, musicTrimStart, musicTrimEnd, agentInfo, style, layout, customTitle, videoId, outputFormat, fallbackSlots }: StitchVideoRequest = await req.json();
+      const { videoUrls, imageUrls, imageEffects, cameraAngles, clipDurations, propertyData, audioUrl, musicUrl, musicTrimStart, musicTrimEnd, agentInfo, style, layout, customTitle, detailsText, videoId, outputFormat, fallbackSlots }: StitchVideoRequest = await req.json();
 
       // Ken Burns mode: raw property photos + Shotstack effects
       // AI mode: pre-generated video clips from Luma/Runway
@@ -757,7 +999,7 @@
                 {
                   asset: {
                     type: "html",
-                    html: getPropertyOverlayHtml(layout || "modern-luxe", customTitle, style, propertyData),
+                    html: getPropertyOverlayHtml(layout || "open-house", customTitle, style, propertyData, detailsText),
                     css: "",
                     width: 1080,
                     height: 1920,

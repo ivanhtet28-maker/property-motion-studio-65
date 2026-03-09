@@ -36,6 +36,7 @@
     style: string;
     layout?: string;
     customTitle?: string;
+    detailsText?: string;
     voice: string;
     music: string;
     customMusicUrl?: string;   // Direct URL to user-uploaded audio
@@ -242,7 +243,7 @@
       }
       console.log(`[generate-video] Authenticated user: ${userData.user.id}`);
 
-      const { imageUrls, imageMetadata, propertyData, style, layout, customTitle, voice, music, customMusicUrl, musicTrimStart, musicTrimEnd, userId, propertyId, script, source, agentInfo, preGeneratedVideoUrls, useKenBurns }: GenerateVideoRequest = await req.json();
+      const { imageUrls, imageMetadata, propertyData, style, layout, customTitle, detailsText, voice, music, customMusicUrl, musicTrimStart, musicTrimEnd, userId, propertyId, script, source, agentInfo, preGeneratedVideoUrls, useKenBurns }: GenerateVideoRequest = await req.json();
 
       console.log("=== VIDEO GENERATION ===");
       console.log("Mode:", useKenBurns ? "Ken Burns (Shotstack direct)" : "Runway Gen4 Turbo");
@@ -434,6 +435,7 @@
               style,
               layout: layout || style,
               customTitle: customTitle || "",
+              detailsText: detailsText || "",
               videoId: videoRecordId,
             }),
           }
@@ -497,6 +499,7 @@
               style,
               layout: layout || style,
               customTitle: customTitle || "",
+              detailsText: detailsText || "",
               videoId: videoRecordId,
             }),
           }
@@ -670,6 +673,7 @@
                 style: style,
                 layout: layout || style,
                 customTitle: customTitle || "",
+              detailsText: detailsText || "",
                 imageUrls: finalImageUrls,
               }),
             })

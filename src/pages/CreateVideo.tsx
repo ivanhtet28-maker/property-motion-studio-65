@@ -531,6 +531,7 @@ export default function CreateVideo() {
           style: customization.selectedTemplate,
           layout: customization.selectedLayout,
           customTitle: customization.customTitle,
+          detailsText: customization.detailsText,
           voice: voiceId,
           music: musicId,
           customMusicUrl,
