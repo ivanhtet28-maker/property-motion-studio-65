@@ -161,6 +161,16 @@
     return num.toLocaleString("en-US");
   }
 
+  // Build property specs text (e.g., "3 Bed  •  2 Bath  •  2 Car  •  512m²")
+  function buildSpecsText(propertyData: StitchVideoRequest["propertyData"]): string {
+    const parts: string[] = [];
+    if (propertyData.beds) parts.push(`${propertyData.beds} Bed`);
+    if (propertyData.baths) parts.push(`${propertyData.baths} Bath`);
+    if (propertyData.carSpaces) parts.push(`${propertyData.carSpaces} Car`);
+    if (propertyData.landSize) parts.push(`${propertyData.landSize}m²`);
+    return parts.join("  •  ");
+  }
+
   /**
    * Layout 1: Minimal Focus
    * Centered dark semi-transparent box with title, address, and specs below.
@@ -289,104 +299,130 @@
 
   // ── Template-specific overlay generators ──────────────────
 
-  /** Open House: dark navy banner at bottom, heading left | divider | details right */
+  /** Open House: dark navy banner at bottom, heading left | divider | details + price right */
   function generateOpenHouseLayout(
     title: string,
     detailsText: string,
     propertyData: StitchVideoRequest["propertyData"]
   ): string {
     const details = detailsText || getAustralianAddress(propertyData);
+    const price = propertyData.price ? `$${formatPrice(propertyData.price)}` : "";
+    const specs = buildSpecsText(propertyData);
     return `
       <div style="position:relative;width:100%;height:100%;font-family:Helvetica,Arial,sans-serif;color:white;">
         <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(47,64,80,0.92);padding:32px 40px;display:flex;align-items:center;">
           <div style="font-size:44px;font-weight:900;letter-spacing:3px;text-transform:uppercase;white-space:nowrap;">${title}</div>
           <div style="width:2px;align-self:stretch;background:rgba(255,255,255,0.4);margin:0 28px;min-height:44px;"></div>
-          <div style="font-size:22px;font-weight:500;line-height:1.5;opacity:0.85;white-space:pre-line;">${details}</div>
+          <div>
+            <div style="font-size:22px;font-weight:500;line-height:1.5;opacity:0.85;white-space:pre-line;">${details}</div>
+            ${price ? `<div style="font-size:28px;font-weight:800;color:#f5c518;margin-top:8px;">${price}</div>` : ""}
+            ${specs ? `<div style="font-size:18px;font-weight:600;opacity:0.75;margin-top:4px;">${specs}</div>` : ""}
+          </div>
         </div>
       </div>
     `;
   }
 
-  /** Newly Listed: centered serif heading + italic address over bottom gradient */
+  /** Newly Listed: centered serif heading + italic address + price over bottom gradient */
   function generateNewlyListedLayout(
     title: string,
     detailsText: string,
     propertyData: StitchVideoRequest["propertyData"]
   ): string {
     const details = detailsText || getAustralianAddress(propertyData);
+    const price = propertyData.price ? `$${formatPrice(propertyData.price)}` : "";
+    const specs = buildSpecsText(propertyData);
     return `
       <div style="position:relative;width:100%;height:100%;font-family:Georgia,'Times New Roman',serif;color:white;">
         <div style="position:absolute;bottom:0;left:0;right:0;padding:80px 48px 60px;background:linear-gradient(to top,rgba(0,0,0,0.65),transparent);text-align:center;">
           <div style="font-size:56px;font-weight:700;margin-bottom:16px;">${title}</div>
           <div style="font-size:28px;font-weight:400;font-style:italic;opacity:0.85;line-height:1.5;white-space:pre-line;">${details}</div>
+          ${price ? `<div style="font-size:32px;font-weight:700;color:#f5c518;margin-top:12px;">${price}</div>` : ""}
+          ${specs ? `<div style="font-size:20px;font-weight:500;font-family:Helvetica,Arial,sans-serif;opacity:0.75;margin-top:8px;">${specs}</div>` : ""}
         </div>
       </div>
     `;
   }
 
-  /** Big and Bold: large centered uppercase heading + small address */
+  /** Big and Bold: large centered uppercase heading + address + price + specs */
   function generateBigBoldLayout(
     title: string,
     detailsText: string,
     propertyData: StitchVideoRequest["propertyData"]
   ): string {
     const details = detailsText || getAustralianAddress(propertyData);
+    const price = propertyData.price ? `$${formatPrice(propertyData.price)}` : "";
+    const specs = buildSpecsText(propertyData);
     return `
       <div style="position:relative;width:100%;height:100%;font-family:Helvetica,Arial,sans-serif;color:white;">
         <div style="position:absolute;bottom:0;left:0;right:0;padding:80px 48px 60px;background:linear-gradient(to top,rgba(0,0,0,0.7),rgba(0,0,0,0.3),transparent);text-align:center;">
           <div style="font-size:72px;font-weight:900;letter-spacing:6px;text-transform:uppercase;margin-bottom:16px;">${title}</div>
           <div style="font-size:22px;font-weight:400;opacity:0.8;letter-spacing:2px;white-space:pre-line;">${details}</div>
+          ${price ? `<div style="font-size:32px;font-weight:800;color:#f5c518;margin-top:12px;">${price}</div>` : ""}
+          ${specs ? `<div style="font-size:20px;font-weight:600;opacity:0.7;margin-top:8px;">${specs}</div>` : ""}
         </div>
       </div>
     `;
   }
 
-  /** White on Black: solid black bar at bottom, white centered text */
+  /** White on Black: solid black bar at bottom, white centered text + price */
   function generateWhiteOnBlackLayout(
     title: string,
     detailsText: string,
     propertyData: StitchVideoRequest["propertyData"]
   ): string {
     const details = detailsText || getAustralianAddress(propertyData);
+    const price = propertyData.price ? `$${formatPrice(propertyData.price)}` : "";
+    const specs = buildSpecsText(propertyData);
     return `
       <div style="position:relative;width:100%;height:100%;font-family:Helvetica,Arial,sans-serif;color:white;">
         <div style="position:absolute;bottom:0;left:0;right:0;background:#000;padding:40px 48px;text-align:center;">
           <div style="font-size:44px;font-weight:800;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;">${title}</div>
           <div style="font-size:22px;font-weight:400;opacity:0.7;white-space:pre-line;">${details}</div>
+          ${price ? `<div style="font-size:28px;font-weight:800;color:#f5c518;margin-top:8px;">${price}</div>` : ""}
+          ${specs ? `<div style="font-size:18px;font-weight:600;opacity:0.6;margin-top:4px;">${specs}</div>` : ""}
         </div>
       </div>
     `;
   }
 
-  /** Simple White: white bar at bottom, dark text centered */
+  /** Simple White: white bar at bottom, dark text centered + price */
   function generateSimpleWhiteLayout(
     title: string,
     detailsText: string,
     propertyData: StitchVideoRequest["propertyData"]
   ): string {
     const details = detailsText || getAustralianAddress(propertyData);
+    const price = propertyData.price ? `$${formatPrice(propertyData.price)}` : "";
+    const specs = buildSpecsText(propertyData);
     return `
       <div style="position:relative;width:100%;height:100%;font-family:Helvetica,Arial,sans-serif;">
         <div style="position:absolute;bottom:0;left:0;right:0;background:#fff;padding:40px 48px;text-align:center;">
           <div style="font-size:44px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:#111;margin-bottom:8px;">${title}</div>
           <div style="font-size:22px;font-weight:400;color:#666;white-space:pre-line;">${details}</div>
+          ${price ? `<div style="font-size:28px;font-weight:800;color:#111;margin-top:8px;">${price}</div>` : ""}
+          ${specs ? `<div style="font-size:18px;font-weight:600;color:#888;margin-top:4px;">${specs}</div>` : ""}
         </div>
       </div>
     `;
   }
 
-  /** Modern Treehouse: subtle bottom gradient, left-aligned text */
+  /** Modern Treehouse: subtle bottom gradient, left-aligned text + price */
   function generateModernTreehouseLayout(
     title: string,
     detailsText: string,
     propertyData: StitchVideoRequest["propertyData"]
   ): string {
     const details = detailsText || getAustralianAddress(propertyData);
+    const price = propertyData.price ? `$${formatPrice(propertyData.price)}` : "";
+    const specs = buildSpecsText(propertyData);
     return `
       <div style="position:relative;width:100%;height:100%;font-family:Helvetica,Arial,sans-serif;color:white;">
         <div style="position:absolute;bottom:0;left:0;right:0;padding:60px 48px 48px;background:linear-gradient(to top,rgba(0,0,0,0.55),transparent);">
           <div style="font-size:44px;font-weight:600;letter-spacing:1px;margin-bottom:8px;">${title}</div>
           <div style="font-size:22px;font-weight:400;opacity:0.7;white-space:pre-line;">${details}</div>
+          ${price ? `<div style="font-size:28px;font-weight:700;color:#f5c518;margin-top:8px;">${price}</div>` : ""}
+          ${specs ? `<div style="font-size:18px;font-weight:600;opacity:0.65;margin-top:4px;">${specs}</div>` : ""}
         </div>
       </div>
     `;
@@ -462,13 +498,15 @@
     `;
   }
 
-  /** Minimal Focus (competitor style): centered uppercase heading, frosted glass address box */
+  /** Minimal Focus (competitor style): centered uppercase heading, frosted glass address + price box */
   function generateMinimalFocusV2Layout(
     title: string,
     detailsText: string,
     propertyData: StitchVideoRequest["propertyData"]
   ): string {
     const details = detailsText || getAustralianAddress(propertyData);
+    const price = propertyData.price ? `$${formatPrice(propertyData.price)}` : "";
+    const specs = buildSpecsText(propertyData);
     return `
       <div style="position:relative;width:100%;height:100%;font-family:Helvetica,Arial,sans-serif;color:white;text-align:center;">
         <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:85%;">
@@ -483,7 +521,7 @@
             font-weight:500;
             white-space:pre-line;
             line-height:1.5;
-          ">${details}</td></tr></table>
+          ">${details}${price ? `<br/><span style="color:#f5c518;font-weight:800;font-size:28px;">${price}</span>` : ""}${specs ? `<br/><span style="font-size:18px;opacity:0.75;">${specs}</span>` : ""}</td></tr></table>
         </div>
       </div>
     `;
@@ -546,13 +584,38 @@
       });
     }
 
+    // Price (e.g. "$1,250,000")
+    if (propertyData.price) {
+      const priceNum = parseInt(propertyData.price.replace(/[^0-9]/g, ""));
+      const formattedPrice = !isNaN(priceNum) ? `$${priceNum.toLocaleString("en-US")}` : `$${propertyData.price}`;
+      elements.push({
+        text: formattedPrice,
+        style: `font-family:Helvetica,Arial,sans-serif;color:#f5c518;font-size:${isPortrait ? 44 : 34}px;font-weight:800;letter-spacing:1px;`,
+        delay: 0.6,
+      });
+    }
+
+    // Property specs (e.g. "3 Bed  •  2 Bath  •  2 Car  •  512m²")
+    const specParts: string[] = [];
+    if (propertyData.beds) specParts.push(`${propertyData.beds} Bed`);
+    if (propertyData.baths) specParts.push(`${propertyData.baths} Bath`);
+    if (propertyData.carSpaces) specParts.push(`${propertyData.carSpaces} Car`);
+    if (propertyData.landSize) specParts.push(`${propertyData.landSize}m²`);
+    if (specParts.length > 0) {
+      elements.push({
+        text: specParts.join("  •  "),
+        style: `font-family:Helvetica,Arial,sans-serif;color:rgba(255,255,255,0.85);font-size:${isPortrait ? 26 : 20}px;font-weight:600;letter-spacing:1px;`,
+        delay: 0.9,
+      });
+    }
+
     // Property type (e.g. "HOUSE", "APARTMENT")
     const propType = propertyData.propertyType || "";
     if (propType) {
       elements.push({
         text: propType.toUpperCase(),
         style: `font-family:Helvetica,Arial,sans-serif;color:rgba(255,255,255,0.8);font-size:${isPortrait ? 26 : 20}px;font-weight:500;letter-spacing:2px;`,
-        delay: 0.8,
+        delay: 1.2,
       });
     }
 
@@ -562,11 +625,11 @@
       elements.push({
         text: saleMethod.toUpperCase(),
         style: `font-family:Helvetica,Arial,sans-serif;color:#f5c518;font-size:${isPortrait ? 28 : 22}px;font-weight:700;letter-spacing:2px;`,
-        delay: 1.1,
+        delay: 1.5,
       });
     }
 
-    // Fallback: if no structured data, use the title + details as two elements
+    // Fallback: if no structured data, use the title + details + price as elements
     if (elements.length === 0) {
       elements.push({
         text: title.toUpperCase(),
@@ -581,10 +644,19 @@
           delay: 0.3,
         });
       }
+      if (propertyData.price) {
+        const priceNum = parseInt(propertyData.price.replace(/[^0-9]/g, ""));
+        const formattedPrice = !isNaN(priceNum) ? `$${priceNum.toLocaleString("en-US")}` : `$${propertyData.price}`;
+        elements.push({
+          text: formattedPrice,
+          style: `font-family:Helvetica,Arial,sans-serif;color:#f5c518;font-size:${isPortrait ? 44 : 34}px;font-weight:800;letter-spacing:1px;`,
+          delay: 0.6,
+        });
+      }
     }
 
     // Background banner track (dark overlay behind text area)
-    const bannerHeight = isPortrait ? 420 : 260;
+    const bannerHeight = isPortrait ? 520 : 320;
     const bgTrack = {
       clips: [{
         asset: {

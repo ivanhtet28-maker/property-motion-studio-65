@@ -300,7 +300,18 @@ export function StepBranding({
     const details = settings.detailsText || getDefaultDetails();
     const templateId = settings.selectedTemplate;
 
-    // ── Open House style: dark navy banner, heading left | divider | details right ──
+    // Helper: format price
+    const fmtPrice = propertyDetails.price
+      ? `$${Number(propertyDetails.price.replace(/[^0-9]/g, "")).toLocaleString()}`
+      : "";
+    const specsLine = [
+      propertyDetails.bedrooms ? `${propertyDetails.bedrooms} Bed` : "",
+      propertyDetails.bathrooms ? `${propertyDetails.bathrooms} Bath` : "",
+      propertyDetails.carSpaces ? `${propertyDetails.carSpaces} Car` : "",
+      propertyDetails.landSize ? `${propertyDetails.landSize}m²` : "",
+    ].filter(Boolean).join("  •  ");
+
+    // ── Open House style: dark navy banner, heading left | divider | details + price right ──
     if (templateId === "open-house") {
       return (
         <div className="absolute bottom-0 left-0 right-0 bg-[#2f4050]/90 px-4 py-3">
@@ -309,15 +320,23 @@ export function StepBranding({
               {heading}
             </h3>
             <div className="w-px self-stretch bg-white/40 min-h-[24px]" />
-            <p className="text-white/80 text-[10px] leading-snug whitespace-pre-line">
-              {details}
-            </p>
+            <div>
+              <p className="text-white/80 text-[10px] leading-snug whitespace-pre-line">
+                {details}
+              </p>
+              {fmtPrice && (
+                <p className="text-yellow-400 text-xs font-bold mt-1">{fmtPrice}</p>
+              )}
+              {specsLine && (
+                <p className="text-white/70 text-[9px] mt-0.5">{specsLine}</p>
+              )}
+            </div>
           </div>
         </div>
       );
     }
 
-    // ── Newly Listed style: centered text over gradient, heading + italic address ──
+    // ── Newly Listed style: centered text over gradient, heading + italic address + price ──
     if (templateId === "newly-listed") {
       return (
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex flex-col items-center justify-end pb-8 px-4">
@@ -327,11 +346,17 @@ export function StepBranding({
           <p className="text-white/85 text-sm italic text-center leading-relaxed whitespace-pre-line">
             {details}
           </p>
+          {fmtPrice && (
+            <p className="text-yellow-400 text-base font-bold mt-1">{fmtPrice}</p>
+          )}
+          {specsLine && (
+            <p className="text-white/70 text-[10px] mt-1">{specsLine}</p>
+          )}
         </div>
       );
     }
 
-    // ── Big and Bold: large centered uppercase heading, small address below ──
+    // ── Big and Bold: large centered uppercase heading, address, price, specs ──
     if (templateId === "big-bold") {
       return (
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent flex flex-col items-center justify-end pb-8 px-4">
@@ -341,6 +366,12 @@ export function StepBranding({
           <p className="text-white/80 text-xs text-center whitespace-pre-line tracking-wide">
             {details}
           </p>
+          {fmtPrice && (
+            <p className="text-yellow-400 text-base font-bold mt-1">{fmtPrice}</p>
+          )}
+          {specsLine && (
+            <p className="text-white/70 text-[10px] mt-1">{specsLine}</p>
+          )}
         </div>
       );
     }
@@ -355,6 +386,12 @@ export function StepBranding({
           <p className="text-white/70 text-[11px] text-center whitespace-pre-line">
             {details}
           </p>
+          {fmtPrice && (
+            <p className="text-yellow-400 text-sm font-bold text-center mt-1">{fmtPrice}</p>
+          )}
+          {specsLine && (
+            <p className="text-white/60 text-[9px] text-center mt-0.5">{specsLine}</p>
+          )}
         </div>
       );
     }
@@ -369,6 +406,12 @@ export function StepBranding({
           <p className="text-gray-500 text-[11px] text-center whitespace-pre-line">
             {details}
           </p>
+          {fmtPrice && (
+            <p className="text-gray-900 text-sm font-bold text-center mt-1">{fmtPrice}</p>
+          )}
+          {specsLine && (
+            <p className="text-gray-400 text-[9px] text-center mt-0.5">{specsLine}</p>
+          )}
         </div>
       );
     }
@@ -383,6 +426,12 @@ export function StepBranding({
           <p className="text-white/70 text-[11px] whitespace-pre-line">
             {details}
           </p>
+          {fmtPrice && (
+            <p className="text-yellow-400 text-sm font-bold mt-1">{fmtPrice}</p>
+          )}
+          {specsLine && (
+            <p className="text-white/60 text-[9px] mt-0.5">{specsLine}</p>
+          )}
         </div>
       );
     }
@@ -450,7 +499,7 @@ export function StepBranding({
       );
     }
 
-    // ── Minimal Focus: centered uppercase heading, frosted glass address box ──
+    // ── Minimal Focus: centered uppercase heading, frosted glass address box + price ──
     if (templateId === "minimal-focus") {
       return (
         <div className="absolute inset-0 flex flex-col items-center justify-center px-4">
@@ -461,6 +510,12 @@ export function StepBranding({
             <p className="text-white/90 text-xs text-center whitespace-pre-line leading-relaxed">
               {details}
             </p>
+            {fmtPrice && (
+              <p className="text-yellow-400 text-sm font-bold text-center mt-1.5">{fmtPrice}</p>
+            )}
+            {specsLine && (
+              <p className="text-white/70 text-[9px] text-center mt-1">{specsLine}</p>
+            )}
           </div>
         </div>
       );
@@ -474,9 +529,17 @@ export function StepBranding({
             {heading}
           </h3>
           <div className="w-px self-stretch bg-white/40" />
-          <p className="text-white/90 text-[11px] leading-relaxed whitespace-pre-line">
-            {details}
-          </p>
+          <div>
+            <p className="text-white/90 text-[11px] leading-relaxed whitespace-pre-line">
+              {details}
+            </p>
+            {fmtPrice && (
+              <p className="text-yellow-400 text-sm font-bold mt-1">{fmtPrice}</p>
+            )}
+            {specsLine && (
+              <p className="text-white/70 text-[10px] mt-0.5">{specsLine}</p>
+            )}
+          </div>
         </div>
       </div>
     );
