@@ -528,7 +528,8 @@ import { corsHeaders } from "../_shared/cors.ts";
   function generateWarmEleganceLayout(
     title: string,
     detailsText: string,
-    propertyData: StitchVideoRequest["propertyData"]
+    propertyData: StitchVideoRequest["propertyData"],
+    outputFormat: string = "portrait"
   ): string {
     const streetAddress = propertyData.streetAddress || "";
     const suburb = propertyData.suburb || "";
@@ -539,6 +540,35 @@ import { corsHeaders } from "../_shared/cors.ts";
     const cars = propertyData.carSpaces || 2;
     const land = propertyData.landSize;
 
+    if (outputFormat === "landscape") {
+      return `
+        <div style="position:relative;width:1920px;height:1080px;overflow:hidden;background:#1a1410;font-family:Georgia,serif;">
+          <div style="position:absolute;top:0;left:0;width:1920px;height:1080px;background:linear-gradient(160deg,#c8b89a 0%,#a07840 30%,#6b4a18 55%,#2e1e08 80%,#0e0a04 100%);"></div>
+          <div style="position:absolute;top:0;right:0;width:900px;height:500px;background:linear-gradient(220deg,rgba(210,195,170,0.55) 0%,rgba(180,155,110,0.2) 50%,rgba(0,0,0,0) 100%);"></div>
+          <div style="position:absolute;top:0;left:0;width:1920px;height:500px;background:linear-gradient(to bottom,rgba(0,0,0,0.55) 0%,rgba(0,0,0,0) 100%);"></div>
+          <div style="position:absolute;bottom:0;left:0;width:1920px;height:600px;background:linear-gradient(to top,rgba(0,0,0,0.80) 0%,rgba(0,0,0,0) 100%);"></div>
+          <div style="position:absolute;top:330px;left:0;width:1920px;text-align:center;font-family:Georgia,serif;font-size:130px;font-weight:normal;font-style:italic;color:rgba(255,255,255,0.96);letter-spacing:1px;line-height:1;">${title}</div>
+          <div style="position:absolute;top:482px;left:0;width:1920px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:normal;color:rgba(255,255,255,0.60);letter-spacing:4px;text-transform:uppercase;">${streetAddress}, ${suburb} ${state}</div>
+          <div style="position:absolute;top:530px;left:0;width:1920px;text-align:center;font-family:Georgia,serif;font-size:52px;font-weight:normal;color:rgba(255,255,255,0.88);letter-spacing:1px;">${price}</div>
+          <div style="position:absolute;bottom:160px;left:660px;width:600px;height:82px;background:rgba(180,155,120,0.30);border-radius:60px;border:1px solid rgba(255,255,255,0.16);">
+            <div style="position:absolute;top:22px;left:50px;font-family:Arial,Helvetica,sans-serif;font-size:28px;color:rgba(255,255,255,0.90);">${beds}</div>
+            <div style="position:absolute;top:24px;left:90px;font-family:Arial,Helvetica,sans-serif;font-size:22px;color:rgba(255,255,255,0.55);">bd</div>
+            <div style="position:absolute;top:16px;left:130px;width:1px;height:50px;background:rgba(255,255,255,0.18);"></div>
+            <div style="position:absolute;top:22px;left:150px;font-family:Arial,Helvetica,sans-serif;font-size:28px;color:rgba(255,255,255,0.90);">${baths}</div>
+            <div style="position:absolute;top:24px;left:190px;font-family:Arial,Helvetica,sans-serif;font-size:22px;color:rgba(255,255,255,0.55);">ba</div>
+            <div style="position:absolute;top:16px;left:238px;width:1px;height:50px;background:rgba(255,255,255,0.18);"></div>
+            <div style="position:absolute;top:22px;left:258px;font-family:Arial,Helvetica,sans-serif;font-size:28px;color:rgba(255,255,255,0.90);">${cars}</div>
+            <div style="position:absolute;top:24px;left:298px;font-family:Arial,Helvetica,sans-serif;font-size:22px;color:rgba(255,255,255,0.55);">cr</div>
+            ${land ? `
+            <div style="position:absolute;top:16px;left:346px;width:1px;height:50px;background:rgba(255,255,255,0.18);"></div>
+            <div style="position:absolute;top:22px;left:370px;font-family:Arial,Helvetica,sans-serif;font-size:24px;color:rgba(255,255,255,0.72);">${land}m²</div>
+            ` : ""}
+          </div>
+        </div>
+      `;
+    }
+
+    // Portrait (default)
     return `
       <div style="position:relative;width:1080px;height:1920px;overflow:hidden;background:#1a1410;font-family:Georgia,serif;">
         <div style="position:absolute;top:0;left:0;width:1080px;height:1920px;background:linear-gradient(175deg,#f0ebe0 0%,#c4a878 40%,#6b4a0e 70%,#2a1a06 100%);"></div>
