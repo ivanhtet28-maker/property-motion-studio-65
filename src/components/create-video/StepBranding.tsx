@@ -41,11 +41,14 @@ import type { PropertyDetails } from "./PropertyDetailsForm";
 // Intro template options
 const INTRO_TEMPLATES = [
   { id: "none", name: "None" },
+  { id: "open-house", name: "Open House" },
+  { id: "newly-listed", name: "Newly Listed" },
+  { id: "elegant-classic", name: "Elegant Classic" },
+  { id: "modern-luxe", name: "Modern Luxe" },
+  { id: "minimal-focus", name: "Minimal Focus" },
   { id: "big-bold", name: "Big and Bold" },
   { id: "white-on-black", name: "White on Black" },
   { id: "simple-white", name: "Simple White" },
-  { id: "newly-listed", name: "Newly Listed" },
-  { id: "open-house", name: "Open House" },
   { id: "modern-treehouse", name: "Modern Treehouse" },
 ];
 
@@ -359,6 +362,85 @@ export function StepBranding({
           <p className="text-white/70 text-[11px] whitespace-pre-line">
             {details}
           </p>
+        </div>
+      );
+    }
+
+    // ── Elegant Classic: centered serif heading, address, price, frosted specs pill ──
+    if (templateId === "elegant-classic") {
+      const price = propertyDetails.price ? `$${Number(propertyDetails.price.replace(/[^0-9]/g, "")).toLocaleString()}` : "";
+      return (
+        <div className="absolute inset-0 flex flex-col items-center justify-center px-4">
+          <h3 className="text-white text-3xl italic leading-tight mb-2 drop-shadow-lg" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
+            {heading}
+          </h3>
+          <p className="text-white/90 text-xs text-center whitespace-pre-line drop-shadow-md mb-1">
+            {details}
+          </p>
+          {price && (
+            <p className="text-white font-bold text-base italic drop-shadow-md mb-3">
+              {price}
+            </p>
+          )}
+          {/* Frosted glass specs pill */}
+          <div className="flex items-center gap-3 bg-white/25 backdrop-blur-md rounded-full px-4 py-1.5">
+            <span className="text-white text-[11px] font-semibold">{propertyDetails.bedrooms} bed</span>
+            <span className="text-white text-[11px] font-semibold">{propertyDetails.bathrooms} bath</span>
+            <span className="text-white text-[11px] font-semibold">{propertyDetails.carSpaces} car</span>
+          </div>
+          {propertyDetails.landSize && (
+            <div className="bg-white/25 backdrop-blur-md rounded-full px-3 py-1 mt-1.5">
+              <span className="text-white text-[10px] font-semibold">{propertyDetails.landSize}m²</span>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ── Modern Luxe: large bold heading top-left, address below, bottom bar with specs + price ──
+    if (templateId === "modern-luxe") {
+      const price = propertyDetails.price ? `$${Number(propertyDetails.price.replace(/[^0-9]/g, "")).toLocaleString()}` : "";
+      return (
+        <div className="absolute inset-0">
+          {/* Top area: heading + address */}
+          <div className="absolute top-[30%] left-4 right-4">
+            <h3 className="text-white font-black text-3xl italic leading-none drop-shadow-lg">
+              {heading}
+            </h3>
+            <p className="text-white/85 text-xs mt-1.5 whitespace-pre-line drop-shadow-md">
+              {details}
+            </p>
+          </div>
+          {/* Bottom bar: specs left, price right */}
+          <div className="absolute bottom-0 left-0 right-0 bg-white/15 backdrop-blur-sm px-4 py-2.5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-white text-[11px] font-semibold">{propertyDetails.bedrooms} bed</span>
+              <span className="text-white text-[11px] font-semibold">{propertyDetails.bathrooms} bath</span>
+              <span className="text-white text-[11px] font-semibold">{propertyDetails.carSpaces} car</span>
+              {propertyDetails.landSize && (
+                <span className="text-white text-[11px] font-semibold">{propertyDetails.landSize}m²</span>
+              )}
+            </div>
+            {price && (
+              <span className="text-white text-sm font-bold">{price}</span>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ── Minimal Focus: centered uppercase heading, frosted glass address box ──
+    if (templateId === "minimal-focus") {
+      return (
+        <div className="absolute inset-0 flex flex-col items-center justify-center px-4">
+          <h3 className="text-white font-bold text-xl uppercase tracking-widest leading-none mb-3 drop-shadow-lg">
+            {heading}
+          </h3>
+          <div className="border border-white/40 bg-white/10 backdrop-blur-sm rounded px-4 py-2.5">
+            <p className="text-white/90 text-xs text-center whitespace-pre-line leading-relaxed">
+              {details}
+            </p>
+          </div>
         </div>
       );
     }
