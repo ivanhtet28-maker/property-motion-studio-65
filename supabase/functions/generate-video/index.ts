@@ -574,16 +574,49 @@
       // Ensure all images are accessible (re-upload external CDN URLs to Storage)
       const reliableImageUrls = await ensureStorageUrls(imageUrls.slice(0, 10));
 
-      const baseMetadata = imageMetadata || reliableImageUrls.map(url => ({
+      // Pre-crop landscape images to 9:16 portrait so Shotstack's SVD model
+      // generates portrait clips instead of landscape ones that get squeezed.
+      console.log("Pre-cropping images to 9:16 portrait for Shotstack...");
+      const portraitImageUrls = await Promise.all(
+        reliableImageUrls.map(async (url, index) => {
+          try {
+            const cropResponse = await fetch(
+              `${Deno.env.get("SUPABASE_URL")}/functions/v1/smart-crop-portrait`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+                },
+                body: JSON.stringify({ imageUrl: url }),
+              }
+            );
+            if (cropResponse.ok) {
+              const cropData = await cropResponse.json();
+              if (cropData.url) {
+                console.log(`Image ${index + 1}: ${cropData.cropped ? "cropped to 9:16" : "already portrait"}`);
+                return cropData.url;
+              }
+            }
+            console.warn(`Image ${index + 1}: crop failed, using original`);
+            return url;
+          } catch (err) {
+            console.warn(`Image ${index + 1}: crop error, using original:`, err instanceof Error ? err.message : err);
+            return url;
+          }
+        })
+      );
+
+      const baseMetadata = imageMetadata || portraitImageUrls.map(url => ({
         url,
         cameraAngle: "auto",
         duration: 4
       }));
 
-      // Update metadata URLs to use reliable versions
+      // Update metadata URLs to use cropped portrait versions
       const metadataForShotstack = baseMetadata.slice(0, 10).map((m: ImageMetadata, i: number) => ({
         ...m,
-        url: reliableImageUrls[i] || m.url,
+        url: portraitImageUrls[i] || m.url,
       }));
       const finalImageUrls = reliableImageUrls;
 
