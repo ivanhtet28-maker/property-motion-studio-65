@@ -611,7 +611,7 @@
                 provider: "shotstack",
                 options: {
                   type: "image-to-video",
-                  url: metadata.url,
+                  imageUrl: metadata.url,
                   motion: motionConfig.motion,
                   guidanceScale: motionConfig.guidanceScale,
                 },
