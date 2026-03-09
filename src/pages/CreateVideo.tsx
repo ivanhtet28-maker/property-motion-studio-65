@@ -64,7 +64,7 @@ export default function CreateVideo() {
     includeVoiceover: true,
     voiceType: "Australian Male",
     musicStyle: "Cinematic & Epic",
-    musicTrack: "Horizon - Epic Journey",
+    musicTrack: "cinematic-epic-1",
     customAudioUrl: null,
     customAudioFile: null,
     musicTrimStart: 0,
@@ -72,6 +72,12 @@ export default function CreateVideo() {
     selectedTemplate: "open-house",
     selectedLayout: "open-house",
     customTitle: "",
+    detailsText: "",
+    outroTemplate: "none",
+    outroText: "",
+    showProfilePhoto: true,
+    showBrandLogo: false,
+    brandLogo: null,
     useGlobalSeed: false,
     globalSeed: Math.floor(Math.random() * 999999) + 1,
     agentInfo: { photo: null, name: "", phone: "", email: "" },
@@ -130,6 +136,12 @@ export default function CreateVideo() {
   const previewImageUrl =
     selectedIndices.length > 0 && photos[selectedIndices[0]]
       ? URL.createObjectURL(photos[selectedIndices[0]])
+      : undefined;
+
+  // ─── Preview URL for last selected image (outro background) ──
+  const lastImageUrl =
+    selectedIndices.length > 0 && photos[selectedIndices[selectedIndices.length - 1]]
+      ? URL.createObjectURL(photos[selectedIndices[selectedIndices.length - 1]])
       : undefined;
 
   // ─── Step navigation ───────────────────────────────
@@ -667,6 +679,7 @@ export default function CreateVideo() {
               propertyDetails={propertyDetails}
               onPropertyDetailsChange={setPropertyDetails}
               previewImageUrl={previewImageUrl}
+              lastImageUrl={lastImageUrl}
               orientation={orientation}
               onOrientationChange={setOrientation}
             />

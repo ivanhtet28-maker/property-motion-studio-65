@@ -27,25 +27,25 @@ export const MUSIC_LIBRARY: Record<string, MusicTrack> = {
   // ─── Cinematic ─────────────────────────────────────
   "cinematic-epic-1": {
     url: `${MUSIC_BASE}/cinematic-epic-1`,
-    name: "Horizon - Epic Journey",
+    name: "cinematic-epic-1",
     duration: 165,
     category: "cinematic",
   },
   "cinematic-epic-2": {
     url: `${MUSIC_BASE}/cinematic-epic-2`,
-    name: "Summit - Orchestral Rise",
+    name: "cinematic-epic-2",
     duration: 192,
     category: "cinematic",
   },
   "cinematic-epic-3": {
     url: `${MUSIC_BASE}/cinematic-epic-3`,
-    name: "Grand Estate - Dramatic Reveal",
+    name: "cinematic-epic-3",
     duration: 150,
     category: "cinematic",
   },
   "luxury-1": {
     url: `${MUSIC_BASE}/${encodeURIComponent("Luxury 1.mp3")}`,
-    name: "Luxury Showcase",
+    name: "Luxury 1.mp3",
     duration: 178,
     category: "cinematic",
   },
@@ -53,19 +53,19 @@ export const MUSIC_LIBRARY: Record<string, MusicTrack> = {
   // ─── Modern ────────────────────────────────────────
   "modern-chill-1": {
     url: `${MUSIC_BASE}/modern-chill-1`,
-    name: "Daylight - Acoustic Pop",
+    name: "modern-chill-1",
     duration: 160,
     category: "modern",
   },
   "modern-chill-2": {
     url: `${MUSIC_BASE}/modern-chill-2`,
-    name: "Waves - Lo-fi Beats",
+    name: "modern-chill-2",
     duration: 175,
     category: "modern",
   },
   "lofi-2": {
     url: `${MUSIC_BASE}/${encodeURIComponent("Lofi 2 .mp3")}`,
-    name: "Lofi Chill Beats",
+    name: "Lofi 2 .mp3",
     duration: 180,
     category: "modern",
   },
@@ -73,13 +73,13 @@ export const MUSIC_LIBRARY: Record<string, MusicTrack> = {
   // ─── Energetic ─────────────────────────────────────
   "upbeat-energetic-3": {
     url: `${MUSIC_BASE}/upbeat-energetic-3.mp3`,
-    name: "Welcome Home - Feel Good",
+    name: "upbeat-energetic-3.mp3",
     duration: 162,
     category: "energetic",
   },
   "upbeat-1": {
     url: `${MUSIC_BASE}/${encodeURIComponent("Upbeat 1 .mp3")}`,
-    name: "Upbeat Energy",
+    name: "Upbeat 1 .mp3",
     duration: 155,
     category: "energetic",
   },
@@ -87,13 +87,13 @@ export const MUSIC_LIBRARY: Record<string, MusicTrack> = {
   // ─── Classical ─────────────────────────────────────
   "classical-elegant-1": {
     url: `${MUSIC_BASE}/classical-elegant-1`,
-    name: "Nocturne - Piano Solo",
+    name: "classical-elegant-1",
     duration: 200,
     category: "classical",
   },
   "classical-elegant-2": {
     url: `${MUSIC_BASE}/classical-elegant-2`,
-    name: "Adagio - String Quartet",
+    name: "classical-elegant-2",
     duration: 225,
     category: "classical",
   },
@@ -101,13 +101,13 @@ export const MUSIC_LIBRARY: Record<string, MusicTrack> = {
   // ─── Ambient ───────────────────────────────────────
   "ambient-relaxing-1": {
     url: `${MUSIC_BASE}/ambient-relaxing-1`,
-    name: "Drift - Ambient Tones",
+    name: "ambient-relaxing-1",
     duration: 180,
     category: "ambient",
   },
   "ambient-relaxing-2": {
     url: `${MUSIC_BASE}/ambient-relaxing-2`,
-    name: "Serenity - Soft Pads",
+    name: "ambient-relaxing-2",
     duration: 205,
     category: "ambient",
   },
