@@ -6,15 +6,11 @@
 //   "images-only" — lightweight: extract gallery image URLs only, return them directly (no DB, no upload)
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { corsHeaders } from "../_shared/cors.ts";
 
 const SCRAPINGDOG_API_KEY = Deno.env.get("SCRAPINGDOG_API_KEY") || "";
 const SCRAPINGDOG_API_BASE = "https://api.scrapingdog.com/scrape";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 interface ScrapedProperty {
   address: string;

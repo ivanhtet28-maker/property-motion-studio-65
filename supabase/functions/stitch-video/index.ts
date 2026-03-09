@@ -1,12 +1,8 @@
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
+import { corsHeaders } from "../_shared/cors.ts";
 
   import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  };
 
   const SHOTSTACK_API_KEY = Deno.env.get("SHOTSTACK_API_KEY");
 

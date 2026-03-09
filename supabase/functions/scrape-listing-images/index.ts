@@ -1,3 +1,4 @@
+import { corsHeaders } from "../_shared/cors.ts";
 // scrape-listing-images — Extracts high-resolution gallery images from
 // realestate.com.au (REA) and domain.com.au listings.
 //
@@ -14,11 +15,6 @@
 const SCRAPINGDOG_API_KEY = Deno.env.get("SCRAPINGDOG_API_KEY") || "";
 const SCRAPINGDOG_API_BASE = "https://api.scrapingdog.com/scrape";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 // ── Site Detection ───────────────────────────────────────────────────────────
 
