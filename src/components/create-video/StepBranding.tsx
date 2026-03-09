@@ -51,6 +51,7 @@ const INTRO_TEMPLATES = [
   { id: "white-on-black", name: "White on Black" },
   { id: "simple-white", name: "Simple White" },
   { id: "modern-treehouse", name: "Modern Treehouse" },
+  { id: "warm-elegance", name: "Warm Elegance" },
 ];
 
 // Outro template options
@@ -517,6 +518,46 @@ export function StepBranding({
               <p className="text-white/70 text-[9px] text-center mt-1">{specsLine}</p>
             )}
           </div>
+        </div>
+      );
+    }
+
+    // ── Warm Elegance: warm golden gradient, serif title, frosted stats pill ──
+    if (templateId === "warm-elegance") {
+      const price = propertyDetails.price ? `$${Number(propertyDetails.price.replace(/[^0-9]/g, "")).toLocaleString()}` : "";
+      return (
+        <div className="absolute inset-0 overflow-hidden" style={{ background: "linear-gradient(175deg, #f0ebe0 0%, #c4a878 40%, #6b4a0e 70%, #2a1a06 100%)" }}>
+          <div className="absolute top-0 left-0 right-0 h-[30%]" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.45), transparent)" }} />
+          <div className="absolute bottom-0 left-0 right-0 h-[47%]" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.75), transparent)" }} />
+          <div className="absolute top-[40%] left-0 right-0 text-center">
+            <h3 className="text-white/95 text-2xl leading-tight" style={{ fontFamily: "Georgia, serif", letterSpacing: "1px" }}>
+              {heading}
+            </h3>
+            <p className="text-white/55 text-[9px] uppercase mt-2" style={{ letterSpacing: "3px" }}>
+              {propertyDetails.streetAddress}
+            </p>
+            <p className="text-white/40 text-[9px] uppercase" style={{ letterSpacing: "3px" }}>
+              {propertyDetails.suburb} {propertyDetails.state}
+            </p>
+            {price && (
+              <p className="text-white/80 text-base mt-2" style={{ fontFamily: "Georgia, serif" }}>
+                {price}
+              </p>
+            )}
+          </div>
+          {/* Stats pill */}
+          <div className="absolute bottom-[14%] left-1/2 -translate-x-1/2 flex items-center gap-3 px-5 py-2 rounded-full border border-white/15" style={{ background: "rgba(190,165,130,0.28)" }}>
+            <span className="text-white/85 text-[10px]">{propertyDetails.bedrooms} <span className="text-white/50">bd</span></span>
+            <div className="w-px h-4 bg-white/20" />
+            <span className="text-white/85 text-[10px]">{propertyDetails.bathrooms} <span className="text-white/50">ba</span></span>
+            <div className="w-px h-4 bg-white/20" />
+            <span className="text-white/85 text-[10px]">{propertyDetails.carSpaces} <span className="text-white/50">cr</span></span>
+          </div>
+          {propertyDetails.landSize && (
+            <div className="absolute bottom-[8%] left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full border border-white/10" style={{ background: "rgba(190,165,130,0.18)" }}>
+              <span className="text-white/65 text-[9px]">{propertyDetails.landSize}m²</span>
+            </div>
+          )}
         </div>
       );
     }

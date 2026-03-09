@@ -22,6 +22,7 @@ import { corsHeaders } from "../_shared/cors.ts";
     "cinematic": "Cinematic",
     "luxury": "Luxury",
     "real-estate-pro": "Real Estate Pro",
+    "warm-elegance": "Warm Elegance",
   };
 
   // Helper function to upload base64 image to Supabase Storage
@@ -523,6 +524,47 @@ import { corsHeaders } from "../_shared/cors.ts";
     `;
   }
 
+  /** Warm Elegance: warm golden gradient, serif title, frosted stats pill */
+  function generateWarmEleganceLayout(
+    title: string,
+    detailsText: string,
+    propertyData: StitchVideoRequest["propertyData"]
+  ): string {
+    const streetAddress = propertyData.streetAddress || "";
+    const suburb = propertyData.suburb || "";
+    const state = propertyData.state || "";
+    const price = propertyData.price ? `$${formatPrice(propertyData.price)}` : "";
+    const beds = propertyData.beds || 4;
+    const baths = propertyData.baths || 3;
+    const cars = propertyData.carSpaces || 2;
+    const land = propertyData.landSize;
+
+    return `
+      <div style="position:relative;width:1080px;height:1920px;overflow:hidden;background:#1a1410;font-family:Georgia,serif;">
+        <div style="position:absolute;top:0;left:0;width:1080px;height:1920px;background:linear-gradient(175deg,#f0ebe0 0%,#c4a878 40%,#6b4a0e 70%,#2a1a06 100%);"></div>
+        <div style="position:absolute;top:0;left:0;width:1080px;height:600px;background:linear-gradient(to bottom,rgba(0,0,0,0.45) 0%,rgba(0,0,0,0) 100%);"></div>
+        <div style="position:absolute;bottom:0;left:0;width:1080px;height:900px;background:linear-gradient(to top,rgba(0,0,0,0.75) 0%,rgba(0,0,0,0) 100%);"></div>
+        <div style="position:absolute;top:760px;left:0;width:1080px;text-align:center;font-family:Georgia,serif;font-size:112px;font-weight:normal;color:rgba(255,255,255,0.95);letter-spacing:2px;line-height:1.1;">${title}</div>
+        <div style="position:absolute;top:900px;left:0;width:1080px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:28px;font-weight:300;color:rgba(255,255,255,0.58);letter-spacing:5px;text-transform:uppercase;">${streetAddress}</div>
+        <div style="position:absolute;top:944px;left:0;width:1080px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:28px;font-weight:300;color:rgba(255,255,255,0.45);letter-spacing:5px;text-transform:uppercase;">${suburb} ${state}</div>
+        <div style="position:absolute;top:1010px;left:0;width:1080px;text-align:center;font-family:Georgia,serif;font-size:58px;font-weight:normal;color:rgba(255,255,255,0.82);letter-spacing:1px;">${price}</div>
+        <div style="position:absolute;bottom:220px;left:290px;width:500px;height:88px;background:rgba(190,165,130,0.28);border-radius:60px;border:1px solid rgba(255,255,255,0.14);">
+          <div style="position:absolute;top:22px;left:50px;font-family:Arial,Helvetica,sans-serif;font-size:32px;font-weight:300;color:rgba(255,255,255,0.88);">${beds}</div>
+          <div style="position:absolute;top:24px;left:90px;font-family:Arial,Helvetica,sans-serif;font-size:26px;color:rgba(255,255,255,0.55);">bd</div>
+          <div style="position:absolute;top:20px;left:162px;width:1px;height:48px;background:rgba(255,255,255,0.18);"></div>
+          <div style="position:absolute;top:22px;left:182px;font-family:Arial,Helvetica,sans-serif;font-size:32px;font-weight:300;color:rgba(255,255,255,0.88);">${baths}</div>
+          <div style="position:absolute;top:24px;left:222px;font-family:Arial,Helvetica,sans-serif;font-size:26px;color:rgba(255,255,255,0.55);">ba</div>
+          <div style="position:absolute;top:20px;left:294px;width:1px;height:48px;background:rgba(255,255,255,0.18);"></div>
+          <div style="position:absolute;top:22px;left:314px;font-family:Arial,Helvetica,sans-serif;font-size:32px;font-weight:300;color:rgba(255,255,255,0.88);">${cars}</div>
+          <div style="position:absolute;top:24px;left:354px;font-family:Arial,Helvetica,sans-serif;font-size:26px;color:rgba(255,255,255,0.55);">cr</div>
+        </div>
+        ${land ? `<div style="position:absolute;bottom:120px;left:390px;width:300px;height:70px;background:rgba(190,165,130,0.18);border-radius:60px;border:1px solid rgba(255,255,255,0.10);">
+          <div style="position:absolute;top:16px;left:0;width:300px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:28px;font-weight:300;color:rgba(255,255,255,0.68);letter-spacing:1px;">${land}m²</div>
+        </div>` : ""}
+      </div>
+    `;
+  }
+
   /** Helper: build Australian-format address from property data */
   function getAustralianAddress(propertyData: StitchVideoRequest["propertyData"]): string {
     const parts: string[] = [];
@@ -733,6 +775,8 @@ import { corsHeaders } from "../_shared/cors.ts";
         return generateModernLuxeV2Layout(title, details, propertyData);
       case "minimal-focus":
         return generateMinimalFocusV2Layout(title, details, propertyData);
+      case "warm-elegance":
+        return generateWarmEleganceLayout(title, details, propertyData);
       case "none":
         return ""; // No overlay
       // Legacy layout ids
