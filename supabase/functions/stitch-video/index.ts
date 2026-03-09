@@ -1148,14 +1148,13 @@
             },
 
             // Agent outro background - First clip/photo blurred (Track 3)
-            ...(agentInfo && agentInfo.name ? [{
+            // Use sourceUrls[0] which is guaranteed to exist (validated above on line 813).
+            ...(agentInfo && agentInfo.name && sourceUrls[0] ? [{
               clips: [
                 {
-                  asset: isKenBurns
-                    ? { type: "image", src: imageUrls![0] }  // Ken Burns: use first photo
-                    : fallbackSet.has(0)
-                      ? { type: "image", src: videoUrls![0] }  // Fallback: image URL, not video
-                      : { type: "video", src: videoUrls![0] }, // AI mode: use first video clip
+                  asset: isKenBurns || fallbackSet.has(0)
+                    ? { type: "image", src: sourceUrls[0] }
+                    : { type: "video", src: sourceUrls[0] },
                   start: videoClipsDuration,
                   length: agentCardDuration,
                   filter: "blur",
@@ -1214,6 +1213,20 @@
       }
       console.log("Property Specs Text:", `${propertyData.beds} BED • ${propertyData.baths} BATH${propertyData.carSpaces ? ` • ${propertyData.carSpaces} CAR` : ""}${propertyData.landSize ? ` • ${propertyData.landSize}m²` : ""}`);
       console.log("Edit payload tracks count:", edit.timeline.tracks.length);
+
+      // Validate all clip source URLs before submitting — prevent "missing image source" errors
+      for (const [trackIdx, track] of edit.timeline.tracks.entries()) {
+        if (track && track.clips) {
+          for (const [clipIdx, clip] of (track.clips as any[]).entries()) {
+            const src = clip?.asset?.src;
+            const assetType = clip?.asset?.type;
+            if ((assetType === "image" || assetType === "video" || assetType === "audio") && (!src || !src.startsWith("http"))) {
+              console.error(`Invalid source URL at track ${trackIdx} clip ${clipIdx}: type=${assetType}, src=${src}`);
+              throw new Error(`Invalid or missing source URL at track ${trackIdx} clip ${clipIdx} (type: ${assetType}). URL: ${src || "empty"}`);
+            }
+          }
+        }
+      }
 
       // Submit to Shotstack
       const response = await fetch("https://api.shotstack.io/v1/render", {
