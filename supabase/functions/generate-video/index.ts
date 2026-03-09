@@ -1,4 +1,5 @@
 import { corsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
 // Edge function for video generation using Runway Gen4 Turbo
   /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
@@ -238,6 +239,26 @@ import { corsHeaders } from "../_shared/cors.ts";
       }
       console.log(`[generate-video] Authenticated user: ${userData.user.id}`);
 
+      // Rate limit: max 20 video generations per hour per user
+      const clientIP = getClientIP(req);
+      const { allowed: userAllowed } = await checkRateLimit("generate-video:user", userData.user.id, 20, 3600);
+      if (!userAllowed) {
+        console.warn(`[generate-video] Rate limit hit for user ${userData.user.id}`);
+        return new Response(
+          JSON.stringify({ error: "Too many video generations. Please wait before trying again." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      // Also rate limit by IP (catches multi-account abuse)
+      const { allowed: ipAllowed } = await checkRateLimit("generate-video:ip", clientIP, 30, 3600);
+      if (!ipAllowed) {
+        console.warn(`[generate-video] IP rate limit hit: ${clientIP}`);
+        return new Response(
+          JSON.stringify({ error: "Too many requests from your network. Please try again later." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       const { imageUrls, imageMetadata, propertyData, style, layout, customTitle, detailsText, voice, music, customMusicUrl, musicTrimStart, musicTrimEnd, userId, propertyId, script, source, agentInfo, preGeneratedVideoUrls, useKenBurns }: GenerateVideoRequest = await req.json();
 
       console.log("=== VIDEO GENERATION ===");
@@ -327,25 +348,63 @@ import { corsHeaders } from "../_shared/cors.ts";
           const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
           const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-          // Check user subscription status and free trial availability
-          const { data: userData, error: userError } = await supabase
+          // Check user subscription status, quota, and free trial availability
+          const { data: userPrefs, error: userError } = await supabase
             .from("user_preferences")
-            .select("subscription_status, free_video_used")
+            .select("subscription_status, free_video_used, videos_used_this_period, videos_limit")
             .eq("user_id", userId)
             .single();
 
-          if (!userError && userData) {
-            const hasActiveSubscription = userData.subscription_status === "active";
-            const hasFreeTrial = !userData.free_video_used;
+          if (!userError && userPrefs) {
+            const hasActiveSubscription = userPrefs.subscription_status === "active";
+            const hasFreeTrial = !userPrefs.free_video_used;
 
-            // Determine if this is a free trial video
-            // Note: free_video_used is NOT marked here — it's marked later
-            // only after video generation successfully starts (Runway queued or
-            // Ken Burns/Canvas job started). This prevents consuming the trial
-            // on failed generations.
-            if (!hasActiveSubscription && hasFreeTrial) {
+            if (hasActiveSubscription) {
+              // Backend quota enforcement — prevent generation if over limit
+              const used = userPrefs.videos_used_this_period ?? 0;
+              const limit = userPrefs.videos_limit ?? 10;
+              if (used >= limit) {
+                console.warn(`[generate-video] Quota exceeded for user ${userId}: ${used}/${limit}`);
+                return new Response(
+                  JSON.stringify({ error: `Video limit reached (${used}/${limit}). Upgrade your plan or wait for the next billing period.` }),
+                  { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+                );
+              }
+              console.log(`[generate-video] Quota: ${used + 1}/${limit} videos this period`);
+            } else if (hasFreeTrial) {
+              // Free trial abuse check: has this IP already used a free trial?
+              const ipHash = await hashIP(clientIP);
+
+              const { count: ipTrialCount } = await supabase
+                .from("user_preferences")
+                .select("user_id", { count: "exact", head: true })
+                .eq("signup_ip_hash", ipHash)
+                .eq("free_video_used", true);
+
+              if (ipTrialCount && ipTrialCount >= 3) {
+                console.warn(`[generate-video] Free trial abuse detected: IP hash ${ipHash.substring(0, 8)}... has ${ipTrialCount} used trials`);
+                return new Response(
+                  JSON.stringify({ error: "Free trial limit reached. Please subscribe to continue." }),
+                  { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+                );
+              }
+
+              // Save IP hash for future abuse detection
+              await supabase
+                .from("user_preferences")
+                .update({ signup_ip_hash: ipHash })
+                .eq("user_id", userId)
+                .is("signup_ip_hash", null);
+
               isFreeTrial = true;
               console.log("This is a free trial video generation — will mark as used after DB record creation");
+            } else {
+              // No subscription and no free trial left
+              console.warn(`[generate-video] No subscription or free trial for user ${userId}`);
+              return new Response(
+                JSON.stringify({ error: "Subscribe to generate more videos." }),
+                { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+              );
             }
           }
 
@@ -389,6 +448,19 @@ import { corsHeaders } from "../_shared/cors.ts";
                 console.error("Failed to mark free trial as used:", updateError);
               } else {
                 console.log("Free trial marked as used for user:", userId);
+              }
+            }
+
+            // Increment videos_used_this_period for paying subscribers
+            if (!isFreeTrial) {
+              const { error: quotaError } = await supabase.rpc("increment_video_count", { p_user_id: userId });
+              if (quotaError) {
+                // Fallback: manual increment if RPC doesn't exist yet
+                console.warn("RPC increment_video_count failed, using manual increment:", quotaError.message);
+                await supabase
+                  .from("user_preferences")
+                  .update({ videos_used_this_period: (userPrefs?.videos_used_this_period ?? 0) + 1 })
+                  .eq("user_id", userId);
               }
             }
           }
