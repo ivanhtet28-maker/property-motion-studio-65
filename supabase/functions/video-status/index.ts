@@ -10,6 +10,8 @@ const corsHeaders = {
 
 const RUNWAY_API_KEY = Deno.env.get("RUNWAY_API_KEY");
 const RUNWAY_VERSION = "2024-11-06";
+const SHOTSTACK_API_KEY = Deno.env.get("SHOTSTACK_API_KEY");
+const SHOTSTACK_CREATE_URL = "https://api.shotstack.io/create/v1/assets";
 
 async function updateVideoRecord(
   videoId: string | undefined,
@@ -165,6 +167,106 @@ async function checkRunwayBatch(generationIds: string[]) {
   };
 }
 
+// ── Inline Shotstack Create API status checking ─────────────────────────
+async function checkShotstackCreateBatch(generationIds: string[]) {
+  if (!SHOTSTACK_API_KEY) {
+    throw new Error("SHOTSTACK_API_KEY not configured");
+  }
+
+  console.log(`Checking status for ${generationIds.length} Shotstack Create assets...`);
+
+  const statusPromises = generationIds.map(async (assetId: string) => {
+    try {
+      const response = await fetch(
+        `${SHOTSTACK_CREATE_URL}/${assetId}`,
+        {
+          headers: {
+            "x-api-key": SHOTSTACK_API_KEY!,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        console.error(`Failed to check status for ${assetId}: ${response.status}`);
+        return {
+          generationId: assetId,
+          status: "failed" as const,
+          videoUrl: null,
+          error: `Failed to fetch status: ${response.status}`,
+        };
+      }
+
+      const data = await response.json();
+      const assetStatus = data.data?.attributes?.status || data.data?.status || "queued";
+      const assetUrl = data.data?.attributes?.url || data.data?.url || null;
+
+      // Shotstack Create API status mapping:
+      // done → completed, failed → failed, queued/processing → pending/processing
+      let status: "pending" | "processing" | "completed" | "failed";
+      switch (assetStatus) {
+        case "done":
+          status = "completed";
+          break;
+        case "failed":
+          status = "failed";
+          break;
+        case "processing":
+          status = "processing";
+          break;
+        case "queued":
+        default:
+          status = "pending";
+          break;
+      }
+
+      return {
+        generationId: assetId,
+        status,
+        videoUrl: status === "completed" ? assetUrl : null,
+        failureReason: assetStatus === "failed" ? "Shotstack generation failed" : null,
+      };
+    } catch (error) {
+      console.error(`Error checking asset ${assetId}:`, error);
+      return {
+        generationId: assetId,
+        status: "failed" as const,
+        videoUrl: null,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  });
+
+  const statuses = await Promise.all(statusPromises);
+
+  const completed = statuses.filter((s) => s.status === "completed");
+  const failed = statuses.filter((s) => s.status === "failed");
+  const processing = statuses.filter((s) => s.status === "processing");
+  const pending = statuses.filter((s) => s.status === "pending");
+
+  const anyFailed = failed.length > 0;
+
+  const videoUrls = completed
+    .map((s) => s.videoUrl)
+    .filter((url): url is string => url !== null);
+
+  console.log(
+    `Shotstack Status: ${completed.length} completed, ${processing.length} processing, ${pending.length} pending, ${failed.length} failed`
+  );
+
+  return {
+    anyFailed,
+    statuses,
+    videoUrls,
+    summary: {
+      total: generationIds.length,
+      completed: completed.length,
+      processing: processing.length,
+      pending: pending.length,
+      failed: failed.length,
+    },
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { status: 200, headers: corsHeaders });
@@ -282,9 +384,10 @@ Deno.serve(async (req) => {
     }
 
     const isRunway = provider === "runway";
+    const isShotstackCreate = provider === "shotstack-create";
     console.log(`Provider: "${provider}", checking ${generationIds.length} generations`);
 
-    // Check Runway batch status directly (no internal function call)
+    // Check batch status based on provider
     let batchResult: {
       anyFailed: boolean;
       summary: { total: number; completed: number; processing: number; pending: number; failed: number };
@@ -292,12 +395,25 @@ Deno.serve(async (req) => {
       statuses: Array<{ status: string; videoUrl: string | null; generationId: string }>;
     };
 
-    if (isRunway) {
+    if (isShotstackCreate) {
+      try {
+        batchResult = await checkShotstackCreateBatch(generationIds);
+      } catch (batchError) {
+        console.error("Shotstack Create batch check error:", batchError);
+        return new Response(
+          JSON.stringify({
+            status: "processing",
+            progress: 10,
+            message: `Checking clips (${batchError instanceof Error ? batchError.message : "retrying"})...`,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } else if (isRunway) {
       try {
         batchResult = await checkRunwayBatch(generationIds);
       } catch (batchError) {
         console.error("Runway batch check error:", batchError);
-        // Return processing so frontend retries — don't crash the whole poll
         return new Response(
           JSON.stringify({
             status: "processing",
