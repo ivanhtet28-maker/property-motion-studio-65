@@ -246,7 +246,7 @@
       const { imageUrls, imageMetadata, propertyData, style, layout, customTitle, detailsText, voice, music, customMusicUrl, musicTrimStart, musicTrimEnd, userId, propertyId, script, source, agentInfo, preGeneratedVideoUrls, useKenBurns }: GenerateVideoRequest = await req.json();
 
       console.log("=== VIDEO GENERATION ===");
-      console.log("Mode:", useKenBurns ? "Ken Burns (Shotstack direct)" : "Runway Gen4 Turbo");
+      console.log("Mode:", useKenBurns ? "Ken Burns (Shotstack direct)" : "Shotstack Create API (image-to-video)");
       console.log("Total images:", imageUrls?.length || 0);
       console.log("Property:", propertyData?.address);
 
@@ -537,67 +537,31 @@
         );
       }
 
-      // --- Runway Gen4 Turbo flow ---
-      // Uses prompt-driven camera control for superior motion quality.
-      // gen4_turbo produces cleaner orbits and zero hallucinations.
-      console.log("Starting Runway Gen4 Turbo batch generation for", imageUrls.length, "images...");
+      // --- Shotstack Create API flow ---
+      // Uses Shotstack's image-to-video (Stable Video Diffusion) for clip generation.
+      // Each clip is 4 seconds. Shotstack key is already configured in Supabase secrets.
+      console.log("Starting Shotstack Create API batch generation for", imageUrls.length, "images...");
 
-      // Ensure all images are accessible by Runway (re-upload external CDN URLs to Storage)
+      // Ensure all images are accessible (re-upload external CDN URLs to Storage)
       const reliableImageUrls = await ensureStorageUrls(imageUrls.slice(0, 10));
 
-      // Smart 9:16 pre-crop: Runway center-crops blindly when aspect ratio doesn't match.
-      // Pre-cropping landscape images to 9:16 ensures the most important content is preserved.
-      console.log("Running smart 9:16 portrait crop on", reliableImageUrls.length, "images...");
-      let portraitImageUrls = reliableImageUrls;
-      try {
-        const cropResponse = await fetch(
-          `${Deno.env.get("SUPABASE_URL")}/functions/v1/smart-crop-portrait`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
-            },
-            body: JSON.stringify({
-              images: reliableImageUrls.map(url => ({ imageUrl: url })),
-            }),
-          }
-        );
-
-        if (cropResponse.ok) {
-          const cropData = await cropResponse.json();
-          if (cropData.success && Array.isArray(cropData.results)) {
-            portraitImageUrls = cropData.results.map((r: { url: string }) => r.url);
-            const croppedCount = cropData.results.filter((r: { cropped: boolean }) => r.cropped).length;
-            console.log(`Smart crop: ${croppedCount}/${reliableImageUrls.length} images cropped to 9:16`);
-          }
-        } else {
-          console.warn("Smart crop failed, using original images:", cropResponse.status);
-        }
-      } catch (cropErr) {
-        console.warn("Smart crop error, using original images:", cropErr instanceof Error ? cropErr.message : cropErr);
-      }
-
-      const baseMetadata = imageMetadata || portraitImageUrls.map(url => ({
+      const baseMetadata = imageMetadata || reliableImageUrls.map(url => ({
         url,
         cameraAngle: "auto",
-        duration: 5
+        duration: 4
       }));
 
-      // Update metadata URLs to use the pre-cropped portrait versions
-      const metadataForRunway = baseMetadata.slice(0, 10).map((m: ImageMetadata, i: number) => ({
+      // Update metadata URLs to use reliable versions
+      const metadataForShotstack = baseMetadata.slice(0, 10).map((m: ImageMetadata, i: number) => ({
         ...m,
-        url: portraitImageUrls[i] || m.url,
+        url: reliableImageUrls[i] || m.url,
       }));
-      const finalImageUrls = portraitImageUrls;
+      const finalImageUrls = reliableImageUrls;
 
-      // Always generate portrait (9:16) clips — the app targets social media reels.
-      // Images are now pre-cropped to 9:16, so Runway won't need to center-crop blindly.
-      const computedOutputFormat = "portrait";
-      console.log(`Sending ${metadataForRunway.length} images to Runway, outputFormat=${computedOutputFormat} (pre-cropped to 9:16)`);
+      console.log(`Sending ${metadataForShotstack.length} images to Shotstack Create API`);
 
-      const runwayResponse = await fetch(
-        `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-runway-batch`,
+      const shotstackResponse = await fetch(
+        `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-shotstack-batch`,
         {
           method: "POST",
           headers: {
@@ -605,47 +569,46 @@
             "Authorization": `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
           },
           body: JSON.stringify({
-            imageMetadata: metadataForRunway,
+            imageMetadata: metadataForShotstack,
             propertyAddress: propertyData.address,
-            outputFormat: computedOutputFormat,
           }),
         }
       );
 
-      if (!runwayResponse.ok) {
-        const errorText = await runwayResponse.text();
-        throw new Error(`generate-runway-batch HTTP ${runwayResponse.status}: ${errorText}`);
+      if (!shotstackResponse.ok) {
+        const errorText = await shotstackResponse.text();
+        throw new Error(`generate-shotstack-batch HTTP ${shotstackResponse.status}: ${errorText}`);
       }
 
-      const runwayData = await runwayResponse.json();
+      const shotstackData = await shotstackResponse.json();
 
-      if (!runwayData.success) {
-        throw new Error(runwayData.error || "Failed to start Runway batch generation");
+      if (!shotstackData.success) {
+        throw new Error(shotstackData.error || "Failed to start Shotstack batch generation");
       }
 
-      if (!Array.isArray(runwayData.generations)) {
-        throw new Error(`Unexpected response from generate-runway-batch: ${JSON.stringify(runwayData)}`);
+      if (!Array.isArray(shotstackData.generations)) {
+        throw new Error(`Unexpected response from generate-shotstack-batch: ${JSON.stringify(shotstackData)}`);
       }
 
-      const generations = (runwayData.generations as LumaGeneration[]).filter(
+      const generations = (shotstackData.generations as LumaGeneration[]).filter(
         (g) => g.status === "queued" && g.generationId
       );
       const generationIds = generations.map((g) => g.generationId).filter(Boolean) as string[];
 
-      console.log(`Started ${generations.length} Runway generations`);
+      console.log(`Started ${generations.length} Shotstack generations`);
       console.log("Generation IDs:", generationIds);
 
       if (generationIds.length === 0) {
-        const failedGenerations = (runwayData.generations as LumaGeneration[]).filter((g) => g.status === "error");
+        const failedGenerations = (shotstackData.generations as LumaGeneration[]).filter((g) => g.status === "error");
         const errors = failedGenerations.map((g) => g.error).join("; ");
-        throw new Error(`No valid Runway generation IDs returned. All ${runwayData.generations?.length ?? 0} submissions failed. Errors: ${errors || "unknown"}`);
+        throw new Error(`No valid Shotstack generation IDs returned. All ${shotstackData.generations?.length ?? 0} submissions failed. Errors: ${errors || "unknown"}`);
       }
 
-      // Mark free trial consumed now that at least one Runway generation started
+      // Mark free trial consumed now that at least one Shotstack generation started
       if (isFreeTrial && userId) await markFreeTrialUsed(userId);
 
       // Extract camera actions for fallback slots and stitch-video
-      const cameraAngles = metadataForRunway.map((m: ImageMetadata) =>
+      const cameraAngles = metadataForShotstack.map((m: ImageMetadata) =>
         m.cameraAction || m.cameraAngle || "push-in"
       );
 
@@ -656,14 +619,14 @@
           const supabaseAdminKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
           const supabaseAdmin = createClient(supabaseAdminUrl, supabaseAdminKey);
 
-          const clipDurations = metadataForRunway.map((m: ImageMetadata) => m.duration ?? 5);
+          const clipDurations = metadataForShotstack.map((m: ImageMetadata) => m.duration ?? 4);
 
           await supabaseAdmin
             .from("videos")
             .update({
               photos: JSON.stringify({
                 generationIds,
-                provider: "runway",
+                provider: "shotstack-create",
                 audioUrl,
                 musicUrl,
                 clipDurations,
@@ -673,13 +636,13 @@
                 style: style,
                 layout: layout || style,
                 customTitle: customTitle || "",
-              detailsText: detailsText || "",
+                detailsText: detailsText || "",
                 imageUrls: finalImageUrls,
               }),
             })
             .eq("id", videoRecordId);
 
-          console.log("Saved Runway generation context to DB for recovery");
+          console.log("Saved Shotstack generation context to DB for recovery");
         } catch (err) {
           console.error("Failed to save generation context:", err);
         }
@@ -688,13 +651,13 @@
       return new Response(
         JSON.stringify({
           success: true,
-          provider: "runway",
+          provider: "shotstack-create",
           videoId: videoRecordId,
           generationIds: generationIds,
           totalClips: generationIds.length,
           estimatedDuration: expectedDuration,
-          estimatedTime: generationIds.length * 30, // ~30s per 5s clip with Gen4 Turbo
-          message: `Started ${generationIds.length} Runway Gen4 Turbo generations. Poll video-status to track progress.`,
+          estimatedTime: generationIds.length * 20, // ~20s per clip with Shotstack
+          message: `Started ${generationIds.length} Shotstack image-to-video generations. Poll video-status to track progress.`,
           audioUrl: audioUrl,
           musicUrl: musicUrl,
           musicTrimStart: musicTrimStart || 0,
@@ -703,7 +666,7 @@
           propertyData: propertyData,
           style: style,
           imageUrls: finalImageUrls,
-          cameraAngles: cameraAngles,  // For fallback slot motions in stitch-video
+          cameraAngles: cameraAngles,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );

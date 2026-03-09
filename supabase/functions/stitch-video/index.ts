@@ -296,10 +296,10 @@
     const details = detailsText || getAustralianAddress(propertyData);
     return `
       <div style="position:relative;width:100%;height:100%;font-family:Helvetica,Arial,sans-serif;color:white;">
-        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(47,64,80,0.92);padding:48px 48px;display:flex;align-items:center;">
-          <div style="font-size:58px;font-weight:900;letter-spacing:3px;text-transform:uppercase;white-space:nowrap;">${title}</div>
-          <div style="width:3px;align-self:stretch;background:rgba(255,255,255,0.4);margin:0 36px;min-height:60px;"></div>
-          <div style="font-size:26px;font-weight:500;line-height:1.5;opacity:0.85;white-space:pre-line;">${details}</div>
+        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(47,64,80,0.92);padding:32px 40px;display:flex;align-items:center;">
+          <div style="font-size:44px;font-weight:900;letter-spacing:3px;text-transform:uppercase;white-space:nowrap;">${title}</div>
+          <div style="width:2px;align-self:stretch;background:rgba(255,255,255,0.4);margin:0 28px;min-height:44px;"></div>
+          <div style="font-size:22px;font-weight:500;line-height:1.5;opacity:0.85;white-space:pre-line;">${details}</div>
         </div>
       </div>
     `;
@@ -495,6 +495,138 @@
     if (line2) parts.push(line2);
     if (parts.length > 0) return parts.join(",\n");
     return propertyData.address || "27 Alamanda Blvd,\nPoint Cook VIC 3030";
+  }
+
+  /**
+   * Generate animated overlay as separate Shotstack tracks.
+   * Each text element (heading, address line, property type, sale method)
+   * becomes its own clip with staggered slide-in transitions — matching
+   * how the competitor builds overlays in Shotstack Studio.
+   *
+   * Returns an array of track objects to spread into the timeline tracks array.
+   */
+  function generateAnimatedOverlayTracks(
+    layout: string,
+    customTitle: string | undefined,
+    style: string | undefined,
+    propertyData: any,
+    detailsText: string | undefined,
+    clipStart: number,
+    clipLength: number,
+    outputFormat: string
+  ): any[] {
+    const title = customTitle || (style && TEMPLATE_NAMES[style]) || "Open House";
+    const isPortrait = outputFormat !== "landscape";
+    const w = isPortrait ? 1080 : 1920;
+    const h = isPortrait ? 1920 : 1080;
+
+    // Build text elements from property data
+    const elements: { text: string; style: string; delay: number }[] = [];
+
+    // Street address (line 1)
+    const street = propertyData.streetAddress || "";
+    if (street) {
+      elements.push({
+        text: street.toUpperCase(),
+        style: `font-family:Helvetica,Arial,sans-serif;color:white;font-size:${isPortrait ? 52 : 40}px;font-weight:900;letter-spacing:2px;text-transform:uppercase;`,
+        delay: 0,
+      });
+    }
+
+    // Suburb + State (line 2)
+    const suburbLine = [propertyData.suburb, propertyData.state, propertyData.postcode]
+      .filter(Boolean).join(" ").toUpperCase();
+    if (suburbLine) {
+      elements.push({
+        text: suburbLine,
+        style: `font-family:Helvetica,Arial,sans-serif;color:white;font-size:${isPortrait ? 32 : 24}px;font-weight:500;letter-spacing:1px;`,
+        delay: 0.3,
+      });
+    }
+
+    // Property type (e.g. "HOUSE", "APARTMENT")
+    const propType = propertyData.propertyType || "";
+    if (propType) {
+      elements.push({
+        text: propType.toUpperCase(),
+        style: `font-family:Helvetica,Arial,sans-serif;color:rgba(255,255,255,0.8);font-size:${isPortrait ? 26 : 20}px;font-weight:500;letter-spacing:2px;`,
+        delay: 0.8,
+      });
+    }
+
+    // Sale method (e.g. "AUCTION", "FOR SALE")
+    const saleMethod = propertyData.saleMethod || propertyData.listingType || "";
+    if (saleMethod) {
+      elements.push({
+        text: saleMethod.toUpperCase(),
+        style: `font-family:Helvetica,Arial,sans-serif;color:#f5c518;font-size:${isPortrait ? 28 : 22}px;font-weight:700;letter-spacing:2px;`,
+        delay: 1.1,
+      });
+    }
+
+    // Fallback: if no structured data, use the title + details as two elements
+    if (elements.length === 0) {
+      elements.push({
+        text: title.toUpperCase(),
+        style: `font-family:Helvetica,Arial,sans-serif;color:white;font-size:${isPortrait ? 52 : 40}px;font-weight:900;letter-spacing:2px;text-transform:uppercase;`,
+        delay: 0,
+      });
+      const details = detailsText || getAustralianAddress(propertyData);
+      if (details) {
+        elements.push({
+          text: details,
+          style: `font-family:Helvetica,Arial,sans-serif;color:rgba(255,255,255,0.85);font-size:${isPortrait ? 28 : 22}px;font-weight:500;`,
+          delay: 0.3,
+        });
+      }
+    }
+
+    // Background banner track (dark overlay behind text area)
+    const bannerHeight = isPortrait ? 420 : 260;
+    const bgTrack = {
+      clips: [{
+        asset: {
+          type: "html",
+          html: `<div style="position:absolute;bottom:0;left:0;right:0;height:${bannerHeight}px;background:linear-gradient(to top,rgba(30,40,55,0.95),rgba(30,40,55,0.7),transparent);"></div>`,
+          css: "",
+          width: w,
+          height: h,
+        },
+        start: clipStart,
+        length: clipLength,
+        transition: {
+          in: "fade",
+        },
+      }],
+    };
+
+    // Text element tracks — each on its own track with staggered slide-in
+    const textTracks = elements.map((el, i) => {
+      // Stack text from bottom: first element highest up, last element at bottom
+      const bottomOffset = isPortrait
+        ? 0.06 + (elements.length - 1 - i) * 0.045
+        : 0.08 + (elements.length - 1 - i) * 0.06;
+
+      return {
+        clips: [{
+          asset: {
+            type: "html",
+            html: `<div style="position:absolute;bottom:${Math.round(bottomOffset * h)}px;left:48px;"><p style="${el.style}">${el.text}</p></div>`,
+            css: "",
+            width: w,
+            height: h,
+          },
+          start: clipStart + el.delay,
+          length: Math.max(clipLength - el.delay, 0.5),
+          transition: {
+            in: "slideLeft",
+            out: "fade",
+          },
+        }],
+      };
+    });
+
+    return [bgTrack, ...textTracks];
   }
 
   /**
@@ -993,22 +1125,17 @@
               ],
             }] : []),
 
-            // Property details HTML overlay - Layout-based (Track 2)
-            {
-              clips: [
-                {
-                  asset: {
-                    type: "html",
-                    html: getPropertyOverlayHtml(layout || "open-house", customTitle, style, propertyData, detailsText),
-                    css: "",
-                    width: 1080,
-                    height: 1920,
-                  },
-                  start: 0.1,
-                  length: Math.max(effectiveDurations[0] - 0.1, 0.5),
-                },
-              ],
-            },
+            // Property details — animated multi-track overlay with staggered slide-ins
+            ...generateAnimatedOverlayTracks(
+              layout || "open-house",
+              customTitle,
+              style,
+              propertyData,
+              detailsText,
+              0.1,
+              Math.max(effectiveDurations[0] - 0.1, 0.5),
+              outputFormat || "portrait"
+            ),
 
             // Property specs icons track (bed, bath, car image icons)
             {
