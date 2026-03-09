@@ -38,6 +38,9 @@ verify_jwt = false
 [functions.check-luma-batch]
 verify_jwt = false
 
+[functions.generate-shotstack-batch]
+verify_jwt = false
+
 [functions.stitch-video]
 verify_jwt = false
 
