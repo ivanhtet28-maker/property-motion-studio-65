@@ -303,7 +303,7 @@ export default function CreateVideo() {
             customTitle,
             stitchJobId: currentStitchJobId,
             clipDurations,
-            provider: provider || "shotstack-create",
+            provider: provider || "runway",
             imageUrls,
             outputFormat: outputFormat || "portrait",
             cameraAngles,

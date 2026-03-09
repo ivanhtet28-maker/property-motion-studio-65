@@ -246,7 +246,7 @@
       const { imageUrls, imageMetadata, propertyData, style, layout, customTitle, detailsText, voice, music, customMusicUrl, musicTrimStart, musicTrimEnd, userId, propertyId, script, source, agentInfo, preGeneratedVideoUrls, useKenBurns }: GenerateVideoRequest = await req.json();
 
       console.log("=== VIDEO GENERATION ===");
-      console.log("Mode:", useKenBurns ? "Ken Burns (Shotstack direct)" : "Shotstack Create API (image-to-video)");
+      console.log("Mode:", useKenBurns ? "Ken Burns (Shotstack direct)" : "Runway Gen4 Turbo");
       console.log("Total images:", imageUrls?.length || 0);
       console.log("Property:", propertyData?.address);
 
