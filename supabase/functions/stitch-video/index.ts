@@ -990,14 +990,9 @@
             volume: 0.2,
             ...(musicTrimStart ? { trim: musicTrimStart } : {}),
           } : undefined,
-          fonts: [
-            {
-              src: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/fonts/Helvetica.ttf"
-            },
-            {
-              src: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/fonts/Helvetica-Bold.ttf"
-            }
-          ],
+          // Note: custom fonts removed — Shotstack render fails if font URLs are inaccessible.
+          // Shotstack's default sans-serif is used instead (matches Helvetica closely).
+          fonts: [],
           tracks: [
             // Voiceover track (Track 0)
             ...(audioUrl ? [{
@@ -1014,32 +1009,14 @@
               ],
             }] : []),
 
-            // Agent photo - Track 1 (TOP - separate image asset, Shotstack HTML doesn't support images)
-            ...(agentInfo?.photo ? [{
+            // Agent photo - Track 1 (TOP - separate image asset)
+            // Only include if we have a valid uploaded URL (never use base64 as src — Shotstack can't download it)
+            ...(agentPhotoUrl ? [{
               clips: [
-                // Circular luma matte (must come first)
-                {
-                  asset: {
-                    type: "luma",
-                    src: "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/video-assets/luma-mattes/circle_square_white.png",
-                  },
-                  start: videoClipsDuration + 0.3,
-                  length: agentCardDuration - 0.3,
-                  position: "top",
-                  offset: {
-                    y: -0.22,
-                  },
-                  scale: 0.35,
-                  fit: "contain",
-                  transition: {
-                    in: "fade",
-                  },
-                },
-                // Agent photo (masked by luma matte above)
                 {
                   asset: {
                     type: "image",
-                    src: agentPhotoUrl || agentInfo.photo,
+                    src: agentPhotoUrl,
                   },
                   start: videoClipsDuration + 0.3,
                   length: agentCardDuration - 0.3,
@@ -1215,14 +1192,26 @@
       console.log("Edit payload tracks count:", edit.timeline.tracks.length);
 
       // Validate all clip source URLs before submitting — prevent "missing image source" errors
+      const downloadableTypes = new Set(["image", "video", "audio", "luma"]);
       for (const [trackIdx, track] of edit.timeline.tracks.entries()) {
         if (track && track.clips) {
           for (const [clipIdx, clip] of (track.clips as any[]).entries()) {
             const src = clip?.asset?.src;
             const assetType = clip?.asset?.type;
-            if ((assetType === "image" || assetType === "video" || assetType === "audio") && (!src || !src.startsWith("http"))) {
-              console.error(`Invalid source URL at track ${trackIdx} clip ${clipIdx}: type=${assetType}, src=${src}`);
-              throw new Error(`Invalid or missing source URL at track ${trackIdx} clip ${clipIdx} (type: ${assetType}). URL: ${src || "empty"}`);
+            if (downloadableTypes.has(assetType) && (!src || !src.startsWith("http"))) {
+              console.error(`Invalid source URL at track ${trackIdx} clip ${clipIdx}: type=${assetType}, src=${String(src).substring(0, 80)}`);
+              throw new Error(`Invalid or missing source URL at track ${trackIdx} clip ${clipIdx} (type: ${assetType}). URL: ${src ? String(src).substring(0, 80) : "empty"}`);
+            }
+          }
+        }
+      }
+      // Log all source URLs for debugging
+      console.log("=== Source URLs being sent to Shotstack ===");
+      for (const [trackIdx, track] of edit.timeline.tracks.entries()) {
+        if (track?.clips) {
+          for (const [clipIdx, clip] of (track.clips as any[]).entries()) {
+            if (clip?.asset?.src) {
+              console.log(`  Track ${trackIdx} Clip ${clipIdx}: type=${clip.asset.type}, src=${String(clip.asset.src).substring(0, 100)}`);
             }
           }
         }
