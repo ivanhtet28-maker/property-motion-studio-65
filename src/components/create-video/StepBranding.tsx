@@ -41,6 +41,7 @@ import type { PropertyDetails } from "./PropertyDetailsForm";
 // Intro template options
 const INTRO_TEMPLATES = [
   { id: "none", name: "None" },
+  { id: "custom", name: "Custom Upload" },
   { id: "open-house", name: "Open House" },
   { id: "newly-listed", name: "Newly Listed" },
   { id: "elegant-classic", name: "Elegant Classic" },
@@ -55,6 +56,7 @@ const INTRO_TEMPLATES = [
 // Outro template options
 const OUTRO_TEMPLATES = [
   { id: "none", name: "None" },
+  { id: "custom", name: "Custom Upload" },
   { id: "classic", name: "Classic" },
   { id: "classic-dark", name: "Classic Dark" },
 ];
@@ -275,6 +277,25 @@ export function StepBranding({
   // Intro overlay for preview — style depends on selected template
   const renderIntroOverlay = () => {
     if (settings.selectedTemplate === "none") return null;
+
+    // Custom uploaded intro image — show as full overlay
+    if (settings.selectedTemplate === "custom") {
+      if (!settings.customIntroImage) {
+        return (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+            <p className="text-white/60 text-xs">Upload an intro image</p>
+          </div>
+        );
+      }
+      return (
+        <img
+          src={settings.customIntroImage}
+          alt="Custom intro overlay"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      );
+    }
+
     const heading = settings.customTitle || selectedIntroTemplate.name.toUpperCase();
     const details = settings.detailsText || getDefaultDetails();
     const templateId = settings.selectedTemplate;
@@ -470,6 +491,25 @@ export function StepBranding({
         </div>
       );
     }
+
+    // Custom uploaded outro image
+    if (settings.outroTemplate === "custom") {
+      if (!settings.customOutroImage) {
+        return (
+          <div className="w-full h-full flex items-center justify-center bg-black/10">
+            <p className="text-muted-foreground text-xs">Upload an outro image</p>
+          </div>
+        );
+      }
+      return (
+        <img
+          src={settings.customOutroImage}
+          alt="Custom outro"
+          className="w-full h-full object-cover"
+        />
+      );
+    }
+
     const isDark = settings.outroTemplate === "classic-dark";
     const bg = isDark ? "bg-black" : "bg-white";
     const textColor = isDark ? "text-white" : "text-foreground";
@@ -615,32 +655,78 @@ export function StepBranding({
                   </SelectContent>
                 </Select>
 
-                <div className="h-px bg-border" />
+                {/* Custom intro upload */}
+                {settings.selectedTemplate === "custom" && (
+                  <div>
+                    <Label className="text-sm font-medium">Upload Intro Image</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5 mb-2">
+                      Upload a 1080×1920 PNG/JPG image for your intro overlay.
+                    </p>
+                    {settings.customIntroImage ? (
+                      <div className="relative inline-block">
+                        <img
+                          src={settings.customIntroImage}
+                          alt="Custom intro"
+                          className="w-32 h-56 object-cover rounded-lg border border-border"
+                        />
+                        <button
+                          onClick={() => updateSettings({ customIntroImage: null })}
+                          className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors">
+                        <Upload className="w-6 h-6 text-muted-foreground mb-1" />
+                        <span className="text-xs text-muted-foreground">Click to upload</span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = () => updateSettings({ customIntroImage: reader.result as string });
+                            reader.readAsDataURL(file);
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                )}
 
-                {/* Heading */}
-                <div>
-                  <Label htmlFor="heading">Heading</Label>
-                  <Input
-                    id="heading"
-                    placeholder="OPEN HOUSE"
-                    value={settings.customTitle}
-                    onChange={(e) => updateSettings({ customTitle: e.target.value })}
-                    className="mt-1.5 h-10"
-                  />
-                </div>
+                {settings.selectedTemplate !== "custom" && (
+                  <>
+                    <div className="h-px bg-border" />
 
-                {/* Details */}
-                <div>
-                  <Label htmlFor="details">Details</Label>
-                  <Textarea
-                    id="details"
-                    placeholder={"27 Alamanda Blvd,\nPoint Cook VIC 3030"}
-                    value={settings.detailsText}
-                    onChange={(e) => updateSettings({ detailsText: e.target.value })}
-                    rows={3}
-                    className="mt-1.5 text-sm"
-                  />
-                </div>
+                    {/* Heading */}
+                    <div>
+                      <Label htmlFor="heading">Heading</Label>
+                      <Input
+                        id="heading"
+                        placeholder="OPEN HOUSE"
+                        value={settings.customTitle}
+                        onChange={(e) => updateSettings({ customTitle: e.target.value })}
+                        className="mt-1.5 h-10"
+                      />
+                    </div>
+
+                    {/* Details */}
+                    <div>
+                      <Label htmlFor="details">Details</Label>
+                      <Textarea
+                        id="details"
+                        placeholder={"27 Alamanda Blvd,\nPoint Cook VIC 3030"}
+                        value={settings.detailsText}
+                        onChange={(e) => updateSettings({ detailsText: e.target.value })}
+                        rows={3}
+                        className="mt-1.5 text-sm"
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -664,7 +750,49 @@ export function StepBranding({
                   </SelectContent>
                 </Select>
 
-                {settings.outroTemplate !== "none" && (
+                {/* Custom outro upload */}
+                {settings.outroTemplate === "custom" && (
+                  <div>
+                    <Label className="text-sm font-medium">Upload Outro Image</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5 mb-2">
+                      Upload a 1080×1920 PNG/JPG image for your outro card.
+                    </p>
+                    {settings.customOutroImage ? (
+                      <div className="relative inline-block">
+                        <img
+                          src={settings.customOutroImage}
+                          alt="Custom outro"
+                          className="w-32 h-56 object-cover rounded-lg border border-border"
+                        />
+                        <button
+                          onClick={() => updateSettings({ customOutroImage: null })}
+                          className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors">
+                        <Upload className="w-6 h-6 text-muted-foreground mb-1" />
+                        <span className="text-xs text-muted-foreground">Click to upload</span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = () => updateSettings({ customOutroImage: reader.result as string });
+                            reader.readAsDataURL(file);
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                )}
+
+                {settings.outroTemplate !== "none" && settings.outroTemplate !== "custom" && (
                   <>
                     {/* Profile photo & Brand logo toggles */}
                     <div className="flex items-center gap-6">

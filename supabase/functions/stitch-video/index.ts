@@ -145,6 +145,8 @@
     detailsText?: string; // Free-text details shown on intro overlay (e.g. address, date)
     videoId?: string;
     outputFormat?: "portrait" | "landscape"; // "portrait" = 9:16 (default), "landscape" = 16:9
+    customIntroImage?: string; // base64 custom intro overlay image
+    customOutroImage?: string; // base64 custom outro overlay image
   }
 
   // ============================================================
@@ -831,7 +833,7 @@
         }
       }
 
-      const { videoUrls, imageUrls, imageEffects, cameraAngles, clipDurations, propertyData, audioUrl, musicUrl, musicTrimStart, musicTrimEnd, agentInfo, style, layout, customTitle, detailsText, videoId, outputFormat, fallbackSlots } = rawBody as unknown as StitchVideoRequest;
+      const { videoUrls, imageUrls, imageEffects, cameraAngles, clipDurations, propertyData, audioUrl, musicUrl, musicTrimStart, musicTrimEnd, agentInfo, style, layout, customTitle, detailsText, videoId, outputFormat, fallbackSlots, customIntroImage, customOutroImage } = rawBody as unknown as StitchVideoRequest;
 
       // Ken Burns mode: raw property photos + Shotstack effects
       // AI mode: pre-generated video clips from Luma/Runway
@@ -892,6 +894,30 @@
         console.log("No agent photo provided in agentInfo");
       }
 
+      // Upload custom intro/outro images to storage if provided
+      let customIntroUrl: string | null = null;
+      let customOutroUrl: string | null = null;
+
+      if (customIntroImage) {
+        console.log("Uploading custom intro image to storage...");
+        let ext = "png";
+        if (customIntroImage.includes("data:image/jpeg") || customIntroImage.includes("data:image/jpg")) ext = "jpg";
+        else if (customIntroImage.includes("data:image/webp")) ext = "webp";
+        const introFileName = `custom-intro-${videoId || Date.now()}.${ext}`;
+        customIntroUrl = await uploadBase64ToStorage(customIntroImage, introFileName, "custom-templates");
+        console.log("Custom intro URL:", customIntroUrl);
+      }
+
+      if (customOutroImage) {
+        console.log("Uploading custom outro image to storage...");
+        let ext = "png";
+        if (customOutroImage.includes("data:image/jpeg") || customOutroImage.includes("data:image/jpg")) ext = "jpg";
+        else if (customOutroImage.includes("data:image/webp")) ext = "webp";
+        const outroFileName = `custom-outro-${videoId || Date.now()}.${ext}`;
+        customOutroUrl = await uploadBase64ToStorage(customOutroImage, outroFileName, "custom-templates");
+        console.log("Custom outro URL:", customOutroUrl);
+      }
+
       // Use provided clip durations or default to 3.5 seconds each.
       // Clamp every duration to a minimum of 1s — Shotstack rejects 0, negative, or NaN lengths.
       // Pad to match sourceUrls length if arrays differ in length.
@@ -919,7 +945,7 @@
       // Calculate total duration (AI mode subtracts overlap between adjacent clips)
       const overlapCount = isKenBurns ? 0 : Math.max(0, effectiveDurations.length - 1);
       const videoClipsDuration = effectiveDurations.reduce((sum, duration) => sum + duration, 0) - (TRANSITION_OVERLAP * overlapCount);
-      const agentCardDuration = (agentInfo && agentInfo.name) ? 4 : 0; // Fixed 4s outro — enough to read CTA without dragging
+      const agentCardDuration = (customOutroUrl || (agentInfo && agentInfo.name)) ? 4 : 0; // Fixed 4s outro — enough to read CTA without dragging
       const totalDuration = videoClipsDuration + agentCardDuration;
 
       console.log("Clip durations (raw):", durations);
@@ -1037,9 +1063,19 @@
               ],
             }] : []),
 
-            // Agent photo - Track 1 (TOP - separate image asset)
-            // Only include if we have a valid uploaded URL (never use base64 as src — Shotstack can't download it)
-            ...(agentPhotoUrl ? [{
+            // Custom outro image OR agent card tracks
+            ...(customOutroUrl ? [{
+              clips: [{
+                asset: { type: "image", src: customOutroUrl },
+                start: videoClipsDuration,
+                length: agentCardDuration > 0 ? agentCardDuration : 4,
+                fit: "cover",
+                transition: { in: "fade" },
+              }],
+            }] : []),
+
+            // Agent photo - Track 1 (TOP - separate image asset) — skip if custom outro
+            ...(!customOutroUrl && agentPhotoUrl ? [{
               clips: [
                 {
                   asset: {
@@ -1061,8 +1097,8 @@
               ],
             }] : []),
 
-            // Agent text details - Track 2 (HTML for text only, no images)
-            ...(agentInfo && agentInfo.name ? [{
+            // Agent text details - Track 2 (HTML for text only, no images) — skip if custom outro
+            ...(!customOutroUrl && agentInfo && agentInfo.name ? [{
               clips: [
                 {
                   asset: {
@@ -1130,31 +1166,41 @@
               ],
             }] : []),
 
-            // Property details — animated multi-track overlay with staggered slide-ins
-            ...generateAnimatedOverlayTracks(
-              layout || "open-house",
-              customTitle,
-              style,
-              propertyData,
-              detailsText,
-              0.1,
-              Math.max(effectiveDurations[0] - 0.1, 0.5),
-              outputFormat || "portrait"
-            ),
-
-            // Property specs icons track (bed, bath, car image icons)
-            {
-              clips: generatePropertySpecsClips(
-                layout || "modern-luxe",
+            // Intro overlay: custom uploaded image OR animated HTML overlay
+            ...(customIntroUrl ? [{
+              clips: [{
+                asset: { type: "image", src: customIntroUrl },
+                start: 0,
+                length: Math.max(effectiveDurations[0], 3.5),
+                fit: "cover",
+                transition: { in: "fade", out: "fade" },
+              }],
+            }] : [
+              // Property details — animated multi-track overlay with staggered slide-ins
+              ...generateAnimatedOverlayTracks(
+                layout || "open-house",
+                customTitle,
+                style,
                 propertyData,
+                detailsText,
                 0.1,
-                Math.max(effectiveDurations[0] - 0.1, 0.5)
+                Math.max(effectiveDurations[0] - 0.1, 0.5),
+                outputFormat || "portrait"
               ),
-            },
 
-            // Agent outro background - First clip/photo blurred (Track 3)
-            // Use sourceUrls[0] which is guaranteed to exist (validated above on line 813).
-            ...(agentInfo && agentInfo.name && sourceUrls[0] ? [{
+              // Property specs icons track (bed, bath, car image icons)
+              {
+                clips: generatePropertySpecsClips(
+                  layout || "modern-luxe",
+                  propertyData,
+                  0.1,
+                  Math.max(effectiveDurations[0] - 0.1, 0.5)
+                ),
+              },
+            ]),
+
+            // Agent outro background - First clip/photo blurred (Track 3) — skip if custom outro
+            ...(!customOutroUrl && agentInfo && agentInfo.name && sourceUrls[0] ? [{
               clips: [
                 {
                   asset: isKenBurns || fallbackSet.has(0)

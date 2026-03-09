@@ -82,6 +82,8 @@ export default function CreateVideo() {
     useGlobalSeed: false,
     globalSeed: Math.floor(Math.random() * 999999) + 1,
     agentInfo: { photo: null, name: "", phone: "", email: "" },
+    customIntroImage: null,
+    customOutroImage: null,
   });
 
   // ─── Generation state ──────────────────────────────
@@ -218,6 +220,8 @@ export default function CreateVideo() {
           layout: generationData.layout,
           customTitle: generationData.customTitle,
           outputFormat: "landscape",
+          customIntroImage: customization.customIntroImage || undefined,
+          customOutroImage: customization.customOutroImage || undefined,
         },
       });
       const landscapeJobId = stitchData.jobId;
@@ -265,7 +269,9 @@ export default function CreateVideo() {
     outputFormat?: "portrait" | "landscape",
     cameraAngles?: string[],
     musicTrimStart?: number,
-    musicTrimEnd?: number
+    musicTrimEnd?: number,
+    customIntroImage?: string | null,
+    customOutroImage?: string | null
   ) => {
     const maxAttempts = 120;
     let attempts = 0;
@@ -353,6 +359,8 @@ export default function CreateVideo() {
               videoId,
               outputFormat: outputFormat || "portrait",
               fallbackSlots: data.fallbackSlots || undefined,
+              customIntroImage: customIntroImage || undefined,
+              customOutroImage: customOutroImage || undefined,
             });
             if (stitchResult.success && stitchResult.jobId) {
               currentStitchJobId = stitchResult.jobId;
@@ -600,13 +608,13 @@ export default function CreateVideo() {
           setStitchJobId(data.stitchJobId);
           setGeneratingProgress(80);
           toast({ title: "Stitching Video", description: "Assembling your video now..." });
-          pollVideoStatus([], data.videoId ?? null, data.audioUrl ?? null, data.musicUrl ?? null, data.agentInfo!, propertyDataPayload, customization.selectedTemplate, customization.selectedLayout, customization.customTitle, clipDurations, data.stitchJobId, undefined, undefined, undefined, undefined, musicTrimStart, musicTrimEnd);
+          pollVideoStatus([], data.videoId ?? null, data.audioUrl ?? null, data.musicUrl ?? null, data.agentInfo!, propertyDataPayload, customization.selectedTemplate, customization.selectedLayout, customization.customTitle, clipDurations, data.stitchJobId, undefined, undefined, undefined, undefined, musicTrimStart, musicTrimEnd, customization.customIntroImage, customization.customOutroImage);
         } else {
           if (!data.generationIds?.length) throw new Error("No generation IDs returned.");
           setGenerationIds(data.generationIds);
           const est = Math.ceil((data.estimatedTime || 120) / 60);
           toast({ title: "Generation Started", description: `Generating ${data.totalClips} clips... ~${est}-${est + 2} min.` });
-          pollVideoStatus(data.generationIds, data.videoId ?? null, data.audioUrl ?? null, data.musicUrl ?? null, data.agentInfo!, propertyDataPayload, customization.selectedTemplate, customization.selectedLayout, customization.customTitle, clipDurations, null, data.provider, data.imageUrls || imageUrls, orientation, data.cameraAngles || imageMetadataPayload.map((m: Record<string, unknown>) => (m.cameraAction as string) || "push-in"), musicTrimStart, musicTrimEnd);
+          pollVideoStatus(data.generationIds, data.videoId ?? null, data.audioUrl ?? null, data.musicUrl ?? null, data.agentInfo!, propertyDataPayload, customization.selectedTemplate, customization.selectedLayout, customization.customTitle, clipDurations, null, data.provider, data.imageUrls || imageUrls, orientation, data.cameraAngles || imageMetadataPayload.map((m: Record<string, unknown>) => (m.cameraAction as string) || "push-in"), musicTrimStart, musicTrimEnd, customization.customIntroImage, customization.customOutroImage);
         }
       } else {
         throw new Error(data.error || "Video generation failed");
