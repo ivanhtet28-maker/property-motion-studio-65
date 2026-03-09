@@ -296,10 +296,10 @@
     const details = detailsText || getAustralianAddress(propertyData);
     return `
       <div style="position:relative;width:100%;height:100%;font-family:Helvetica,Arial,sans-serif;color:white;">
-        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(47,64,80,0.92);padding:48px 48px;display:flex;align-items:center;">
-          <div style="font-size:58px;font-weight:900;letter-spacing:3px;text-transform:uppercase;white-space:nowrap;">${title}</div>
-          <div style="width:3px;align-self:stretch;background:rgba(255,255,255,0.4);margin:0 36px;min-height:60px;"></div>
-          <div style="font-size:26px;font-weight:500;line-height:1.5;opacity:0.85;white-space:pre-line;">${details}</div>
+        <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(47,64,80,0.92);padding:32px 40px;display:flex;align-items:center;">
+          <div style="font-size:44px;font-weight:900;letter-spacing:3px;text-transform:uppercase;white-space:nowrap;">${title}</div>
+          <div style="width:2px;align-self:stretch;background:rgba(255,255,255,0.4);margin:0 28px;min-height:44px;"></div>
+          <div style="font-size:22px;font-weight:500;line-height:1.5;opacity:0.85;white-space:pre-line;">${details}</div>
         </div>
       </div>
     `;
