@@ -260,24 +260,120 @@ export function StepBranding({
     setPreviewFocus(tab);
   };
 
-  // Intro overlay for preview
+  // Build default Australian-format details text
+  const getDefaultDetails = () => {
+    const parts: string[] = [];
+    if (propertyDetails.streetAddress) parts.push(propertyDetails.streetAddress);
+    const line2 = [propertyDetails.suburb, propertyDetails.state].filter(Boolean).join(" ");
+    if (line2) parts.push(line2);
+    return parts.join(",\n") || "27 Alamanda Blvd,\nPoint Cook VIC 3030";
+  };
+
+  // Intro overlay for preview — style depends on selected template
   const renderIntroOverlay = () => {
     if (settings.selectedTemplate === "none") return null;
     const heading = settings.customTitle || selectedIntroTemplate.name.toUpperCase();
-    const details = settings.detailsText || `${propertyDetails.streetAddress}${propertyDetails.suburb ? ", " + propertyDetails.suburb : ""}`;
-    return (
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#1a3a4a]/90 to-[#1a3a4a]/70 px-4 py-3">
-        <div className="flex items-end gap-3">
-          <h3 className="text-white font-black text-lg uppercase tracking-wide leading-tight">
+    const details = settings.detailsText || getDefaultDetails();
+    const templateId = settings.selectedTemplate;
+
+    // ── Open House style: dark navy banner, heading left | divider | details right ──
+    if (templateId === "open-house") {
+      return (
+        <div className="absolute bottom-0 left-0 right-0 bg-[#2b3a4a]/90 px-5 py-4">
+          <div className="flex items-center gap-4">
+            <h3 className="text-white font-black text-xl uppercase tracking-wide leading-none flex-shrink-0">
+              {heading}
+            </h3>
+            <div className="w-px self-stretch bg-white/40" />
+            <p className="text-white/90 text-[11px] leading-relaxed whitespace-pre-line">
+              {details}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Newly Listed style: centered text over gradient, heading + italic address ──
+    if (templateId === "newly-listed") {
+      return (
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex flex-col items-center justify-end pb-8 px-4">
+          <h3 className="text-white font-bold text-2xl leading-tight mb-2" style={{ fontFamily: "serif" }}>
             {heading}
           </h3>
-          {details && (
-            <div className="border-l-2 border-white/50 pl-3 mb-0.5">
-              <p className="text-white/90 text-[10px] leading-relaxed whitespace-pre-line">
-                {details}
-              </p>
-            </div>
-          )}
+          <p className="text-white/85 text-sm italic text-center leading-relaxed whitespace-pre-line">
+            {details}
+          </p>
+        </div>
+      );
+    }
+
+    // ── Big and Bold: large centered uppercase heading, small address below ──
+    if (templateId === "big-bold") {
+      return (
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent flex flex-col items-center justify-end pb-8 px-4">
+          <h3 className="text-white font-black text-3xl uppercase tracking-widest leading-none mb-2 text-center">
+            {heading}
+          </h3>
+          <p className="text-white/80 text-xs text-center whitespace-pre-line tracking-wide">
+            {details}
+          </p>
+        </div>
+      );
+    }
+
+    // ── White on Black: black bar, white text centered ──
+    if (templateId === "white-on-black") {
+      return (
+        <div className="absolute bottom-0 left-0 right-0 bg-black py-4 px-5">
+          <h3 className="text-white font-bold text-lg uppercase tracking-wider text-center mb-1">
+            {heading}
+          </h3>
+          <p className="text-white/70 text-[11px] text-center whitespace-pre-line">
+            {details}
+          </p>
+        </div>
+      );
+    }
+
+    // ── Simple White: white bar, dark text centered ──
+    if (templateId === "simple-white") {
+      return (
+        <div className="absolute bottom-0 left-0 right-0 bg-white py-4 px-5">
+          <h3 className="text-gray-900 font-bold text-lg uppercase tracking-wider text-center mb-1">
+            {heading}
+          </h3>
+          <p className="text-gray-500 text-[11px] text-center whitespace-pre-line">
+            {details}
+          </p>
+        </div>
+      );
+    }
+
+    // ── Modern Treehouse: subtle bottom gradient, minimal text ──
+    if (templateId === "modern-treehouse") {
+      return (
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex flex-col items-start justify-end pb-5 pl-5 pr-4">
+          <h3 className="text-white font-semibold text-lg tracking-wide mb-1">
+            {heading}
+          </h3>
+          <p className="text-white/70 text-[11px] whitespace-pre-line">
+            {details}
+          </p>
+        </div>
+      );
+    }
+
+    // ── Default fallback: Open House style ──
+    return (
+      <div className="absolute bottom-0 left-0 right-0 bg-[#2b3a4a]/90 px-5 py-4">
+        <div className="flex items-center gap-4">
+          <h3 className="text-white font-black text-xl uppercase tracking-wide leading-none flex-shrink-0">
+            {heading}
+          </h3>
+          <div className="w-px self-stretch bg-white/40" />
+          <p className="text-white/90 text-[11px] leading-relaxed whitespace-pre-line">
+            {details}
+          </p>
         </div>
       </div>
     );
@@ -456,7 +552,7 @@ export function StepBranding({
                   <Label htmlFor="details">Details</Label>
                   <Textarea
                     id="details"
-                    placeholder={"03.14.2026 | 2PM\n123 Anywhere St, Any City"}
+                    placeholder={"27 Alamanda Blvd,\nPoint Cook VIC 3030"}
                     value={settings.detailsText}
                     onChange={(e) => updateSettings({ detailsText: e.target.value })}
                     rows={3}
