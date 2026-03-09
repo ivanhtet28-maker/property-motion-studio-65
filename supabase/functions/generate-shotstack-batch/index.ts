@@ -32,6 +32,40 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 2, at
   }
 }
 
+// ============================================
+// Camera action → Shotstack motion mapping
+//
+// Shotstack's image-to-video uses Stable Video Diffusion which only
+// exposes two knobs: `motion` (1-255) and `guidanceScale`.
+// We map each user-selected camera action to an appropriate motion
+// intensity so clips feel varied rather than uniform.
+//
+// guidanceScale: 1.8 keeps the output faithful to the source image —
+// critical for real estate where hallucinated furniture/walls are unacceptable.
+// ============================================
+
+interface MotionConfig {
+  motion: number;       // 1-255: amount of motion in the generated video
+  guidanceScale: number; // how closely video matches the source image
+}
+
+const MOTION_MAP: Record<string, MotionConfig> = {
+  "push-in":  { motion: 140, guidanceScale: 1.8 }, // moderate forward dolly feel
+  "pull-out": { motion: 140, guidanceScale: 1.8 }, // moderate backward dolly feel
+  "tracking": { motion: 160, guidanceScale: 1.8 }, // lateral movement — needs more motion
+  "orbit":    { motion: 180, guidanceScale: 1.6 }, // arc around subject — highest motion
+  "crane-up": { motion: 150, guidanceScale: 1.8 }, // vertical rise — medium-high
+  "drone-up": { motion: 170, guidanceScale: 1.6 }, // aerial reveal — high motion
+  "static":   { motion: 40,  guidanceScale: 2.0 }, // locked tripod — minimal motion, max fidelity
+};
+
+const DEFAULT_MOTION: MotionConfig = { motion: 127, guidanceScale: 1.8 };
+
+function getMotionConfig(cameraAction?: string): MotionConfig {
+  if (!cameraAction) return DEFAULT_MOTION;
+  return MOTION_MAP[cameraAction] || DEFAULT_MOTION;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { status: 200, headers: corsHeaders });
@@ -58,20 +92,24 @@ Deno.serve(async (req) => {
       cameraAngle?: string;
       duration?: number;
     }, index: number) => {
-      const { url: imageUrl } = metadata;
+      const { url: imageUrl, cameraAction, cameraAngle } = metadata;
       try {
+        // Resolve the effective camera action from user selection
+        const effectiveAction = cameraAction || cameraAngle || "push-in";
+        const motionConfig = getMotionConfig(effectiveAction);
+
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
         console.log(`  Image: ${imageUrl}`);
+        console.log(`  cameraAction: ${effectiveAction}`);
+        console.log(`  motion: ${motionConfig.motion}, guidanceScale: ${motionConfig.guidanceScale}`);
 
-        // Shotstack Create API image-to-video
-        // motion: 127 = default motion amount (range 1-255)
-        // guidanceScale: controls how closely video matches the source image
         const requestBody = {
           provider: "shotstack",
           options: {
             type: "image-to-video",
             url: imageUrl,
-            motion: 127,
+            motion: motionConfig.motion,
+            guidanceScale: motionConfig.guidanceScale,
           },
         };
 
