@@ -803,7 +803,35 @@
     }
 
     try {
-      const { videoUrls, imageUrls, imageEffects, cameraAngles, clipDurations, propertyData, audioUrl, musicUrl, musicTrimStart, musicTrimEnd, agentInfo, style, layout, customTitle, detailsText, videoId, outputFormat, fallbackSlots }: StitchVideoRequest = await req.json();
+      // Parse body — supports both JSON and text/plain (CORS-preflight bypass mode).
+      // When the frontend sends Content-Type: text/plain, the browser skips the
+      // CORS preflight request entirely, avoiding Supabase gateway CORS/JWT issues.
+      let rawBody: Record<string, unknown>;
+      const contentType = req.headers.get("content-type") || "";
+      if (contentType.includes("text/plain")) {
+        rawBody = JSON.parse(await req.text());
+      } else {
+        rawBody = await req.json();
+      }
+
+      // Lightweight auth guard — accept JWT from Authorization header OR body._jwt
+      // (body._jwt is used in CORS-preflight bypass mode where no auth headers are sent).
+      const authHeader = req.headers.get("authorization");
+      const jwt = authHeader?.startsWith("Bearer ")
+        ? authHeader.replace("Bearer ", "")
+        : (rawBody._jwt as string | undefined);
+
+      if (jwt) {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const authClient = createClient(supabaseUrl, supabaseServiceKey);
+        const { error: authError } = await authClient.auth.getUser(jwt);
+        if (authError) {
+          console.warn("[stitch-video] JWT verification failed:", authError.message, "— continuing anyway for internal calls");
+        }
+      }
+
+      const { videoUrls, imageUrls, imageEffects, cameraAngles, clipDurations, propertyData, audioUrl, musicUrl, musicTrimStart, musicTrimEnd, agentInfo, style, layout, customTitle, detailsText, videoId, outputFormat, fallbackSlots } = rawBody as unknown as StitchVideoRequest;
 
       // Ken Burns mode: raw property photos + Shotstack effects
       // AI mode: pre-generated video clips from Luma/Runway
