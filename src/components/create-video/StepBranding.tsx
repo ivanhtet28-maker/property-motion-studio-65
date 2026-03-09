@@ -282,13 +282,13 @@ export function StepBranding({
     // ── Open House style: dark navy banner, heading left | divider | details right ──
     if (templateId === "open-house") {
       return (
-        <div className="absolute bottom-0 left-0 right-0 bg-[#2b3a4a]/90 px-5 py-4">
+        <div className="absolute bottom-0 left-0 right-0 bg-[#2f4050]/90 px-5 py-6">
           <div className="flex items-center gap-4">
-            <h3 className="text-white font-black text-xl uppercase tracking-wide leading-none flex-shrink-0">
+            <h3 className="text-white font-black text-2xl uppercase tracking-wide leading-tight flex-shrink-0">
               {heading}
             </h3>
-            <div className="w-px self-stretch bg-white/40" />
-            <p className="text-white/90 text-[11px] leading-relaxed whitespace-pre-line">
+            <div className="w-px self-stretch bg-white/40 min-h-[40px]" />
+            <p className="text-white/80 text-xs leading-relaxed whitespace-pre-line">
               {details}
             </p>
           </div>
