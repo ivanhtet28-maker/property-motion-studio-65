@@ -76,7 +76,7 @@ const layouts: LayoutOption[] = [
   {
     id: "warm-elegance",
     name: "Warm Elegance",
-    description: "Warm golden gradient with serif typography",
+    description: "Dark vignette overlay with elegant serif typography",
   },
 ];
 
@@ -232,39 +232,50 @@ function WarmElegancePreview({ title, previewImageUrl, property }: PreviewProps)
   const cars = property?.carSpaces;
 
   return (
-    <div className="w-full h-full relative overflow-hidden" style={{ background: "linear-gradient(175deg, #f0ebe0 0%, #c4a878 40%, #6b4a0e 70%, #2a1a06 100%)" }}>
-      <div className="absolute top-0 left-0 right-0 h-[30%]" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.45), transparent)" }} />
-      <div className="absolute bottom-0 left-0 right-0 h-[47%]" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.75), transparent)" }} />
-      <div className="absolute top-[40%] left-0 right-0 text-center">
-        <div className="text-white/95 text-2xl leading-tight" style={{ fontFamily: "Georgia, serif", letterSpacing: "1px" }}>
+    <div className="w-full h-full relative overflow-hidden">
+      {/* Property image background */}
+      {previewImageUrl && (
+        <img src={previewImageUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+      )}
+      {!previewImageUrl && (
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-700 to-slate-900" />
+      )}
+      {/* Dark top vignette */}
+      <div className="absolute top-0 left-0 right-0 h-[21%]" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.40), transparent)" }} />
+      {/* Dark bottom fade */}
+      <div className="absolute bottom-0 left-0 right-0 h-[57%]" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.60) 40%, transparent 100%)" }} />
+      <div className="absolute top-[43%] left-0 right-0 text-center">
+        <div className="text-white/95 text-2xl italic leading-tight" style={{ fontFamily: "Georgia, serif", letterSpacing: "1px", textShadow: "0 4px 24px rgba(0,0,0,0.5)" }}>
           {title}
         </div>
-        <div className="text-white/55 text-[8px] uppercase mt-1.5" style={{ letterSpacing: "3px" }}>
+        <div className="text-white/60 text-[8px] uppercase mt-1.5" style={{ letterSpacing: "3px" }}>
           {property?.streetAddress || "27 Alamanda Blvd"}
         </div>
         <div className="text-white/40 text-[8px] uppercase" style={{ letterSpacing: "3px" }}>
           {property?.suburb || "Point Cook"} {property?.state || "VIC"}
         </div>
-        <div className="text-white/80 text-sm mt-1.5" style={{ fontFamily: "Georgia, serif" }}>
+        <div className="text-white/90 text-sm mt-1.5" style={{ fontFamily: "Georgia, serif", textShadow: "0 2px 12px rgba(0,0,0,0.4)" }}>
           {formatPrice(property?.price || "")}
         </div>
+        <div className="mx-auto mt-1.5 w-[37%] h-px bg-white/15" />
       </div>
-      <div className="absolute bottom-[14%] left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1 rounded-full border border-white/15" style={{ background: "rgba(190,165,130,0.28)" }}>
-        <span className="text-white/85 text-[8px]">{beds} <span className="text-white/50">bd</span></span>
-        <div className="w-px h-3 bg-white/20" />
-        <span className="text-white/85 text-[8px]">{baths} <span className="text-white/50">ba</span></span>
+      <div className="absolute bottom-[12.5%] left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1 rounded-full border border-white/15" style={{ background: "rgba(0,0,0,0.35)" }}>
+        <span className="text-white/90 text-[8px]">{beds}</span>
+        <div className="w-px h-3 bg-white/15" />
+        <span className="text-white/90 text-[8px]">{baths}</span>
         {(cars !== undefined && cars > 0) && (
           <>
-            <div className="w-px h-3 bg-white/20" />
-            <span className="text-white/85 text-[8px]">{cars} <span className="text-white/50">cr</span></span>
+            <div className="w-px h-3 bg-white/15" />
+            <span className="text-white/90 text-[8px]">{cars}</span>
+          </>
+        )}
+        {property?.landSize && (
+          <>
+            <div className="w-px h-3 bg-white/15" />
+            <span className="text-white/70 text-[7px]">{property.landSize}m²</span>
           </>
         )}
       </div>
-      {property?.landSize && (
-        <div className="absolute bottom-[8%] left-1/2 -translate-x-1/2 px-3 py-1 rounded-full border border-white/10" style={{ background: "rgba(190,165,130,0.18)" }}>
-          <span className="text-white/65 text-[7px]">{property.landSize}m²</span>
-        </div>
-      )}
     </div>
   );
 }
@@ -365,7 +376,7 @@ export function VideoTemplateSelector({
           </div>
 
           {/* Layout Preview */}
-          <div className="w-full aspect-[9/16] rounded-lg bg-gradient-to-br from-slate-600 to-slate-800 overflow-hidden relative">
+          <div className="w-full aspect-[9/16] max-h-[500px] mx-auto rounded-lg bg-gradient-to-br from-slate-600 to-slate-800 overflow-hidden relative">
             {!previewImageUrl && (
               <div
                 className="absolute inset-0 opacity-20"

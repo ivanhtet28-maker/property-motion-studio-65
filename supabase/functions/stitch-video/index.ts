@@ -524,7 +524,7 @@ import { corsHeaders } from "../_shared/cors.ts";
     `;
   }
 
-  /** Warm Elegance: warm golden gradient, serif title, frosted stats pill */
+  /** Warm Elegance: transparent dark vignette overlay with serif title, designed to sit on top of video clip */
   function generateWarmEleganceLayout(
     title: string,
     detailsText: string,
@@ -541,56 +541,52 @@ import { corsHeaders } from "../_shared/cors.ts";
     const land = propertyData.landSize;
 
     if (outputFormat === "landscape") {
+      const w = 1920;
+      const h = 1080;
       return `
-        <div style="position:relative;width:1920px;height:1080px;overflow:hidden;background:#1a1410;font-family:Georgia,serif;">
-          <div style="position:absolute;top:0;left:0;width:1920px;height:1080px;background:linear-gradient(160deg,#c8b89a 0%,#a07840 30%,#6b4a18 55%,#2e1e08 80%,#0e0a04 100%);"></div>
-          <div style="position:absolute;top:0;right:0;width:900px;height:500px;background:linear-gradient(220deg,rgba(210,195,170,0.55) 0%,rgba(180,155,110,0.2) 50%,rgba(0,0,0,0) 100%);"></div>
-          <div style="position:absolute;top:0;left:0;width:1920px;height:500px;background:linear-gradient(to bottom,rgba(0,0,0,0.55) 0%,rgba(0,0,0,0) 100%);"></div>
-          <div style="position:absolute;bottom:0;left:0;width:1920px;height:600px;background:linear-gradient(to top,rgba(0,0,0,0.80) 0%,rgba(0,0,0,0) 100%);"></div>
-          <div style="position:absolute;top:330px;left:0;width:1920px;text-align:center;font-family:Georgia,serif;font-size:130px;font-weight:normal;font-style:italic;color:rgba(255,255,255,0.96);letter-spacing:1px;line-height:1;">${title}</div>
-          <div style="position:absolute;top:482px;left:0;width:1920px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:normal;color:rgba(255,255,255,0.60);letter-spacing:4px;text-transform:uppercase;">${streetAddress}, ${suburb} ${state}</div>
-          <div style="position:absolute;top:530px;left:0;width:1920px;text-align:center;font-family:Georgia,serif;font-size:52px;font-weight:normal;color:rgba(255,255,255,0.88);letter-spacing:1px;">${price}</div>
-          <div style="position:absolute;bottom:160px;left:660px;width:600px;height:82px;background:rgba(180,155,120,0.30);border-radius:60px;border:1px solid rgba(255,255,255,0.16);">
-            <div style="position:absolute;top:22px;left:50px;font-family:Arial,Helvetica,sans-serif;font-size:28px;color:rgba(255,255,255,0.90);">${beds}</div>
-            <div style="position:absolute;top:24px;left:90px;font-family:Arial,Helvetica,sans-serif;font-size:22px;color:rgba(255,255,255,0.55);">bd</div>
-            <div style="position:absolute;top:16px;left:130px;width:1px;height:50px;background:rgba(255,255,255,0.18);"></div>
-            <div style="position:absolute;top:22px;left:150px;font-family:Arial,Helvetica,sans-serif;font-size:28px;color:rgba(255,255,255,0.90);">${baths}</div>
-            <div style="position:absolute;top:24px;left:190px;font-family:Arial,Helvetica,sans-serif;font-size:22px;color:rgba(255,255,255,0.55);">ba</div>
-            <div style="position:absolute;top:16px;left:238px;width:1px;height:50px;background:rgba(255,255,255,0.18);"></div>
-            <div style="position:absolute;top:22px;left:258px;font-family:Arial,Helvetica,sans-serif;font-size:28px;color:rgba(255,255,255,0.90);">${cars}</div>
-            <div style="position:absolute;top:24px;left:298px;font-family:Arial,Helvetica,sans-serif;font-size:22px;color:rgba(255,255,255,0.55);">cr</div>
+        <div style="position:relative;width:${w}px;height:${h}px;overflow:hidden;">
+          <div style="position:absolute;top:0;left:0;width:${w}px;height:400px;background:linear-gradient(to bottom,rgba(0,0,0,0.40) 0%,rgba(0,0,0,0) 100%);"></div>
+          <div style="position:absolute;bottom:0;left:0;width:${w}px;height:700px;background:linear-gradient(to top,rgba(0,0,0,0.88) 0%,rgba(0,0,0,0.60) 40%,rgba(0,0,0,0) 100%);"></div>
+          <div style="position:absolute;top:380px;left:0;width:${w}px;text-align:center;font-family:Georgia,serif;font-size:90px;font-weight:normal;font-style:italic;color:rgba(255,255,255,0.96);letter-spacing:1px;line-height:1.1;text-shadow:0 4px 24px rgba(0,0,0,0.5);">${title}</div>
+          <div style="position:absolute;top:500px;left:0;width:${w}px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:24px;font-weight:normal;color:rgba(255,255,255,0.62);letter-spacing:5px;text-transform:uppercase;">${streetAddress}, ${suburb} ${state}</div>
+          <div style="position:absolute;top:550px;left:0;width:${w}px;text-align:center;font-family:Georgia,serif;font-size:48px;font-weight:normal;color:rgba(255,255,255,0.90);letter-spacing:1px;text-shadow:0 2px 12px rgba(0,0,0,0.4);">${price}</div>
+          <div style="position:absolute;top:620px;left:760px;width:400px;height:1px;background:rgba(255,255,255,0.15);"></div>
+          <div style="position:absolute;bottom:140px;left:660px;width:600px;height:92px;background:rgba(0,0,0,0.35);border-radius:60px;border:1px solid rgba(255,255,255,0.16);">
+            <div style="position:absolute;top:26px;left:50px;font-family:Arial,Helvetica,sans-serif;font-size:30px;color:rgba(255,255,255,0.92);">${beds}</div>
+            <div style="position:absolute;top:18px;left:100px;width:1px;height:56px;background:rgba(255,255,255,0.15);"></div>
+            <div style="position:absolute;top:26px;left:120px;font-family:Arial,Helvetica,sans-serif;font-size:30px;color:rgba(255,255,255,0.92);">${baths}</div>
+            <div style="position:absolute;top:18px;left:170px;width:1px;height:56px;background:rgba(255,255,255,0.15);"></div>
+            <div style="position:absolute;top:26px;left:190px;font-family:Arial,Helvetica,sans-serif;font-size:30px;color:rgba(255,255,255,0.92);">${cars}</div>
             ${land ? `
-            <div style="position:absolute;top:16px;left:346px;width:1px;height:50px;background:rgba(255,255,255,0.18);"></div>
-            <div style="position:absolute;top:22px;left:370px;font-family:Arial,Helvetica,sans-serif;font-size:24px;color:rgba(255,255,255,0.72);">${land}m²</div>
+            <div style="position:absolute;top:18px;left:240px;width:1px;height:56px;background:rgba(255,255,255,0.15);"></div>
+            <div style="position:absolute;top:26px;left:264px;font-family:Arial,Helvetica,sans-serif;font-size:26px;color:rgba(255,255,255,0.72);">${land}m²</div>
             ` : ""}
           </div>
         </div>
       `;
     }
 
-    // Portrait (default)
+    // Portrait (default) — transparent overlay with dark vignettes
     return `
-      <div style="position:relative;width:1080px;height:1920px;overflow:hidden;background:#1a1410;font-family:Georgia,serif;">
-        <div style="position:absolute;top:0;left:0;width:1080px;height:1920px;background:linear-gradient(175deg,#f0ebe0 0%,#c4a878 40%,#6b4a0e 70%,#2a1a06 100%);"></div>
-        <div style="position:absolute;top:0;left:0;width:1080px;height:600px;background:linear-gradient(to bottom,rgba(0,0,0,0.45) 0%,rgba(0,0,0,0) 100%);"></div>
-        <div style="position:absolute;bottom:0;left:0;width:1080px;height:900px;background:linear-gradient(to top,rgba(0,0,0,0.75) 0%,rgba(0,0,0,0) 100%);"></div>
-        <div style="position:absolute;top:760px;left:0;width:1080px;text-align:center;font-family:Georgia,serif;font-size:112px;font-weight:normal;color:rgba(255,255,255,0.95);letter-spacing:2px;line-height:1.1;">${title}</div>
-        <div style="position:absolute;top:900px;left:0;width:1080px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:28px;font-weight:300;color:rgba(255,255,255,0.58);letter-spacing:5px;text-transform:uppercase;">${streetAddress}</div>
-        <div style="position:absolute;top:944px;left:0;width:1080px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:28px;font-weight:300;color:rgba(255,255,255,0.45);letter-spacing:5px;text-transform:uppercase;">${suburb} ${state}</div>
-        <div style="position:absolute;top:1010px;left:0;width:1080px;text-align:center;font-family:Georgia,serif;font-size:58px;font-weight:normal;color:rgba(255,255,255,0.82);letter-spacing:1px;">${price}</div>
-        <div style="position:absolute;bottom:220px;left:290px;width:500px;height:88px;background:rgba(190,165,130,0.28);border-radius:60px;border:1px solid rgba(255,255,255,0.14);">
-          <div style="position:absolute;top:22px;left:50px;font-family:Arial,Helvetica,sans-serif;font-size:32px;font-weight:300;color:rgba(255,255,255,0.88);">${beds}</div>
-          <div style="position:absolute;top:24px;left:90px;font-family:Arial,Helvetica,sans-serif;font-size:26px;color:rgba(255,255,255,0.55);">bd</div>
-          <div style="position:absolute;top:20px;left:162px;width:1px;height:48px;background:rgba(255,255,255,0.18);"></div>
-          <div style="position:absolute;top:22px;left:182px;font-family:Arial,Helvetica,sans-serif;font-size:32px;font-weight:300;color:rgba(255,255,255,0.88);">${baths}</div>
-          <div style="position:absolute;top:24px;left:222px;font-family:Arial,Helvetica,sans-serif;font-size:26px;color:rgba(255,255,255,0.55);">ba</div>
-          <div style="position:absolute;top:20px;left:294px;width:1px;height:48px;background:rgba(255,255,255,0.18);"></div>
-          <div style="position:absolute;top:22px;left:314px;font-family:Arial,Helvetica,sans-serif;font-size:32px;font-weight:300;color:rgba(255,255,255,0.88);">${cars}</div>
-          <div style="position:absolute;top:24px;left:354px;font-family:Arial,Helvetica,sans-serif;font-size:26px;color:rgba(255,255,255,0.55);">cr</div>
+      <div style="position:relative;width:1080px;height:1920px;overflow:hidden;">
+        <div style="position:absolute;top:0;left:0;width:1080px;height:400px;background:linear-gradient(to bottom,rgba(0,0,0,0.40) 0%,rgba(0,0,0,0) 100%);"></div>
+        <div style="position:absolute;bottom:0;left:0;width:1080px;height:1100px;background:linear-gradient(to top,rgba(0,0,0,0.88) 0%,rgba(0,0,0,0.60) 40%,rgba(0,0,0,0) 100%);"></div>
+        <div style="position:absolute;top:820px;left:0;width:1080px;text-align:center;font-family:Georgia,serif;font-size:108px;font-weight:normal;font-style:italic;color:rgba(255,255,255,0.96);letter-spacing:1px;line-height:1.1;text-shadow:0 4px 24px rgba(0,0,0,0.5);">${title}</div>
+        <div style="position:absolute;top:958px;left:0;width:1080px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:normal;color:rgba(255,255,255,0.62);letter-spacing:5px;text-transform:uppercase;">${streetAddress}</div>
+        <div style="position:absolute;top:1000px;left:0;width:1080px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:normal;color:rgba(255,255,255,0.42);letter-spacing:5px;text-transform:uppercase;">${suburb} ${state}</div>
+        <div style="position:absolute;top:1066px;left:0;width:1080px;text-align:center;font-family:Georgia,serif;font-size:56px;font-weight:normal;color:rgba(255,255,255,0.90);letter-spacing:1px;text-shadow:0 2px 12px rgba(0,0,0,0.4);">${price}</div>
+        <div style="position:absolute;top:1164px;left:340px;width:400px;height:1px;background:rgba(255,255,255,0.15);"></div>
+        <div style="position:absolute;bottom:240px;left:240px;width:600px;height:92px;background:rgba(0,0,0,0.35);border-radius:60px;border:1px solid rgba(255,255,255,0.16);">
+          <div style="position:absolute;top:26px;left:50px;font-family:Arial,Helvetica,sans-serif;font-size:30px;color:rgba(255,255,255,0.92);">${beds}</div>
+          <div style="position:absolute;top:18px;left:100px;width:1px;height:56px;background:rgba(255,255,255,0.15);"></div>
+          <div style="position:absolute;top:26px;left:120px;font-family:Arial,Helvetica,sans-serif;font-size:30px;color:rgba(255,255,255,0.92);">${baths}</div>
+          <div style="position:absolute;top:18px;left:170px;width:1px;height:56px;background:rgba(255,255,255,0.15);"></div>
+          <div style="position:absolute;top:26px;left:190px;font-family:Arial,Helvetica,sans-serif;font-size:30px;color:rgba(255,255,255,0.92);">${cars}</div>
+          ${land ? `
+          <div style="position:absolute;top:18px;left:240px;width:1px;height:56px;background:rgba(255,255,255,0.15);"></div>
+          <div style="position:absolute;top:26px;left:264px;font-family:Arial,Helvetica,sans-serif;font-size:26px;color:rgba(255,255,255,0.72);">${land}m²</div>
+          ` : ""}
         </div>
-        ${land ? `<div style="position:absolute;bottom:120px;left:390px;width:300px;height:70px;background:rgba(190,165,130,0.18);border-radius:60px;border:1px solid rgba(255,255,255,0.10);">
-          <div style="position:absolute;top:16px;left:0;width:300px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:28px;font-weight:300;color:rgba(255,255,255,0.68);letter-spacing:1px;">${land}m²</div>
-        </div>` : ""}
       </div>
     `;
   }
