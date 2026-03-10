@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, BedDouble, Bath, Car, Ruler } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -244,35 +244,48 @@ function WarmElegancePreview({ title, previewImageUrl, property }: PreviewProps)
       <div className="absolute top-0 left-0 right-0 h-[21%]" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.40), transparent)" }} />
       {/* Dark bottom fade */}
       <div className="absolute bottom-0 left-0 right-0 h-[57%]" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.60) 40%, transparent 100%)" }} />
-      <div className="absolute top-[43%] left-0 right-0 text-center">
-        <div className="text-white/95 text-2xl italic leading-tight" style={{ fontFamily: "Georgia, serif", letterSpacing: "1px", textShadow: "0 4px 24px rgba(0,0,0,0.5)" }}>
+      <div className="absolute top-[43%] left-0 right-0 text-center px-4">
+        <div className="text-white/95 text-3xl italic leading-tight" style={{ fontFamily: "Georgia, serif", letterSpacing: "1px", textShadow: "0 4px 24px rgba(0,0,0,0.5)" }}>
           {title}
         </div>
-        <div className="text-white/60 text-[8px] uppercase mt-1.5" style={{ letterSpacing: "3px" }}>
+        <div className="text-white/60 text-[9px] uppercase mt-2" style={{ letterSpacing: "4px" }}>
           {property?.streetAddress || "27 Alamanda Blvd"}
         </div>
-        <div className="text-white/40 text-[8px] uppercase" style={{ letterSpacing: "3px" }}>
+        <div className="text-white/40 text-[9px] uppercase mt-0.5" style={{ letterSpacing: "4px" }}>
           {property?.suburb || "Point Cook"} {property?.state || "VIC"}
         </div>
-        <div className="text-white/90 text-sm mt-1.5" style={{ fontFamily: "Georgia, serif", textShadow: "0 2px 12px rgba(0,0,0,0.4)" }}>
+        <div className="text-white/90 text-base mt-2" style={{ fontFamily: "Georgia, serif", textShadow: "0 2px 12px rgba(0,0,0,0.4)" }}>
           {formatPrice(property?.price || "")}
         </div>
-        <div className="mx-auto mt-1.5 w-[37%] h-px bg-white/15" />
+        <div className="mx-auto mt-2 w-[37%] h-px bg-white/15" />
       </div>
-      <div className="absolute bottom-[12.5%] left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1 rounded-full border border-white/15" style={{ background: "rgba(0,0,0,0.35)" }}>
-        <span className="text-white/90 text-[8px]">{beds}</span>
-        <div className="w-px h-3 bg-white/15" />
-        <span className="text-white/90 text-[8px]">{baths}</span>
+      {/* Stats pill with icons */}
+      <div className="absolute bottom-[12%] left-1/2 -translate-x-1/2 flex items-center gap-2.5 px-4 py-2 rounded-full border border-white/15" style={{ background: "rgba(0,0,0,0.35)" }}>
+        <span className="flex items-center gap-1 text-white/90 text-[9px]">
+          <BedDouble className="w-3.5 h-3.5 text-white/75" strokeWidth={1.5} />
+          {beds}
+        </span>
+        <div className="w-px h-4 bg-white/15" />
+        <span className="flex items-center gap-1 text-white/90 text-[9px]">
+          <Bath className="w-3.5 h-3.5 text-white/75" strokeWidth={1.5} />
+          {baths}
+        </span>
         {(cars !== undefined && cars > 0) && (
           <>
-            <div className="w-px h-3 bg-white/15" />
-            <span className="text-white/90 text-[8px]">{cars}</span>
+            <div className="w-px h-4 bg-white/15" />
+            <span className="flex items-center gap-1 text-white/90 text-[9px]">
+              <Car className="w-3.5 h-3.5 text-white/75" strokeWidth={1.5} />
+              {cars}
+            </span>
           </>
         )}
         {property?.landSize && (
           <>
-            <div className="w-px h-3 bg-white/15" />
-            <span className="text-white/70 text-[7px]">{property.landSize}m²</span>
+            <div className="w-px h-4 bg-white/15" />
+            <span className="flex items-center gap-1 text-white/70 text-[8px]">
+              <Ruler className="w-3 h-3 text-white/60" strokeWidth={1.5} />
+              {property.landSize}m²
+            </span>
           </>
         )}
       </div>
@@ -376,7 +389,7 @@ export function VideoTemplateSelector({
           </div>
 
           {/* Layout Preview */}
-          <div className="w-full aspect-[9/16] max-h-[500px] mx-auto rounded-lg bg-gradient-to-br from-slate-600 to-slate-800 overflow-hidden relative">
+          <div className="w-full aspect-[9/16] max-h-[600px] mx-auto rounded-lg bg-gradient-to-br from-slate-600 to-slate-800 overflow-hidden relative shadow-xl">
             {!previewImageUrl && (
               <div
                 className="absolute inset-0 opacity-20"
