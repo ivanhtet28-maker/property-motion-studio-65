@@ -559,8 +559,8 @@ export function StepBranding({
               <h3 className="text-white/95 text-3xl italic leading-tight" style={{ fontFamily: "Georgia, serif", letterSpacing: "1px", textShadow: "0 4px 24px rgba(0,0,0,0.5)" }}>
                 {heading}
               </h3>
-              <p className="text-white/60 text-xs uppercase mt-2" style={{ letterSpacing: "4px" }}>
-                {propertyDetails.streetAddress}, {propertyDetails.suburb} {propertyDetails.state}
+              <p className="text-white/60 text-[10px] uppercase mt-2 whitespace-pre-line" style={{ letterSpacing: "3px" }}>
+                {details}
               </p>
               {price && (
                 <p className="text-white/90 text-lg mt-2" style={{ fontFamily: "Georgia, serif", textShadow: "0 2px 12px rgba(0,0,0,0.4)" }}>
@@ -569,8 +569,8 @@ export function StepBranding({
               )}
               <div className="mx-auto mt-2 w-[20%] h-px bg-white/20" />
             </div>
-            {/* Stats pill with icons */}
-            <div className="absolute bottom-[13%] left-1/2 -translate-x-1/2 flex items-center gap-4 px-6 py-3 rounded-full border border-white/15" style={{ background: "rgba(0,0,0,0.35)", backdropFilter: "blur(8px)" }}>
+            {/* Stats pill with icons — warm golden tint */}
+            <div className="absolute bottom-[13%] left-1/2 -translate-x-1/2 flex items-center gap-4 px-6 py-3 rounded-full border border-white/15" style={{ background: "rgba(160,130,90,0.45)", backdropFilter: "blur(8px)" }}>
               <span className="flex items-center gap-1.5 text-white/90 text-xs">
                 <BedDouble className="w-4 h-4 text-white/75" strokeWidth={1.5} />
                 {propertyDetails.bedrooms}
@@ -585,16 +585,13 @@ export function StepBranding({
                 <Car className="w-4 h-4 text-white/75" strokeWidth={1.5} />
                 {propertyDetails.carSpaces}
               </span>
-              {propertyDetails.landSize && (
-                <>
-                  <div className="w-px h-5 bg-white/20" />
-                  <span className="flex items-center gap-1.5 text-white/70 text-[11px]">
-                    <Ruler className="w-4 h-4 text-white/60" strokeWidth={1.5} />
-                    {propertyDetails.landSize}m²
-                  </span>
-                </>
-              )}
             </div>
+            {/* Land size pill below */}
+            {propertyDetails.landSize && (
+              <div className="absolute bottom-[7%] left-1/2 -translate-x-1/2 px-5 py-2 rounded-full border border-white/15" style={{ background: "rgba(160,130,90,0.45)", backdropFilter: "blur(8px)" }}>
+                <span className="text-white/90 text-[11px]">{propertyDetails.landSize}m²</span>
+              </div>
+            )}
           </div>
         );
       }
@@ -609,11 +606,8 @@ export function StepBranding({
             <h3 className="text-white/95 text-3xl italic leading-tight" style={{ fontFamily: "Georgia, serif", letterSpacing: "1px", textShadow: "0 4px 24px rgba(0,0,0,0.5)" }}>
               {heading}
             </h3>
-            <p className="text-white/60 text-xs uppercase mt-3" style={{ letterSpacing: "4px" }}>
-              {propertyDetails.streetAddress}
-            </p>
-            <p className="text-white/40 text-xs uppercase mt-0.5" style={{ letterSpacing: "4px" }}>
-              {propertyDetails.suburb} {propertyDetails.state}
+            <p className="text-white/60 text-[10px] uppercase mt-3 whitespace-pre-line" style={{ letterSpacing: "3px" }}>
+              {details}
             </p>
             {price && (
               <p className="text-white/90 text-lg mt-3" style={{ fontFamily: "Georgia, serif", textShadow: "0 2px 12px rgba(0,0,0,0.4)" }}>
@@ -622,8 +616,8 @@ export function StepBranding({
             )}
             <div className="mx-auto mt-3 w-[37%] h-px bg-white/20" />
           </div>
-          {/* Stats pill with icons */}
-          <div className="absolute bottom-[12.5%] left-1/2 -translate-x-1/2 flex items-center gap-4 px-6 py-3 rounded-full border border-white/15" style={{ background: "rgba(0,0,0,0.35)", backdropFilter: "blur(8px)" }}>
+          {/* Stats pill with icons — warm golden tint */}
+          <div className="absolute bottom-[12.5%] left-1/2 -translate-x-1/2 flex items-center gap-4 px-6 py-3 rounded-full border border-white/15" style={{ background: "rgba(160,130,90,0.45)", backdropFilter: "blur(8px)" }}>
             <span className="flex items-center gap-1.5 text-white/90 text-xs">
               <BedDouble className="w-4 h-4 text-white/75" strokeWidth={1.5} />
               {propertyDetails.bedrooms}
@@ -638,16 +632,13 @@ export function StepBranding({
               <Car className="w-4 h-4 text-white/75" strokeWidth={1.5} />
               {propertyDetails.carSpaces}
             </span>
-            {propertyDetails.landSize && (
-              <>
-                <div className="w-px h-5 bg-white/20" />
-                <span className="flex items-center gap-1.5 text-white/70 text-[11px]">
-                  <Ruler className="w-4 h-4 text-white/60" strokeWidth={1.5} />
-                  {propertyDetails.landSize}m²
-                </span>
-              </>
-            )}
           </div>
+          {/* Land size pill below */}
+          {propertyDetails.landSize && (
+            <div className="absolute bottom-[7%] left-1/2 -translate-x-1/2 px-5 py-2 rounded-full border border-white/15" style={{ background: "rgba(160,130,90,0.45)", backdropFilter: "blur(8px)" }}>
+              <span className="text-white/90 text-[11px]">{propertyDetails.landSize}m²</span>
+            </div>
+          )}
         </div>
       );
     }
@@ -1417,12 +1408,10 @@ export function StepBranding({
                   <img
                     src={previewImageUrl}
                     alt="Preview"
-                    className="w-full h-full object-cover"
+                    className="absolute inset-0 w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
-                    No images selected
-                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-br from-slate-700 to-slate-900" />
                 )}
                 {renderIntroOverlay()}
               </>
