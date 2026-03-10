@@ -1,5 +1,6 @@
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 import { corsHeaders } from "../_shared/cors.ts";
+import { requireAuth } from "../_shared/auth.ts";
 
 
 const SHOTSTACK_API_KEY = Deno.env.get("SHOTSTACK_API_KEY");
@@ -68,6 +69,9 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const { error: authErr } = await requireAuth(req);
+    if (authErr) return authErr;
+
     console.log("=== generate-shotstack-batch INVOKED (Shotstack Create API — Image to Video) ===");
     const { imageMetadata, propertyAddress } = await req.json();
 

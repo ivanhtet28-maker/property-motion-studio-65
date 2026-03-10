@@ -1,8 +1,9 @@
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import {
 import { corsHeaders } from "../_shared/cors.ts";
+import { requireAuth, validateImageUrl } from "../_shared/auth.ts";
+import {
   ImageMagick,
   initializeImageMagick,
   MagickGeometry,
@@ -57,6 +58,9 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const { error: authErr } = await requireAuth(req);
+    if (authErr) return authErr;
+
     const body = await req.json();
 
     // Support both single image and batch mode
@@ -110,6 +114,13 @@ async function processImage(
   index: number
 ): Promise<SmartCropResult> {
   try {
+    // SSRF protection: validate the image URL
+    const urlCheck = validateImageUrl(imageUrl);
+    if (!urlCheck.valid) {
+      console.warn(`[${index}] URL validation failed: ${urlCheck.error}`);
+      return { url: imageUrl, cropped: false };
+    }
+
     // Fetch the source image
     const imageResponse = await fetch(imageUrl, {
       headers: {

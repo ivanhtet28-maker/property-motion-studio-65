@@ -1,5 +1,6 @@
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 import { corsHeaders } from "../_shared/cors.ts";
+import { requireAuth } from "../_shared/auth.ts";
 
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
@@ -21,14 +22,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Lightweight auth guard
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return new Response(
-        JSON.stringify({ error: "Authentication required" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const { error: authErr } = await requireAuth(req);
+    if (authErr) return authErr;
 
     const body: GenerateScriptRequest = await req.json();
 

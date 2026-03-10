@@ -1,5 +1,6 @@
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 import { corsHeaders } from "../_shared/cors.ts";
+import { requireAuth } from "../_shared/auth.ts";
 
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
@@ -193,14 +194,11 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const { error: authErr } = await requireAuth(req);
+    if (authErr) return authErr;
+
     console.log(`[detect-room-types] ── REQUEST RECEIVED ──`);
-    console.log(`[detect-room-types] Method: ${req.method}`);
-    console.log(`[detect-room-types] URL: ${req.url}`);
-    console.log(`[detect-room-types] Origin: ${req.headers.get("origin") ?? "(none)"}`);
-    console.log(`[detect-room-types] Auth header present: ${!!req.headers.get("authorization")}`);
-    console.log(`[detect-room-types] Content-Type: ${req.headers.get("content-type") ?? "(none)"}`);
     console.log(`[detect-room-types] ANTHROPIC_API_KEY set: ${!!ANTHROPIC_API_KEY}`);
-    console.log(`[detect-room-types] CORS: wildcard origin`);
 
     if (!ANTHROPIC_API_KEY) {
       console.error(`[detect-room-types] FATAL: ANTHROPIC_API_KEY is not set in environment`);

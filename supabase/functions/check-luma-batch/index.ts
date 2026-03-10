@@ -1,5 +1,6 @@
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 import { corsHeaders } from "../_shared/cors.ts";
+import { requireAuth } from "../_shared/auth.ts";
 
 
   const LUMA_API_KEY = Deno.env.get("LUMA_API_KEY");
@@ -10,6 +11,9 @@ import { corsHeaders } from "../_shared/cors.ts";
     }
 
     try {
+      const { error: authErr } = await requireAuth(req);
+      if (authErr) return authErr;
+
       const { generationIds } = await req.json();
 
       if (!generationIds || !Array.isArray(generationIds) || generationIds.length === 0) {

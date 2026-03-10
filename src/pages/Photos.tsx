@@ -1,12 +1,20 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   Upload,
   X,
@@ -24,6 +32,25 @@ import {
   ArrowRight,
   ArrowLeft,
   ImagePlus,
+  Sun,
+  Contrast,
+  Droplets,
+  Thermometer,
+  Sparkles,
+  Type,
+  Palette,
+  Eraser,
+  Bath,
+  TreePine,
+  Car,
+  Baby,
+  Layers,
+  Eye,
+  SlidersHorizontal,
+  RotateCw,
+  Shield,
+  Moon,
+  Sunset,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -38,7 +65,13 @@ interface PhotoJob {
   error_message: string | null;
   job_type: "enhance" | "stage";
   enhancements: { enhance?: boolean; sky?: boolean; sky_type?: string };
-  stage_options: { room_type?: string; style?: string };
+  stage_options: { room_type?: string; style?: string; furniture_density?: string; declutter?: boolean; lighting?: string };
+}
+
+interface MlsLabelSettings {
+  enabled: boolean;
+  text: string;
+  position: "top-left" | "top-right" | "bottom-left" | "bottom-right";
 }
 
 interface UploadedFile {
@@ -48,7 +81,52 @@ interface UploadedFile {
   size: string;
 }
 
+interface ImageAdjustments {
+  brightness: number;
+  contrast: number;
+  saturation: number;
+  warmth: number;
+  sharpness: number;
+  vignette: number;
+}
+
+interface WatermarkSettings {
+  text: string;
+  position: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center";
+  opacity: number;
+  fontSize: number;
+}
+
 // ── Constants ──────────────────────────────────────────────────────────────
+
+const DEFAULT_ADJUSTMENTS: ImageAdjustments = {
+  brightness: 0,
+  contrast: 0,
+  saturation: 0,
+  warmth: 0,
+  sharpness: 0,
+  vignette: 0,
+};
+
+const PRESET_FILTERS = [
+  { name: "None", adjustments: { ...DEFAULT_ADJUSTMENTS } },
+  { name: "Bright & Airy", adjustments: { brightness: 15, contrast: 5, saturation: -10, warmth: 5, sharpness: 0, vignette: 0 } },
+  { name: "Warm Glow", adjustments: { brightness: 5, contrast: 10, saturation: 15, warmth: 25, sharpness: 0, vignette: 10 } },
+  { name: "Cool & Crisp", adjustments: { brightness: 5, contrast: 15, saturation: 5, warmth: -15, sharpness: 10, vignette: 0 } },
+  { name: "Twilight", adjustments: { brightness: -10, contrast: 20, saturation: 20, warmth: -20, sharpness: 5, vignette: 20 } },
+  { name: "Magazine", adjustments: { brightness: 10, contrast: 20, saturation: 10, warmth: 0, sharpness: 15, vignette: 5 } },
+  { name: "HDR Pop", adjustments: { brightness: 0, contrast: 30, saturation: 25, warmth: 5, sharpness: 20, vignette: 0 } },
+  { name: "Soft Focus", adjustments: { brightness: 10, contrast: -10, saturation: -5, warmth: 10, sharpness: -20, vignette: 15 } },
+];
+
+const ADJUSTMENT_CONTROLS: { key: keyof ImageAdjustments; label: string; icon: typeof Sun; min: number; max: number }[] = [
+  { key: "brightness", label: "Brightness", icon: Sun, min: -50, max: 50 },
+  { key: "contrast", label: "Contrast", icon: Contrast, min: -50, max: 50 },
+  { key: "saturation", label: "Saturation", icon: Droplets, min: -50, max: 50 },
+  { key: "warmth", label: "Warmth", icon: Thermometer, min: -50, max: 50 },
+  { key: "sharpness", label: "Sharpness", icon: Sparkles, min: -30, max: 30 },
+  { key: "vignette", label: "Vignette", icon: Eye, min: 0, max: 50 },
+];
 
 const SKY_OPTIONS = [
   { value: "blue_sky", label: "Blue Sky" },
@@ -62,6 +140,10 @@ const ROOM_TYPES = [
   { value: "KITCHEN", label: "Kitchen", icon: CookingPot },
   { value: "DININGROOM", label: "Dining", icon: UtensilsCrossed },
   { value: "OFFICE", label: "Office", icon: Briefcase },
+  { value: "BATHROOM", label: "Bath", icon: Bath },
+  { value: "PATIO", label: "Patio", icon: TreePine },
+  { value: "GARAGE", label: "Garage", icon: Car },
+  { value: "NURSERY", label: "Nursery", icon: Baby },
 ];
 
 const DESIGN_STYLES = [
@@ -69,7 +151,32 @@ const DESIGN_STYLES = [
   { value: "SCANDINAVIAN", label: "Scandi", color: "from-amber-100 to-stone-300" },
   { value: "LUXURY", label: "Luxury", color: "from-yellow-600 to-amber-800" },
   { value: "FARMHOUSE", label: "Farmhouse", color: "from-green-300 to-emerald-500" },
-  { value: "MINIMALIST", label: "Minimalist", color: "from-gray-100 to-gray-300" },
+  { value: "MINIMALIST", label: "Minimal", color: "from-gray-100 to-gray-300" },
+  { value: "INDUSTRIAL", label: "Industrial", color: "from-zinc-500 to-zinc-700" },
+  { value: "COASTAL", label: "Coastal", color: "from-sky-200 to-blue-400" },
+  { value: "ART_DECO", label: "Art Deco", color: "from-yellow-400 to-orange-600" },
+  { value: "BOHEMIAN", label: "Boho", color: "from-rose-300 to-orange-400" },
+  { value: "CONTEMPORARY", label: "Contemp.", color: "from-violet-300 to-purple-500" },
+];
+
+const FURNITURE_DENSITIES = [
+  { value: "light", label: "Light", description: "Minimal furniture, spacious feel" },
+  { value: "medium", label: "Medium", description: "Balanced, well-furnished" },
+  { value: "full", label: "Full", description: "Fully furnished, lived-in look" },
+];
+
+const LIGHTING_OPTIONS = [
+  { value: "standard", label: "Standard", icon: Sun, description: "Original lighting" },
+  { value: "golden_hour", label: "Golden Hour", icon: Sunset, description: "Warm sunset tones — 76% more views" },
+  { value: "twilight", label: "Twilight", icon: Moon, description: "Dramatic dusk exterior lighting" },
+];
+
+const WATERMARK_POSITIONS = [
+  { value: "top-left" as const, label: "Top Left" },
+  { value: "top-right" as const, label: "Top Right" },
+  { value: "bottom-left" as const, label: "Bottom Left" },
+  { value: "bottom-right" as const, label: "Bottom Right" },
+  { value: "center" as const, label: "Center" },
 ];
 
 function formatFileSize(bytes: number): string {
@@ -78,16 +185,42 @@ function formatFileSize(bytes: number): string {
   return (bytes / 1048576).toFixed(1) + " MB";
 }
 
+// ── CSS Filter Helper ──────────────────────────────────────────────────────
+
+function adjustmentsToCSS(adj: ImageAdjustments): string {
+  const filters: string[] = [];
+  filters.push(`brightness(${1 + adj.brightness / 100})`);
+  filters.push(`contrast(${1 + adj.contrast / 100})`);
+  filters.push(`saturate(${1 + adj.saturation / 100})`);
+  // Warmth via hue-rotate + sepia combo
+  if (adj.warmth > 0) {
+    filters.push(`sepia(${adj.warmth / 100})`);
+  } else if (adj.warmth < 0) {
+    filters.push(`hue-rotate(${adj.warmth * 2}deg)`);
+  }
+  // Sharpness approximated via contrast boost (true unsharp mask needs canvas)
+  if (adj.sharpness > 0) {
+    filters.push(`contrast(${1 + adj.sharpness / 200})`);
+  } else if (adj.sharpness < 0) {
+    filters.push(`blur(${Math.abs(adj.sharpness) / 30}px)`);
+  }
+  return filters.join(" ");
+}
+
 // ── Before/After Slider ────────────────────────────────────────────────────
 
 function BeforeAfterSlider({
   beforeUrl,
   afterUrl,
   large = false,
+  afterFilter,
+  vignetteAmount,
 }: {
   beforeUrl: string;
   afterUrl: string;
   large?: boolean;
+  afterFilter?: string;
+  vignetteAmount?: number;
 }) {
   const [position, setPosition] = useState(50);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -127,7 +260,21 @@ function BeforeAfterSlider({
       onTouchStart={() => { dragging.current = true; }}
     >
       {/* After (full) */}
-      <img src={afterUrl} alt="After" className="absolute inset-0 w-full h-full object-cover" />
+      <img
+        src={afterUrl}
+        alt="After"
+        className="absolute inset-0 w-full h-full object-cover"
+        style={afterFilter ? { filter: afterFilter } : undefined}
+      />
+      {/* Vignette overlay on after side */}
+      {vignetteAmount && vignetteAmount > 0 && (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: `radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,${vignetteAmount / 100}) 100%)`,
+          }}
+        />
+      )}
       {/* Before (clipped) */}
       <div className="absolute inset-0 overflow-hidden" style={{ width: `${position}%` }}>
         <img
@@ -150,8 +297,8 @@ function BeforeAfterSlider({
         </div>
       </div>
       {/* Labels */}
-      <span className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 text-white text-xs rounded-full">Before</span>
-      <span className="absolute top-2 right-2 px-2 py-0.5 bg-black/60 text-white text-xs rounded-full">After</span>
+      <span className="absolute top-2 left-2 px-2 py-0.5 bg-black/60 text-white text-xs rounded-full z-20">Before</span>
+      <span className="absolute top-2 right-2 px-2 py-0.5 bg-black/60 text-white text-xs rounded-full z-20">After</span>
     </div>
   );
 }
@@ -187,6 +334,144 @@ async function downloadAllAsZip(
   a.download = zipName;
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+// ── Canvas Export with Adjustments + Watermark ─────────────────────────────
+
+async function exportImageWithEdits(
+  imageUrl: string,
+  adjustments: ImageAdjustments,
+  watermark: WatermarkSettings | null,
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("Canvas context unavailable"));
+
+      // Apply CSS filter equivalent
+      ctx.filter = adjustmentsToCSS(adjustments);
+      ctx.drawImage(img, 0, 0);
+      ctx.filter = "none";
+
+      // Vignette
+      if (adjustments.vignette > 0) {
+        const gradient = ctx.createRadialGradient(
+          canvas.width / 2, canvas.height / 2, canvas.width * 0.3,
+          canvas.width / 2, canvas.height / 2, canvas.width * 0.7,
+        );
+        gradient.addColorStop(0, "rgba(0,0,0,0)");
+        gradient.addColorStop(1, `rgba(0,0,0,${adjustments.vignette / 100})`);
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // Watermark
+      if (watermark && watermark.text.trim()) {
+        ctx.globalAlpha = watermark.opacity / 100;
+        ctx.font = `${watermark.fontSize}px sans-serif`;
+        ctx.fillStyle = "white";
+        ctx.strokeStyle = "rgba(0,0,0,0.5)";
+        ctx.lineWidth = 2;
+
+        const metrics = ctx.measureText(watermark.text);
+        const textW = metrics.width;
+        const textH = watermark.fontSize;
+        const pad = 30;
+        let x = pad;
+        let y = textH + pad;
+
+        switch (watermark.position) {
+          case "top-right": x = canvas.width - textW - pad; y = textH + pad; break;
+          case "bottom-left": x = pad; y = canvas.height - pad; break;
+          case "bottom-right": x = canvas.width - textW - pad; y = canvas.height - pad; break;
+          case "center": x = (canvas.width - textW) / 2; y = canvas.height / 2; break;
+        }
+
+        ctx.strokeText(watermark.text, x, y);
+        ctx.fillText(watermark.text, x, y);
+        ctx.globalAlpha = 1;
+      }
+
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error("toBlob failed"))),
+        "image/jpeg",
+        0.95,
+      );
+    };
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = imageUrl;
+  });
+}
+
+// ── MLS Compliance Label Export ──────────────────────────────────────────
+
+async function exportWithMlsLabel(
+  imageUrl: string,
+  label: MlsLabelSettings,
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("Canvas context unavailable"));
+
+      ctx.drawImage(img, 0, 0);
+
+      // Render MLS compliance label
+      const fontSize = Math.max(14, Math.round(canvas.width * 0.018));
+      ctx.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`;
+      const text = label.text;
+      const metrics = ctx.measureText(text);
+      const padX = fontSize * 0.8;
+      const padY = fontSize * 0.5;
+      const bgW = metrics.width + padX * 2;
+      const bgH = fontSize + padY * 2;
+      const margin = fontSize;
+
+      let x = margin;
+      let y = margin;
+      if (label.position === "top-right") x = canvas.width - bgW - margin;
+      if (label.position === "bottom-left") y = canvas.height - bgH - margin;
+      if (label.position === "bottom-right") { x = canvas.width - bgW - margin; y = canvas.height - bgH - margin; }
+
+      // Semi-transparent background pill
+      ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+      const radius = fontSize * 0.3;
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + bgW - radius, y);
+      ctx.quadraticCurveTo(x + bgW, y, x + bgW, y + radius);
+      ctx.lineTo(x + bgW, y + bgH - radius);
+      ctx.quadraticCurveTo(x + bgW, y + bgH, x + bgW - radius, y + bgH);
+      ctx.lineTo(x + radius, y + bgH);
+      ctx.quadraticCurveTo(x, y + bgH, x, y + bgH - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      ctx.fill();
+
+      // White text
+      ctx.fillStyle = "white";
+      ctx.fillText(text, x + padX, y + padY + fontSize * 0.82);
+
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error("toBlob failed"))),
+        "image/jpeg",
+        0.95,
+      );
+    };
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = imageUrl;
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -225,7 +510,7 @@ export default function Photos() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TAB 1: PHOTO EDIT
+// TAB 1: PHOTO EDIT — Enhanced with manual controls, presets, watermarks
 // ═══════════════════════════════════════════════════════════════════════════
 
 function PhotoEditTab() {
@@ -236,14 +521,31 @@ function PhotoEditTab() {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Enhancement options
+  // AI Enhancement options
   const [enhanceEnabled, setEnhanceEnabled] = useState(true);
   const [skyEnabled, setSkyEnabled] = useState(false);
   const [skyType, setSkyType] = useState("blue_sky");
 
+  // Manual adjustments
+  const [adjustments, setAdjustments] = useState<ImageAdjustments>({ ...DEFAULT_ADJUSTMENTS });
+  const [activePreset, setActivePreset] = useState("None");
+  const [showManualControls, setShowManualControls] = useState(false);
+
+  // Watermark
+  const [watermarkEnabled, setWatermarkEnabled] = useState(false);
+  const [watermark, setWatermark] = useState<WatermarkSettings>({
+    text: "",
+    position: "bottom-right",
+    opacity: 60,
+    fontSize: 48,
+  });
+
   // Processing state
   const [isProcessing, setIsProcessing] = useState(false);
   const [jobs, setJobs] = useState<PhotoJob[]>([]);
+
+  // Edit mode — when viewing results, allow further adjustments
+  const [editingJobId, setEditingJobId] = useState<string | null>(null);
 
   // File handling
   const addFiles = useCallback((newFiles: File[]) => {
@@ -274,15 +576,62 @@ function PhotoEditTab() {
     addFiles(Array.from(e.dataTransfer.files));
   }, [addFiles]);
 
+  // Apply preset
+  const applyPreset = (preset: typeof PRESET_FILTERS[number]) => {
+    setActivePreset(preset.name);
+    setAdjustments({ ...preset.adjustments });
+  };
+
+  // Reset adjustments
+  const resetAdjustments = () => {
+    setAdjustments({ ...DEFAULT_ADJUSTMENTS });
+    setActivePreset("None");
+  };
+
+  // CSS filter string for live preview
+  const cssFilter = useMemo(() => adjustmentsToCSS(adjustments), [adjustments]);
+  const hasAdjustments = useMemo(
+    () => Object.values(adjustments).some((v) => v !== 0),
+    [adjustments],
+  );
+
   // Process photos
   const handleEnhance = async () => {
-    if (!user?.id || files.length === 0 || (!enhanceEnabled && !skyEnabled)) return;
+    if (!user?.id || files.length === 0 || (!enhanceEnabled && !skyEnabled && !hasAdjustments && !watermarkEnabled)) return;
     setIsProcessing(true);
     setJobs([]);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
+
+      // If only manual adjustments (no AI), export locally
+      if (!enhanceEnabled && !skyEnabled) {
+        const localJobs: PhotoJob[] = [];
+        for (const f of files) {
+          const blob = await exportImageWithEdits(
+            f.preview,
+            adjustments,
+            watermarkEnabled ? watermark : null,
+          );
+          const url = URL.createObjectURL(blob);
+          localJobs.push({
+            id: crypto.randomUUID(),
+            original_url: f.preview,
+            enhanced_url: url,
+            sky_url: null,
+            staged_urls: [],
+            status: "complete",
+            error_message: null,
+            job_type: "enhance",
+            enhancements: {},
+            stage_options: {},
+          });
+        }
+        setJobs(localJobs);
+        setIsProcessing(false);
+        return;
+      }
 
       // Upload all files to storage
       const uploadedJobs: PhotoJob[] = [];
@@ -361,7 +710,7 @@ function PhotoEditTab() {
         )
         .subscribe();
 
-      // Poll fallback for each job
+      // Poll fallback
       const pollIds = new Set(uploadedJobs.map((j) => j.id));
       const pollInterval = setInterval(async () => {
         if (pollIds.size === 0) {
@@ -410,6 +759,25 @@ function PhotoEditTab() {
     await downloadAllAsZip(downloadFiles, "propertymotion-enhanced.zip");
   };
 
+  // Download a single result with manual adjustments applied
+  const handleDownloadWithEdits = async (job: PhotoJob) => {
+    try {
+      const sourceUrl = job.sky_url || job.enhanced_url || job.original_url;
+      if (hasAdjustments || watermarkEnabled) {
+        const blob = await exportImageWithEdits(sourceUrl, adjustments, watermarkEnabled ? watermark : null);
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `propertymotion-edited-${job.id.slice(0, 8)}.jpg`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      } else {
+        downloadImage(sourceUrl, `propertymotion-enhanced-${job.id.slice(0, 8)}.jpg`);
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to export image", variant: "destructive" });
+    }
+  };
+
   return (
     <div className="space-y-8">
       {/* Upload Zone */}
@@ -443,14 +811,27 @@ function PhotoEditTab() {
 
           {/* Thumbnail grid */}
           {files.length > 0 && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
                 {files.map((f, i) => (
                   <div key={i} className="relative group rounded-lg overflow-hidden border border-border">
-                    <img src={f.preview} alt={f.name} className="aspect-square object-cover w-full" />
+                    <img
+                      src={f.preview}
+                      alt={f.name}
+                      className="aspect-square object-cover w-full"
+                      style={hasAdjustments ? { filter: cssFilter } : undefined}
+                    />
+                    {adjustments.vignette > 0 && (
+                      <div
+                        className="absolute inset-0 pointer-events-none"
+                        style={{
+                          background: `radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,${adjustments.vignette / 100}) 100%)`,
+                        }}
+                      />
+                    )}
                     <button
                       onClick={() => removeFile(i)}
-                      className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/60 hover:bg-destructive text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/60 hover:bg-destructive text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -462,8 +843,11 @@ function PhotoEditTab() {
                 ))}
               </div>
 
-              {/* Enhancement Options */}
+              {/* ── AI Enhancement Options ────────────────────────────── */}
               <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary" /> AI Enhancement
+                </h3>
                 {/* Auto Enhance */}
                 <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-card">
                   <div>
@@ -510,12 +894,157 @@ function PhotoEditTab() {
                 </div>
               </div>
 
+              {/* ── Manual Adjustments ──────────────────────────────── */}
+              <div className="space-y-3">
+                <button
+                  onClick={() => setShowManualControls(!showManualControls)}
+                  className="flex items-center gap-2 text-sm font-semibold text-foreground hover:text-primary transition-colors"
+                >
+                  <SlidersHorizontal className="w-4 h-4" />
+                  Manual Adjustments
+                  <span className={`text-xs transition-transform ${showManualControls ? "rotate-180" : ""}`}>▼</span>
+                  {hasAdjustments && (
+                    <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full">Active</span>
+                  )}
+                </button>
+
+                {showManualControls && (
+                  <div className="space-y-4 p-4 rounded-xl border border-border bg-card">
+                    {/* Preset Filters */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Presets</label>
+                      <div className="flex gap-2 overflow-x-auto pb-2">
+                        {PRESET_FILTERS.map((preset) => (
+                          <button
+                            key={preset.name}
+                            onClick={() => applyPreset(preset)}
+                            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                              activePreset === preset.name
+                                ? "bg-primary text-primary-foreground shadow-sm"
+                                : "bg-secondary text-foreground hover:bg-accent"
+                            }`}
+                          >
+                            {preset.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Sliders */}
+                    <div className="space-y-3">
+                      {ADJUSTMENT_CONTROLS.map((ctrl) => {
+                        const Icon = ctrl.icon;
+                        return (
+                          <div key={ctrl.key} className="space-y-1">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                                <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+                                {ctrl.label}
+                              </label>
+                              <span className="text-xs text-muted-foreground tabular-nums w-8 text-right">
+                                {adjustments[ctrl.key] > 0 ? "+" : ""}{adjustments[ctrl.key]}
+                              </span>
+                            </div>
+                            <Slider
+                              min={ctrl.min}
+                              max={ctrl.max}
+                              step={1}
+                              value={[adjustments[ctrl.key]]}
+                              onValueChange={([v]) => {
+                                setAdjustments((prev) => ({ ...prev, [ctrl.key]: v }));
+                                setActivePreset("None");
+                              }}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Reset */}
+                    {hasAdjustments && (
+                      <Button variant="ghost" size="sm" onClick={resetAdjustments} className="text-xs">
+                        <RotateCcw className="w-3 h-3" />
+                        Reset All
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Watermark ──────────────────────────────────────── */}
+              <div className="p-4 rounded-xl border border-border bg-card space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <Type className="w-4 h-4 text-muted-foreground" /> Text Overlay / Watermark
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Add branding text to your photos
+                    </p>
+                  </div>
+                  <Switch checked={watermarkEnabled} onCheckedChange={setWatermarkEnabled} />
+                </div>
+                {watermarkEnabled && (
+                  <div className="space-y-3">
+                    <input
+                      type="text"
+                      value={watermark.text}
+                      onChange={(e) => setWatermark((prev) => ({ ...prev, text: e.target.value }))}
+                      placeholder="Your Agency Name"
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground"
+                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">Position</label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {WATERMARK_POSITIONS.map((pos) => (
+                            <button
+                              key={pos.value}
+                              onClick={() => setWatermark((prev) => ({ ...prev, position: pos.value }))}
+                              className={`px-2 py-1 rounded text-xs transition-colors ${
+                                watermark.position === pos.value
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-secondary text-foreground hover:bg-accent"
+                              }`}
+                            >
+                              {pos.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium text-muted-foreground">Opacity: {watermark.opacity}%</label>
+                          <Slider
+                            min={10}
+                            max={100}
+                            step={5}
+                            value={[watermark.opacity]}
+                            onValueChange={([v]) => setWatermark((prev) => ({ ...prev, opacity: v }))}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-medium text-muted-foreground">Size: {watermark.fontSize}px</label>
+                          <Slider
+                            min={16}
+                            max={120}
+                            step={4}
+                            value={[watermark.fontSize]}
+                            onValueChange={([v]) => setWatermark((prev) => ({ ...prev, fontSize: v }))}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Action Button */}
               <Button
                 variant="hero"
                 size="lg"
                 onClick={handleEnhance}
-                disabled={files.length === 0 || (!enhanceEnabled && !skyEnabled) || isProcessing}
+                disabled={files.length === 0 || (!enhanceEnabled && !skyEnabled && !hasAdjustments && !watermarkEnabled) || isProcessing}
                 className="w-full"
               >
                 {isProcessing ? (
@@ -524,7 +1053,12 @@ function PhotoEditTab() {
                     Processing...
                   </>
                 ) : (
-                  <>Enhance {files.length} Photo{files.length !== 1 ? "s" : ""}</>
+                  <>
+                    {enhanceEnabled || skyEnabled
+                      ? `Enhance ${files.length} Photo${files.length !== 1 ? "s" : ""}`
+                      : `Export ${files.length} Photo${files.length !== 1 ? "s" : ""} with Edits`
+                    }
+                  </>
                 )}
               </Button>
             </div>
@@ -537,13 +1071,106 @@ function PhotoEditTab() {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-foreground">Results</h2>
-            {canDownloadAll && (
-              <Button variant="outline" size="sm" onClick={handleDownloadAll}>
-                <Archive className="w-4 h-4" />
-                Download All Enhanced
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {hasAdjustments && (
+                <span className="flex items-center gap-1 px-2.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded-full">
+                  <SlidersHorizontal className="w-3 h-3" /> Edits Applied
+                </span>
+              )}
+              {canDownloadAll && (
+                <Button variant="outline" size="sm" onClick={handleDownloadAll}>
+                  <Archive className="w-4 h-4" />
+                  Download All
+                </Button>
+              )}
+            </div>
           </div>
+
+          {/* Manual controls panel for post-AI refinement */}
+          {completedJobs.length > 0 && (
+            <div className="space-y-3">
+              <button
+                onClick={() => setShowManualControls(!showManualControls)}
+                className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Palette className="w-4 h-4" />
+                Fine-tune results
+                <span className={`text-xs transition-transform ${showManualControls ? "rotate-180" : ""}`}>▼</span>
+              </button>
+
+              {showManualControls && (
+                <div className="p-4 rounded-xl border border-border bg-card space-y-4">
+                  {/* Presets */}
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {PRESET_FILTERS.map((preset) => (
+                      <button
+                        key={preset.name}
+                        onClick={() => applyPreset(preset)}
+                        className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                          activePreset === preset.name
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-secondary text-foreground hover:bg-accent"
+                        }`}
+                      >
+                        {preset.name}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Sliders */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+                    {ADJUSTMENT_CONTROLS.map((ctrl) => {
+                      const Icon = ctrl.icon;
+                      return (
+                        <div key={ctrl.key} className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                              <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+                              {ctrl.label}
+                            </label>
+                            <span className="text-xs text-muted-foreground tabular-nums w-8 text-right">
+                              {adjustments[ctrl.key] > 0 ? "+" : ""}{adjustments[ctrl.key]}
+                            </span>
+                          </div>
+                          <Slider
+                            min={ctrl.min}
+                            max={ctrl.max}
+                            step={1}
+                            value={[adjustments[ctrl.key]]}
+                            onValueChange={([v]) => {
+                              setAdjustments((prev) => ({ ...prev, [ctrl.key]: v }));
+                              setActivePreset("None");
+                            }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Watermark toggle in results view */}
+                  <div className="flex items-center gap-3 pt-2 border-t border-border">
+                    <Switch checked={watermarkEnabled} onCheckedChange={setWatermarkEnabled} />
+                    <span className="text-xs font-medium text-foreground">Watermark</span>
+                    {watermarkEnabled && (
+                      <input
+                        type="text"
+                        value={watermark.text}
+                        onChange={(e) => setWatermark((prev) => ({ ...prev, text: e.target.value }))}
+                        placeholder="Your Agency Name"
+                        className="flex-1 px-2 py-1 rounded border border-border bg-background text-xs"
+                      />
+                    )}
+                  </div>
+
+                  {hasAdjustments && (
+                    <Button variant="ghost" size="sm" onClick={resetAdjustments} className="text-xs">
+                      <RotateCcw className="w-3 h-3" /> Reset
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="space-y-6">
             {jobs.map((job) => (
@@ -573,35 +1200,28 @@ function PhotoEditTab() {
                     )}
                   </div>
 
-                  {job.status === "complete" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        downloadImage(
-                          job.sky_url || job.enhanced_url || job.original_url,
-                          `propertymotion-enhanced-${job.id.slice(0, 8)}.jpg`
-                        )
-                      }
-                    >
-                      <Download className="w-4 h-4" />
-                      Download
-                    </Button>
-                  )}
+                  <div className="flex gap-2">
+                    {job.status === "complete" && (
+                      <Button variant="outline" size="sm" onClick={() => handleDownloadWithEdits(job)}>
+                        <Download className="w-4 h-4" />
+                        {hasAdjustments || watermarkEnabled ? "Export with Edits" : "Download"}
+                      </Button>
+                    )}
 
-                  {job.status === "failed" && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        supabase.functions.invoke("enhance-photo", { body: { job_id: job.id } }).catch(console.error);
-                        setJobs((prev) => prev.map((j) => j.id === job.id ? { ...j, status: "processing", error_message: null } : j));
-                      }}
-                    >
-                      <RotateCcw className="w-4 h-4" />
-                      Retry
-                    </Button>
-                  )}
+                    {job.status === "failed" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          supabase.functions.invoke("enhance-photo", { body: { job_id: job.id } }).catch(console.error);
+                          setJobs((prev) => prev.map((j) => j.id === job.id ? { ...j, status: "processing", error_message: null } : j));
+                        }}
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                        Retry
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Before/After */}
@@ -610,15 +1230,11 @@ function PhotoEditTab() {
                     <BeforeAfterSlider
                       beforeUrl={job.original_url}
                       afterUrl={job.sky_url || job.enhanced_url!}
+                      afterFilter={hasAdjustments ? cssFilter : undefined}
+                      vignetteAmount={adjustments.vignette}
                     />
-                    {/* Download overlay on hover */}
                     <button
-                      onClick={() =>
-                        downloadImage(
-                          job.sky_url || job.enhanced_url || job.original_url,
-                          `propertymotion-enhanced-${job.id.slice(0, 8)}.jpg`
-                        )
-                      }
+                      onClick={() => handleDownloadWithEdits(job)}
                       className="absolute top-2 right-10 p-1.5 rounded-md bg-white/90 text-foreground hover:bg-white transition-all opacity-0 group-hover:opacity-100"
                     >
                       <Download className="w-4 h-4" />
@@ -639,7 +1255,7 @@ function PhotoEditTab() {
 
           {/* Start over */}
           {!isProcessing && (
-            <Button variant="outline" onClick={() => { setJobs([]); setFiles([]); }}>
+            <Button variant="outline" onClick={() => { setJobs([]); setFiles([]); resetAdjustments(); }}>
               <ImagePlus className="w-4 h-4" />
               Enhance More Photos
             </Button>
@@ -651,7 +1267,7 @@ function PhotoEditTab() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TAB 2: VIRTUAL STAGING
+// TAB 2: VIRTUAL STAGING — Enhanced with more rooms, styles, density, declutter
 // ═══════════════════════════════════════════════════════════════════════════
 
 function VirtualStagingTab() {
@@ -663,8 +1279,20 @@ function VirtualStagingTab() {
   const [isDragging, setIsDragging] = useState(false);
   const [roomType, setRoomType] = useState("LIVINGROOM");
   const [designStyle, setDesignStyle] = useState("MODERN");
+  const [furnitureDensity, setFurnitureDensity] = useState("medium");
+  const [declutterEnabled, setDeclutterEnabled] = useState(false);
+  const [lighting, setLighting] = useState("standard");
+  const [mlsLabel, setMlsLabel] = useState<MlsLabelSettings>({
+    enabled: true,
+    text: "Virtually Staged",
+    position: "bottom-left",
+  });
   const [isProcessing, setIsProcessing] = useState(false);
   const [jobs, setJobs] = useState<PhotoJob[]>([]);
+
+  // Variation viewer state
+  const [selectedVariation, setSelectedVariation] = useState<Record<string, number>>({});
+  const [fullscreenJob, setFullscreenJob] = useState<PhotoJob | null>(null);
 
   const addFiles = useCallback((newFiles: File[]) => {
     const valid = newFiles.filter(
@@ -694,6 +1322,8 @@ function VirtualStagingTab() {
     addFiles(Array.from(e.dataTransfer.files));
   }, [addFiles]);
 
+  const getSelectedVariationIndex = (jobId: string) => selectedVariation[jobId] ?? 0;
+
   const handleStage = async () => {
     if (!user?.id || files.length === 0) return;
     setIsProcessing(true);
@@ -722,7 +1352,13 @@ function VirtualStagingTab() {
             job_type: "stage",
             original_url: urlData.publicUrl,
             status: "pending",
-            stage_options: { room_type: roomType, style: designStyle },
+            stage_options: {
+              room_type: roomType,
+              style: designStyle,
+              furniture_density: furnitureDensity,
+              declutter: declutterEnabled,
+              ...(lighting !== "standard" && { lighting }),
+            },
           })
           .select()
           .single();
@@ -816,21 +1452,62 @@ function VirtualStagingTab() {
     setFiles([]);
     setJobs([]);
     setIsProcessing(false);
+    setSelectedVariation({});
   };
 
   const completedJobs = jobs.filter((j) => j.status === "complete");
 
-  const handleDownloadAll = async () => {
-    const downloadFiles: { url: string; filename: string }[] = [];
-    for (const job of completedJobs) {
-      job.staged_urls.forEach((url, i) => {
-        downloadFiles.push({
-          url,
-          filename: `propertymotion-staged-${designStyle.toLowerCase()}-${job.id.slice(0, 8)}-v${i + 1}.jpg`,
-        });
-      });
+  // Download with MLS label applied
+  const downloadStagedImage = async (url: string, filename: string) => {
+    if (mlsLabel.enabled && mlsLabel.text.trim()) {
+      try {
+        const blob = await exportWithMlsLabel(url, mlsLabel);
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        return;
+      } catch { /* fallback to direct download */ }
     }
-    await downloadAllAsZip(downloadFiles, "propertymotion-staged.zip");
+    downloadImage(url, filename);
+  };
+
+  const handleDownloadAll = async () => {
+    if (mlsLabel.enabled && mlsLabel.text.trim()) {
+      // Download with MLS labels applied
+      const { default: JSZip } = await import("jszip");
+      const zip = new JSZip();
+      for (const job of completedJobs) {
+        for (let i = 0; i < job.staged_urls.length; i++) {
+          const filename = `propertymotion-staged-${designStyle.toLowerCase()}-${job.id.slice(0, 8)}-v${i + 1}.jpg`;
+          try {
+            const blob = await exportWithMlsLabel(job.staged_urls[i], mlsLabel);
+            zip.file(filename, blob);
+          } catch {
+            const res = await fetch(job.staged_urls[i]);
+            zip.file(filename, await res.blob());
+          }
+        }
+      }
+      const content = await zip.generateAsync({ type: "blob" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(content);
+      a.download = "propertymotion-staged.zip";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } else {
+      const downloadFiles: { url: string; filename: string }[] = [];
+      for (const job of completedJobs) {
+        job.staged_urls.forEach((url, i) => {
+          downloadFiles.push({
+            url,
+            filename: `propertymotion-staged-${designStyle.toLowerCase()}-${job.id.slice(0, 8)}-v${i + 1}.jpg`,
+          });
+        });
+      }
+      await downloadAllAsZip(downloadFiles, "propertymotion-staged.zip");
+    }
   };
 
   return (
@@ -898,7 +1575,7 @@ function VirtualStagingTab() {
         <div className="space-y-8">
           <div>
             <h2 className="text-lg font-semibold text-foreground">Configure Staging</h2>
-            <p className="text-sm text-muted-foreground mt-1">Choose the room type and design style.</p>
+            <p className="text-sm text-muted-foreground mt-1">Choose the room type, design style, and staging options.</p>
           </div>
 
           {/* Room Type */}
@@ -944,6 +1621,116 @@ function VirtualStagingTab() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Furniture Density */}
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-foreground flex items-center gap-2">
+              <Layers className="w-4 h-4 text-muted-foreground" /> Furniture Density
+            </label>
+            <div className="flex gap-3">
+              {FURNITURE_DENSITIES.map((density) => (
+                <button
+                  key={density.value}
+                  onClick={() => setFurnitureDensity(density.value)}
+                  className={`flex-1 p-4 rounded-xl border-2 transition-all text-left ${
+                    furnitureDensity === density.value
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/30"
+                  }`}
+                >
+                  <p className="text-sm font-medium text-foreground">{density.label}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{density.description}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Declutter Toggle */}
+          <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-card">
+            <div>
+              <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Eraser className="w-4 h-4 text-muted-foreground" /> Declutter First
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Remove existing furniture & clutter before staging — best for partially furnished rooms
+              </p>
+            </div>
+            <Switch checked={declutterEnabled} onCheckedChange={setDeclutterEnabled} />
+          </div>
+
+          {/* Exterior Lighting */}
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-foreground flex items-center gap-2">
+              <Sunset className="w-4 h-4 text-muted-foreground" /> Exterior Lighting
+            </label>
+            <div className="flex gap-3">
+              {LIGHTING_OPTIONS.map((opt) => {
+                const Icon = opt.icon;
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => setLighting(opt.value)}
+                    className={`flex-1 p-4 rounded-xl border-2 transition-all text-left ${
+                      lighting === opt.value
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/30"
+                    }`}
+                  >
+                    <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                      <Icon className="w-4 h-4" /> {opt.label}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{opt.description}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* MLS Compliance Label */}
+          <div className="p-4 rounded-xl border border-border bg-card space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-muted-foreground" /> MLS Compliance Label
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Auto-applies "Virtually Staged" label on downloads — required in CA (AB 723), best practice everywhere
+                </p>
+              </div>
+              <Switch checked={mlsLabel.enabled} onCheckedChange={(v) => setMlsLabel((prev) => ({ ...prev, enabled: v }))} />
+            </div>
+            {mlsLabel.enabled && (
+              <div className="flex gap-3 items-end">
+                <div className="flex-1 space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Label Text</label>
+                  <input
+                    type="text"
+                    value={mlsLabel.text}
+                    onChange={(e) => setMlsLabel((prev) => ({ ...prev, text: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Position</label>
+                  <div className="flex gap-1.5">
+                    {(["top-left", "top-right", "bottom-left", "bottom-right"] as const).map((pos) => (
+                      <button
+                        key={pos}
+                        onClick={() => setMlsLabel((prev) => ({ ...prev, position: pos }))}
+                        className={`px-2 py-1.5 rounded text-xs transition-colors ${
+                          mlsLabel.position === pos
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-secondary text-foreground hover:bg-accent"
+                        }`}
+                      >
+                        {pos.split("-").map(w => w[0].toUpperCase() + w.slice(1)).join(" ")}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Actions */}
@@ -1000,51 +1787,112 @@ function VirtualStagingTab() {
                   </span>
                 )}
                 <span className="px-2 py-0.5 bg-secondary text-foreground text-xs font-medium rounded-full">
-                  {designStyle}
+                  {DESIGN_STYLES.find((s) => s.value === designStyle)?.label || designStyle}
                 </span>
+                <span className="px-2 py-0.5 bg-secondary text-foreground text-xs font-medium rounded-full">
+                  {ROOM_TYPES.find((r) => r.value === roomType)?.label || roomType}
+                </span>
+                {declutterEnabled && (
+                  <span className="px-2 py-0.5 bg-orange-500/10 text-orange-600 text-xs font-medium rounded-full">
+                    Decluttered
+                  </span>
+                )}
+                {lighting !== "standard" && (
+                  <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 text-xs font-medium rounded-full">
+                    {LIGHTING_OPTIONS.find((l) => l.value === lighting)?.label}
+                  </span>
+                )}
+                {mlsLabel.enabled && (
+                  <span className="px-2 py-0.5 bg-blue-500/10 text-blue-600 text-xs font-medium rounded-full flex items-center gap-1">
+                    <Shield className="w-3 h-3" /> MLS Label
+                  </span>
+                )}
               </div>
 
-              {/* Before/After for first variation */}
+              {/* Before/After for SELECTED variation */}
               {job.status === "complete" && job.staged_urls.length > 0 ? (
                 <>
                   <BeforeAfterSlider
                     beforeUrl={job.original_url}
-                    afterUrl={job.staged_urls[0]}
+                    afterUrl={job.staged_urls[getSelectedVariationIndex(job.id)]}
                     large
                   />
 
-                  {/* All variations */}
+                  {/* Variation selector — thumbnails with selection */}
                   {job.staged_urls.length > 1 && (
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {job.staged_urls.map((url, i) => (
-                        <div key={i} className="relative group rounded-lg overflow-hidden border border-border">
-                          <img src={url} alt={`Variation ${i + 1}`} className="aspect-square object-cover w-full" />
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Variations ({job.staged_urls.length})
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {job.staged_urls.map((url, i) => (
                           <button
-                            onClick={() =>
-                              downloadImage(url, `propertymotion-staged-${designStyle.toLowerCase()}-${job.id.slice(0, 8)}-v${i + 1}.jpg`)
-                            }
-                            className="absolute top-1.5 right-1.5 p-1.5 rounded-md bg-white/90 text-foreground hover:bg-white opacity-0 group-hover:opacity-100 transition-opacity"
+                            key={i}
+                            onClick={() => setSelectedVariation((prev) => ({ ...prev, [job.id]: i }))}
+                            className={`relative group rounded-lg overflow-hidden border-2 transition-all ${
+                              getSelectedVariationIndex(job.id) === i
+                                ? "border-primary ring-2 ring-primary/20"
+                                : "border-border hover:border-primary/30"
+                            }`}
                           >
-                            <Download className="w-3.5 h-3.5" />
+                            <img src={url} alt={`Variation ${i + 1}`} className="aspect-[4/3] object-cover w-full" />
+                            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                              <span className="text-white text-xs font-medium">V{i + 1}</span>
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                downloadStagedImage(url, `propertymotion-staged-${designStyle.toLowerCase()}-${job.id.slice(0, 8)}-v${i + 1}.jpg`);
+                              }}
+                              className="absolute top-1.5 right-1.5 p-1.5 rounded-md bg-white/90 text-foreground hover:bg-white opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </button>
                           </button>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   )}
 
-                  {/* Single download */}
+                  {/* Actions for this job */}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        downloadStagedImage(
+                          job.staged_urls[getSelectedVariationIndex(job.id)],
+                          `propertymotion-staged-${designStyle.toLowerCase()}-${job.id.slice(0, 8)}.jpg`,
+                        )
+                      }
+                    >
+                      <Download className="w-4 h-4" />
+                      Download Selected
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFullscreenJob(job)}
+                    >
+                      <Eye className="w-4 h-4" />
+                      Fullscreen
+                    </Button>
+                  </div>
+                </>
+              ) : job.status === "failed" ? (
+                <div className="aspect-[4/3] bg-secondary rounded-lg flex flex-col items-center justify-center gap-3">
+                  <AlertCircle className="w-8 h-8 text-destructive" />
+                  <p className="text-sm text-destructive">{job.error_message || "Staging failed"}</p>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => downloadImage(job.staged_urls[0], `propertymotion-staged-${designStyle.toLowerCase()}-${job.id.slice(0, 8)}.jpg`)}
+                    onClick={() => {
+                      supabase.functions.invoke("stage-room", { body: { job_id: job.id } }).catch(console.error);
+                      setJobs((prev) => prev.map((j) => j.id === job.id ? { ...j, status: "processing", error_message: null } : j));
+                    }}
                   >
-                    <Download className="w-4 h-4" />
-                    Download
+                    <RotateCw className="w-4 h-4" /> Retry
                   </Button>
-                </>
-              ) : job.status === "failed" ? (
-                <div className="aspect-[4/3] bg-secondary rounded-lg flex items-center justify-center">
-                  <p className="text-sm text-destructive">{job.error_message || "Staging failed"}</p>
                 </div>
               ) : (
                 <div className="aspect-[4/3] bg-secondary rounded-lg flex items-center justify-center">
@@ -1069,6 +1917,42 @@ function VirtualStagingTab() {
           )}
         </div>
       )}
+
+      {/* Fullscreen comparison dialog */}
+      <Dialog open={!!fullscreenJob} onOpenChange={() => setFullscreenJob(null)}>
+        <DialogContent className="max-w-5xl w-[95vw]">
+          <DialogHeader>
+            <DialogTitle>Before / After Comparison</DialogTitle>
+            <DialogDescription>Drag the slider to compare original and staged versions.</DialogDescription>
+          </DialogHeader>
+          {fullscreenJob && fullscreenJob.staged_urls.length > 0 && (
+            <div className="space-y-4">
+              <BeforeAfterSlider
+                beforeUrl={fullscreenJob.original_url}
+                afterUrl={fullscreenJob.staged_urls[getSelectedVariationIndex(fullscreenJob.id)]}
+                large
+              />
+              {fullscreenJob.staged_urls.length > 1 && (
+                <div className="flex gap-2 justify-center">
+                  {fullscreenJob.staged_urls.map((url, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setSelectedVariation((prev) => ({ ...prev, [fullscreenJob.id]: i }))}
+                      className={`w-16 h-12 rounded-md overflow-hidden border-2 transition-all ${
+                        getSelectedVariationIndex(fullscreenJob.id) === i
+                          ? "border-primary"
+                          : "border-border hover:border-primary/30"
+                      }`}
+                    >
+                      <img src={url} alt={`V${i + 1}`} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

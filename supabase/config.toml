@@ -73,3 +73,10 @@ verify_jwt = false
 # Image scraping and cropping utilities
 [functions.scrape-listing-images]
 verify_jwt = false
+
+# Photo editing and virtual staging
+[functions.enhance-photo]
+verify_jwt = false
+
+[functions.stage-room]
+verify_jwt = false
