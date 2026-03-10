@@ -51,6 +51,7 @@ export interface CustomizationSettings {
   globalSeed: number;     // The shared seed value (1–999999)
   customIntroImage: string | null; // base64 or URL of uploaded custom intro overlay image
   customOutroImage: string | null; // base64 or URL of uploaded custom outro overlay image
+  landSizeUnit?: string; // "m²" | "sqft" | "acres" | "ha"
 }
 
 const voiceOptions = [
