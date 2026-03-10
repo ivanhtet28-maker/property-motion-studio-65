@@ -136,23 +136,6 @@ export function StepBranding({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const brandLogoInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-populate detailsText from property details when empty on mount
-  const hasAutoPopulated = useRef(false);
-  useEffect(() => {
-    if (hasAutoPopulated.current) return;
-    const hasPropertyData = propertyDetails.streetAddress || propertyDetails.suburb || propertyDetails.state;
-    if (hasPropertyData && !settings.detailsText) {
-      const parts: string[] = [];
-      if (propertyDetails.streetAddress) parts.push(propertyDetails.streetAddress);
-      const line2 = [propertyDetails.suburb, propertyDetails.state].filter(Boolean).join(" ");
-      if (line2) parts.push(line2);
-      if (parts.length > 0) {
-        updateSettings({ detailsText: parts.join(",\n") });
-        hasAutoPopulated.current = true;
-      }
-    }
-  }, [propertyDetails, settings.detailsText]);
-
   const filteredTracks = MUSIC_TRACKS.filter((t) =>
     t.name.toLowerCase().includes(musicSearch.toLowerCase())
   );
@@ -287,13 +270,15 @@ export function StepBranding({
     setPreviewFocus(tab);
   };
 
-  // Build default Australian-format details text
-  const getDefaultDetails = () => {
+  const landUnit = settings.landSizeUnit || "m²";
+
+  // Build address text from property details
+  const getDetailsText = () => {
     const parts: string[] = [];
     if (propertyDetails.streetAddress) parts.push(propertyDetails.streetAddress);
-    const line2 = [propertyDetails.suburb, propertyDetails.state].filter(Boolean).join(" ");
+    const line2 = [propertyDetails.suburb, propertyDetails.state].filter(Boolean).join(", ");
     if (line2) parts.push(line2);
-    return parts.join(",\n") || "27 Alamanda Blvd,\nPoint Cook VIC 3030";
+    return parts.join(", ") || "";
   };
 
   // Intro overlay for preview — style depends on selected template
@@ -319,7 +304,7 @@ export function StepBranding({
     }
 
     const heading = settings.customTitle || selectedIntroTemplate.name.toUpperCase();
-    const details = settings.detailsText || getDefaultDetails();
+    const details = getDetailsText();
     const templateId = settings.selectedTemplate;
 
     // Helper: format price
@@ -330,7 +315,7 @@ export function StepBranding({
       propertyDetails.bedrooms ? `${propertyDetails.bedrooms} Bed` : "",
       propertyDetails.bathrooms ? `${propertyDetails.bathrooms} Bath` : "",
       propertyDetails.carSpaces ? `${propertyDetails.carSpaces} Car` : "",
-      propertyDetails.landSize ? `${propertyDetails.landSize}m²` : "",
+      propertyDetails.landSize ? `${propertyDetails.landSize}${landUnit}` : "",
     ].filter(Boolean).join("  •  ");
 
     // ── Open House style: dark navy banner, heading left | divider | details + price right ──
@@ -482,7 +467,7 @@ export function StepBranding({
           </div>
           {propertyDetails.landSize && (
             <div className="bg-white/25 backdrop-blur-md rounded-full px-3 py-1 mt-1.5">
-              <span className="text-white text-[10px] font-semibold">{propertyDetails.landSize}m²</span>
+              <span className="text-white text-[10px] font-semibold">{propertyDetails.landSize}{landUnit}</span>
             </div>
           )}
         </div>
@@ -510,7 +495,7 @@ export function StepBranding({
               <span className="text-white text-[11px] font-semibold">{propertyDetails.bathrooms} bath</span>
               <span className="text-white text-[11px] font-semibold">{propertyDetails.carSpaces} car</span>
               {propertyDetails.landSize && (
-                <span className="text-white text-[11px] font-semibold">{propertyDetails.landSize}m²</span>
+                <span className="text-white text-[11px] font-semibold">{propertyDetails.landSize}{landUnit}</span>
               )}
             </div>
             {price && (
@@ -589,7 +574,7 @@ export function StepBranding({
             {/* Land size pill below */}
             {propertyDetails.landSize && (
               <div className="absolute bottom-[7%] left-1/2 -translate-x-1/2 px-5 py-2 rounded-full border border-white/15" style={{ background: "rgba(160,130,90,0.45)", backdropFilter: "blur(8px)" }}>
-                <span className="text-white/90 text-[11px]">{propertyDetails.landSize}m²</span>
+                <span className="text-white/90 text-[11px]">{propertyDetails.landSize}{landUnit}</span>
               </div>
             )}
           </div>
@@ -636,7 +621,7 @@ export function StepBranding({
           {/* Land size pill below */}
           {propertyDetails.landSize && (
             <div className="absolute bottom-[7%] left-1/2 -translate-x-1/2 px-5 py-2 rounded-full border border-white/15" style={{ background: "rgba(160,130,90,0.45)", backdropFilter: "blur(8px)" }}>
-              <span className="text-white/90 text-[11px]">{propertyDetails.landSize}m²</span>
+              <span className="text-white/90 text-[11px]">{propertyDetails.landSize}{landUnit}</span>
             </div>
           )}
         </div>
@@ -896,17 +881,157 @@ export function StepBranding({
                       />
                     </div>
 
-                    {/* Details */}
-                    <div>
-                      <Label htmlFor="details">Details</Label>
-                      <Textarea
-                        id="details"
-                        placeholder={"27 Alamanda Blvd,\nPoint Cook VIC 3030"}
-                        value={settings.detailsText}
-                        onChange={(e) => updateSettings({ detailsText: e.target.value })}
-                        rows={3}
-                        className="mt-1.5 text-sm"
-                      />
+                    <div className="h-px bg-border" />
+
+                    {/* Property Details */}
+                    <div className="space-y-4">
+                      <p className="text-xs text-muted-foreground">
+                        Property details shown on the intro overlay.
+                      </p>
+
+                      {/* Street Address / Suburb / State */}
+                      <div className="grid grid-cols-[1fr_0.7fr_0.3fr] gap-2">
+                        <div>
+                          <Label className="text-xs">Street Address</Label>
+                          <Input
+                            placeholder="27 Alamanda Blvd"
+                            value={propertyDetails.streetAddress}
+                            onChange={(e) => onPropertyDetailsChange({ ...propertyDetails, streetAddress: e.target.value })}
+                            className="mt-1 h-9 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Suburb</Label>
+                          <Input
+                            placeholder="Point Cook"
+                            value={propertyDetails.suburb}
+                            onChange={(e) => onPropertyDetailsChange({ ...propertyDetails, suburb: e.target.value })}
+                            className="mt-1 h-9 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">State</Label>
+                          <Input
+                            placeholder="VIC"
+                            value={propertyDetails.state}
+                            onChange={(e) => onPropertyDetailsChange({ ...propertyDetails, state: e.target.value })}
+                            className="mt-1 h-9 text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Price */}
+                      <div>
+                        <Label className="text-xs">Price</Label>
+                        <Input
+                          placeholder="500000"
+                          value={propertyDetails.price}
+                          onChange={(e) => onPropertyDetailsChange({ ...propertyDetails, price: e.target.value })}
+                          className="mt-1 h-9 text-sm"
+                        />
+                      </div>
+
+                      {/* Bedrooms */}
+                      <div>
+                        <Label className="text-xs">Bedrooms</Label>
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          {[0, 1, 2, 3, 4, "5+"].map((n) => {
+                            const val = n === "5+" ? 5 : (n as number);
+                            const isSelected = propertyDetails.bedrooms === val;
+                            return (
+                              <button
+                                key={String(n)}
+                                onClick={() => onPropertyDetailsChange({ ...propertyDetails, bedrooms: val })}
+                                className={`w-9 h-9 rounded-full text-xs font-medium transition-colors ${
+                                  isSelected
+                                    ? "bg-primary text-primary-foreground"
+                                    : "border border-border text-muted-foreground hover:border-primary/50"
+                                }`}
+                              >
+                                {n}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Bathrooms */}
+                      <div>
+                        <Label className="text-xs">Bathrooms</Label>
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          {[0, 1, 2, 3, 4, "5+"].map((n) => {
+                            const val = n === "5+" ? 5 : (n as number);
+                            const isSelected = propertyDetails.bathrooms === val;
+                            return (
+                              <button
+                                key={String(n)}
+                                onClick={() => onPropertyDetailsChange({ ...propertyDetails, bathrooms: val })}
+                                className={`w-9 h-9 rounded-full text-xs font-medium transition-colors ${
+                                  isSelected
+                                    ? "bg-primary text-primary-foreground"
+                                    : "border border-border text-muted-foreground hover:border-primary/50"
+                                }`}
+                              >
+                                {n}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Car Spaces */}
+                      <div>
+                        <Label className="text-xs">Car Spaces</Label>
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          {[0, 1, 2, 3, 4, "5+"].map((n) => {
+                            const val = n === "5+" ? 5 : (n as number);
+                            const isSelected = propertyDetails.carSpaces === val;
+                            return (
+                              <button
+                                key={String(n)}
+                                onClick={() => onPropertyDetailsChange({ ...propertyDetails, carSpaces: val })}
+                                className={`w-9 h-9 rounded-full text-xs font-medium transition-colors ${
+                                  isSelected
+                                    ? "bg-primary text-primary-foreground"
+                                    : "border border-border text-muted-foreground hover:border-primary/50"
+                                }`}
+                              >
+                                {n}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Land Size + Unit */}
+                      <div className="grid grid-cols-[1fr_0.5fr] gap-2">
+                        <div>
+                          <Label className="text-xs">Land Size</Label>
+                          <Input
+                            placeholder="512"
+                            value={propertyDetails.landSize}
+                            onChange={(e) => onPropertyDetailsChange({ ...propertyDetails, landSize: e.target.value })}
+                            className="mt-1 h-9 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Unit</Label>
+                          <Select
+                            value={settings.landSizeUnit || "m²"}
+                            onValueChange={(v) => updateSettings({ landSizeUnit: v })}
+                          >
+                            <SelectTrigger className="mt-1 h-9 text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="m²">m²</SelectItem>
+                              <SelectItem value="sqft">sqft</SelectItem>
+                              <SelectItem value="acres">acres</SelectItem>
+                              <SelectItem value="ha">ha</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
                     </div>
                   </>
                 )}
