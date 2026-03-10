@@ -1,4 +1,5 @@
 import { corsHeaders } from "../_shared/cors.ts";
+import { requireAuth } from "../_shared/auth.ts";
 // scrape-listing-images — Extracts high-resolution gallery images from
 // realestate.com.au (REA) and domain.com.au listings.
 //
@@ -263,6 +264,9 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const { error: authErr } = await requireAuth(req);
+    if (authErr) return authErr;
+
     const { url } = await req.json();
 
     if (!url || typeof url !== "string") {

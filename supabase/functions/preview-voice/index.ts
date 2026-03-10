@@ -1,5 +1,6 @@
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 import { corsHeaders } from "../_shared/cors.ts";
+import { requireAuth } from "../_shared/auth.ts";
 
 
 const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY");
@@ -22,6 +23,9 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const { error: authErr } = await requireAuth(req);
+    if (authErr) return authErr;
+
     const { voiceType } = await req.json();
 
     if (!voiceType) {

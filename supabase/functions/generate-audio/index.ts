@@ -2,6 +2,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { requireAuth } from "../_shared/auth.ts";
 
 
 const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY");
@@ -30,6 +31,9 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const { error: authErr } = await requireAuth(req);
+    if (authErr) return authErr;
+
     const { script, voiceId, videoId }: GenerateAudioRequest = await req.json();
 
     console.log("=== GENERATE AUDIO (ElevenLabs TTS) ===");

@@ -1,8 +1,9 @@
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import {
 import { corsHeaders } from "../_shared/cors.ts";
+import { requireAuth, validateImageUrl } from "../_shared/auth.ts";
+import {
   ImageMagick,
   initializeImageMagick,
   MagickGeometry,
@@ -30,11 +31,23 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const { error: authErr } = await requireAuth(req);
+    if (authErr) return authErr;
+
     const { imageUrl, cropRegion, outputPath }: CropRequest = await req.json();
 
     if (!imageUrl || !cropRegion || !outputPath) {
       return new Response(
         JSON.stringify({ error: "Missing imageUrl, cropRegion, or outputPath" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // SSRF protection: validate the image URL
+    const urlCheck = validateImageUrl(imageUrl);
+    if (!urlCheck.valid) {
+      return new Response(
+        JSON.stringify({ error: urlCheck.error }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

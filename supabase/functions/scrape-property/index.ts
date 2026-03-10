@@ -7,6 +7,7 @@
 
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { requireAuth } from "../_shared/auth.ts";
 
 const SCRAPINGDOG_API_KEY = Deno.env.get("SCRAPINGDOG_API_KEY") || "";
 const SCRAPINGDOG_API_BASE = "https://api.scrapingdog.com/scrape";
@@ -577,14 +578,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Lightweight auth guard
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return new Response(
-        JSON.stringify({ error: "Authentication required" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const { error: authErr } = await requireAuth(req);
+    if (authErr) return authErr;
 
     const body = await req.json();
     const { url, userId, mode } = body;

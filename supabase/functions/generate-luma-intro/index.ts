@@ -1,5 +1,6 @@
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 import { corsHeaders } from "../_shared/cors.ts";
+import { requireAuth } from "../_shared/auth.ts";
 
 
 const LUMA_API_KEY = Deno.env.get("LUMA_API_KEY");
@@ -16,6 +17,9 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const { error: authErr } = await requireAuth(req);
+    if (authErr) return authErr;
+
     const { propertyAddress, firstImageUrl }: GenerateLumaIntroRequest = await req.json();
 
     console.log("=== GENERATE LUMA AI CINEMATIC INTRO ===");
