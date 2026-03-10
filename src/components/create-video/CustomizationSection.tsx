@@ -38,7 +38,7 @@ export interface CustomizationSettings {
   musicTrimStart: number;        // Trim start in seconds
   musicTrimEnd: number;          // Trim end in seconds (0 = no trim)
   selectedTemplate: string;
-  selectedLayout: string; // "minimal-focus" | "bold-banner" | "modern-luxe"
+  selectedLayout: string; // "bold-banner" | "warm-elegance" | "open-house"
   customTitle: string; // Custom title text (e.g., "Just Sold", "Open House")
   detailsText: string; // Free-text details shown on intro overlay
   outroTemplate: string; // "none" | "classic" | "classic-dark"

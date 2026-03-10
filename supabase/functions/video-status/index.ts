@@ -2,6 +2,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { sendVideoReadyEmail, sendVideoFailedEmail } from "../_shared/send-email.ts";
 
 
 const RUNWAY_API_KEY = Deno.env.get("RUNWAY_API_KEY");
@@ -57,6 +58,52 @@ async function updateVideoRecord(
     }
   } catch (err) {
     console.error("Error updating video record:", err);
+  }
+}
+
+// ── Email notification on completion ──────────────────────────────────────
+async function notifyByEmail(
+  videoId: string | undefined,
+  outcome: "completed" | "failed",
+  videoUrl: string | null = null
+) {
+  if (!videoId) return;
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Fetch video → user email + property address
+    const { data: video, error } = await supabase
+      .from("videos")
+      .select("user_id, property_address")
+      .eq("id", videoId)
+      .single();
+
+    if (error || !video) {
+      console.warn("Could not look up video for email:", error?.message);
+      return;
+    }
+
+    const { data: userData } = await supabase.auth.admin.getUserById(video.user_id);
+    const email = userData?.user?.email;
+    if (!email) {
+      console.warn("No email found for user:", video.user_id);
+      return;
+    }
+
+    const address = video.property_address || "your property";
+    const dashboardUrl = `${Deno.env.get("SITE_URL") || "https://app.propertymotion.com.au"}/dashboard`;
+
+    if (outcome === "completed" && videoUrl) {
+      await sendVideoReadyEmail(email, address, videoUrl, dashboardUrl);
+    } else if (outcome === "failed") {
+      await sendVideoFailedEmail(email, address, dashboardUrl);
+    }
+  } catch (err) {
+    // Best-effort — never break video status polling
+    console.error("Email notification error:", err);
   }
 }
 
@@ -337,6 +384,7 @@ Deno.serve(async (req) => {
 
         if (shotstackStatus === "done" && videoUrl) {
           await updateVideoRecord(videoId, "completed", videoUrl, 100);
+          await notifyByEmail(videoId as string | undefined, "completed", videoUrl);
           return new Response(
             JSON.stringify({
               status: "done",
@@ -347,6 +395,7 @@ Deno.serve(async (req) => {
           );
         } else if (shotstackStatus === "failed") {
           await updateVideoRecord(videoId, "failed", null, 0, "Shotstack stitching failed");
+          await notifyByEmail(videoId as string | undefined, "failed");
           return new Response(
             JSON.stringify({
               status: "failed",
@@ -479,6 +528,7 @@ Deno.serve(async (req) => {
     // If ALL clips failed and no fallback images available, the tour cannot finish
     if (anyFailed && summary.completed === 0 && (!imageUrls || imageUrls.length === 0)) {
       await updateVideoRecord(videoId, "failed", null, 0, "All Runway generations failed");
+      await notifyByEmail(videoId as string | undefined, "failed");
       return new Response(
         JSON.stringify({
           status: "failed",
@@ -574,6 +624,7 @@ Deno.serve(async (req) => {
 
     if (finalVideoUrls.length === 0) {
       await updateVideoRecord(videoId, "failed", null, 0, "No video clips or fallback images available");
+      await notifyByEmail(videoId as string | undefined, "failed");
       return new Response(
         JSON.stringify({
           status: "failed",

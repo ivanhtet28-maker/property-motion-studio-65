@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Loader2, Check, Download, LayoutTemplate } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Check, Download, LayoutTemplate, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -739,7 +739,7 @@ export default function CreateVideo() {
                 Generating your video...
               </h2>
               <p className="text-sm text-muted-foreground mb-6">
-                This may take a few minutes. You can leave this page and check your dashboard.
+                This may take a few minutes. We'll send you an email when it's ready — feel free to leave this page.
               </p>
               <div className="h-2 bg-secondary rounded-full overflow-hidden mb-2">
                 <div
@@ -747,7 +747,15 @@ export default function CreateVideo() {
                   style={{ width: `${generatingProgress}%` }}
                 />
               </div>
-              <p className="text-xs text-muted-foreground">{Math.round(generatingProgress)}%</p>
+              <p className="text-xs text-muted-foreground mb-6">{Math.round(generatingProgress)}%</p>
+              <Button
+                variant="outline"
+                onClick={() => navigate("/dashboard")}
+                className="gap-2"
+              >
+                <Home className="w-4 h-4" />
+                Go to Dashboard
+              </Button>
               {error && (
                 <p className="text-sm text-destructive mt-4">{error}</p>
               )}

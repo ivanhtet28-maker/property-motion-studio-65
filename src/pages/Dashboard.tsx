@@ -16,6 +16,7 @@ import {
   Clapperboard,
   Share2,
   ChevronDown,
+  Search,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -48,6 +49,7 @@ export default function Dashboard() {
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [playingVideoUrl, setPlayingVideoUrl] = useState<string | null>(null);
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const loadVideos = useCallback(async () => {
     if (!user?.id) {
@@ -161,7 +163,7 @@ export default function Dashboard() {
               agentInfo: ctx.agentInfo,
               propertyData: ctx.propertyData,
               style: ctx.style,
-              layout: ctx.layout || "modern-luxe",
+              layout: ctx.layout || "open-house",
               customTitle: ctx.customTitle || "",
               clipDurations: ctx.clipDurations,
               imageUrls: ctx.imageUrls,
@@ -244,7 +246,11 @@ export default function Dashboard() {
     window.open(videoUrl, "_blank");
   };
 
-  const filteredVideos = videos;
+  const filteredVideos = searchQuery.trim()
+    ? videos.filter((v) =>
+        v.address.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : videos;
 
   return (
     <DashboardLayout>
@@ -252,12 +258,24 @@ export default function Dashboard() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold text-foreground">Videos</h1>
-          <Button asChild variant="hero" size="default">
-            <Link to="/create">
-              <Plus className="w-4 h-4" />
-              New video
-            </Link>
-          </Button>
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search videos..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-10 w-56 rounded-md border border-input bg-background pl-9 pr-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              />
+            </div>
+            <Button asChild variant="hero" size="default">
+              <Link to="/create">
+                <Plus className="w-4 h-4" />
+                New video
+              </Link>
+            </Button>
+          </div>
         </div>
 
           {/* Video Grid */}
@@ -373,18 +391,28 @@ export default function Dashboard() {
             /* Empty State */
             <div className="text-center py-20">
               <div className="w-20 h-20 rounded-full bg-secondary flex items-center justify-center mx-auto mb-6">
-                <Video className="w-10 h-10 text-muted-foreground" />
+                {searchQuery.trim() ? (
+                  <Search className="w-10 h-10 text-muted-foreground" />
+                ) : (
+                  <Video className="w-10 h-10 text-muted-foreground" />
+                )}
               </div>
-              <h3 className="text-xl font-semibold text-foreground mb-2">No videos yet</h3>
+              <h3 className="text-xl font-semibold text-foreground mb-2">
+                {searchQuery.trim() ? "No matching videos" : "No videos yet"}
+              </h3>
               <p className="text-muted-foreground mb-8">
-                Create your first professional listing video
+                {searchQuery.trim()
+                  ? `No videos found for "${searchQuery}"`
+                  : "Create your first professional listing video"}
               </p>
-              <Button asChild variant="hero" size="lg">
-                <Link to="/create">
-                  <Plus className="w-5 h-5" />
-                  Create Video
-                </Link>
-              </Button>
+              {!searchQuery.trim() && (
+                <Button asChild variant="hero" size="lg">
+                  <Link to="/create">
+                    <Plus className="w-5 h-5" />
+                    Create Video
+                  </Link>
+                </Button>
+              )}
             </div>
           )}
       </div>

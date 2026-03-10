@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Video,
+  Camera,
   Users,
   CreditCard,
   HelpCircle,
@@ -26,6 +27,7 @@ interface DashboardLayoutProps {
 
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Videos", icon: Video },
+  { to: "/photos", label: "Photos", icon: Camera },
 ];
 
 const BOTTOM_NAV = [
@@ -49,7 +51,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     navigate("/");
   };
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + "/");
 
   return (
     <div className="min-h-screen bg-background flex">
