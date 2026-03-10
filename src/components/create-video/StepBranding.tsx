@@ -136,6 +136,23 @@ export function StepBranding({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const brandLogoInputRef = useRef<HTMLInputElement>(null);
 
+  // Auto-populate detailsText from property details when empty on mount
+  const hasAutoPopulated = useRef(false);
+  useEffect(() => {
+    if (hasAutoPopulated.current) return;
+    const hasPropertyData = propertyDetails.streetAddress || propertyDetails.suburb || propertyDetails.state;
+    if (hasPropertyData && !settings.detailsText) {
+      const parts: string[] = [];
+      if (propertyDetails.streetAddress) parts.push(propertyDetails.streetAddress);
+      const line2 = [propertyDetails.suburb, propertyDetails.state].filter(Boolean).join(" ");
+      if (line2) parts.push(line2);
+      if (parts.length > 0) {
+        updateSettings({ detailsText: parts.join(",\n") });
+        hasAutoPopulated.current = true;
+      }
+    }
+  }, [propertyDetails, settings.detailsText]);
+
   const filteredTracks = MUSIC_TRACKS.filter((t) =>
     t.name.toLowerCase().includes(musicSearch.toLowerCase())
   );
@@ -876,24 +893,6 @@ export function StepBranding({
 
                 {settings.selectedTemplate !== "custom" && (
                   <>
-                    {/* Inline intro preview */}
-                    <div className="rounded-xl overflow-hidden border border-border shadow-lg">
-                      <div
-                        className={`w-full relative bg-gradient-to-br from-slate-600 to-slate-800 ${
-                          orientation === "portrait" ? "aspect-[9/16]" : "aspect-video"
-                        }`}
-                      >
-                        {previewImageUrl ? (
-                          <img src={previewImageUrl} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
-                        ) : (
-                          <div className="absolute inset-0 bg-gradient-to-br from-slate-700 to-slate-900" />
-                        )}
-                        {renderIntroOverlay()}
-                      </div>
-                    </div>
-
-                    <div className="h-px bg-border" />
-
                     {/* Heading */}
                     <div>
                       <Label htmlFor="heading">Heading</Label>
