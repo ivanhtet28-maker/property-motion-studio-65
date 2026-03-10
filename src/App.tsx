@@ -19,6 +19,7 @@ import Team from "./pages/Team";
 import Billing from "./pages/Billing";
 import QuickEdit from "./pages/QuickEdit";
 import Studio from "./pages/Studio";
+import Photos from "./pages/Photos";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -75,6 +76,11 @@ const App = () => (
             <Route path="/studio/:id" element={
               <ProtectedRoute>
                 <Studio />
+              </ProtectedRoute>
+            } />
+            <Route path="/photos" element={
+              <ProtectedRoute>
+                <Photos />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
