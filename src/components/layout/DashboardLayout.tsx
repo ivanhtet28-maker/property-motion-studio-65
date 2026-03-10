@@ -79,7 +79,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         </div>
 
         {/* Main Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        <nav className="px-3 py-4 space-y-1">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.to);
@@ -99,6 +99,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             );
           })}
         </nav>
+
+        {/* Spacer */}
+        <div className="flex-1" />
 
         {/* Bottom Section */}
         <div className="px-3 pb-2 space-y-1">
