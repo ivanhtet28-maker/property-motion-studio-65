@@ -44,9 +44,10 @@ Deno.serve(async (req) => {
     const designStyle = stageOptions.style || "MODERN";
     const furnitureDensity = stageOptions.furniture_density || "medium";
     const declutter = stageOptions.declutter === true;
+    const lighting = stageOptions.lighting || null; // golden_hour or twilight
 
     // 3. Call Decor8 staging API
-    console.log(`stage-room: submitting to Decor8 — room: ${roomType}, style: ${designStyle}, density: ${furnitureDensity}, declutter: ${declutter}`);
+    console.log(`stage-room: submitting to Decor8 — room: ${roomType}, style: ${designStyle}, density: ${furnitureDensity}, declutter: ${declutter}, lighting: ${lighting}`);
 
     const requestBody: Record<string, unknown> = {
       input_image_url: job.original_url,
@@ -63,6 +64,11 @@ Deno.serve(async (req) => {
     // Pass declutter flag if enabled
     if (declutter) {
       requestBody.declutter = true;
+    }
+
+    // Pass lighting mode for day-to-dusk / golden hour effects
+    if (lighting && lighting !== "standard") {
+      requestBody.lighting = lighting;
     }
 
     const stageRes = await fetch("https://api.decor8.ai/generate_designs_for_room", {

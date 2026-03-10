@@ -48,6 +48,9 @@ import {
   Eye,
   SlidersHorizontal,
   RotateCw,
+  Shield,
+  Moon,
+  Sunset,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -62,7 +65,13 @@ interface PhotoJob {
   error_message: string | null;
   job_type: "enhance" | "stage";
   enhancements: { enhance?: boolean; sky?: boolean; sky_type?: string };
-  stage_options: { room_type?: string; style?: string; furniture_density?: string; declutter?: boolean };
+  stage_options: { room_type?: string; style?: string; furniture_density?: string; declutter?: boolean; lighting?: string };
+}
+
+interface MlsLabelSettings {
+  enabled: boolean;
+  text: string;
+  position: "top-left" | "top-right" | "bottom-left" | "bottom-right";
 }
 
 interface UploadedFile {
@@ -154,6 +163,12 @@ const FURNITURE_DENSITIES = [
   { value: "light", label: "Light", description: "Minimal furniture, spacious feel" },
   { value: "medium", label: "Medium", description: "Balanced, well-furnished" },
   { value: "full", label: "Full", description: "Fully furnished, lived-in look" },
+];
+
+const LIGHTING_OPTIONS = [
+  { value: "standard", label: "Standard", icon: Sun, description: "Original lighting" },
+  { value: "golden_hour", label: "Golden Hour", icon: Sunset, description: "Warm sunset tones — 76% more views" },
+  { value: "twilight", label: "Twilight", icon: Moon, description: "Dramatic dusk exterior lighting" },
 ];
 
 const WATERMARK_POSITIONS = [
@@ -381,6 +396,72 @@ async function exportImageWithEdits(
         ctx.fillText(watermark.text, x, y);
         ctx.globalAlpha = 1;
       }
+
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error("toBlob failed"))),
+        "image/jpeg",
+        0.95,
+      );
+    };
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = imageUrl;
+  });
+}
+
+// ── MLS Compliance Label Export ──────────────────────────────────────────
+
+async function exportWithMlsLabel(
+  imageUrl: string,
+  label: MlsLabelSettings,
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("Canvas context unavailable"));
+
+      ctx.drawImage(img, 0, 0);
+
+      // Render MLS compliance label
+      const fontSize = Math.max(14, Math.round(canvas.width * 0.018));
+      ctx.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`;
+      const text = label.text;
+      const metrics = ctx.measureText(text);
+      const padX = fontSize * 0.8;
+      const padY = fontSize * 0.5;
+      const bgW = metrics.width + padX * 2;
+      const bgH = fontSize + padY * 2;
+      const margin = fontSize;
+
+      let x = margin;
+      let y = margin;
+      if (label.position === "top-right") x = canvas.width - bgW - margin;
+      if (label.position === "bottom-left") y = canvas.height - bgH - margin;
+      if (label.position === "bottom-right") { x = canvas.width - bgW - margin; y = canvas.height - bgH - margin; }
+
+      // Semi-transparent background pill
+      ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+      const radius = fontSize * 0.3;
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + bgW - radius, y);
+      ctx.quadraticCurveTo(x + bgW, y, x + bgW, y + radius);
+      ctx.lineTo(x + bgW, y + bgH - radius);
+      ctx.quadraticCurveTo(x + bgW, y + bgH, x + bgW - radius, y + bgH);
+      ctx.lineTo(x + radius, y + bgH);
+      ctx.quadraticCurveTo(x, y + bgH, x, y + bgH - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+      ctx.fill();
+
+      // White text
+      ctx.fillStyle = "white";
+      ctx.fillText(text, x + padX, y + padY + fontSize * 0.82);
 
       canvas.toBlob(
         (blob) => (blob ? resolve(blob) : reject(new Error("toBlob failed"))),
@@ -1200,6 +1281,12 @@ function VirtualStagingTab() {
   const [designStyle, setDesignStyle] = useState("MODERN");
   const [furnitureDensity, setFurnitureDensity] = useState("medium");
   const [declutterEnabled, setDeclutterEnabled] = useState(false);
+  const [lighting, setLighting] = useState("standard");
+  const [mlsLabel, setMlsLabel] = useState<MlsLabelSettings>({
+    enabled: true,
+    text: "Virtually Staged",
+    position: "bottom-left",
+  });
   const [isProcessing, setIsProcessing] = useState(false);
   const [jobs, setJobs] = useState<PhotoJob[]>([]);
 
@@ -1270,6 +1357,7 @@ function VirtualStagingTab() {
               style: designStyle,
               furniture_density: furnitureDensity,
               declutter: declutterEnabled,
+              ...(lighting !== "standard" && { lighting }),
             },
           })
           .select()
@@ -1369,17 +1457,57 @@ function VirtualStagingTab() {
 
   const completedJobs = jobs.filter((j) => j.status === "complete");
 
-  const handleDownloadAll = async () => {
-    const downloadFiles: { url: string; filename: string }[] = [];
-    for (const job of completedJobs) {
-      job.staged_urls.forEach((url, i) => {
-        downloadFiles.push({
-          url,
-          filename: `propertymotion-staged-${designStyle.toLowerCase()}-${job.id.slice(0, 8)}-v${i + 1}.jpg`,
-        });
-      });
+  // Download with MLS label applied
+  const downloadStagedImage = async (url: string, filename: string) => {
+    if (mlsLabel.enabled && mlsLabel.text.trim()) {
+      try {
+        const blob = await exportWithMlsLabel(url, mlsLabel);
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        return;
+      } catch { /* fallback to direct download */ }
     }
-    await downloadAllAsZip(downloadFiles, "propertymotion-staged.zip");
+    downloadImage(url, filename);
+  };
+
+  const handleDownloadAll = async () => {
+    if (mlsLabel.enabled && mlsLabel.text.trim()) {
+      // Download with MLS labels applied
+      const { default: JSZip } = await import("jszip");
+      const zip = new JSZip();
+      for (const job of completedJobs) {
+        for (let i = 0; i < job.staged_urls.length; i++) {
+          const filename = `propertymotion-staged-${designStyle.toLowerCase()}-${job.id.slice(0, 8)}-v${i + 1}.jpg`;
+          try {
+            const blob = await exportWithMlsLabel(job.staged_urls[i], mlsLabel);
+            zip.file(filename, blob);
+          } catch {
+            const res = await fetch(job.staged_urls[i]);
+            zip.file(filename, await res.blob());
+          }
+        }
+      }
+      const content = await zip.generateAsync({ type: "blob" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(content);
+      a.download = "propertymotion-staged.zip";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } else {
+      const downloadFiles: { url: string; filename: string }[] = [];
+      for (const job of completedJobs) {
+        job.staged_urls.forEach((url, i) => {
+          downloadFiles.push({
+            url,
+            filename: `propertymotion-staged-${designStyle.toLowerCase()}-${job.id.slice(0, 8)}-v${i + 1}.jpg`,
+          });
+        });
+      }
+      await downloadAllAsZip(downloadFiles, "propertymotion-staged.zip");
+    }
   };
 
   return (
@@ -1531,6 +1659,80 @@ function VirtualStagingTab() {
             <Switch checked={declutterEnabled} onCheckedChange={setDeclutterEnabled} />
           </div>
 
+          {/* Exterior Lighting */}
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-foreground flex items-center gap-2">
+              <Sunset className="w-4 h-4 text-muted-foreground" /> Exterior Lighting
+            </label>
+            <div className="flex gap-3">
+              {LIGHTING_OPTIONS.map((opt) => {
+                const Icon = opt.icon;
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => setLighting(opt.value)}
+                    className={`flex-1 p-4 rounded-xl border-2 transition-all text-left ${
+                      lighting === opt.value
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/30"
+                    }`}
+                  >
+                    <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                      <Icon className="w-4 h-4" /> {opt.label}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{opt.description}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* MLS Compliance Label */}
+          <div className="p-4 rounded-xl border border-border bg-card space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-muted-foreground" /> MLS Compliance Label
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Auto-applies "Virtually Staged" label on downloads — required in CA (AB 723), best practice everywhere
+                </p>
+              </div>
+              <Switch checked={mlsLabel.enabled} onCheckedChange={(v) => setMlsLabel((prev) => ({ ...prev, enabled: v }))} />
+            </div>
+            {mlsLabel.enabled && (
+              <div className="flex gap-3 items-end">
+                <div className="flex-1 space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Label Text</label>
+                  <input
+                    type="text"
+                    value={mlsLabel.text}
+                    onChange={(e) => setMlsLabel((prev) => ({ ...prev, text: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted-foreground">Position</label>
+                  <div className="flex gap-1.5">
+                    {(["top-left", "top-right", "bottom-left", "bottom-right"] as const).map((pos) => (
+                      <button
+                        key={pos}
+                        onClick={() => setMlsLabel((prev) => ({ ...prev, position: pos }))}
+                        className={`px-2 py-1.5 rounded text-xs transition-colors ${
+                          mlsLabel.position === pos
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-secondary text-foreground hover:bg-accent"
+                        }`}
+                      >
+                        {pos.split("-").map(w => w[0].toUpperCase() + w.slice(1)).join(" ")}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Actions */}
           <div className="flex gap-3">
             <Button variant="outline" onClick={() => setStep(1)}>
@@ -1595,6 +1797,16 @@ function VirtualStagingTab() {
                     Decluttered
                   </span>
                 )}
+                {lighting !== "standard" && (
+                  <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 text-xs font-medium rounded-full">
+                    {LIGHTING_OPTIONS.find((l) => l.value === lighting)?.label}
+                  </span>
+                )}
+                {mlsLabel.enabled && (
+                  <span className="px-2 py-0.5 bg-blue-500/10 text-blue-600 text-xs font-medium rounded-full flex items-center gap-1">
+                    <Shield className="w-3 h-3" /> MLS Label
+                  </span>
+                )}
               </div>
 
               {/* Before/After for SELECTED variation */}
@@ -1630,7 +1842,7 @@ function VirtualStagingTab() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                downloadImage(url, `propertymotion-staged-${designStyle.toLowerCase()}-${job.id.slice(0, 8)}-v${i + 1}.jpg`);
+                                downloadStagedImage(url, `propertymotion-staged-${designStyle.toLowerCase()}-${job.id.slice(0, 8)}-v${i + 1}.jpg`);
                               }}
                               className="absolute top-1.5 right-1.5 p-1.5 rounded-md bg-white/90 text-foreground hover:bg-white opacity-0 group-hover:opacity-100 transition-opacity"
                             >
@@ -1648,7 +1860,7 @@ function VirtualStagingTab() {
                       variant="outline"
                       size="sm"
                       onClick={() =>
-                        downloadImage(
+                        downloadStagedImage(
                           job.staged_urls[getSelectedVariationIndex(job.id)],
                           `propertymotion-staged-${designStyle.toLowerCase()}-${job.id.slice(0, 8)}.jpg`,
                         )
