@@ -876,6 +876,22 @@ export function StepBranding({
 
                 {settings.selectedTemplate !== "custom" && (
                   <>
+                    {/* Inline intro preview */}
+                    <div className="rounded-xl overflow-hidden border border-border shadow-lg">
+                      <div
+                        className={`w-full relative bg-gradient-to-br from-slate-600 to-slate-800 ${
+                          orientation === "portrait" ? "aspect-[9/16]" : "aspect-video"
+                        }`}
+                      >
+                        {previewImageUrl ? (
+                          <img src={previewImageUrl} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
+                        ) : (
+                          <div className="absolute inset-0 bg-gradient-to-br from-slate-700 to-slate-900" />
+                        )}
+                        {renderIntroOverlay()}
+                      </div>
+                    </div>
+
                     <div className="h-px bg-border" />
 
                     {/* Heading */}
