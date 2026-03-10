@@ -551,15 +551,18 @@ import { corsHeaders } from "../_shared/cors.ts";
           <div style="position:absolute;top:500px;left:0;width:${w}px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:24px;font-weight:normal;color:rgba(255,255,255,0.62);letter-spacing:5px;text-transform:uppercase;">${streetAddress}, ${suburb} ${state}</div>
           <div style="position:absolute;top:550px;left:0;width:${w}px;text-align:center;font-family:Georgia,serif;font-size:48px;font-weight:normal;color:rgba(255,255,255,0.90);letter-spacing:1px;text-shadow:0 2px 12px rgba(0,0,0,0.4);">${price}</div>
           <div style="position:absolute;top:620px;left:760px;width:400px;height:1px;background:rgba(255,255,255,0.15);"></div>
-          <div style="position:absolute;bottom:140px;left:660px;width:600px;height:92px;background:rgba(0,0,0,0.35);border-radius:60px;border:1px solid rgba(255,255,255,0.16);">
-            <div style="position:absolute;top:26px;left:50px;font-family:Arial,Helvetica,sans-serif;font-size:30px;color:rgba(255,255,255,0.92);">${beds}</div>
-            <div style="position:absolute;top:18px;left:100px;width:1px;height:56px;background:rgba(255,255,255,0.15);"></div>
-            <div style="position:absolute;top:26px;left:120px;font-family:Arial,Helvetica,sans-serif;font-size:30px;color:rgba(255,255,255,0.92);">${baths}</div>
-            <div style="position:absolute;top:18px;left:170px;width:1px;height:56px;background:rgba(255,255,255,0.15);"></div>
-            <div style="position:absolute;top:26px;left:190px;font-family:Arial,Helvetica,sans-serif;font-size:30px;color:rgba(255,255,255,0.92);">${cars}</div>
+          <div style="position:absolute;bottom:140px;left:560px;width:800px;height:92px;background:rgba(0,0,0,0.35);border-radius:60px;border:1px solid rgba(255,255,255,0.16);backdrop-filter:blur(8px);">
+            <img src="${ICON_URLS.bed}" style="position:absolute;top:28px;left:50px;width:36px;height:36px;opacity:0.78;" />
+            <div style="position:absolute;top:26px;left:94px;font-family:Arial,Helvetica,sans-serif;font-size:30px;color:rgba(255,255,255,0.92);">${beds}</div>
+            <div style="position:absolute;top:18px;left:140px;width:1px;height:56px;background:rgba(255,255,255,0.20);"></div>
+            <img src="${ICON_URLS.bath}" style="position:absolute;top:28px;left:160px;width:36px;height:36px;opacity:0.78;" />
+            <div style="position:absolute;top:26px;left:204px;font-family:Arial,Helvetica,sans-serif;font-size:30px;color:rgba(255,255,255,0.92);">${baths}</div>
+            <div style="position:absolute;top:18px;left:250px;width:1px;height:56px;background:rgba(255,255,255,0.20);"></div>
+            <img src="${ICON_URLS.car}" style="position:absolute;top:28px;left:270px;width:36px;height:36px;opacity:0.78;" />
+            <div style="position:absolute;top:26px;left:314px;font-family:Arial,Helvetica,sans-serif;font-size:30px;color:rgba(255,255,255,0.92);">${cars}</div>
             ${land ? `
-            <div style="position:absolute;top:18px;left:240px;width:1px;height:56px;background:rgba(255,255,255,0.15);"></div>
-            <div style="position:absolute;top:26px;left:264px;font-family:Arial,Helvetica,sans-serif;font-size:26px;color:rgba(255,255,255,0.72);">${land}m²</div>
+            <div style="position:absolute;top:18px;left:360px;width:1px;height:56px;background:rgba(255,255,255,0.20);"></div>
+            <div style="position:absolute;top:26px;left:384px;font-family:Arial,Helvetica,sans-serif;font-size:26px;color:rgba(255,255,255,0.72);">${land}m²</div>
             ` : ""}
           </div>
         </div>
@@ -576,15 +579,18 @@ import { corsHeaders } from "../_shared/cors.ts";
         <div style="position:absolute;top:1000px;left:0;width:1080px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:normal;color:rgba(255,255,255,0.42);letter-spacing:5px;text-transform:uppercase;">${suburb} ${state}</div>
         <div style="position:absolute;top:1066px;left:0;width:1080px;text-align:center;font-family:Georgia,serif;font-size:56px;font-weight:normal;color:rgba(255,255,255,0.90);letter-spacing:1px;text-shadow:0 2px 12px rgba(0,0,0,0.4);">${price}</div>
         <div style="position:absolute;top:1164px;left:340px;width:400px;height:1px;background:rgba(255,255,255,0.15);"></div>
-        <div style="position:absolute;bottom:240px;left:240px;width:600px;height:92px;background:rgba(0,0,0,0.35);border-radius:60px;border:1px solid rgba(255,255,255,0.16);">
-          <div style="position:absolute;top:26px;left:50px;font-family:Arial,Helvetica,sans-serif;font-size:30px;color:rgba(255,255,255,0.92);">${beds}</div>
-          <div style="position:absolute;top:18px;left:100px;width:1px;height:56px;background:rgba(255,255,255,0.15);"></div>
-          <div style="position:absolute;top:26px;left:120px;font-family:Arial,Helvetica,sans-serif;font-size:30px;color:rgba(255,255,255,0.92);">${baths}</div>
-          <div style="position:absolute;top:18px;left:170px;width:1px;height:56px;background:rgba(255,255,255,0.15);"></div>
-          <div style="position:absolute;top:26px;left:190px;font-family:Arial,Helvetica,sans-serif;font-size:30px;color:rgba(255,255,255,0.92);">${cars}</div>
+        <div style="position:absolute;bottom:240px;left:140px;width:800px;height:92px;background:rgba(0,0,0,0.35);border-radius:60px;border:1px solid rgba(255,255,255,0.16);backdrop-filter:blur(8px);">
+          <img src="${ICON_URLS.bed}" style="position:absolute;top:28px;left:50px;width:36px;height:36px;opacity:0.78;" />
+          <div style="position:absolute;top:26px;left:94px;font-family:Arial,Helvetica,sans-serif;font-size:30px;color:rgba(255,255,255,0.92);">${beds}</div>
+          <div style="position:absolute;top:18px;left:140px;width:1px;height:56px;background:rgba(255,255,255,0.20);"></div>
+          <img src="${ICON_URLS.bath}" style="position:absolute;top:28px;left:160px;width:36px;height:36px;opacity:0.78;" />
+          <div style="position:absolute;top:26px;left:204px;font-family:Arial,Helvetica,sans-serif;font-size:30px;color:rgba(255,255,255,0.92);">${baths}</div>
+          <div style="position:absolute;top:18px;left:250px;width:1px;height:56px;background:rgba(255,255,255,0.20);"></div>
+          <img src="${ICON_URLS.car}" style="position:absolute;top:28px;left:270px;width:36px;height:36px;opacity:0.78;" />
+          <div style="position:absolute;top:26px;left:314px;font-family:Arial,Helvetica,sans-serif;font-size:30px;color:rgba(255,255,255,0.92);">${cars}</div>
           ${land ? `
-          <div style="position:absolute;top:18px;left:240px;width:1px;height:56px;background:rgba(255,255,255,0.15);"></div>
-          <div style="position:absolute;top:26px;left:264px;font-family:Arial,Helvetica,sans-serif;font-size:26px;color:rgba(255,255,255,0.72);">${land}m²</div>
+          <div style="position:absolute;top:18px;left:360px;width:1px;height:56px;background:rgba(255,255,255,0.20);"></div>
+          <div style="position:absolute;top:26px;left:384px;font-family:Arial,Helvetica,sans-serif;font-size:26px;color:rgba(255,255,255,0.72);">${land}m²</div>
           ` : ""}
         </div>
       </div>
