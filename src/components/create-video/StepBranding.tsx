@@ -16,6 +16,10 @@ import {
   ImageIcon,
   Pencil,
   User,
+  BedDouble,
+  Bath,
+  Car,
+  Ruler,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -548,17 +552,29 @@ export function StepBranding({
               )}
               <div className="mx-auto mt-2 w-[20%] h-px bg-white/15" />
             </div>
-            {/* Stats pill */}
-            <div className="absolute bottom-[13%] left-1/2 -translate-x-1/2 flex items-center gap-3 px-5 py-2 rounded-full border border-white/15" style={{ background: "rgba(0,0,0,0.35)" }}>
-              <span className="text-white/90 text-[10px]">{propertyDetails.bedrooms}</span>
-              <div className="w-px h-4 bg-white/15" />
-              <span className="text-white/90 text-[10px]">{propertyDetails.bathrooms}</span>
-              <div className="w-px h-4 bg-white/15" />
-              <span className="text-white/90 text-[10px]">{propertyDetails.carSpaces}</span>
+            {/* Stats pill with icons */}
+            <div className="absolute bottom-[13%] left-1/2 -translate-x-1/2 flex items-center gap-3 px-5 py-2.5 rounded-full border border-white/15" style={{ background: "rgba(0,0,0,0.35)" }}>
+              <span className="flex items-center gap-1 text-white/90 text-[10px]">
+                <BedDouble className="w-3.5 h-3.5 text-white/75" strokeWidth={1.5} />
+                {propertyDetails.bedrooms}
+              </span>
+              <div className="w-px h-5 bg-white/15" />
+              <span className="flex items-center gap-1 text-white/90 text-[10px]">
+                <Bath className="w-3.5 h-3.5 text-white/75" strokeWidth={1.5} />
+                {propertyDetails.bathrooms}
+              </span>
+              <div className="w-px h-5 bg-white/15" />
+              <span className="flex items-center gap-1 text-white/90 text-[10px]">
+                <Car className="w-3.5 h-3.5 text-white/75" strokeWidth={1.5} />
+                {propertyDetails.carSpaces}
+              </span>
               {propertyDetails.landSize && (
                 <>
-                  <div className="w-px h-4 bg-white/15" />
-                  <span className="text-white/70 text-[9px]">{propertyDetails.landSize}m²</span>
+                  <div className="w-px h-5 bg-white/15" />
+                  <span className="flex items-center gap-1 text-white/70 text-[9px]">
+                    <Ruler className="w-3.5 h-3.5 text-white/60" strokeWidth={1.5} />
+                    {propertyDetails.landSize}m²
+                  </span>
                 </>
               )}
             </div>
@@ -589,17 +605,29 @@ export function StepBranding({
             )}
             <div className="mx-auto mt-2 w-[37%] h-px bg-white/15" />
           </div>
-          {/* Stats pill */}
-          <div className="absolute bottom-[12.5%] left-1/2 -translate-x-1/2 flex items-center gap-3 px-5 py-2 rounded-full border border-white/15" style={{ background: "rgba(0,0,0,0.35)" }}>
-            <span className="text-white/90 text-[10px]">{propertyDetails.bedrooms}</span>
-            <div className="w-px h-4 bg-white/15" />
-            <span className="text-white/90 text-[10px]">{propertyDetails.bathrooms}</span>
-            <div className="w-px h-4 bg-white/15" />
-            <span className="text-white/90 text-[10px]">{propertyDetails.carSpaces}</span>
+          {/* Stats pill with icons */}
+          <div className="absolute bottom-[12.5%] left-1/2 -translate-x-1/2 flex items-center gap-3 px-5 py-2.5 rounded-full border border-white/15" style={{ background: "rgba(0,0,0,0.35)" }}>
+            <span className="flex items-center gap-1 text-white/90 text-[10px]">
+              <BedDouble className="w-3.5 h-3.5 text-white/75" strokeWidth={1.5} />
+              {propertyDetails.bedrooms}
+            </span>
+            <div className="w-px h-5 bg-white/15" />
+            <span className="flex items-center gap-1 text-white/90 text-[10px]">
+              <Bath className="w-3.5 h-3.5 text-white/75" strokeWidth={1.5} />
+              {propertyDetails.bathrooms}
+            </span>
+            <div className="w-px h-5 bg-white/15" />
+            <span className="flex items-center gap-1 text-white/90 text-[10px]">
+              <Car className="w-3.5 h-3.5 text-white/75" strokeWidth={1.5} />
+              {propertyDetails.carSpaces}
+            </span>
             {propertyDetails.landSize && (
               <>
-                <div className="w-px h-4 bg-white/15" />
-                <span className="text-white/70 text-[9px]">{propertyDetails.landSize}m²</span>
+                <div className="w-px h-5 bg-white/15" />
+                <span className="flex items-center gap-1 text-white/70 text-[9px]">
+                  <Ruler className="w-3.5 h-3.5 text-white/60" strokeWidth={1.5} />
+                  {propertyDetails.landSize}m²
+                </span>
               </>
             )}
           </div>
