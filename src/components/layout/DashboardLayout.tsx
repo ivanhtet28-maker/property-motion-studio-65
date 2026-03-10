@@ -2,7 +2,8 @@ import { ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Video,
-  Camera,
+  ImagePlus,
+  Sofa,
   Users,
   CreditCard,
   HelpCircle,
@@ -27,7 +28,8 @@ interface DashboardLayoutProps {
 
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Videos", icon: Video },
-  { to: "/photos", label: "Photos", icon: Camera },
+  { to: "/photos?tab=edit", label: "Image Editor", icon: ImagePlus },
+  { to: "/photos?tab=staging", label: "Virtual Staging", icon: Sofa },
 ];
 
 const BOTTOM_NAV = [
@@ -51,7 +53,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     navigate("/");
   };
 
-  const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + "/");
+  const isActive = (itemTo: string) => {
+    const [path, query] = itemTo.split("?");
+    if (query) {
+      const params = new URLSearchParams(query);
+      const searchParams = new URLSearchParams(location.search);
+      return location.pathname === path && params.get("tab") === searchParams.get("tab");
+    }
+    return location.pathname === path || location.pathname.startsWith(path + "/");
+  };
 
   return (
     <div className="min-h-screen bg-background flex">
