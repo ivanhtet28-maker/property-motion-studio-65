@@ -739,7 +739,7 @@ export default function CreateVideo() {
                 Generating your video...
               </h2>
               <p className="text-sm text-muted-foreground mb-6">
-                This may take a few minutes. We'll notify you when it's ready — feel free to leave this page.
+                This may take a few minutes. We'll send you an email when it's ready — feel free to leave this page.
               </p>
               <div className="h-2 bg-secondary rounded-full overflow-hidden mb-2">
                 <div

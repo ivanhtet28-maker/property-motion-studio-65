@@ -12,7 +12,7 @@ const VideoNotificationContext = createContext<VideoNotificationContextType | un
 
 /**
  * Polls Supabase for the user's processing videos and fires an in-app toast
- * (+ browser Notification when permitted) the moment a video finishes.
+ * when a video finishes (email notifications are handled server-side).
  *
  * Mount this once near the app root so it works on every page.
  */
@@ -24,22 +24,6 @@ export function VideoNotificationProvider({ children }: { children: ReactNode })
   const notifiedRef = useRef<Set<string>>(new Set());
   // Track which IDs were "processing" on the previous tick
   const prevProcessingRef = useRef<Set<string>>(new Set());
-
-  // Request browser notification permission on mount (non-blocking)
-  useEffect(() => {
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
-  }, []);
-
-  const showBrowserNotification = useCallback((address: string) => {
-    if ("Notification" in window && Notification.permission === "granted") {
-      new Notification("Video Ready!", {
-        body: `Your video for ${address} has finished generating.`,
-        icon: "/favicon.ico",
-      });
-    }
-  }, []);
 
   const checkProcessingVideos = useCallback(async () => {
     if (!user?.id) return;
@@ -65,7 +49,7 @@ export function VideoNotificationProvider({ children }: { children: ReactNode })
           currentProcessing.add(v.id);
         }
 
-        // If this video was previously processing and is now done, notify
+        // If this video was previously processing and is now done, show in-app toast
         if (isDone && prevProcessingRef.current.has(v.id) && !notifiedRef.current.has(v.id)) {
           notifiedRef.current.add(v.id);
           const address = v.property_address || "your property";
@@ -74,7 +58,6 @@ export function VideoNotificationProvider({ children }: { children: ReactNode })
             title: "Video Ready!",
             description: `Your video for ${address} has finished generating.`,
           });
-          showBrowserNotification(address);
         }
 
         if (isFailed && prevProcessingRef.current.has(v.id) && !notifiedRef.current.has(v.id)) {
@@ -93,7 +76,7 @@ export function VideoNotificationProvider({ children }: { children: ReactNode })
     } catch {
       // Silently ignore — will retry on next tick
     }
-  }, [user?.id, toast, showBrowserNotification]);
+  }, [user?.id, toast]);
 
   useEffect(() => {
     if (!user?.id) return;
