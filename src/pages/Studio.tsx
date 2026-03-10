@@ -57,7 +57,6 @@ import { supabase } from "@/lib/supabase";
 const TEMPLATES = [
   { id: "modern-treehouse", name: "Modern Treehouse" },
   { id: "apartment-for-sale", name: "Apartment For Sale, Contact" },
-  { id: "newly-listed", name: "Newly Listed" },
   { id: "open-house-blue", name: "Open House Blue Banner" },
   { id: "big-bold", name: "Big and Bold" },
   { id: "simple-white", name: "Simple White" },

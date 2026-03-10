@@ -47,12 +47,8 @@ const INTRO_TEMPLATES = [
   { id: "none", name: "None" },
   { id: "custom", name: "Custom Upload" },
   { id: "open-house", name: "Open House" },
-  { id: "newly-listed", name: "Newly Listed" },
   { id: "elegant-classic", name: "Elegant Classic" },
-  { id: "modern-luxe", name: "Modern Luxe" },
-  { id: "minimal-focus", name: "Minimal Focus" },
   { id: "big-bold", name: "Big and Bold" },
-  { id: "white-on-black", name: "White on Black" },
   { id: "simple-white", name: "Simple White" },
   { id: "modern-treehouse", name: "Modern Treehouse" },
   { id: "warm-elegance", name: "Warm Elegance" },
@@ -343,26 +339,6 @@ export function StepBranding({
       );
     }
 
-    // ── Newly Listed style: centered text over gradient, heading + italic address + price ──
-    if (templateId === "newly-listed") {
-      return (
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex flex-col items-center justify-end pb-8 px-4">
-          <h3 className="text-white font-bold text-2xl leading-tight mb-2" style={{ fontFamily: "serif" }}>
-            {heading}
-          </h3>
-          <p className="text-white/85 text-sm italic text-center leading-relaxed whitespace-pre-line">
-            {details}
-          </p>
-          {fmtPrice && (
-            <p className="text-yellow-400 text-base font-bold mt-1">{fmtPrice}</p>
-          )}
-          {specsLine && (
-            <p className="text-white/70 text-[10px] mt-1">{specsLine}</p>
-          )}
-        </div>
-      );
-    }
-
     // ── Big and Bold: large centered uppercase heading, address, price, specs ──
     if (templateId === "big-bold") {
       return (
@@ -378,26 +354,6 @@ export function StepBranding({
           )}
           {specsLine && (
             <p className="text-white/70 text-[10px] mt-1">{specsLine}</p>
-          )}
-        </div>
-      );
-    }
-
-    // ── White on Black: black bar, white text centered ──
-    if (templateId === "white-on-black") {
-      return (
-        <div className="absolute bottom-0 left-0 right-0 bg-black py-4 px-5">
-          <h3 className="text-white font-bold text-lg uppercase tracking-wider text-center mb-1">
-            {heading}
-          </h3>
-          <p className="text-white/70 text-[11px] text-center whitespace-pre-line">
-            {details}
-          </p>
-          {fmtPrice && (
-            <p className="text-yellow-400 text-sm font-bold text-center mt-1">{fmtPrice}</p>
-          )}
-          {specsLine && (
-            <p className="text-white/60 text-[9px] text-center mt-0.5">{specsLine}</p>
           )}
         </div>
       );
@@ -470,60 +426,6 @@ export function StepBranding({
               <span className="text-white text-[10px] font-semibold">{propertyDetails.landSize}{landUnit}</span>
             </div>
           )}
-        </div>
-      );
-    }
-
-    // ── Modern Luxe: large bold heading top-left, address below, bottom bar with specs + price ──
-    if (templateId === "modern-luxe") {
-      const price = propertyDetails.price ? `$${Number(propertyDetails.price.replace(/[^0-9]/g, "")).toLocaleString()}` : "";
-      return (
-        <div className="absolute inset-0">
-          {/* Top area: heading + address */}
-          <div className="absolute top-[30%] left-4 right-4">
-            <h3 className="text-white font-black text-3xl italic leading-none drop-shadow-lg">
-              {heading}
-            </h3>
-            <p className="text-white/85 text-xs mt-1.5 whitespace-pre-line drop-shadow-md">
-              {details}
-            </p>
-          </div>
-          {/* Bottom bar: specs left, price right */}
-          <div className="absolute bottom-0 left-0 right-0 bg-white/15 backdrop-blur-sm px-4 py-2.5 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-white text-[11px] font-semibold">{propertyDetails.bedrooms} bed</span>
-              <span className="text-white text-[11px] font-semibold">{propertyDetails.bathrooms} bath</span>
-              <span className="text-white text-[11px] font-semibold">{propertyDetails.carSpaces} car</span>
-              {propertyDetails.landSize && (
-                <span className="text-white text-[11px] font-semibold">{propertyDetails.landSize}{landUnit}</span>
-              )}
-            </div>
-            {price && (
-              <span className="text-white text-sm font-bold">{price}</span>
-            )}
-          </div>
-        </div>
-      );
-    }
-
-    // ── Minimal Focus: centered uppercase heading, frosted glass address box + price ──
-    if (templateId === "minimal-focus") {
-      return (
-        <div className="absolute inset-0 flex flex-col items-center justify-center px-4">
-          <h3 className="text-white font-bold text-xl uppercase tracking-widest leading-none mb-3 drop-shadow-lg">
-            {heading}
-          </h3>
-          <div className="border border-white/40 bg-white/10 backdrop-blur-sm rounded px-4 py-2.5">
-            <p className="text-white/90 text-xs text-center whitespace-pre-line leading-relaxed">
-              {details}
-            </p>
-            {fmtPrice && (
-              <p className="text-yellow-400 text-sm font-bold text-center mt-1.5">{fmtPrice}</p>
-            )}
-            {specsLine && (
-              <p className="text-white/70 text-[9px] text-center mt-1">{specsLine}</p>
-            )}
-          </div>
         </div>
       );
     }

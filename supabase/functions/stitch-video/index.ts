@@ -9,12 +9,8 @@ import { corsHeaders } from "../_shared/cors.ts";
   // Template name mapping
   const TEMPLATE_NAMES: Record<string, string> = {
     "open-house": "Open House",
-    "newly-listed": "Newly Listed",
     "elegant-classic": "Elegant Classic",
-    "modern-luxe": "Modern Luxe",
-    "minimal-focus": "Minimal Focus",
     "big-bold": "Big and Bold",
-    "white-on-black": "White on Black",
     "simple-white": "Simple White",
     "modern-treehouse": "Modern Treehouse",
     "just-listed": "Just Listed",
@@ -137,7 +133,7 @@ import { corsHeaders } from "../_shared/cors.ts";
       photo?: string | null;
     };
     style?: string;
-    layout?: string; // "minimal-focus" | "bold-banner" | "modern-luxe" or template id
+    layout?: string; // template id e.g. "open-house" | "warm-elegance" | "big-bold" etc.
     customTitle?: string; // Custom title text (e.g., "Just Sold", "Open House")
     detailsText?: string; // Free-text details shown on intro overlay (e.g. address, date)
     videoId?: string;
@@ -791,22 +787,14 @@ import { corsHeaders } from "../_shared/cors.ts";
     switch (layout) {
       case "open-house":
         return generateOpenHouseLayout(title, details, propertyData);
-      case "newly-listed":
-        return generateNewlyListedLayout(title, details, propertyData);
       case "big-bold":
         return generateBigBoldLayout(title, details, propertyData);
-      case "white-on-black":
-        return generateWhiteOnBlackLayout(title, details, propertyData);
       case "simple-white":
         return generateSimpleWhiteLayout(title, details, propertyData);
       case "modern-treehouse":
         return generateModernTreehouseLayout(title, details, propertyData);
       case "elegant-classic":
         return generateElegantClassicLayout(title, details, propertyData);
-      case "modern-luxe":
-        return generateModernLuxeV2Layout(title, details, propertyData);
-      case "minimal-focus":
-        return generateMinimalFocusV2Layout(title, details, propertyData);
       case "warm-elegance":
         return generateWarmEleganceLayout(title, details, propertyData);
       case "none":
@@ -992,7 +980,7 @@ import { corsHeaders } from "../_shared/cors.ts";
       console.log("Mode:", isKenBurns ? "Ken Burns (still images)" : "AI video clips");
       console.log("Stitching", sourceUrls.length, isKenBurns ? "photos" : "AI clips");
       console.log("Output format:", outputFormat || "portrait (default)");
-      console.log("Layout:", layout || "modern-luxe (default)");
+      console.log("Layout:", layout || "open-house (default)");
       console.log("Custom Title:", customTitle || "(using template name)");
       console.log("Property Data Received:", JSON.stringify(propertyData, null, 2));
       console.log("Agent Info Received:", agentInfo ? {
@@ -1335,7 +1323,7 @@ import { corsHeaders } from "../_shared/cors.ts";
               // Property specs icons track (bed, bath, car image icons)
               {
                 clips: generatePropertySpecsClips(
-                  layout || "modern-luxe",
+                  layout || "open-house",
                   propertyData,
                   0.1,
                   Math.max(effectiveDurations[0] - 0.1, 0.5)

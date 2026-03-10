@@ -13,12 +13,6 @@ export interface VideoTemplate {
 
 const templates: VideoTemplate[] = [
   {
-    id: "modern-luxe",
-    name: "Modern Luxe",
-    description: "4-5 sec intro",
-    duration: "Sleek & contemporary",
-  },
-  {
     id: "just-listed",
     name: "Just Listed",
     description: "3-4 sec intro",
@@ -59,19 +53,9 @@ interface LayoutOption {
 
 const layouts: LayoutOption[] = [
   {
-    id: "minimal-focus",
-    name: "Minimal Focus",
-    description: "Centered title with dark overlay box",
-  },
-  {
     id: "bold-banner",
     name: "Bold Banner",
     description: "Bottom banner with price and details",
-  },
-  {
-    id: "modern-luxe",
-    name: "Modern Luxe",
-    description: "Large title with bottom property specs",
   },
   {
     id: "warm-elegance",
@@ -317,20 +301,17 @@ export function VideoTemplateSelector({
   };
 
   // Display title for preview
-  const displayTitle = customTitle || templates.find(t => t.id === selectedTemplate)?.name || "Modern Luxe";
+  const displayTitle = customTitle || templates.find(t => t.id === selectedTemplate)?.name || "Open House";
 
   // Render the appropriate preview
   const renderPreview = () => {
     switch (currentLayout.id) {
-      case "minimal-focus":
-        return <MinimalFocusPreview title={displayTitle} previewImageUrl={previewImageUrl} property={propertyDetails} />;
       case "bold-banner":
         return <BoldBannerPreview title={displayTitle} previewImageUrl={previewImageUrl} property={propertyDetails} />;
       case "warm-elegance":
         return <WarmElegancePreview title={displayTitle} previewImageUrl={previewImageUrl} property={propertyDetails} />;
-      case "modern-luxe":
       default:
-        return <ModernLuxePreview title={displayTitle} previewImageUrl={previewImageUrl} property={propertyDetails} />;
+        return <BoldBannerPreview title={displayTitle} previewImageUrl={previewImageUrl} property={propertyDetails} />;
     }
   };
 

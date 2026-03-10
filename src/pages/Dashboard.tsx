@@ -161,7 +161,7 @@ export default function Dashboard() {
               agentInfo: ctx.agentInfo,
               propertyData: ctx.propertyData,
               style: ctx.style,
-              layout: ctx.layout || "modern-luxe",
+              layout: ctx.layout || "open-house",
               customTitle: ctx.customTitle || "",
               clipDurations: ctx.clipDurations,
               imageUrls: ctx.imageUrls,
