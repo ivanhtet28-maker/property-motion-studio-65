@@ -21,6 +21,7 @@ import Billing from "./pages/Billing";
 import QuickEdit from "./pages/QuickEdit";
 import Studio from "./pages/Studio";
 import Photos from "./pages/Photos";
+import Support from "./pages/Support";
 import NotFound from "./pages/NotFound";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
@@ -85,6 +86,11 @@ const App = () => (
             <Route path="/photos" element={
               <ProtectedRoute>
                 <Photos />
+              </ProtectedRoute>
+            } />
+            <Route path="/support" element={
+              <ProtectedRoute>
+                <Support />
               </ProtectedRoute>
             } />
             <Route path="/privacy" element={<Privacy />} />

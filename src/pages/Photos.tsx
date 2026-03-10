@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { supabase } from "@/lib/supabase";
+import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -677,7 +678,7 @@ function PhotoEditTab() {
 
       // Call edge function for each job
       for (const job of uploadedJobs) {
-        supabase.functions.invoke("enhance-photo", { body: { job_id: job.id } }).catch(console.error);
+        invokeEdgeFunction("enhance-photo", { body: { job_id: job.id } }).catch(console.error);
       }
 
       // Subscribe to realtime updates
@@ -1213,7 +1214,7 @@ function PhotoEditTab() {
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          supabase.functions.invoke("enhance-photo", { body: { job_id: job.id } }).catch(console.error);
+                          invokeEdgeFunction("enhance-photo", { body: { job_id: job.id } }).catch(console.error);
                           setJobs((prev) => prev.map((j) => j.id === job.id ? { ...j, status: "processing", error_message: null } : j));
                         }}
                       >
@@ -1383,7 +1384,7 @@ function VirtualStagingTab() {
 
       // Call edge function for each
       for (const job of uploadedJobs) {
-        supabase.functions.invoke("stage-room", { body: { job_id: job.id } }).catch(console.error);
+        invokeEdgeFunction("stage-room", { body: { job_id: job.id } }).catch(console.error);
       }
 
       // Realtime + polling
@@ -1887,7 +1888,7 @@ function VirtualStagingTab() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      supabase.functions.invoke("stage-room", { body: { job_id: job.id } }).catch(console.error);
+                      invokeEdgeFunction("stage-room", { body: { job_id: job.id } }).catch(console.error);
                       setJobs((prev) => prev.map((j) => j.id === job.id ? { ...j, status: "processing", error_message: null } : j));
                     }}
                   >
