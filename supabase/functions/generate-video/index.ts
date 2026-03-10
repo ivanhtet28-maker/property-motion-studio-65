@@ -1,14 +1,10 @@
+import { corsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
 // Edge function for video generation using Runway Gen4 Turbo
   /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 
   import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type",
-  };
 
   interface PropertyData {
       address: string;
@@ -111,35 +107,6 @@
   const getMusicUrl = (musicId: string): string | null => {
     return MUSIC_LIBRARY[musicId] || null;
   };
-
-  // ── Shotstack Create API (image-to-video) — inlined to bypass Supabase gateway ──
-  // Internal edge-function-to-function calls via the Supabase gateway fail with 401
-  // even when verify_jwt=false is set in config.toml (deployment doesn't always apply).
-  // Calling the Shotstack API directly from here eliminates the gateway dependency.
-  const SHOTSTACK_API_KEY = Deno.env.get("SHOTSTACK_API_KEY");
-  const SHOTSTACK_CREATE_URL = "https://api.shotstack.io/create/v1/assets";
-
-  interface MotionConfig {
-    motion: number;
-    guidanceScale: number;
-  }
-
-  const MOTION_MAP: Record<string, MotionConfig> = {
-    "push-in":  { motion: 140, guidanceScale: 1.8 },
-    "pull-out": { motion: 140, guidanceScale: 1.8 },
-    "tracking": { motion: 160, guidanceScale: 1.8 },
-    "orbit":    { motion: 180, guidanceScale: 1.6 },
-    "crane-up": { motion: 150, guidanceScale: 1.8 },
-    "drone-up": { motion: 170, guidanceScale: 1.6 },
-    "static":   { motion: 40,  guidanceScale: 2.0 },
-  };
-
-  const DEFAULT_MOTION: MotionConfig = { motion: 127, guidanceScale: 1.8 };
-
-  function getMotionConfig(cameraAction?: string): MotionConfig {
-    if (!cameraAction) return DEFAULT_MOTION;
-    return MOTION_MAP[cameraAction] || DEFAULT_MOTION;
-  }
 
   interface LumaGeneration {
     imageUrl: string;
@@ -272,10 +239,30 @@
       }
       console.log(`[generate-video] Authenticated user: ${userData.user.id}`);
 
+      // Rate limit: max 20 video generations per hour per user
+      const clientIP = getClientIP(req);
+      const { allowed: userAllowed } = await checkRateLimit("generate-video:user", userData.user.id, 20, 3600);
+      if (!userAllowed) {
+        console.warn(`[generate-video] Rate limit hit for user ${userData.user.id}`);
+        return new Response(
+          JSON.stringify({ error: "Too many video generations. Please wait before trying again." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      // Also rate limit by IP (catches multi-account abuse)
+      const { allowed: ipAllowed } = await checkRateLimit("generate-video:ip", clientIP, 30, 3600);
+      if (!ipAllowed) {
+        console.warn(`[generate-video] IP rate limit hit: ${clientIP}`);
+        return new Response(
+          JSON.stringify({ error: "Too many requests from your network. Please try again later." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       const { imageUrls, imageMetadata, propertyData, style, layout, customTitle, detailsText, voice, music, customMusicUrl, musicTrimStart, musicTrimEnd, userId, propertyId, script, source, agentInfo, preGeneratedVideoUrls, useKenBurns }: GenerateVideoRequest = await req.json();
 
       console.log("=== VIDEO GENERATION ===");
-      console.log("Mode:", useKenBurns ? "Ken Burns (Shotstack direct)" : "Shotstack Create API (image-to-video)");
+      console.log("Mode:", useKenBurns ? "Ken Burns (Shotstack direct)" : "Runway Gen4 Turbo");
       console.log("Total images:", imageUrls?.length || 0);
       console.log("Property:", propertyData?.address);
 
@@ -361,25 +348,63 @@
           const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
           const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-          // Check user subscription status and free trial availability
-          const { data: userData, error: userError } = await supabase
+          // Check user subscription status, quota, and free trial availability
+          const { data: userPrefs, error: userError } = await supabase
             .from("user_preferences")
-            .select("subscription_status, free_video_used")
+            .select("subscription_status, free_video_used, videos_used_this_period, videos_limit")
             .eq("user_id", userId)
             .single();
 
-          if (!userError && userData) {
-            const hasActiveSubscription = userData.subscription_status === "active";
-            const hasFreeTrial = !userData.free_video_used;
+          if (!userError && userPrefs) {
+            const hasActiveSubscription = userPrefs.subscription_status === "active";
+            const hasFreeTrial = !userPrefs.free_video_used;
 
-            // Determine if this is a free trial video
-            // Note: free_video_used is NOT marked here — it's marked later
-            // only after video generation successfully starts (Runway queued or
-            // Ken Burns/Canvas job started). This prevents consuming the trial
-            // on failed generations.
-            if (!hasActiveSubscription && hasFreeTrial) {
+            if (hasActiveSubscription) {
+              // Backend quota enforcement — prevent generation if over limit
+              const used = userPrefs.videos_used_this_period ?? 0;
+              const limit = userPrefs.videos_limit ?? 10;
+              if (used >= limit) {
+                console.warn(`[generate-video] Quota exceeded for user ${userId}: ${used}/${limit}`);
+                return new Response(
+                  JSON.stringify({ error: `Video limit reached (${used}/${limit}). Upgrade your plan or wait for the next billing period.` }),
+                  { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+                );
+              }
+              console.log(`[generate-video] Quota: ${used + 1}/${limit} videos this period`);
+            } else if (hasFreeTrial) {
+              // Free trial abuse check: has this IP already used a free trial?
+              const ipHash = await hashIP(clientIP);
+
+              const { count: ipTrialCount } = await supabase
+                .from("user_preferences")
+                .select("user_id", { count: "exact", head: true })
+                .eq("signup_ip_hash", ipHash)
+                .eq("free_video_used", true);
+
+              if (ipTrialCount && ipTrialCount >= 3) {
+                console.warn(`[generate-video] Free trial abuse detected: IP hash ${ipHash.substring(0, 8)}... has ${ipTrialCount} used trials`);
+                return new Response(
+                  JSON.stringify({ error: "Free trial limit reached. Please subscribe to continue." }),
+                  { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+                );
+              }
+
+              // Save IP hash for future abuse detection
+              await supabase
+                .from("user_preferences")
+                .update({ signup_ip_hash: ipHash })
+                .eq("user_id", userId)
+                .is("signup_ip_hash", null);
+
               isFreeTrial = true;
               console.log("This is a free trial video generation — will mark as used after DB record creation");
+            } else {
+              // No subscription and no free trial left
+              console.warn(`[generate-video] No subscription or free trial for user ${userId}`);
+              return new Response(
+                JSON.stringify({ error: "Subscribe to generate more videos." }),
+                { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+              );
             }
           }
 
@@ -423,6 +448,19 @@
                 console.error("Failed to mark free trial as used:", updateError);
               } else {
                 console.log("Free trial marked as used for user:", userId);
+              }
+            }
+
+            // Increment videos_used_this_period for paying subscribers
+            if (!isFreeTrial) {
+              const { error: quotaError } = await supabase.rpc("increment_video_count", { p_user_id: userId });
+              if (quotaError) {
+                // Fallback: manual increment if RPC doesn't exist yet
+                console.warn("RPC increment_video_count failed, using manual increment:", quotaError.message);
+                await supabase
+                  .from("user_preferences")
+                  .update({ videos_used_this_period: (userPrefs?.videos_used_this_period ?? 0) + 1 })
+                  .eq("user_id", userId);
               }
             }
           }
@@ -566,99 +604,115 @@
         );
       }
 
-      // --- Shotstack Create API flow ---
-      // Uses Shotstack's image-to-video (Stable Video Diffusion) for clip generation.
-      // Each clip is 4 seconds. Shotstack key is already configured in Supabase secrets.
-      console.log("Starting Shotstack Create API batch generation for", imageUrls.length, "images...");
+      // --- Runway Gen4 Turbo flow ---
+      // Uses prompt-driven camera control for superior motion quality.
+      // gen4_turbo produces cleaner orbits and zero hallucinations.
+      console.log("Starting Runway Gen4 Turbo batch generation for", imageUrls.length, "images...");
 
-      // Ensure all images are accessible (re-upload external CDN URLs to Storage)
+      // Ensure all images are accessible by Runway (re-upload external CDN URLs to Storage)
       const reliableImageUrls = await ensureStorageUrls(imageUrls.slice(0, 10));
 
-      const baseMetadata = imageMetadata || reliableImageUrls.map(url => ({
-        url,
-        cameraAngle: "auto",
-        duration: 4
-      }));
+      // Smart 9:16 pre-crop: Runway center-crops blindly when aspect ratio doesn't match.
+      // Pre-cropping landscape images to 9:16 ensures the most important content is preserved.
+      console.log("Running smart 9:16 portrait crop on", reliableImageUrls.length, "images...");
+      let portraitImageUrls = reliableImageUrls;
+      try {
+        const cropResponse = await fetch(
+          `${Deno.env.get("SUPABASE_URL")}/functions/v1/smart-crop-portrait`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({
+              images: reliableImageUrls.map(url => ({ imageUrl: url })),
+            }),
+          }
+        );
 
-      // Update metadata URLs to use reliable versions
-      const metadataForShotstack = baseMetadata.slice(0, 10).map((m: ImageMetadata, i: number) => ({
-        ...m,
-        url: reliableImageUrls[i] || m.url,
-      }));
-      const finalImageUrls = reliableImageUrls;
-
-      console.log(`Sending ${metadataForShotstack.length} images to Shotstack Create API (direct — bypassing gateway)`);
-
-      if (!SHOTSTACK_API_KEY) {
-        throw new Error("SHOTSTACK_API_KEY not configured in Supabase secrets");
+        if (cropResponse.ok) {
+          const cropData = await cropResponse.json();
+          if (cropData.success && Array.isArray(cropData.results)) {
+            portraitImageUrls = cropData.results.map((r: { url: string }) => r.url);
+            const croppedCount = cropData.results.filter((r: { cropped: boolean }) => r.cropped).length;
+            console.log(`Smart crop: ${croppedCount}/${reliableImageUrls.length} images cropped to 9:16`);
+          }
+        } else {
+          console.warn("Smart crop failed, using original images:", cropResponse.status);
+        }
+      } catch (cropErr) {
+        console.warn("Smart crop error, using original images:", cropErr instanceof Error ? cropErr.message : cropErr);
       }
 
-      // Call Shotstack Create API directly for each image (parallel)
-      const batchResults = await Promise.all(
-        metadataForShotstack.map(async (metadata: ImageMetadata, index: number) => {
-          const effectiveAction = metadata.cameraAction || metadata.cameraAngle || "push-in";
-          const motionConfig = getMotionConfig(effectiveAction);
-          console.log(`Clip ${index + 1}/${metadataForShotstack.length}: motion=${motionConfig.motion}, guidance=${motionConfig.guidanceScale}`);
+      const baseMetadata = imageMetadata || portraitImageUrls.map(url => ({
+        url,
+        cameraAngle: "auto",
+        duration: 5
+      }));
 
-          try {
-            const response = await fetch(SHOTSTACK_CREATE_URL, {
-              method: "POST",
-              headers: {
-                "x-api-key": SHOTSTACK_API_KEY!,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                provider: "shotstack",
-                options: {
-                  type: "image-to-video",
-                  imageUrl: metadata.url,
-                  motion: motionConfig.motion,
-                  guidanceScale: motionConfig.guidanceScale,
-                },
-              }),
-            });
+      // Update metadata URLs to use the pre-cropped portrait versions
+      const metadataForRunway = baseMetadata.slice(0, 10).map((m: ImageMetadata, i: number) => ({
+        ...m,
+        url: portraitImageUrls[i] || m.url,
+      }));
+      const finalImageUrls = portraitImageUrls;
 
-            if (!response.ok) {
-              const errorText = await response.text();
-              console.error(`Shotstack Create API error clip ${index + 1}: ${response.status} ${errorText}`);
-              return { imageUrl: metadata.url, generationId: null as string | null, status: "error" as const, error: `Shotstack API ${response.status}: ${errorText}` };
-            }
+      // Always generate portrait (9:16) clips — the app targets social media reels.
+      // Images are now pre-cropped to 9:16, so Runway won't need to center-crop blindly.
+      const computedOutputFormat = "portrait";
+      console.log(`Sending ${metadataForRunway.length} images to Runway, outputFormat=${computedOutputFormat} (pre-cropped to 9:16)`);
 
-            const data = await response.json();
-            const assetId = data.data?.id || data.id;
-            console.log(`Clip ${index + 1} started: ${assetId}`);
-
-            if (!assetId) {
-              return { imageUrl: metadata.url, generationId: null as string | null, status: "error" as const, error: `No asset ID: ${JSON.stringify(data)}` };
-            }
-
-            return { imageUrl: metadata.url, generationId: assetId as string, status: "queued" as const, error: undefined };
-          } catch (error) {
-            console.error(`Error creating clip ${index + 1}:`, error);
-            return { imageUrl: metadata.url, generationId: null as string | null, status: "error" as const, error: error instanceof Error ? error.message : "Unknown error" };
-          }
-        })
+      const runwayResponse = await fetch(
+        `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-runway-batch`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          },
+          body: JSON.stringify({
+            imageMetadata: metadataForRunway,
+            propertyAddress: propertyData.address,
+            outputFormat: computedOutputFormat,
+          }),
+        }
       );
 
-      const generations = batchResults.filter(
-        (g): g is typeof g & { generationId: string; status: "queued" } => g.status === "queued" && !!g.generationId
-      );
-      const generationIds = generations.map((g) => g.generationId);
-      const failedCount = batchResults.length - generations.length;
+      if (!runwayResponse.ok) {
+        const errorText = await runwayResponse.text();
+        throw new Error(`generate-runway-batch HTTP ${runwayResponse.status}: ${errorText}`);
+      }
 
-      console.log(`Shotstack batch: ${generations.length} queued, ${failedCount} failed`);
+      const runwayData = await runwayResponse.json();
+
+      if (!runwayData.success) {
+        throw new Error(runwayData.error || "Failed to start Runway batch generation");
+      }
+
+      if (!Array.isArray(runwayData.generations)) {
+        throw new Error(`Unexpected response from generate-runway-batch: ${JSON.stringify(runwayData)}`);
+      }
+
+      const generations = (runwayData.generations as LumaGeneration[]).filter(
+        (g) => g.status === "queued" && g.generationId
+      );
+      const generationIds = generations.map((g) => g.generationId).filter(Boolean) as string[];
+
+      console.log(`Started ${generations.length} Runway generations`);
       console.log("Generation IDs:", generationIds);
 
       if (generationIds.length === 0) {
-        const errors = batchResults.filter(g => g.status === "error").map(g => g.error).join("; ");
-        throw new Error(`No valid Shotstack generation IDs returned. All ${batchResults.length} submissions failed. Errors: ${errors || "unknown"}`);
+        const failedGenerations = (runwayData.generations as LumaGeneration[]).filter((g) => g.status === "error");
+        const errors = failedGenerations.map((g) => g.error).join("; ");
+        throw new Error(`No valid Runway generation IDs returned. All ${runwayData.generations?.length ?? 0} submissions failed. Errors: ${errors || "unknown"}`);
       }
 
-      // Mark free trial consumed now that at least one Shotstack generation started
+      // Mark free trial consumed now that at least one Runway generation started
       if (isFreeTrial && userId) await markFreeTrialUsed(userId);
 
       // Extract camera actions for fallback slots and stitch-video
-      const cameraAngles = metadataForShotstack.map((m: ImageMetadata) =>
+      const cameraAngles = metadataForRunway.map((m: ImageMetadata) =>
         m.cameraAction || m.cameraAngle || "push-in"
       );
 
@@ -669,14 +723,14 @@
           const supabaseAdminKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
           const supabaseAdmin = createClient(supabaseAdminUrl, supabaseAdminKey);
 
-          const clipDurations = metadataForShotstack.map((m: ImageMetadata) => m.duration ?? 4);
+          const clipDurations = metadataForRunway.map((m: ImageMetadata) => m.duration ?? 5);
 
           await supabaseAdmin
             .from("videos")
             .update({
               photos: JSON.stringify({
                 generationIds,
-                provider: "shotstack-create",
+                provider: "runway",
                 audioUrl,
                 musicUrl,
                 clipDurations,
@@ -692,7 +746,7 @@
             })
             .eq("id", videoRecordId);
 
-          console.log("Saved Shotstack generation context to DB for recovery");
+          console.log("Saved Runway generation context to DB for recovery");
         } catch (err) {
           console.error("Failed to save generation context:", err);
         }
@@ -701,13 +755,13 @@
       return new Response(
         JSON.stringify({
           success: true,
-          provider: "shotstack-create",
+          provider: "runway",
           videoId: videoRecordId,
           generationIds: generationIds,
           totalClips: generationIds.length,
           estimatedDuration: expectedDuration,
-          estimatedTime: generationIds.length * 20, // ~20s per clip with Shotstack
-          message: `Started ${generationIds.length} Shotstack image-to-video generations. Poll video-status to track progress.`,
+          estimatedTime: generationIds.length * 30, // ~30s per 5s clip with Gen4 Turbo
+          message: `Started ${generationIds.length} Runway Gen4 Turbo generations. Poll video-status to track progress.`,
           audioUrl: audioUrl,
           musicUrl: musicUrl,
           musicTrimStart: musicTrimStart || 0,

@@ -2,6 +2,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
+import { corsHeaders } from "../_shared/cors.ts";
   ImageMagick,
   initializeImageMagick,
   MagickGeometry,
@@ -16,11 +17,6 @@ const wasmBytes = await Deno.readFile(
 );
 await initializeImageMagick(wasmBytes);
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 interface CropRequest {
   imageUrl: string;

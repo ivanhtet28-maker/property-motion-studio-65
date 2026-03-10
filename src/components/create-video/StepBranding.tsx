@@ -41,6 +41,7 @@ import type { PropertyDetails } from "./PropertyDetailsForm";
 // Intro template options
 const INTRO_TEMPLATES = [
   { id: "none", name: "None" },
+  { id: "custom", name: "Custom Upload" },
   { id: "open-house", name: "Open House" },
   { id: "newly-listed", name: "Newly Listed" },
   { id: "elegant-classic", name: "Elegant Classic" },
@@ -50,11 +51,13 @@ const INTRO_TEMPLATES = [
   { id: "white-on-black", name: "White on Black" },
   { id: "simple-white", name: "Simple White" },
   { id: "modern-treehouse", name: "Modern Treehouse" },
+  { id: "warm-elegance", name: "Warm Elegance" },
 ];
 
 // Outro template options
 const OUTRO_TEMPLATES = [
   { id: "none", name: "None" },
+  { id: "custom", name: "Custom Upload" },
   { id: "classic", name: "Classic" },
   { id: "classic-dark", name: "Classic Dark" },
 ];
@@ -275,11 +278,41 @@ export function StepBranding({
   // Intro overlay for preview — style depends on selected template
   const renderIntroOverlay = () => {
     if (settings.selectedTemplate === "none") return null;
+
+    // Custom uploaded intro image — show as full overlay
+    if (settings.selectedTemplate === "custom") {
+      if (!settings.customIntroImage) {
+        return (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+            <p className="text-white/60 text-xs">Upload an intro image</p>
+          </div>
+        );
+      }
+      return (
+        <img
+          src={settings.customIntroImage}
+          alt="Custom intro overlay"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      );
+    }
+
     const heading = settings.customTitle || selectedIntroTemplate.name.toUpperCase();
     const details = settings.detailsText || getDefaultDetails();
     const templateId = settings.selectedTemplate;
 
-    // ── Open House style: dark navy banner, heading left | divider | details right ──
+    // Helper: format price
+    const fmtPrice = propertyDetails.price
+      ? `$${Number(propertyDetails.price.replace(/[^0-9]/g, "")).toLocaleString()}`
+      : "";
+    const specsLine = [
+      propertyDetails.bedrooms ? `${propertyDetails.bedrooms} Bed` : "",
+      propertyDetails.bathrooms ? `${propertyDetails.bathrooms} Bath` : "",
+      propertyDetails.carSpaces ? `${propertyDetails.carSpaces} Car` : "",
+      propertyDetails.landSize ? `${propertyDetails.landSize}m²` : "",
+    ].filter(Boolean).join("  •  ");
+
+    // ── Open House style: dark navy banner, heading left | divider | details + price right ──
     if (templateId === "open-house") {
       return (
         <div className="absolute bottom-0 left-0 right-0 bg-[#2f4050]/90 px-4 py-3">
@@ -288,15 +321,23 @@ export function StepBranding({
               {heading}
             </h3>
             <div className="w-px self-stretch bg-white/40 min-h-[24px]" />
-            <p className="text-white/80 text-[10px] leading-snug whitespace-pre-line">
-              {details}
-            </p>
+            <div>
+              <p className="text-white/80 text-[10px] leading-snug whitespace-pre-line">
+                {details}
+              </p>
+              {fmtPrice && (
+                <p className="text-yellow-400 text-xs font-bold mt-1">{fmtPrice}</p>
+              )}
+              {specsLine && (
+                <p className="text-white/70 text-[9px] mt-0.5">{specsLine}</p>
+              )}
+            </div>
           </div>
         </div>
       );
     }
 
-    // ── Newly Listed style: centered text over gradient, heading + italic address ──
+    // ── Newly Listed style: centered text over gradient, heading + italic address + price ──
     if (templateId === "newly-listed") {
       return (
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex flex-col items-center justify-end pb-8 px-4">
@@ -306,11 +347,17 @@ export function StepBranding({
           <p className="text-white/85 text-sm italic text-center leading-relaxed whitespace-pre-line">
             {details}
           </p>
+          {fmtPrice && (
+            <p className="text-yellow-400 text-base font-bold mt-1">{fmtPrice}</p>
+          )}
+          {specsLine && (
+            <p className="text-white/70 text-[10px] mt-1">{specsLine}</p>
+          )}
         </div>
       );
     }
 
-    // ── Big and Bold: large centered uppercase heading, small address below ──
+    // ── Big and Bold: large centered uppercase heading, address, price, specs ──
     if (templateId === "big-bold") {
       return (
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent flex flex-col items-center justify-end pb-8 px-4">
@@ -320,6 +367,12 @@ export function StepBranding({
           <p className="text-white/80 text-xs text-center whitespace-pre-line tracking-wide">
             {details}
           </p>
+          {fmtPrice && (
+            <p className="text-yellow-400 text-base font-bold mt-1">{fmtPrice}</p>
+          )}
+          {specsLine && (
+            <p className="text-white/70 text-[10px] mt-1">{specsLine}</p>
+          )}
         </div>
       );
     }
@@ -334,6 +387,12 @@ export function StepBranding({
           <p className="text-white/70 text-[11px] text-center whitespace-pre-line">
             {details}
           </p>
+          {fmtPrice && (
+            <p className="text-yellow-400 text-sm font-bold text-center mt-1">{fmtPrice}</p>
+          )}
+          {specsLine && (
+            <p className="text-white/60 text-[9px] text-center mt-0.5">{specsLine}</p>
+          )}
         </div>
       );
     }
@@ -348,6 +407,12 @@ export function StepBranding({
           <p className="text-gray-500 text-[11px] text-center whitespace-pre-line">
             {details}
           </p>
+          {fmtPrice && (
+            <p className="text-gray-900 text-sm font-bold text-center mt-1">{fmtPrice}</p>
+          )}
+          {specsLine && (
+            <p className="text-gray-400 text-[9px] text-center mt-0.5">{specsLine}</p>
+          )}
         </div>
       );
     }
@@ -362,6 +427,12 @@ export function StepBranding({
           <p className="text-white/70 text-[11px] whitespace-pre-line">
             {details}
           </p>
+          {fmtPrice && (
+            <p className="text-yellow-400 text-sm font-bold mt-1">{fmtPrice}</p>
+          )}
+          {specsLine && (
+            <p className="text-white/60 text-[9px] mt-0.5">{specsLine}</p>
+          )}
         </div>
       );
     }
@@ -429,7 +500,7 @@ export function StepBranding({
       );
     }
 
-    // ── Minimal Focus: centered uppercase heading, frosted glass address box ──
+    // ── Minimal Focus: centered uppercase heading, frosted glass address box + price ──
     if (templateId === "minimal-focus") {
       return (
         <div className="absolute inset-0 flex flex-col items-center justify-center px-4">
@@ -440,7 +511,92 @@ export function StepBranding({
             <p className="text-white/90 text-xs text-center whitespace-pre-line leading-relaxed">
               {details}
             </p>
+            {fmtPrice && (
+              <p className="text-yellow-400 text-sm font-bold text-center mt-1.5">{fmtPrice}</p>
+            )}
+            {specsLine && (
+              <p className="text-white/70 text-[9px] text-center mt-1">{specsLine}</p>
+            )}
           </div>
+        </div>
+      );
+    }
+
+    // ── Warm Elegance: warm golden gradient, serif title, frosted stats pill ──
+    if (templateId === "warm-elegance") {
+      const price = propertyDetails.price ? `$${Number(propertyDetails.price.replace(/[^0-9]/g, "")).toLocaleString()}` : "";
+      const isLandscape = orientation === "landscape";
+
+      if (isLandscape) {
+        return (
+          <div className="absolute inset-0 overflow-hidden" style={{ background: "linear-gradient(160deg, #c8b89a 0%, #a07840 30%, #6b4a18 55%, #2e1e08 80%, #0e0a04 100%)" }}>
+            <div className="absolute top-0 right-0 w-[47%] h-[46%]" style={{ background: "linear-gradient(220deg, rgba(210,195,170,0.55) 0%, rgba(180,155,110,0.2) 50%, transparent 100%)" }} />
+            <div className="absolute top-0 left-0 right-0 h-[46%]" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.55), transparent)" }} />
+            <div className="absolute bottom-0 left-0 right-0 h-[56%]" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.80), transparent)" }} />
+            <div className="absolute top-[28%] left-0 right-0 text-center">
+              <h3 className="text-white/95 text-2xl italic leading-tight" style={{ fontFamily: "Georgia, serif", letterSpacing: "1px" }}>
+                {heading}
+              </h3>
+              <p className="text-white/60 text-[8px] uppercase mt-1.5" style={{ letterSpacing: "3px" }}>
+                {propertyDetails.streetAddress}, {propertyDetails.suburb} {propertyDetails.state}
+              </p>
+              {price && (
+                <p className="text-white/85 text-sm mt-1" style={{ fontFamily: "Georgia, serif" }}>
+                  {price}
+                </p>
+              )}
+            </div>
+            {/* Stats pill with land size inline */}
+            <div className="absolute bottom-[15%] left-1/2 -translate-x-1/2 flex items-center gap-3 px-5 py-2 rounded-full border border-white/15" style={{ background: "rgba(180,155,120,0.30)" }}>
+              <span className="text-white/90 text-[10px]">{propertyDetails.bedrooms} <span className="text-white/55">bd</span></span>
+              <div className="w-px h-4 bg-white/20" />
+              <span className="text-white/90 text-[10px]">{propertyDetails.bathrooms} <span className="text-white/55">ba</span></span>
+              <div className="w-px h-4 bg-white/20" />
+              <span className="text-white/90 text-[10px]">{propertyDetails.carSpaces} <span className="text-white/55">cr</span></span>
+              {propertyDetails.landSize && (
+                <>
+                  <div className="w-px h-4 bg-white/20" />
+                  <span className="text-white/70 text-[9px]">{propertyDetails.landSize}m²</span>
+                </>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="absolute inset-0 overflow-hidden" style={{ background: "linear-gradient(175deg, #f0ebe0 0%, #c4a878 40%, #6b4a0e 70%, #2a1a06 100%)" }}>
+          <div className="absolute top-0 left-0 right-0 h-[30%]" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.45), transparent)" }} />
+          <div className="absolute bottom-0 left-0 right-0 h-[47%]" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.75), transparent)" }} />
+          <div className="absolute top-[40%] left-0 right-0 text-center">
+            <h3 className="text-white/95 text-2xl leading-tight" style={{ fontFamily: "Georgia, serif", letterSpacing: "1px" }}>
+              {heading}
+            </h3>
+            <p className="text-white/55 text-[9px] uppercase mt-2" style={{ letterSpacing: "3px" }}>
+              {propertyDetails.streetAddress}
+            </p>
+            <p className="text-white/40 text-[9px] uppercase" style={{ letterSpacing: "3px" }}>
+              {propertyDetails.suburb} {propertyDetails.state}
+            </p>
+            {price && (
+              <p className="text-white/80 text-base mt-2" style={{ fontFamily: "Georgia, serif" }}>
+                {price}
+              </p>
+            )}
+          </div>
+          {/* Stats pill */}
+          <div className="absolute bottom-[14%] left-1/2 -translate-x-1/2 flex items-center gap-3 px-5 py-2 rounded-full border border-white/15" style={{ background: "rgba(190,165,130,0.28)" }}>
+            <span className="text-white/85 text-[10px]">{propertyDetails.bedrooms} <span className="text-white/50">bd</span></span>
+            <div className="w-px h-4 bg-white/20" />
+            <span className="text-white/85 text-[10px]">{propertyDetails.bathrooms} <span className="text-white/50">ba</span></span>
+            <div className="w-px h-4 bg-white/20" />
+            <span className="text-white/85 text-[10px]">{propertyDetails.carSpaces} <span className="text-white/50">cr</span></span>
+          </div>
+          {propertyDetails.landSize && (
+            <div className="absolute bottom-[8%] left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full border border-white/10" style={{ background: "rgba(190,165,130,0.18)" }}>
+              <span className="text-white/65 text-[9px]">{propertyDetails.landSize}m²</span>
+            </div>
+          )}
         </div>
       );
     }
@@ -453,9 +609,17 @@ export function StepBranding({
             {heading}
           </h3>
           <div className="w-px self-stretch bg-white/40" />
-          <p className="text-white/90 text-[11px] leading-relaxed whitespace-pre-line">
-            {details}
-          </p>
+          <div>
+            <p className="text-white/90 text-[11px] leading-relaxed whitespace-pre-line">
+              {details}
+            </p>
+            {fmtPrice && (
+              <p className="text-yellow-400 text-sm font-bold mt-1">{fmtPrice}</p>
+            )}
+            {specsLine && (
+              <p className="text-white/70 text-[10px] mt-0.5">{specsLine}</p>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -470,6 +634,25 @@ export function StepBranding({
         </div>
       );
     }
+
+    // Custom uploaded outro image
+    if (settings.outroTemplate === "custom") {
+      if (!settings.customOutroImage) {
+        return (
+          <div className="w-full h-full flex items-center justify-center bg-black/10">
+            <p className="text-muted-foreground text-xs">Upload an outro image</p>
+          </div>
+        );
+      }
+      return (
+        <img
+          src={settings.customOutroImage}
+          alt="Custom outro"
+          className="w-full h-full object-cover"
+        />
+      );
+    }
+
     const isDark = settings.outroTemplate === "classic-dark";
     const bg = isDark ? "bg-black" : "bg-white";
     const textColor = isDark ? "text-white" : "text-foreground";
@@ -615,32 +798,78 @@ export function StepBranding({
                   </SelectContent>
                 </Select>
 
-                <div className="h-px bg-border" />
+                {/* Custom intro upload */}
+                {settings.selectedTemplate === "custom" && (
+                  <div>
+                    <Label className="text-sm font-medium">Upload Intro Image</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5 mb-2">
+                      Upload a 1080×1920 PNG/JPG image for your intro overlay.
+                    </p>
+                    {settings.customIntroImage ? (
+                      <div className="relative inline-block">
+                        <img
+                          src={settings.customIntroImage}
+                          alt="Custom intro"
+                          className="w-32 h-56 object-cover rounded-lg border border-border"
+                        />
+                        <button
+                          onClick={() => updateSettings({ customIntroImage: null })}
+                          className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors">
+                        <Upload className="w-6 h-6 text-muted-foreground mb-1" />
+                        <span className="text-xs text-muted-foreground">Click to upload</span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = () => updateSettings({ customIntroImage: reader.result as string });
+                            reader.readAsDataURL(file);
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                )}
 
-                {/* Heading */}
-                <div>
-                  <Label htmlFor="heading">Heading</Label>
-                  <Input
-                    id="heading"
-                    placeholder="OPEN HOUSE"
-                    value={settings.customTitle}
-                    onChange={(e) => updateSettings({ customTitle: e.target.value })}
-                    className="mt-1.5 h-10"
-                  />
-                </div>
+                {settings.selectedTemplate !== "custom" && (
+                  <>
+                    <div className="h-px bg-border" />
 
-                {/* Details */}
-                <div>
-                  <Label htmlFor="details">Details</Label>
-                  <Textarea
-                    id="details"
-                    placeholder={"27 Alamanda Blvd,\nPoint Cook VIC 3030"}
-                    value={settings.detailsText}
-                    onChange={(e) => updateSettings({ detailsText: e.target.value })}
-                    rows={3}
-                    className="mt-1.5 text-sm"
-                  />
-                </div>
+                    {/* Heading */}
+                    <div>
+                      <Label htmlFor="heading">Heading</Label>
+                      <Input
+                        id="heading"
+                        placeholder="OPEN HOUSE"
+                        value={settings.customTitle}
+                        onChange={(e) => updateSettings({ customTitle: e.target.value })}
+                        className="mt-1.5 h-10"
+                      />
+                    </div>
+
+                    {/* Details */}
+                    <div>
+                      <Label htmlFor="details">Details</Label>
+                      <Textarea
+                        id="details"
+                        placeholder={"27 Alamanda Blvd,\nPoint Cook VIC 3030"}
+                        value={settings.detailsText}
+                        onChange={(e) => updateSettings({ detailsText: e.target.value })}
+                        rows={3}
+                        className="mt-1.5 text-sm"
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -664,7 +893,49 @@ export function StepBranding({
                   </SelectContent>
                 </Select>
 
-                {settings.outroTemplate !== "none" && (
+                {/* Custom outro upload */}
+                {settings.outroTemplate === "custom" && (
+                  <div>
+                    <Label className="text-sm font-medium">Upload Outro Image</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5 mb-2">
+                      Upload a 1080×1920 PNG/JPG image for your outro card.
+                    </p>
+                    {settings.customOutroImage ? (
+                      <div className="relative inline-block">
+                        <img
+                          src={settings.customOutroImage}
+                          alt="Custom outro"
+                          className="w-32 h-56 object-cover rounded-lg border border-border"
+                        />
+                        <button
+                          onClick={() => updateSettings({ customOutroImage: null })}
+                          className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors">
+                        <Upload className="w-6 h-6 text-muted-foreground mb-1" />
+                        <span className="text-xs text-muted-foreground">Click to upload</span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const reader = new FileReader();
+                            reader.onload = () => updateSettings({ customOutroImage: reader.result as string });
+                            reader.readAsDataURL(file);
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                )}
+
+                {settings.outroTemplate !== "none" && settings.outroTemplate !== "custom" && (
                   <>
                     {/* Profile photo & Brand logo toggles */}
                     <div className="flex items-center gap-6">

@@ -1,12 +1,8 @@
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
+import { corsHeaders } from "../_shared/cors.ts";
 
   import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  };
 
   const SHOTSTACK_API_KEY = Deno.env.get("SHOTSTACK_API_KEY");
 
@@ -26,6 +22,7 @@
     "cinematic": "Cinematic",
     "luxury": "Luxury",
     "real-estate-pro": "Real Estate Pro",
+    "warm-elegance": "Warm Elegance",
   };
 
   // Helper function to upload base64 image to Supabase Storage
@@ -145,6 +142,8 @@
     detailsText?: string; // Free-text details shown on intro overlay (e.g. address, date)
     videoId?: string;
     outputFormat?: "portrait" | "landscape"; // "portrait" = 9:16 (default), "landscape" = 16:9
+    customIntroImage?: string; // base64 custom intro overlay image
+    customOutroImage?: string; // base64 custom outro overlay image
   }
 
   // ============================================================
@@ -157,6 +156,16 @@
     const num = parseInt(price.replace(/[^0-9]/g, ""));
     if (isNaN(num)) return price;
     return num.toLocaleString("en-US");
+  }
+
+  // Build property specs text (e.g., "3 Bed  •  2 Bath  •  2 Car  •  512m²")
+  function buildSpecsText(propertyData: StitchVideoRequest["propertyData"]): string {
+    const parts: string[] = [];
+    if (propertyData.beds) parts.push(`${propertyData.beds} Bed`);
+    if (propertyData.baths) parts.push(`${propertyData.baths} Bath`);
+    if (propertyData.carSpaces) parts.push(`${propertyData.carSpaces} Car`);
+    if (propertyData.landSize) parts.push(`${propertyData.landSize}m²`);
+    return parts.join("  •  ");
   }
 
   /**
@@ -287,104 +296,130 @@
 
   // ── Template-specific overlay generators ──────────────────
 
-  /** Open House: dark navy banner at bottom, heading left | divider | details right */
+  /** Open House: dark navy banner at bottom, heading left | divider | details + price right */
   function generateOpenHouseLayout(
     title: string,
     detailsText: string,
     propertyData: StitchVideoRequest["propertyData"]
   ): string {
     const details = detailsText || getAustralianAddress(propertyData);
+    const price = propertyData.price ? `$${formatPrice(propertyData.price)}` : "";
+    const specs = buildSpecsText(propertyData);
     return `
       <div style="position:relative;width:100%;height:100%;font-family:Helvetica,Arial,sans-serif;color:white;">
         <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(47,64,80,0.92);padding:32px 40px;display:flex;align-items:center;">
           <div style="font-size:44px;font-weight:900;letter-spacing:3px;text-transform:uppercase;white-space:nowrap;">${title}</div>
           <div style="width:2px;align-self:stretch;background:rgba(255,255,255,0.4);margin:0 28px;min-height:44px;"></div>
-          <div style="font-size:22px;font-weight:500;line-height:1.5;opacity:0.85;white-space:pre-line;">${details}</div>
+          <div>
+            <div style="font-size:22px;font-weight:500;line-height:1.5;opacity:0.85;white-space:pre-line;">${details}</div>
+            ${price ? `<div style="font-size:28px;font-weight:800;color:#f5c518;margin-top:8px;">${price}</div>` : ""}
+            ${specs ? `<div style="font-size:18px;font-weight:600;opacity:0.75;margin-top:4px;">${specs}</div>` : ""}
+          </div>
         </div>
       </div>
     `;
   }
 
-  /** Newly Listed: centered serif heading + italic address over bottom gradient */
+  /** Newly Listed: centered serif heading + italic address + price over bottom gradient */
   function generateNewlyListedLayout(
     title: string,
     detailsText: string,
     propertyData: StitchVideoRequest["propertyData"]
   ): string {
     const details = detailsText || getAustralianAddress(propertyData);
+    const price = propertyData.price ? `$${formatPrice(propertyData.price)}` : "";
+    const specs = buildSpecsText(propertyData);
     return `
       <div style="position:relative;width:100%;height:100%;font-family:Georgia,'Times New Roman',serif;color:white;">
         <div style="position:absolute;bottom:0;left:0;right:0;padding:80px 48px 60px;background:linear-gradient(to top,rgba(0,0,0,0.65),transparent);text-align:center;">
           <div style="font-size:56px;font-weight:700;margin-bottom:16px;">${title}</div>
           <div style="font-size:28px;font-weight:400;font-style:italic;opacity:0.85;line-height:1.5;white-space:pre-line;">${details}</div>
+          ${price ? `<div style="font-size:32px;font-weight:700;color:#f5c518;margin-top:12px;">${price}</div>` : ""}
+          ${specs ? `<div style="font-size:20px;font-weight:500;font-family:Helvetica,Arial,sans-serif;opacity:0.75;margin-top:8px;">${specs}</div>` : ""}
         </div>
       </div>
     `;
   }
 
-  /** Big and Bold: large centered uppercase heading + small address */
+  /** Big and Bold: large centered uppercase heading + address + price + specs */
   function generateBigBoldLayout(
     title: string,
     detailsText: string,
     propertyData: StitchVideoRequest["propertyData"]
   ): string {
     const details = detailsText || getAustralianAddress(propertyData);
+    const price = propertyData.price ? `$${formatPrice(propertyData.price)}` : "";
+    const specs = buildSpecsText(propertyData);
     return `
       <div style="position:relative;width:100%;height:100%;font-family:Helvetica,Arial,sans-serif;color:white;">
         <div style="position:absolute;bottom:0;left:0;right:0;padding:80px 48px 60px;background:linear-gradient(to top,rgba(0,0,0,0.7),rgba(0,0,0,0.3),transparent);text-align:center;">
           <div style="font-size:72px;font-weight:900;letter-spacing:6px;text-transform:uppercase;margin-bottom:16px;">${title}</div>
           <div style="font-size:22px;font-weight:400;opacity:0.8;letter-spacing:2px;white-space:pre-line;">${details}</div>
+          ${price ? `<div style="font-size:32px;font-weight:800;color:#f5c518;margin-top:12px;">${price}</div>` : ""}
+          ${specs ? `<div style="font-size:20px;font-weight:600;opacity:0.7;margin-top:8px;">${specs}</div>` : ""}
         </div>
       </div>
     `;
   }
 
-  /** White on Black: solid black bar at bottom, white centered text */
+  /** White on Black: solid black bar at bottom, white centered text + price */
   function generateWhiteOnBlackLayout(
     title: string,
     detailsText: string,
     propertyData: StitchVideoRequest["propertyData"]
   ): string {
     const details = detailsText || getAustralianAddress(propertyData);
+    const price = propertyData.price ? `$${formatPrice(propertyData.price)}` : "";
+    const specs = buildSpecsText(propertyData);
     return `
       <div style="position:relative;width:100%;height:100%;font-family:Helvetica,Arial,sans-serif;color:white;">
         <div style="position:absolute;bottom:0;left:0;right:0;background:#000;padding:40px 48px;text-align:center;">
           <div style="font-size:44px;font-weight:800;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;">${title}</div>
           <div style="font-size:22px;font-weight:400;opacity:0.7;white-space:pre-line;">${details}</div>
+          ${price ? `<div style="font-size:28px;font-weight:800;color:#f5c518;margin-top:8px;">${price}</div>` : ""}
+          ${specs ? `<div style="font-size:18px;font-weight:600;opacity:0.6;margin-top:4px;">${specs}</div>` : ""}
         </div>
       </div>
     `;
   }
 
-  /** Simple White: white bar at bottom, dark text centered */
+  /** Simple White: white bar at bottom, dark text centered + price */
   function generateSimpleWhiteLayout(
     title: string,
     detailsText: string,
     propertyData: StitchVideoRequest["propertyData"]
   ): string {
     const details = detailsText || getAustralianAddress(propertyData);
+    const price = propertyData.price ? `$${formatPrice(propertyData.price)}` : "";
+    const specs = buildSpecsText(propertyData);
     return `
       <div style="position:relative;width:100%;height:100%;font-family:Helvetica,Arial,sans-serif;">
         <div style="position:absolute;bottom:0;left:0;right:0;background:#fff;padding:40px 48px;text-align:center;">
           <div style="font-size:44px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:#111;margin-bottom:8px;">${title}</div>
           <div style="font-size:22px;font-weight:400;color:#666;white-space:pre-line;">${details}</div>
+          ${price ? `<div style="font-size:28px;font-weight:800;color:#111;margin-top:8px;">${price}</div>` : ""}
+          ${specs ? `<div style="font-size:18px;font-weight:600;color:#888;margin-top:4px;">${specs}</div>` : ""}
         </div>
       </div>
     `;
   }
 
-  /** Modern Treehouse: subtle bottom gradient, left-aligned text */
+  /** Modern Treehouse: subtle bottom gradient, left-aligned text + price */
   function generateModernTreehouseLayout(
     title: string,
     detailsText: string,
     propertyData: StitchVideoRequest["propertyData"]
   ): string {
     const details = detailsText || getAustralianAddress(propertyData);
+    const price = propertyData.price ? `$${formatPrice(propertyData.price)}` : "";
+    const specs = buildSpecsText(propertyData);
     return `
       <div style="position:relative;width:100%;height:100%;font-family:Helvetica,Arial,sans-serif;color:white;">
         <div style="position:absolute;bottom:0;left:0;right:0;padding:60px 48px 48px;background:linear-gradient(to top,rgba(0,0,0,0.55),transparent);">
           <div style="font-size:44px;font-weight:600;letter-spacing:1px;margin-bottom:8px;">${title}</div>
           <div style="font-size:22px;font-weight:400;opacity:0.7;white-space:pre-line;">${details}</div>
+          ${price ? `<div style="font-size:28px;font-weight:700;color:#f5c518;margin-top:8px;">${price}</div>` : ""}
+          ${specs ? `<div style="font-size:18px;font-weight:600;opacity:0.65;margin-top:4px;">${specs}</div>` : ""}
         </div>
       </div>
     `;
@@ -460,13 +495,15 @@
     `;
   }
 
-  /** Minimal Focus (competitor style): centered uppercase heading, frosted glass address box */
+  /** Minimal Focus (competitor style): centered uppercase heading, frosted glass address + price box */
   function generateMinimalFocusV2Layout(
     title: string,
     detailsText: string,
     propertyData: StitchVideoRequest["propertyData"]
   ): string {
     const details = detailsText || getAustralianAddress(propertyData);
+    const price = propertyData.price ? `$${formatPrice(propertyData.price)}` : "";
+    const specs = buildSpecsText(propertyData);
     return `
       <div style="position:relative;width:100%;height:100%;font-family:Helvetica,Arial,sans-serif;color:white;text-align:center;">
         <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:85%;">
@@ -481,8 +518,79 @@
             font-weight:500;
             white-space:pre-line;
             line-height:1.5;
-          ">${details}</td></tr></table>
+          ">${details}${price ? `<br/><span style="color:#f5c518;font-weight:800;font-size:28px;">${price}</span>` : ""}${specs ? `<br/><span style="font-size:18px;opacity:0.75;">${specs}</span>` : ""}</td></tr></table>
         </div>
+      </div>
+    `;
+  }
+
+  /** Warm Elegance: warm golden gradient, serif title, frosted stats pill */
+  function generateWarmEleganceLayout(
+    title: string,
+    detailsText: string,
+    propertyData: StitchVideoRequest["propertyData"],
+    outputFormat: string = "portrait"
+  ): string {
+    const streetAddress = propertyData.streetAddress || "";
+    const suburb = propertyData.suburb || "";
+    const state = propertyData.state || "";
+    const price = propertyData.price ? `$${formatPrice(propertyData.price)}` : "";
+    const beds = propertyData.beds || 4;
+    const baths = propertyData.baths || 3;
+    const cars = propertyData.carSpaces || 2;
+    const land = propertyData.landSize;
+
+    if (outputFormat === "landscape") {
+      return `
+        <div style="position:relative;width:1920px;height:1080px;overflow:hidden;background:#1a1410;font-family:Georgia,serif;">
+          <div style="position:absolute;top:0;left:0;width:1920px;height:1080px;background:linear-gradient(160deg,#c8b89a 0%,#a07840 30%,#6b4a18 55%,#2e1e08 80%,#0e0a04 100%);"></div>
+          <div style="position:absolute;top:0;right:0;width:900px;height:500px;background:linear-gradient(220deg,rgba(210,195,170,0.55) 0%,rgba(180,155,110,0.2) 50%,rgba(0,0,0,0) 100%);"></div>
+          <div style="position:absolute;top:0;left:0;width:1920px;height:500px;background:linear-gradient(to bottom,rgba(0,0,0,0.55) 0%,rgba(0,0,0,0) 100%);"></div>
+          <div style="position:absolute;bottom:0;left:0;width:1920px;height:600px;background:linear-gradient(to top,rgba(0,0,0,0.80) 0%,rgba(0,0,0,0) 100%);"></div>
+          <div style="position:absolute;top:330px;left:0;width:1920px;text-align:center;font-family:Georgia,serif;font-size:130px;font-weight:normal;font-style:italic;color:rgba(255,255,255,0.96);letter-spacing:1px;line-height:1;">${title}</div>
+          <div style="position:absolute;top:482px;left:0;width:1920px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:normal;color:rgba(255,255,255,0.60);letter-spacing:4px;text-transform:uppercase;">${streetAddress}, ${suburb} ${state}</div>
+          <div style="position:absolute;top:530px;left:0;width:1920px;text-align:center;font-family:Georgia,serif;font-size:52px;font-weight:normal;color:rgba(255,255,255,0.88);letter-spacing:1px;">${price}</div>
+          <div style="position:absolute;bottom:160px;left:660px;width:600px;height:82px;background:rgba(180,155,120,0.30);border-radius:60px;border:1px solid rgba(255,255,255,0.16);">
+            <div style="position:absolute;top:22px;left:50px;font-family:Arial,Helvetica,sans-serif;font-size:28px;color:rgba(255,255,255,0.90);">${beds}</div>
+            <div style="position:absolute;top:24px;left:90px;font-family:Arial,Helvetica,sans-serif;font-size:22px;color:rgba(255,255,255,0.55);">bd</div>
+            <div style="position:absolute;top:16px;left:130px;width:1px;height:50px;background:rgba(255,255,255,0.18);"></div>
+            <div style="position:absolute;top:22px;left:150px;font-family:Arial,Helvetica,sans-serif;font-size:28px;color:rgba(255,255,255,0.90);">${baths}</div>
+            <div style="position:absolute;top:24px;left:190px;font-family:Arial,Helvetica,sans-serif;font-size:22px;color:rgba(255,255,255,0.55);">ba</div>
+            <div style="position:absolute;top:16px;left:238px;width:1px;height:50px;background:rgba(255,255,255,0.18);"></div>
+            <div style="position:absolute;top:22px;left:258px;font-family:Arial,Helvetica,sans-serif;font-size:28px;color:rgba(255,255,255,0.90);">${cars}</div>
+            <div style="position:absolute;top:24px;left:298px;font-family:Arial,Helvetica,sans-serif;font-size:22px;color:rgba(255,255,255,0.55);">cr</div>
+            ${land ? `
+            <div style="position:absolute;top:16px;left:346px;width:1px;height:50px;background:rgba(255,255,255,0.18);"></div>
+            <div style="position:absolute;top:22px;left:370px;font-family:Arial,Helvetica,sans-serif;font-size:24px;color:rgba(255,255,255,0.72);">${land}m²</div>
+            ` : ""}
+          </div>
+        </div>
+      `;
+    }
+
+    // Portrait (default)
+    return `
+      <div style="position:relative;width:1080px;height:1920px;overflow:hidden;background:#1a1410;font-family:Georgia,serif;">
+        <div style="position:absolute;top:0;left:0;width:1080px;height:1920px;background:linear-gradient(175deg,#f0ebe0 0%,#c4a878 40%,#6b4a0e 70%,#2a1a06 100%);"></div>
+        <div style="position:absolute;top:0;left:0;width:1080px;height:600px;background:linear-gradient(to bottom,rgba(0,0,0,0.45) 0%,rgba(0,0,0,0) 100%);"></div>
+        <div style="position:absolute;bottom:0;left:0;width:1080px;height:900px;background:linear-gradient(to top,rgba(0,0,0,0.75) 0%,rgba(0,0,0,0) 100%);"></div>
+        <div style="position:absolute;top:760px;left:0;width:1080px;text-align:center;font-family:Georgia,serif;font-size:112px;font-weight:normal;color:rgba(255,255,255,0.95);letter-spacing:2px;line-height:1.1;">${title}</div>
+        <div style="position:absolute;top:900px;left:0;width:1080px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:28px;font-weight:300;color:rgba(255,255,255,0.58);letter-spacing:5px;text-transform:uppercase;">${streetAddress}</div>
+        <div style="position:absolute;top:944px;left:0;width:1080px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:28px;font-weight:300;color:rgba(255,255,255,0.45);letter-spacing:5px;text-transform:uppercase;">${suburb} ${state}</div>
+        <div style="position:absolute;top:1010px;left:0;width:1080px;text-align:center;font-family:Georgia,serif;font-size:58px;font-weight:normal;color:rgba(255,255,255,0.82);letter-spacing:1px;">${price}</div>
+        <div style="position:absolute;bottom:220px;left:290px;width:500px;height:88px;background:rgba(190,165,130,0.28);border-radius:60px;border:1px solid rgba(255,255,255,0.14);">
+          <div style="position:absolute;top:22px;left:50px;font-family:Arial,Helvetica,sans-serif;font-size:32px;font-weight:300;color:rgba(255,255,255,0.88);">${beds}</div>
+          <div style="position:absolute;top:24px;left:90px;font-family:Arial,Helvetica,sans-serif;font-size:26px;color:rgba(255,255,255,0.55);">bd</div>
+          <div style="position:absolute;top:20px;left:162px;width:1px;height:48px;background:rgba(255,255,255,0.18);"></div>
+          <div style="position:absolute;top:22px;left:182px;font-family:Arial,Helvetica,sans-serif;font-size:32px;font-weight:300;color:rgba(255,255,255,0.88);">${baths}</div>
+          <div style="position:absolute;top:24px;left:222px;font-family:Arial,Helvetica,sans-serif;font-size:26px;color:rgba(255,255,255,0.55);">ba</div>
+          <div style="position:absolute;top:20px;left:294px;width:1px;height:48px;background:rgba(255,255,255,0.18);"></div>
+          <div style="position:absolute;top:22px;left:314px;font-family:Arial,Helvetica,sans-serif;font-size:32px;font-weight:300;color:rgba(255,255,255,0.88);">${cars}</div>
+          <div style="position:absolute;top:24px;left:354px;font-family:Arial,Helvetica,sans-serif;font-size:26px;color:rgba(255,255,255,0.55);">cr</div>
+        </div>
+        ${land ? `<div style="position:absolute;bottom:120px;left:390px;width:300px;height:70px;background:rgba(190,165,130,0.18);border-radius:60px;border:1px solid rgba(255,255,255,0.10);">
+          <div style="position:absolute;top:16px;left:0;width:300px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:28px;font-weight:300;color:rgba(255,255,255,0.68);letter-spacing:1px;">${land}m²</div>
+        </div>` : ""}
       </div>
     `;
   }
@@ -544,13 +652,38 @@
       });
     }
 
+    // Price (e.g. "$1,250,000")
+    if (propertyData.price) {
+      const priceNum = parseInt(propertyData.price.replace(/[^0-9]/g, ""));
+      const formattedPrice = !isNaN(priceNum) ? `$${priceNum.toLocaleString("en-US")}` : `$${propertyData.price}`;
+      elements.push({
+        text: formattedPrice,
+        style: `font-family:Helvetica,Arial,sans-serif;color:#f5c518;font-size:${isPortrait ? 44 : 34}px;font-weight:800;letter-spacing:1px;`,
+        delay: 0.6,
+      });
+    }
+
+    // Property specs (e.g. "3 Bed  •  2 Bath  •  2 Car  •  512m²")
+    const specParts: string[] = [];
+    if (propertyData.beds) specParts.push(`${propertyData.beds} Bed`);
+    if (propertyData.baths) specParts.push(`${propertyData.baths} Bath`);
+    if (propertyData.carSpaces) specParts.push(`${propertyData.carSpaces} Car`);
+    if (propertyData.landSize) specParts.push(`${propertyData.landSize}m²`);
+    if (specParts.length > 0) {
+      elements.push({
+        text: specParts.join("  •  "),
+        style: `font-family:Helvetica,Arial,sans-serif;color:rgba(255,255,255,0.85);font-size:${isPortrait ? 26 : 20}px;font-weight:600;letter-spacing:1px;`,
+        delay: 0.9,
+      });
+    }
+
     // Property type (e.g. "HOUSE", "APARTMENT")
     const propType = propertyData.propertyType || "";
     if (propType) {
       elements.push({
         text: propType.toUpperCase(),
         style: `font-family:Helvetica,Arial,sans-serif;color:rgba(255,255,255,0.8);font-size:${isPortrait ? 26 : 20}px;font-weight:500;letter-spacing:2px;`,
-        delay: 0.8,
+        delay: 1.2,
       });
     }
 
@@ -560,11 +693,11 @@
       elements.push({
         text: saleMethod.toUpperCase(),
         style: `font-family:Helvetica,Arial,sans-serif;color:#f5c518;font-size:${isPortrait ? 28 : 22}px;font-weight:700;letter-spacing:2px;`,
-        delay: 1.1,
+        delay: 1.5,
       });
     }
 
-    // Fallback: if no structured data, use the title + details as two elements
+    // Fallback: if no structured data, use the title + details + price as elements
     if (elements.length === 0) {
       elements.push({
         text: title.toUpperCase(),
@@ -579,10 +712,19 @@
           delay: 0.3,
         });
       }
+      if (propertyData.price) {
+        const priceNum = parseInt(propertyData.price.replace(/[^0-9]/g, ""));
+        const formattedPrice = !isNaN(priceNum) ? `$${priceNum.toLocaleString("en-US")}` : `$${propertyData.price}`;
+        elements.push({
+          text: formattedPrice,
+          style: `font-family:Helvetica,Arial,sans-serif;color:#f5c518;font-size:${isPortrait ? 44 : 34}px;font-weight:800;letter-spacing:1px;`,
+          delay: 0.6,
+        });
+      }
     }
 
     // Background banner track (dark overlay behind text area)
-    const bannerHeight = isPortrait ? 420 : 260;
+    const bannerHeight = isPortrait ? 520 : 320;
     const bgTrack = {
       clips: [{
         asset: {
@@ -663,6 +805,8 @@
         return generateModernLuxeV2Layout(title, details, propertyData);
       case "minimal-focus":
         return generateMinimalFocusV2Layout(title, details, propertyData);
+      case "warm-elegance":
+        return generateWarmEleganceLayout(title, details, propertyData);
       case "none":
         return ""; // No overlay
       // Legacy layout ids
@@ -831,7 +975,7 @@
         }
       }
 
-      const { videoUrls, imageUrls, imageEffects, cameraAngles, clipDurations, propertyData, audioUrl, musicUrl, musicTrimStart, musicTrimEnd, agentInfo, style, layout, customTitle, detailsText, videoId, outputFormat, fallbackSlots } = rawBody as unknown as StitchVideoRequest;
+      const { videoUrls, imageUrls, imageEffects, cameraAngles, clipDurations, propertyData, audioUrl, musicUrl, musicTrimStart, musicTrimEnd, agentInfo, style, layout, customTitle, detailsText, videoId, outputFormat, fallbackSlots, customIntroImage, customOutroImage } = rawBody as unknown as StitchVideoRequest;
 
       // Ken Burns mode: raw property photos + Shotstack effects
       // AI mode: pre-generated video clips from Luma/Runway
@@ -892,6 +1036,30 @@
         console.log("No agent photo provided in agentInfo");
       }
 
+      // Upload custom intro/outro images to storage if provided
+      let customIntroUrl: string | null = null;
+      let customOutroUrl: string | null = null;
+
+      if (customIntroImage) {
+        console.log("Uploading custom intro image to storage...");
+        let ext = "png";
+        if (customIntroImage.includes("data:image/jpeg") || customIntroImage.includes("data:image/jpg")) ext = "jpg";
+        else if (customIntroImage.includes("data:image/webp")) ext = "webp";
+        const introFileName = `custom-intro-${videoId || Date.now()}.${ext}`;
+        customIntroUrl = await uploadBase64ToStorage(customIntroImage, introFileName, "custom-templates");
+        console.log("Custom intro URL:", customIntroUrl);
+      }
+
+      if (customOutroImage) {
+        console.log("Uploading custom outro image to storage...");
+        let ext = "png";
+        if (customOutroImage.includes("data:image/jpeg") || customOutroImage.includes("data:image/jpg")) ext = "jpg";
+        else if (customOutroImage.includes("data:image/webp")) ext = "webp";
+        const outroFileName = `custom-outro-${videoId || Date.now()}.${ext}`;
+        customOutroUrl = await uploadBase64ToStorage(customOutroImage, outroFileName, "custom-templates");
+        console.log("Custom outro URL:", customOutroUrl);
+      }
+
       // Use provided clip durations or default to 3.5 seconds each.
       // Clamp every duration to a minimum of 1s — Shotstack rejects 0, negative, or NaN lengths.
       // Pad to match sourceUrls length if arrays differ in length.
@@ -919,7 +1087,7 @@
       // Calculate total duration (AI mode subtracts overlap between adjacent clips)
       const overlapCount = isKenBurns ? 0 : Math.max(0, effectiveDurations.length - 1);
       const videoClipsDuration = effectiveDurations.reduce((sum, duration) => sum + duration, 0) - (TRANSITION_OVERLAP * overlapCount);
-      const agentCardDuration = (agentInfo && agentInfo.name) ? 4 : 0; // Fixed 4s outro — enough to read CTA without dragging
+      const agentCardDuration = (customOutroUrl || (agentInfo && agentInfo.name)) ? 4 : 0; // Fixed 4s outro — enough to read CTA without dragging
       const totalDuration = videoClipsDuration + agentCardDuration;
 
       console.log("Clip durations (raw):", durations);
@@ -1037,9 +1205,19 @@
               ],
             }] : []),
 
-            // Agent photo - Track 1 (TOP - separate image asset)
-            // Only include if we have a valid uploaded URL (never use base64 as src — Shotstack can't download it)
-            ...(agentPhotoUrl ? [{
+            // Custom outro image OR agent card tracks
+            ...(customOutroUrl ? [{
+              clips: [{
+                asset: { type: "image", src: customOutroUrl },
+                start: videoClipsDuration,
+                length: agentCardDuration > 0 ? agentCardDuration : 4,
+                fit: "cover",
+                transition: { in: "fade" },
+              }],
+            }] : []),
+
+            // Agent photo - Track 1 (TOP - separate image asset) — skip if custom outro
+            ...(!customOutroUrl && agentPhotoUrl ? [{
               clips: [
                 {
                   asset: {
@@ -1061,8 +1239,8 @@
               ],
             }] : []),
 
-            // Agent text details - Track 2 (HTML for text only, no images)
-            ...(agentInfo && agentInfo.name ? [{
+            // Agent text details - Track 2 (HTML for text only, no images) — skip if custom outro
+            ...(!customOutroUrl && agentInfo && agentInfo.name ? [{
               clips: [
                 {
                   asset: {
@@ -1130,31 +1308,41 @@
               ],
             }] : []),
 
-            // Property details — animated multi-track overlay with staggered slide-ins
-            ...generateAnimatedOverlayTracks(
-              layout || "open-house",
-              customTitle,
-              style,
-              propertyData,
-              detailsText,
-              0.1,
-              Math.max(effectiveDurations[0] - 0.1, 0.5),
-              outputFormat || "portrait"
-            ),
-
-            // Property specs icons track (bed, bath, car image icons)
-            {
-              clips: generatePropertySpecsClips(
-                layout || "modern-luxe",
+            // Intro overlay: custom uploaded image OR animated HTML overlay
+            ...(customIntroUrl ? [{
+              clips: [{
+                asset: { type: "image", src: customIntroUrl },
+                start: 0,
+                length: Math.max(effectiveDurations[0], 3.5),
+                fit: "cover",
+                transition: { in: "fade", out: "fade" },
+              }],
+            }] : [
+              // Property details — animated multi-track overlay with staggered slide-ins
+              ...generateAnimatedOverlayTracks(
+                layout || "open-house",
+                customTitle,
+                style,
                 propertyData,
+                detailsText,
                 0.1,
-                Math.max(effectiveDurations[0] - 0.1, 0.5)
+                Math.max(effectiveDurations[0] - 0.1, 0.5),
+                outputFormat || "portrait"
               ),
-            },
 
-            // Agent outro background - First clip/photo blurred (Track 3)
-            // Use sourceUrls[0] which is guaranteed to exist (validated above on line 813).
-            ...(agentInfo && agentInfo.name && sourceUrls[0] ? [{
+              // Property specs icons track (bed, bath, car image icons)
+              {
+                clips: generatePropertySpecsClips(
+                  layout || "modern-luxe",
+                  propertyData,
+                  0.1,
+                  Math.max(effectiveDurations[0] - 0.1, 0.5)
+                ),
+              },
+            ]),
+
+            // Agent outro background - First clip/photo blurred (Track 3) — skip if custom outro
+            ...(!customOutroUrl && agentInfo && agentInfo.name && sourceUrls[0] ? [{
               clips: [
                 {
                   asset: isKenBurns || fallbackSet.has(0)
