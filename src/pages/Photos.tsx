@@ -131,7 +131,7 @@ const ADJUSTMENT_CONTROLS: { key: keyof ImageAdjustments; label: string; icon: t
 
 const SKY_OPTIONS = [
   { value: "blue_sky", label: "Blue Sky" },
-  { value: "golden_hour", label: "Golden Hour" },
+  { value: "sunset", label: "Sunset" },
   { value: "twilight", label: "Twilight" },
 ];
 
