@@ -19,7 +19,7 @@ export default function Billing() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [subscriptionData, setSubscriptionData] = useState<any>(null);
+  const [subscriptionData, setSubscriptionData] = useState<Record<string, unknown> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isManaging, setIsManaging] = useState(false);
 

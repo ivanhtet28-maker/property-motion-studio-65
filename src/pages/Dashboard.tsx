@@ -434,7 +434,7 @@ export default function Dashboard() {
             onClick={(e) => {
               e.stopPropagation();
               const video = e.currentTarget.querySelector("video");
-              if (video) video.paused ? video.play() : video.pause();
+              if (video) { if (video.paused) { video.play(); } else { video.pause(); } }
             }}
             className="max-h-[90vh] max-w-[90vw] cursor-pointer"
           >
