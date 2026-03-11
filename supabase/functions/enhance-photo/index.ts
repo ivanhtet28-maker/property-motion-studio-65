@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    const { error: authErr } = await requireAuth(req);
+    const { user, error: authErr } = await requireAuth(req);
     if (authErr) return authErr;
 
     const { job_id } = await req.json();
@@ -33,6 +33,14 @@ Deno.serve(async (req) => {
 
     if (fetchError || !job) {
       throw new Error(`Job not found: ${fetchError?.message}`);
+    }
+
+    // Verify the authenticated user owns this job
+    if (job.user_id !== user!.id) {
+      return new Response(
+        JSON.stringify({ error: "Not authorized to access this job" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     // 2. Set status to processing
