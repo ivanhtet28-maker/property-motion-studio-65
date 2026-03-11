@@ -61,7 +61,7 @@ export default function Settings() {
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   // Subscription state
-  const [subscriptionData, setSubscriptionData] = useState<any>(null);
+  const [subscriptionData, setSubscriptionData] = useState<Record<string, unknown> | null>(null);
   const [isLoadingSubscription, setIsLoadingSubscription] = useState(true);
   const [isManagingSubscription, setIsManagingSubscription] = useState(false);
 

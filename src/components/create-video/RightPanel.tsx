@@ -180,7 +180,7 @@ Contact us today for a private inspection.`;
               onContextMenu={(e) => e.preventDefault()}
               onClick={(e) => {
                 const video = e.currentTarget.querySelector("video");
-                if (video) video.paused ? video.play() : video.pause();
+                if (video) { if (video.paused) { video.play(); } else { video.pause(); } }
               }}
             >
               <video
