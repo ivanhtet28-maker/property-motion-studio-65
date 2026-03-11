@@ -66,7 +66,7 @@ interface PhotoJob {
   error_message: string | null;
   job_type: "enhance" | "stage";
   enhancements: { enhance?: boolean; sky?: boolean; sky_type?: string };
-  stage_options: { room_type?: string; style?: string; furniture_density?: string; declutter?: boolean; lighting?: string };
+  stage_options: { room_type?: string; style?: string };
 }
 
 interface MlsLabelSettings {
@@ -1286,9 +1286,6 @@ function VirtualStagingTab() {
   const [isDragging, setIsDragging] = useState(false);
   const [roomType, setRoomType] = useState("LIVINGROOM");
   const [designStyle, setDesignStyle] = useState("MODERN");
-  const [furnitureDensity, setFurnitureDensity] = useState("medium");
-  const [declutterEnabled, setDeclutterEnabled] = useState(false);
-  const [lighting, setLighting] = useState("standard");
   const [mlsLabel, setMlsLabel] = useState<MlsLabelSettings>({
     enabled: true,
     text: "Virtually Staged",
@@ -1362,9 +1359,6 @@ function VirtualStagingTab() {
             stage_options: {
               room_type: roomType,
               style: designStyle,
-              furniture_density: furnitureDensity,
-              declutter: declutterEnabled,
-              ...(lighting !== "standard" && { lighting }),
             },
           })
           .select()
@@ -1630,20 +1624,20 @@ function VirtualStagingTab() {
             </div>
           </div>
 
-          {/* Furniture Density */}
-          <div className="space-y-3">
+          {/* Furniture Density — Coming Soon */}
+          <div className="space-y-3 opacity-50 pointer-events-none">
             <label className="text-sm font-medium text-foreground flex items-center gap-2">
               <Layers className="w-4 h-4 text-muted-foreground" /> Furniture Density
+              <span className="px-2 py-0.5 bg-muted text-muted-foreground text-[10px] font-semibold rounded-full uppercase tracking-wider">Coming Soon</span>
             </label>
             <div className="flex gap-3">
               {FURNITURE_DENSITIES.map((density) => (
                 <button
                   key={density.value}
-                  onClick={() => setFurnitureDensity(density.value)}
-                  className={`flex-1 p-4 rounded-xl border-2 transition-all text-left ${
-                    furnitureDensity === density.value
+                  className={`flex-1 p-4 rounded-xl border-2 text-left ${
+                    density.value === "medium"
                       ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/30"
+                      : "border-border"
                   }`}
                 >
                   <p className="text-sm font-medium text-foreground">{density.label}</p>
@@ -1653,23 +1647,25 @@ function VirtualStagingTab() {
             </div>
           </div>
 
-          {/* Declutter Toggle */}
-          <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-card">
+          {/* Declutter Toggle — Coming Soon */}
+          <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-card opacity-50">
             <div>
               <p className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Eraser className="w-4 h-4 text-muted-foreground" /> Declutter First
+                <span className="px-2 py-0.5 bg-muted text-muted-foreground text-[10px] font-semibold rounded-full uppercase tracking-wider">Coming Soon</span>
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Remove existing furniture & clutter before staging — best for partially furnished rooms
               </p>
             </div>
-            <Switch checked={declutterEnabled} onCheckedChange={setDeclutterEnabled} />
+            <Switch checked={false} disabled />
           </div>
 
-          {/* Exterior Lighting */}
-          <div className="space-y-3">
+          {/* Exterior Lighting — Coming Soon */}
+          <div className="space-y-3 opacity-50 pointer-events-none">
             <label className="text-sm font-medium text-foreground flex items-center gap-2">
               <Sunset className="w-4 h-4 text-muted-foreground" /> Exterior Lighting
+              <span className="px-2 py-0.5 bg-muted text-muted-foreground text-[10px] font-semibold rounded-full uppercase tracking-wider">Coming Soon</span>
             </label>
             <div className="flex gap-3">
               {LIGHTING_OPTIONS.map((opt) => {
@@ -1677,11 +1673,10 @@ function VirtualStagingTab() {
                 return (
                   <button
                     key={opt.value}
-                    onClick={() => setLighting(opt.value)}
-                    className={`flex-1 p-4 rounded-xl border-2 transition-all text-left ${
-                      lighting === opt.value
+                    className={`flex-1 p-4 rounded-xl border-2 text-left ${
+                      opt.value === "standard"
                         ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/30"
+                        : "border-border"
                     }`}
                   >
                     <p className="text-sm font-medium text-foreground flex items-center gap-2">
