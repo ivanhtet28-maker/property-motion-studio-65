@@ -130,9 +130,9 @@ const ADJUSTMENT_CONTROLS: { key: keyof ImageAdjustments; label: string; icon: t
 ];
 
 const SKY_OPTIONS = [
-  { value: "DAY", label: "Blue Sky" },
-  { value: "DUSK", label: "Dusk" },
-  { value: "NIGHT", label: "Night" },
+  { value: "DAY", label: "Blue Sky", gradient: "from-sky-300 to-blue-500", description: "Clear blue daytime sky" },
+  { value: "DUSK", label: "Dusk", gradient: "from-orange-400 via-rose-400 to-purple-500", description: "Warm sunset / golden hour tones" },
+  { value: "NIGHT", label: "Night", gradient: "from-indigo-800 to-slate-900", description: "Dramatic twilight sky" },
 ];
 
 const ROOM_TYPES = [
@@ -525,7 +525,7 @@ function PhotoEditTab() {
   // AI Enhancement options
   const [enhanceEnabled, setEnhanceEnabled] = useState(true);
   const [skyEnabled, setSkyEnabled] = useState(false);
-  const [skyType, setSkyType] = useState("blue_sky");
+  const [skyType, setSkyType] = useState("DAY");
 
   // Manual adjustments
   const [adjustments, setAdjustments] = useState<ImageAdjustments>({ ...DEFAULT_ADJUSTMENTS });
@@ -876,20 +876,26 @@ function PhotoEditTab() {
                     <Switch checked={skyEnabled} onCheckedChange={setSkyEnabled} />
                   </div>
                   {skyEnabled && (
-                    <div className="flex gap-2">
-                      {SKY_OPTIONS.map((opt) => (
-                        <button
-                          key={opt.value}
-                          onClick={() => setSkyType(opt.value)}
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                            skyType === opt.value
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-secondary text-foreground hover:bg-accent"
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        {SKY_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.value}
+                            onClick={() => setSkyType(opt.value)}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                              skyType === opt.value
+                                ? "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2 ring-offset-background"
+                                : "bg-secondary text-foreground hover:bg-accent"
+                            }`}
+                          >
+                            <span className={`inline-block w-3 h-3 rounded-full bg-gradient-to-br ${opt.gradient}`} />
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground pl-1">
+                        {SKY_OPTIONS.find((o) => o.value === skyType)?.description}
+                      </p>
                     </div>
                   )}
                 </div>
