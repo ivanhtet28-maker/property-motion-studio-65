@@ -185,7 +185,7 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify({
           input_image_url: resultUrl,
-          sky_type: enhancements.sky_type || "blue_sky",
+          sky_type: enhancements.sky_type || "DAY",
         }),
       });
 

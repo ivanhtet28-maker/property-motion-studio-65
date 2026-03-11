@@ -130,9 +130,9 @@ const ADJUSTMENT_CONTROLS: { key: keyof ImageAdjustments; label: string; icon: t
 ];
 
 const SKY_OPTIONS = [
-  { value: "blue_sky", label: "Blue Sky" },
-  { value: "sunset", label: "Sunset" },
-  { value: "twilight", label: "Twilight" },
+  { value: "DAY", label: "Blue Sky" },
+  { value: "DUSK", label: "Dusk" },
+  { value: "NIGHT", label: "Night" },
 ];
 
 const ROOM_TYPES = [
@@ -142,21 +142,21 @@ const ROOM_TYPES = [
   { value: "DININGROOM", label: "Dining", icon: UtensilsCrossed },
   { value: "OFFICE", label: "Office", icon: Briefcase },
   { value: "BATHROOM", label: "Bath", icon: Bath },
-  { value: "PATIO", label: "Patio", icon: TreePine },
+  { value: "BACK_PATIO", label: "Patio", icon: TreePine },
   { value: "GARAGE", label: "Garage", icon: Car },
-  { value: "NURSERY", label: "Nursery", icon: Baby },
+  { value: "KIDSROOM", label: "Kids Room", icon: Baby },
 ];
 
 const DESIGN_STYLES = [
   { value: "MODERN", label: "Modern", color: "from-slate-400 to-slate-600" },
   { value: "SCANDINAVIAN", label: "Scandi", color: "from-amber-100 to-stone-300" },
-  { value: "LUXURY", label: "Luxury", color: "from-yellow-600 to-amber-800" },
+  { value: "LUXEMODERN", label: "Luxury", color: "from-yellow-600 to-amber-800" },
   { value: "FARMHOUSE", label: "Farmhouse", color: "from-green-300 to-emerald-500" },
   { value: "MINIMALIST", label: "Minimal", color: "from-gray-100 to-gray-300" },
   { value: "INDUSTRIAL", label: "Industrial", color: "from-zinc-500 to-zinc-700" },
   { value: "COASTAL", label: "Coastal", color: "from-sky-200 to-blue-400" },
-  { value: "ART_DECO", label: "Art Deco", color: "from-yellow-400 to-orange-600" },
-  { value: "BOHEMIAN", label: "Boho", color: "from-rose-300 to-orange-400" },
+  { value: "ARTDECO", label: "Art Deco", color: "from-yellow-400 to-orange-600" },
+  { value: "BOHO", label: "Boho", color: "from-rose-300 to-orange-400" },
   { value: "CONTEMPORARY", label: "Contemp.", color: "from-violet-300 to-purple-500" },
 ];
 
