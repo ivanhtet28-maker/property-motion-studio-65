@@ -15,11 +15,14 @@ Deno.serve(async (req) => {
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+  let job_id: string | null = null;
+
   try {
-    const { error: authErr } = await requireAuth(req);
+    const { user, error: authErr } = await requireAuth(req);
     if (authErr) return authErr;
 
-    const { job_id } = await req.json();
+    const body = await req.json();
+    job_id = body.job_id;
     if (!job_id) throw new Error("job_id is required");
 
     console.log("stage-room: starting job", job_id);
@@ -39,6 +42,14 @@ Deno.serve(async (req) => {
       throw new Error(`Job not found: ${fetchError?.message}`);
     }
 
+    // Verify the authenticated user owns this job
+    if (job.user_id !== user!.id) {
+      return new Response(
+        JSON.stringify({ error: "Not authorized to access this job" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // 2. Set status to processing
     await supabase.from("photo_jobs").update({ status: "processing" }).eq("id", job_id);
     console.log("stage-room: status set to processing");
@@ -46,12 +57,9 @@ Deno.serve(async (req) => {
     const stageOptions = job.stage_options || {};
     const roomType = stageOptions.room_type || "LIVINGROOM";
     const designStyle = stageOptions.style || "MODERN";
-    const furnitureDensity = stageOptions.furniture_density || "medium";
-    const declutter = stageOptions.declutter === true;
-    const lighting = stageOptions.lighting || null; // golden_hour or twilight
 
     // 3. Call Decor8 staging API
-    console.log(`stage-room: submitting to Decor8 — room: ${roomType}, style: ${designStyle}, density: ${furnitureDensity}, declutter: ${declutter}, lighting: ${lighting}`);
+    console.log(`stage-room: submitting to Decor8 — room: ${roomType}, style: ${designStyle}`);
 
     const requestBody: Record<string, unknown> = {
       input_image_url: job.original_url,
@@ -59,21 +67,6 @@ Deno.serve(async (req) => {
       design_style: designStyle,
       num_images: 4,
     };
-
-    // Pass furniture density hint if supported
-    if (furnitureDensity !== "medium") {
-      requestBody.furniture_density = furnitureDensity;
-    }
-
-    // Pass declutter flag if enabled
-    if (declutter) {
-      requestBody.declutter = true;
-    }
-
-    // Pass lighting mode for day-to-dusk / golden hour effects
-    if (lighting && lighting !== "standard") {
-      requestBody.lighting = lighting;
-    }
 
     const stageRes = await fetch("https://api.decor8.ai/generate_designs_for_room", {
       method: "POST",
@@ -90,7 +83,8 @@ Deno.serve(async (req) => {
     }
 
     const stageData = await stageRes.json();
-    console.log("stage-room: Decor8 response received");
+    console.log("stage-room: Decor8 response keys:", Object.keys(stageData));
+    console.log("stage-room: Decor8 response (truncated):", JSON.stringify(stageData).slice(0, 500));
 
     // Extract image URLs — handle variable response shapes
     let stagedUrls: string[] = [];
@@ -116,8 +110,8 @@ Deno.serve(async (req) => {
     console.log(`stage-room: ${stagedUrls.length} staged image(s) received`);
 
     if (stagedUrls.length === 0) {
-      console.warn("stage-room: no images in response, full response:", JSON.stringify(stageData));
-      throw new Error("No staged images returned from Decor8");
+      console.error("stage-room: no images in response, full response:", JSON.stringify(stageData));
+      throw new Error(`No staged images returned from Decor8. Response keys: ${Object.keys(stageData).join(", ")}`);
     }
 
     // 4. Save results
@@ -139,10 +133,9 @@ Deno.serve(async (req) => {
   } catch (err) {
     console.error("stage-room error:", err);
 
-    // Try to update the job as failed
-    try {
-      const { job_id } = await req.clone().json().catch(() => ({ job_id: null }));
-      if (job_id) {
+    // Mark the job as failed so the frontend knows
+    if (job_id) {
+      try {
         await supabase
           .from("photo_jobs")
           .update({
@@ -151,8 +144,10 @@ Deno.serve(async (req) => {
             updated_at: new Date().toISOString(),
           })
           .eq("id", job_id);
+      } catch (updateErr) {
+        console.error("stage-room: failed to mark job as failed:", updateErr);
       }
-    } catch { /* ignore */ }
+    }
 
     return new Response(
       JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),

@@ -13,34 +13,46 @@ import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 
 const plans = [
   {
+    id: "free",
+    name: "Free",
+    price: 0,
+    videos: 2,
+    description: "Try it out",
+  },
+  {
     id: "starter",
     name: "Starter",
-    price: 299,
-    videos: 10,
-    description: "Perfect for solo agents",
+    price: 49,
+    videos: 3,
+    description: "For individuals",
   },
   {
     id: "growth",
     name: "Growth",
-    price: 499,
-    videos: 30,
-    description: "For busy agents",
-    current: true,
+    price: 99,
+    videos: 10,
+    description: "For growing teams",
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    price: 179,
+    videos: 20,
+    description: "For agencies & teams",
   },
   {
     id: "enterprise",
     name: "Enterprise",
-    price: "Custom",
+    price: "Custom" as unknown as number,
     videos: -1,
-    description: "For agencies & teams",
+    description: "Custom videos, seats & integrations",
   },
 ];
 
 const billingHistory = [
-  { date: "Jan 15, 2025", description: "Growth Plan", amount: "$499.00" },
-  { date: "Dec 15, 2024", description: "Growth Plan", amount: "$499.00" },
-  { date: "Nov 15, 2024", description: "Growth Plan", amount: "$499.00" },
-  { date: "Oct 15, 2024", description: "Starter Plan", amount: "$299.00" },
+  { date: "Feb 15, 2026", description: "Growth Plan", amount: "A$99.00" },
+  { date: "Jan 15, 2026", description: "Growth Plan", amount: "A$99.00" },
+  { date: "Dec 15, 2025", description: "Starter Plan", amount: "A$49.00" },
 ];
 
 export default function Settings() {
@@ -116,7 +128,7 @@ export default function Settings() {
   };
 
   // Determine current plan from subscription data
-  const currentPlan = subscriptionData?.subscription_plan || "starter";
+  const currentPlan = subscriptionData?.subscription_plan || "free";
   const subscriptionStatus = subscriptionData?.subscription_status;
   const isActive = subscriptionStatus === "active" || subscriptionStatus === "trialing";
 
@@ -326,7 +338,7 @@ export default function Settings() {
                       <h3 className="text-lg font-semibold text-foreground">Active Subscription</h3>
                       <p className="text-sm text-muted-foreground mt-1">
                         {subscriptionData.videos_used_this_period || 0} of{" "}
-                        {currentPlan === "growth" ? "30" : currentPlan === "starter" ? "10" : "unlimited"} videos used this period
+                        {currentPlan === "enterprise" ? "Custom" : currentPlan === "pro" ? "20" : currentPlan === "growth" ? "10" : currentPlan === "starter" ? "3" : "2"} videos used this period
                       </p>
                       {subscriptionData.subscription_period_end && (
                         <p className="text-xs text-muted-foreground mt-1">
@@ -359,7 +371,7 @@ export default function Settings() {
               ) : null}
 
               {/* Current Plan */}
-              <div className="grid md:grid-cols-3 gap-6">
+              <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-4">
                 {plans.map((plan) => {
                   const isCurrent = plan.id === currentPlan && isActive;
                   return (
@@ -384,7 +396,7 @@ export default function Settings() {
                       </p>
                       <div className="mt-4">
                         <span className="text-3xl font-bold">
-                          {typeof plan.price === 'number' ? `$${plan.price}` : plan.price}
+                          {typeof plan.price === 'number' ? `A$${plan.price}` : plan.price}
                         </span>
                         {typeof plan.price === 'number' && (
                           <span className={`text-sm ${isCurrent ? "opacity-80" : "text-muted-foreground"}`}>
@@ -393,20 +405,28 @@ export default function Settings() {
                         )}
                       </div>
                       <p className={`mt-2 text-sm ${isCurrent ? "opacity-80" : "text-muted-foreground"}`}>
-                        {plan.videos === -1 ? "Unlimited" : plan.videos} videos/month
+                        {plan.id === "enterprise" ? "Custom" : plan.videos} videos/month
                       </p>
                       {isCurrent ? (
                         <div className="mt-6 flex items-center gap-2 text-sm">
                           <Check className="w-4 h-4" />
-                          {subscriptionData?.videos_used_this_period || 0} of {plan.videos === -1 ? "unlimited" : plan.videos} used
+                          {subscriptionData?.videos_used_this_period || 0} of {plan.id === "enterprise" ? "custom" : plan.videos} used
                         </div>
+                      ) : plan.id === "enterprise" ? (
+                        <Button
+                          variant="outline"
+                          className="w-full mt-6"
+                          asChild
+                        >
+                          <a href="mailto:hello@propertymotion.com.au">Contact Us</a>
+                        </Button>
                       ) : (
                         <Button
-                          variant={isCurrent ? "secondary" : "outline"}
+                          variant="outline"
                           className="w-full mt-6"
                           onClick={() => navigate("/#pricing")}
                         >
-                          {plan.id === 'enterprise' ? 'Contact Sales' : (typeof plan.price === 'number' && plan.price > 499) ? "Upgrade" : "Change Plan"}
+                          Change Plan
                         </Button>
                       )}
                     </div>
@@ -424,29 +444,36 @@ export default function Settings() {
                     <thead>
                       <tr className="border-b border-border">
                         <th className="text-left p-4 font-medium text-muted-foreground">Feature</th>
+                        <th className="text-center p-4 font-medium text-muted-foreground">Free</th>
                         <th className="text-center p-4 font-medium text-muted-foreground">Starter</th>
                         <th className="text-center p-4 font-medium text-muted-foreground bg-accent">
                           Growth
                         </th>
+                        <th className="text-center p-4 font-medium text-muted-foreground">Pro</th>
                         <th className="text-center p-4 font-medium text-muted-foreground">Enterprise</th>
                       </tr>
                     </thead>
                     <tbody>
                       {[
-                        ["Videos per month", "10", "30", "Unlimited"],
-                        ["HD Quality", "✓", "✓", "✓"],
-                        ["All Templates", "✓", "✓", "✓"],
-                        ["Agent Branding", "✓", "✓", "✓"],
-                        ["Priority Support", "—", "✓", "✓"],
-                        ["Analytics", "—", "✓", "✓"],
-                        ["White Label", "—", "—", "✓"],
-                        ["Multi-user", "—", "—", "✓"],
-                        ["API Access", "—", "—", "✓"],
-                      ].map(([feature, starter, growth, enterprise], index) => (
+                        ["Videos per month", "2", "3", "10", "20", "Custom"],
+                        ["Images per video", "5", "20", "20", "20", "Custom"],
+                        ["Video length", "15s", "60s", "60s", "60s", "Custom"],
+                        ["Resolution", "720p", "1080p", "1080p", "1080p", "1080p"],
+                        ["AI Photo Edits", "5", "Unlimited", "Unlimited", "Unlimited", "Unlimited"],
+                        ["No Watermark", "—", "✓", "✓", "✓", "✓"],
+                        ["Credit Rollover", "—", "3 months", "3 months", "3 months", "✓"],
+                        ["Upload limit", "10MB", "10MB", "25MB", "25MB", "Custom"],
+                        ["Team Seats", "—", "—", "—", "—", "✓"],
+                        ["Dedicated Account Manager", "—", "—", "—", "—", "✓"],
+                        ["Custom Integrations", "—", "—", "—", "—", "✓"],
+                        ["SLA Support", "—", "—", "✓", "✓", "✓"],
+                      ].map(([feature, free, starter, growth, pro, enterprise], index) => (
                         <tr key={index} className="border-b border-border last:border-0">
                           <td className="p-4 text-foreground">{feature}</td>
+                          <td className="p-4 text-center text-muted-foreground">{free}</td>
                           <td className="p-4 text-center text-muted-foreground">{starter}</td>
                           <td className="p-4 text-center bg-accent text-foreground">{growth}</td>
+                          <td className="p-4 text-center text-muted-foreground">{pro}</td>
                           <td className="p-4 text-center text-muted-foreground">{enterprise}</td>
                         </tr>
                       ))}
@@ -498,6 +525,41 @@ export default function Settings() {
                     </Button>
                   </div>
                 )}</div>
+
+              {/* Video Top-Up Packs */}
+              <div className="bg-card rounded-xl border border-border p-6">
+                <h2 className="text-lg font-semibold text-foreground mb-2">Need More Videos?</h2>
+                <p className="text-sm text-muted-foreground mb-4">Buy extra videos as a one-time purchase. Added to your current allowance instantly.</p>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {[
+                    { id: "topup_1", videos: 1, price: 8, perVideo: 8 },
+                    { id: "topup_5", videos: 5, price: 35, perVideo: 7 },
+                  ].map((pack) => (
+                    <div key={pack.id} className="border border-border rounded-lg p-4 flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-foreground">{pack.videos} Video{pack.videos > 1 ? "s" : ""}</p>
+                        <p className="text-sm text-muted-foreground">A${pack.perVideo}/video</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={async () => {
+                          if (!user) return;
+                          try {
+                            const data = await invokeEdgeFunction<{ url?: string }>("create-checkout-session", {
+                              body: { plan: pack.id, userId: user.id, email: user.email },
+                            });
+                            if (data.url) window.location.href = data.url;
+                          } catch (err) {
+                            toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to start checkout", variant: "destructive" });
+                          }
+                        }}
+                      >
+                        A${pack.price}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               {/* Billing History */}
               <div className="bg-card rounded-xl border border-border overflow-hidden">

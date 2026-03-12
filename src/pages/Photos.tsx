@@ -66,7 +66,7 @@ interface PhotoJob {
   error_message: string | null;
   job_type: "enhance" | "stage";
   enhancements: { enhance?: boolean; sky?: boolean; sky_type?: string };
-  stage_options: { room_type?: string; style?: string; furniture_density?: string; declutter?: boolean; lighting?: string };
+  stage_options: { room_type?: string; style?: string };
 }
 
 interface MlsLabelSettings {
@@ -130,9 +130,9 @@ const ADJUSTMENT_CONTROLS: { key: keyof ImageAdjustments; label: string; icon: t
 ];
 
 const SKY_OPTIONS = [
-  { value: "blue_sky", label: "Blue Sky" },
-  { value: "golden_hour", label: "Golden Hour" },
-  { value: "twilight", label: "Twilight" },
+  { value: "DAY", label: "Blue Sky", gradient: "from-sky-300 to-blue-500", description: "Clear blue daytime sky" },
+  { value: "DUSK", label: "Dusk", gradient: "from-orange-400 via-rose-400 to-purple-500", description: "Warm sunset / golden hour tones" },
+  { value: "NIGHT", label: "Night", gradient: "from-indigo-800 to-slate-900", description: "Dramatic twilight sky" },
 ];
 
 const ROOM_TYPES = [
@@ -142,21 +142,21 @@ const ROOM_TYPES = [
   { value: "DININGROOM", label: "Dining", icon: UtensilsCrossed },
   { value: "OFFICE", label: "Office", icon: Briefcase },
   { value: "BATHROOM", label: "Bath", icon: Bath },
-  { value: "PATIO", label: "Patio", icon: TreePine },
+  { value: "BACK_PATIO", label: "Patio", icon: TreePine },
   { value: "GARAGE", label: "Garage", icon: Car },
-  { value: "NURSERY", label: "Nursery", icon: Baby },
+  { value: "KIDSROOM", label: "Kids Room", icon: Baby },
 ];
 
 const DESIGN_STYLES = [
   { value: "MODERN", label: "Modern", color: "from-slate-400 to-slate-600" },
   { value: "SCANDINAVIAN", label: "Scandi", color: "from-amber-100 to-stone-300" },
-  { value: "LUXURY", label: "Luxury", color: "from-yellow-600 to-amber-800" },
+  { value: "LUXEMODERN", label: "Luxury", color: "from-yellow-600 to-amber-800" },
   { value: "FARMHOUSE", label: "Farmhouse", color: "from-green-300 to-emerald-500" },
   { value: "MINIMALIST", label: "Minimal", color: "from-gray-100 to-gray-300" },
   { value: "INDUSTRIAL", label: "Industrial", color: "from-zinc-500 to-zinc-700" },
   { value: "COASTAL", label: "Coastal", color: "from-sky-200 to-blue-400" },
-  { value: "ART_DECO", label: "Art Deco", color: "from-yellow-400 to-orange-600" },
-  { value: "BOHEMIAN", label: "Boho", color: "from-rose-300 to-orange-400" },
+  { value: "ARTDECO", label: "Art Deco", color: "from-yellow-400 to-orange-600" },
+  { value: "BOHO", label: "Boho", color: "from-rose-300 to-orange-400" },
   { value: "CONTEMPORARY", label: "Contemp.", color: "from-violet-300 to-purple-500" },
 ];
 
@@ -308,6 +308,7 @@ function BeforeAfterSlider({
 
 async function downloadImage(url: string, filename: string) {
   const res = await fetch(url);
+  if (!res.ok) throw new Error(`Download failed: ${res.status} ${res.statusText}`);
   const blob = await res.blob();
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -325,6 +326,10 @@ async function downloadAllAsZip(
   await Promise.all(
     files.map(async ({ url, filename }) => {
       const res = await fetch(url);
+      if (!res.ok) {
+        console.error(`Failed to fetch ${filename}: ${res.status}`);
+        return;
+      }
       const blob = await res.blob();
       zip.file(filename, blob);
     })
@@ -525,7 +530,7 @@ function PhotoEditTab() {
   // AI Enhancement options
   const [enhanceEnabled, setEnhanceEnabled] = useState(true);
   const [skyEnabled, setSkyEnabled] = useState(false);
-  const [skyType, setSkyType] = useState("blue_sky");
+  const [skyType, setSkyType] = useState("DAY");
 
   // Manual adjustments
   const [adjustments, setAdjustments] = useState<ImageAdjustments>({ ...DEFAULT_ADJUSTMENTS });
@@ -638,13 +643,13 @@ function PhotoEditTab() {
       const uploadedJobs: PhotoJob[] = [];
       for (const f of files) {
         const ext = f.file.name.split(".").pop() || "jpg";
-        const path = `originals/${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const path = `${user.id}/originals/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const { error: uploadError } = await supabase.storage
-          .from("property-photos")
+          .from("property-images")
           .upload(path, f.file, { cacheControl: "3600" });
         if (uploadError) throw uploadError;
 
-        const { data: urlData } = supabase.storage.from("property-photos").getPublicUrl(path);
+        const { data: urlData } = supabase.storage.from("property-images").getPublicUrl(path);
 
         // Create job record
         const { data: job, error: jobError } = await supabase
@@ -678,7 +683,21 @@ function PhotoEditTab() {
 
       // Call edge function for each job
       for (const job of uploadedJobs) {
-        invokeEdgeFunction("enhance-photo", { body: { job_id: job.id } }).catch(console.error);
+        invokeEdgeFunction("enhance-photo", { body: { job_id: job.id } }).catch((err) => {
+          console.error("enhance-photo invocation failed:", err);
+          setJobs((prev) =>
+            prev.map((j) =>
+              j.id === job.id
+                ? { ...j, status: "failed" as const, error_message: err instanceof Error ? err.message : "Failed to start enhancement" }
+                : j,
+            ),
+          );
+          toast({
+            title: "Enhancement failed",
+            description: err instanceof Error ? err.message : "Failed to start photo enhancement",
+            variant: "destructive",
+          });
+        });
       }
 
       // Subscribe to realtime updates
@@ -876,20 +895,26 @@ function PhotoEditTab() {
                     <Switch checked={skyEnabled} onCheckedChange={setSkyEnabled} />
                   </div>
                   {skyEnabled && (
-                    <div className="flex gap-2">
-                      {SKY_OPTIONS.map((opt) => (
-                        <button
-                          key={opt.value}
-                          onClick={() => setSkyType(opt.value)}
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                            skyType === opt.value
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-secondary text-foreground hover:bg-accent"
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        {SKY_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.value}
+                            onClick={() => setSkyType(opt.value)}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                              skyType === opt.value
+                                ? "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2 ring-offset-background"
+                                : "bg-secondary text-foreground hover:bg-accent"
+                            }`}
+                          >
+                            <span className={`inline-block w-3 h-3 rounded-full bg-gradient-to-br ${opt.gradient}`} />
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground pl-1">
+                        {SKY_OPTIONS.find((o) => o.value === skyType)?.description}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -1280,9 +1305,6 @@ function VirtualStagingTab() {
   const [isDragging, setIsDragging] = useState(false);
   const [roomType, setRoomType] = useState("LIVINGROOM");
   const [designStyle, setDesignStyle] = useState("MODERN");
-  const [furnitureDensity, setFurnitureDensity] = useState("medium");
-  const [declutterEnabled, setDeclutterEnabled] = useState(false);
-  const [lighting, setLighting] = useState("standard");
   const [mlsLabel, setMlsLabel] = useState<MlsLabelSettings>({
     enabled: true,
     text: "Virtually Staged",
@@ -1338,13 +1360,13 @@ function VirtualStagingTab() {
 
       for (const f of files) {
         const ext = f.file.name.split(".").pop() || "jpg";
-        const path = `originals/${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const path = `${user.id}/originals/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const { error: uploadError } = await supabase.storage
-          .from("property-photos")
+          .from("property-images")
           .upload(path, f.file, { cacheControl: "3600" });
         if (uploadError) throw uploadError;
 
-        const { data: urlData } = supabase.storage.from("property-photos").getPublicUrl(path);
+        const { data: urlData } = supabase.storage.from("property-images").getPublicUrl(path);
 
         const { data: job, error: jobError } = await supabase
           .from("photo_jobs")
@@ -1356,9 +1378,6 @@ function VirtualStagingTab() {
             stage_options: {
               room_type: roomType,
               style: designStyle,
-              furniture_density: furnitureDensity,
-              declutter: declutterEnabled,
-              ...(lighting !== "standard" && { lighting }),
             },
           })
           .select()
@@ -1384,7 +1403,21 @@ function VirtualStagingTab() {
 
       // Call edge function for each
       for (const job of uploadedJobs) {
-        invokeEdgeFunction("stage-room", { body: { job_id: job.id } }).catch(console.error);
+        invokeEdgeFunction("stage-room", { body: { job_id: job.id } }).catch((err) => {
+          console.error("stage-room invocation failed:", err);
+          setJobs((prev) =>
+            prev.map((j) =>
+              j.id === job.id
+                ? { ...j, status: "failed" as const, error_message: err instanceof Error ? err.message : "Failed to start staging" }
+                : j,
+            ),
+          );
+          toast({
+            title: "Staging failed",
+            description: err instanceof Error ? err.message : "Failed to start room staging",
+            variant: "destructive",
+          });
+        });
       }
 
       // Realtime + polling
@@ -1624,20 +1657,20 @@ function VirtualStagingTab() {
             </div>
           </div>
 
-          {/* Furniture Density */}
-          <div className="space-y-3">
+          {/* Furniture Density — Coming Soon */}
+          <div className="space-y-3 opacity-50 pointer-events-none">
             <label className="text-sm font-medium text-foreground flex items-center gap-2">
               <Layers className="w-4 h-4 text-muted-foreground" /> Furniture Density
+              <span className="px-2 py-0.5 bg-muted text-muted-foreground text-[10px] font-semibold rounded-full uppercase tracking-wider">Coming Soon</span>
             </label>
             <div className="flex gap-3">
               {FURNITURE_DENSITIES.map((density) => (
                 <button
                   key={density.value}
-                  onClick={() => setFurnitureDensity(density.value)}
-                  className={`flex-1 p-4 rounded-xl border-2 transition-all text-left ${
-                    furnitureDensity === density.value
+                  className={`flex-1 p-4 rounded-xl border-2 text-left ${
+                    density.value === "medium"
                       ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/30"
+                      : "border-border"
                   }`}
                 >
                   <p className="text-sm font-medium text-foreground">{density.label}</p>
@@ -1647,23 +1680,25 @@ function VirtualStagingTab() {
             </div>
           </div>
 
-          {/* Declutter Toggle */}
-          <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-card">
+          {/* Declutter Toggle — Coming Soon */}
+          <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-card opacity-50">
             <div>
               <p className="text-sm font-semibold text-foreground flex items-center gap-2">
                 <Eraser className="w-4 h-4 text-muted-foreground" /> Declutter First
+                <span className="px-2 py-0.5 bg-muted text-muted-foreground text-[10px] font-semibold rounded-full uppercase tracking-wider">Coming Soon</span>
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Remove existing furniture & clutter before staging — best for partially furnished rooms
               </p>
             </div>
-            <Switch checked={declutterEnabled} onCheckedChange={setDeclutterEnabled} />
+            <Switch checked={false} disabled />
           </div>
 
-          {/* Exterior Lighting */}
-          <div className="space-y-3">
+          {/* Exterior Lighting — Coming Soon */}
+          <div className="space-y-3 opacity-50 pointer-events-none">
             <label className="text-sm font-medium text-foreground flex items-center gap-2">
               <Sunset className="w-4 h-4 text-muted-foreground" /> Exterior Lighting
+              <span className="px-2 py-0.5 bg-muted text-muted-foreground text-[10px] font-semibold rounded-full uppercase tracking-wider">Coming Soon</span>
             </label>
             <div className="flex gap-3">
               {LIGHTING_OPTIONS.map((opt) => {
@@ -1671,11 +1706,10 @@ function VirtualStagingTab() {
                 return (
                   <button
                     key={opt.value}
-                    onClick={() => setLighting(opt.value)}
-                    className={`flex-1 p-4 rounded-xl border-2 transition-all text-left ${
-                      lighting === opt.value
+                    className={`flex-1 p-4 rounded-xl border-2 text-left ${
+                      opt.value === "standard"
                         ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/30"
+                        : "border-border"
                     }`}
                   >
                     <p className="text-sm font-medium text-foreground flex items-center gap-2">
@@ -1888,7 +1922,9 @@ function VirtualStagingTab() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      invokeEdgeFunction("stage-room", { body: { job_id: job.id } }).catch(console.error);
+                      invokeEdgeFunction("stage-room", { body: { job_id: job.id } }).catch((err) => {
+                        toast({ title: "Retry failed", description: err instanceof Error ? err.message : "Failed to retry staging", variant: "destructive" });
+                      });
                       setJobs((prev) => prev.map((j) => j.id === job.id ? { ...j, status: "processing", error_message: null } : j));
                     }}
                   >

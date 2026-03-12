@@ -15,11 +15,14 @@ Deno.serve(async (req) => {
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+  let job_id: string | null = null;
+
   try {
-    const { error: authErr } = await requireAuth(req);
+    const { user, error: authErr } = await requireAuth(req);
     if (authErr) return authErr;
 
-    const { job_id } = await req.json();
+    const body = await req.json();
+    job_id = body.job_id;
     if (!job_id) throw new Error("job_id is required");
 
     console.log("enhance-photo: starting job", job_id);
@@ -35,6 +38,14 @@ Deno.serve(async (req) => {
       throw new Error(`Job not found: ${fetchError?.message}`);
     }
 
+    // Verify the authenticated user owns this job
+    if (job.user_id !== user!.id) {
+      return new Response(
+        JSON.stringify({ error: "Not authorized to access this job" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // 2. Set status to processing
     await supabase.from("photo_jobs").update({ status: "processing" }).eq("id", job_id);
     console.log("enhance-photo: status set to processing");
@@ -42,7 +53,7 @@ Deno.serve(async (req) => {
     const enhancements = job.enhancements || {};
     let resultUrl = job.original_url;
 
-    // 3. Auto-enhance via Autoenhance.ai
+    // 3. Auto-enhance via Autoenhance.ai (v3 API)
     if (enhancements.enhance) {
       if (!AUTOENHANCE_API_KEY) {
         throw new Error("AUTOENHANCE_API_KEY not configured");
@@ -50,15 +61,25 @@ Deno.serve(async (req) => {
 
       console.log("enhance-photo: submitting to Autoenhance.ai");
 
-      const createRes = await fetch("https://api.autoenhance.ai/v3/images", {
+      // Step 1: Download the original image binary from our storage
+      const imageRes = await fetch(job.original_url);
+      if (!imageRes.ok) {
+        throw new Error(`Failed to download original image: ${imageRes.status}`);
+      }
+      const imageBuffer = await imageRes.arrayBuffer();
+      const imageName = `job-${job_id}.jpg`;
+
+      console.log("enhance-photo: downloaded original image, size:", imageBuffer.byteLength);
+
+      // Step 2: Create image record in Autoenhance (returns upload_url)
+      const createRes = await fetch("https://api.autoenhance.ai/v3/images/", {
         method: "POST",
         headers: {
           "x-api-key": AUTOENHANCE_API_KEY,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          image_url: job.original_url,
-          image_type: "property",
+          image_name: imageName,
         }),
       });
 
@@ -68,11 +89,36 @@ Deno.serve(async (req) => {
       }
 
       const createData = await createRes.json();
+      console.log("enhance-photo: Autoenhance create response:", JSON.stringify(createData));
       const imageId = createData.image_id || createData.id;
+      const uploadUrl = createData.upload_url;
       console.log("enhance-photo: Autoenhance image ID:", imageId);
 
-      // Poll for completion
-      let enhanced = false;
+      if (!imageId) {
+        throw new Error(`Autoenhance did not return an image_id. Response: ${JSON.stringify(createData)}`);
+      }
+      if (!uploadUrl) {
+        throw new Error(`Autoenhance did not return an upload_url. Response: ${JSON.stringify(createData)}`);
+      }
+
+      // Step 3: Upload the binary image to the upload_url
+      const uploadRes = await fetch(uploadUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/octet-stream",
+        },
+        body: imageBuffer,
+      });
+
+      if (!uploadRes.ok) {
+        const errText = await uploadRes.text();
+        throw new Error(`Autoenhance upload failed (${uploadRes.status}): ${errText}`);
+      }
+
+      console.log("enhance-photo: image uploaded to Autoenhance");
+
+      // Step 4: Poll for completion (check `enhanced` field)
+      let enhanceDone = false;
       for (let attempt = 0; attempt < 40; attempt++) {
         await new Promise((r) => setTimeout(r, 3000));
 
@@ -86,11 +132,42 @@ Deno.serve(async (req) => {
         }
 
         const statusData = await statusRes.json();
-        console.log(`enhance-photo: poll ${attempt} — status: ${statusData.status}`);
+        console.log(`enhance-photo: poll ${attempt} — enhanced: ${statusData.enhanced}, status: ${statusData.status}`);
 
-        if (statusData.status === "processed" || statusData.status === "complete") {
-          resultUrl = statusData.enhanced_url || statusData.url || statusData.output_url;
-          enhanced = true;
+        if (statusData.enhanced === true || statusData.status === "processed" || statusData.status === "complete") {
+          // Step 5: Download the enhanced image from the /enhanced endpoint
+          const enhancedRes = await fetch(
+            `https://api.autoenhance.ai/v3/images/${imageId}/enhanced`,
+            { headers: { "x-api-key": AUTOENHANCE_API_KEY } },
+          );
+
+          if (!enhancedRes.ok) {
+            throw new Error(`Failed to download enhanced image (${enhancedRes.status})`);
+          }
+
+          // Upload the enhanced image to our Supabase storage
+          const enhancedBuffer = await enhancedRes.arrayBuffer();
+          console.log("enhance-photo: enhanced image downloaded, size:", enhancedBuffer.byteLength);
+          const enhancedPath = `${job.user_id}/enhanced/${Date.now()}-${imageId}.jpg`;
+
+          const { error: storeError } = await supabase.storage
+            .from("property-images")
+            .upload(enhancedPath, enhancedBuffer, {
+              contentType: "image/jpeg",
+              cacheControl: "3600",
+            });
+
+          if (storeError) {
+            console.error("enhance-photo: storage upload error:", JSON.stringify(storeError));
+            throw new Error(`Failed to store enhanced image: ${storeError.message}`);
+          }
+
+          const { data: publicUrlData } = supabase.storage
+            .from("property-images")
+            .getPublicUrl(enhancedPath);
+
+          resultUrl = publicUrlData.publicUrl;
+          enhanceDone = true;
 
           // Update enhanced_url
           await supabase.from("photo_jobs").update({ enhanced_url: resultUrl }).eq("id", job_id);
@@ -98,17 +175,17 @@ Deno.serve(async (req) => {
           break;
         }
 
-        if (statusData.status === "failed" || statusData.status === "error") {
+        if (statusData.error || statusData.status === "failed" || statusData.status === "error") {
           throw new Error(`Autoenhance failed: ${statusData.error || "unknown"}`);
         }
       }
 
-      if (!enhanced) {
+      if (!enhanceDone) {
         throw new Error("Autoenhance timed out after 2 minutes");
       }
     }
 
-    // 4. Sky replacement (if enabled)
+    // 4. Sky replacement via Decor8 AI (if enabled)
     if (enhancements.sky) {
       const DECOR8_API_KEY = Deno.env.get("DECOR8_API_KEY");
       if (!DECOR8_API_KEY) {
@@ -125,7 +202,7 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify({
           input_image_url: resultUrl,
-          sky_type: enhancements.sky_type || "blue_sky",
+          sky_type: enhancements.sky_type || "DAY",
         }),
       });
 
@@ -135,7 +212,13 @@ Deno.serve(async (req) => {
       }
 
       const skyData = await skyRes.json();
-      const skyUrl = skyData.info?.url || skyData.url || skyData.output_url;
+      console.log("enhance-photo: Decor8 sky response:", JSON.stringify(skyData).slice(0, 500));
+      const skyUrl = skyData.new_image_url || skyData.info?.url || skyData.url || skyData.output_url;
+
+      if (!skyUrl) {
+        throw new Error(`Sky replacement did not return an image URL. Response keys: ${Object.keys(skyData).join(", ")}`);
+      }
+
       console.log("enhance-photo: sky_url saved:", skyUrl);
 
       await supabase.from("photo_jobs").update({ sky_url: skyUrl }).eq("id", job_id);
@@ -156,10 +239,9 @@ Deno.serve(async (req) => {
   } catch (err) {
     console.error("enhance-photo error:", err);
 
-    // Try to update the job as failed
-    try {
-      const { job_id } = await req.clone().json().catch(() => ({ job_id: null }));
-      if (job_id) {
+    // Mark the job as failed so the frontend knows
+    if (job_id) {
+      try {
         await supabase
           .from("photo_jobs")
           .update({
@@ -168,8 +250,10 @@ Deno.serve(async (req) => {
             updated_at: new Date().toISOString(),
           })
           .eq("id", job_id);
+      } catch (updateErr) {
+        console.error("enhance-photo: failed to mark job as failed:", updateErr);
       }
-    } catch { /* ignore */ }
+    }
 
     return new Response(
       JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),

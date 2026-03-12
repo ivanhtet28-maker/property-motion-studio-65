@@ -6,16 +6,51 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
 
-// Stripe price IDs from Stripe Dashboard (LIVE MODE)
-const PRICE_IDS = {
-  starter: "price_1Sya0mGkPU4YhgKfmAj63FX0", // $299/month - 10 videos
-  growth: "price_1SyZzMGkPU4YhgKfWTj39Enj",  // $499/month - 30 videos
-  // Enterprise is custom - handled separately
+// Stripe price IDs from Stripe Dashboard (all prices AUD)
+// TODO: Replace these placeholder IDs with your actual Stripe price IDs
+const PRICE_IDS: Record<string, string> = {
+  // Monthly subscription plans
+  starter:          "price_PLACEHOLDER_starter_monthly",     // A$49/month  - 3 videos
+  growth:           "price_PLACEHOLDER_growth_monthly",      // A$99/month  - 10 videos
+  pro:              "price_PLACEHOLDER_pro_monthly",         // A$179/month - 20 videos
+  // Yearly subscription plans
+  starter_yearly:   "price_PLACEHOLDER_starter_yearly",      // A$39/month (A$468/year) - 25 videos
+  growth_yearly:    "price_PLACEHOLDER_growth_yearly",       // A$79/month (A$948/year) - 100 videos
+  pro_yearly:       "price_PLACEHOLDER_pro_yearly",          // A$149/month (A$1788/year) - 200 videos
+  // One-time video top-up packs
+  topup_1:          "price_PLACEHOLDER_topup_1",             // A$8  - 1 extra video
+  topup_5:          "price_PLACEHOLDER_topup_5",             // A$35 - 5 extra videos
+};
+
+// Map plan IDs to their base tier name (for storing in DB)
+const PLAN_TO_TIER: Record<string, string> = {
+  starter: "starter",
+  growth: "growth",
+  pro: "pro",
+  starter_yearly: "starter",
+  growth_yearly: "growth",
+  pro_yearly: "pro",
+};
+
+// Video limits per subscription plan
+const VIDEO_LIMITS: Record<string, number> = {
+  starter: 3,
+  growth: 10,
+  pro: 20,
+  starter_yearly: 25,
+  growth_yearly: 100,
+  pro_yearly: 200,
+};
+
+// Top-up packs: plan key → number of extra videos
+const TOPUP_VIDEOS: Record<string, number> = {
+  topup_1: 1,
+  topup_5: 5,
 };
 
 interface CheckoutRequest {
   priceId?: string;
-  plan: "starter" | "growth" | "enterprise";
+  plan: string;
   userId: string;
   email: string;
 }
@@ -70,13 +105,10 @@ Deno.serve(async (req) => {
       throw new Error("STRIPE_SECRET_KEY not configured");
     }
 
-    // Enterprise plan requires contact sales
-    if (plan === "enterprise") {
+    // Validate plan
+    if (!PRICE_IDS[plan]) {
       return new Response(
-        JSON.stringify({
-          error: "Enterprise plan requires contacting sales",
-          contactSales: true,
-        }),
+        JSON.stringify({ error: `Invalid plan: ${plan}` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -98,7 +130,7 @@ Deno.serve(async (req) => {
         .from("user_preferences")
         .insert({
           user_id: userId,
-          subscription_tier: 'starter',
+          subscription_tier: 'free',
         })
         .select("stripe_customer_id")
         .single();
@@ -147,33 +179,66 @@ Deno.serve(async (req) => {
 
     // Get the price ID for the plan
     const priceId = PRICE_IDS[plan];
-    if (!priceId) {
-      throw new Error(`Invalid plan: ${plan}`);
-    }
-
-    // Create checkout session
+    const isTopup = plan in TOPUP_VIDEOS;
     const origin = req.headers.get("origin") || "http://localhost:5173";
-    const sessionResponse = await fetch("https://api.stripe.com/v1/checkout/sessions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${STRIPE_SECRET_KEY}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        customer: customerId,
-        mode: "subscription",
-        "payment_method_types[0]": "card",
-        billing_address_collection: "auto",
-        "line_items[0][price]": priceId,
-        "line_items[0][quantity]": "1",
-        success_url: `${origin}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${origin}/#pricing`,
-        "metadata[supabase_user_id]": userId,
-        "metadata[plan]": plan,
-        "subscription_data[metadata][supabase_user_id]": userId,
-        "subscription_data[metadata][plan]": plan,
-      }).toString(),
-    });
+
+    let sessionResponse: Response;
+
+    if (isTopup) {
+      // One-time payment for video top-up packs
+      const extraVideos = TOPUP_VIDEOS[plan];
+      sessionResponse = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${STRIPE_SECRET_KEY}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          customer: customerId,
+          mode: "payment",
+          "payment_method_types[0]": "card",
+          "line_items[0][price]": priceId,
+          "line_items[0][quantity]": "1",
+          success_url: `${origin}/dashboard?session_id={CHECKOUT_SESSION_ID}&topup=true`,
+          cancel_url: `${origin}/settings?tab=plan`,
+          "metadata[supabase_user_id]": userId,
+          "metadata[plan]": plan,
+          "metadata[type]": "topup",
+          "metadata[extra_videos]": String(extraVideos),
+        }).toString(),
+      });
+    } else {
+      // Recurring subscription
+      const tier = PLAN_TO_TIER[plan] || plan;
+      const videosLimit = VIDEO_LIMITS[plan] || 2;
+
+      sessionResponse = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${STRIPE_SECRET_KEY}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          customer: customerId,
+          mode: "subscription",
+          "payment_method_types[0]": "card",
+          billing_address_collection: "auto",
+          "line_items[0][price]": priceId,
+          "line_items[0][quantity]": "1",
+          success_url: `${origin}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${origin}/#pricing`,
+          "metadata[supabase_user_id]": userId,
+          "metadata[plan]": plan,
+          "metadata[tier]": tier,
+          "metadata[videos_limit]": String(videosLimit),
+          "subscription_data[trial_period_days]": "7",
+          "subscription_data[metadata][supabase_user_id]": userId,
+          "subscription_data[metadata][plan]": plan,
+          "subscription_data[metadata][tier]": tier,
+          "subscription_data[metadata][videos_limit]": String(videosLimit),
+        }).toString(),
+      });
+    }
 
     if (!sessionResponse.ok) {
       const error = await sessionResponse.text();

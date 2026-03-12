@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { error: authErr } = await requireAuth(req);
+    const { user, error: authErr } = await requireAuth(req);
     if (authErr) return authErr;
 
     const { imageUrl, cropRegion, outputPath }: CropRequest = await req.json();
@@ -42,6 +42,25 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Path traversal protection: sanitize outputPath
+    const normalizedPath = outputPath.replace(/\\/g, "/");
+    if (
+      normalizedPath.includes("..") ||
+      normalizedPath.startsWith("/") ||
+      normalizedPath.includes("//")
+    ) {
+      return new Response(
+        JSON.stringify({ error: "Invalid output path" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Ensure output goes to the authenticated user's folder
+    const userFolder = user!.id;
+    const safePath = normalizedPath.startsWith(`${userFolder}/`)
+      ? normalizedPath
+      : `${userFolder}/${normalizedPath}`;
 
     // SSRF protection: validate the image URL
     const urlCheck = validateImageUrl(imageUrl);
@@ -87,7 +106,7 @@ Deno.serve(async (req) => {
 
     const { error: uploadError } = await supabase.storage
       .from("property-images")
-      .upload(outputPath, croppedBytes, {
+      .upload(safePath, croppedBytes, {
         contentType: "image/jpeg",
         upsert: true,
       });
@@ -99,7 +118,7 @@ Deno.serve(async (req) => {
     // Get the public URL
     const { data: urlData } = supabase.storage
       .from("property-images")
-      .getPublicUrl(outputPath);
+      .getPublicUrl(safePath);
 
     console.log(`Crop uploaded → ${urlData.publicUrl}`);
 

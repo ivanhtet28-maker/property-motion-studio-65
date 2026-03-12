@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Play, Link2, Wand2, Download, Check, Star, ChevronRight, Loader2 } from "lucide-react";
+import { Play, Link2, Wand2, Download, Check, X, Star, ChevronRight, Loader2, Tag, ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { useToast } from "@/hooks/use-toast";
@@ -103,70 +103,139 @@ const faqs = [
   },
 ];
 
-interface PricingCardProps {
-  name: string;
-  price: string;
-  period: string;
-  description: string;
-  features: string[];
-  cta: string;
-  highlighted?: boolean;
-  badge?: string;
-  planId: string;
-  onSelectPlan: (planId: string) => void;
-  isLoading?: boolean;
+interface PlanFeature {
+  text: string;
+  included: boolean;
 }
 
-function PricingCard({ name, price, period, description, features, cta, highlighted, badge, planId, onSelectPlan, isLoading }: PricingCardProps) {
-  return (
-    <div
-      className={`relative rounded-2xl p-8 transition-all duration-300 hover-lift ${
-        highlighted
-          ? "bg-primary text-primary-foreground shadow-xl scale-105"
-          : "bg-card shadow-card border border-border"
-      }`}
-    >
-      {badge && (
-        <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-success text-success-foreground text-xs font-semibold px-3 py-1 rounded-full">
-          {badge}
-        </span>
-      )}
-      <h3 className={`text-xl font-bold ${highlighted ? "" : "text-foreground"}`}>{name}</h3>
-      <p className={`mt-2 text-sm ${highlighted ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-        {description}
-      </p>
-      <div className="mt-6">
-        <span className="text-4xl font-bold">{price}</span>
-        <span className={`text-sm ${highlighted ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-          /{period}
-        </span>
-      </div>
-      <ul className="mt-8 space-y-3">
-        {features.map((feature, index) => (
-          <li key={index} className="flex items-center gap-3 text-sm">
-            <Check className={`w-5 h-5 flex-shrink-0 ${highlighted ? "text-success" : "text-success"}`} />
-            <span>{feature}</span>
-          </li>
-        ))}
-      </ul>
-      <Button
-        variant={highlighted ? "secondary" : "hero"}
-        size="lg"
-        className={`w-full mt-8 ${highlighted ? "text-primary" : ""}`}
-        onClick={() => onSelectPlan(planId)}
-        disabled={isLoading}
-      >
-        {isLoading ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin" />
-            Loading...
-          </>
-        ) : (
-          cta
-        )}
-      </Button>
-    </div>
-  );
+interface PlanTier {
+  id: string;
+  name: string;
+  description: string;
+  monthly: {
+    price: number;
+    perVideo: number;
+    videosLabel: string;
+    videosCount: string;
+    additionalVideoPrice: number | null;
+    rollover: string;
+  };
+  yearly: {
+    price: number;
+    perVideo: number;
+    videosLabel: string;
+    videosCount: string;
+    additionalVideoPrice: number | null;
+    discount: number;
+    rollover: string;
+  };
+  features: PlanFeature[];
+  highlighted?: boolean;
+  badge?: string;
+}
+
+const pricingPlans: PlanTier[] = [
+  {
+    id: "free",
+    name: "FREE",
+    description: "For people who want to see how it works.",
+    monthly: { price: 0, perVideo: 0, videosLabel: "/month", videosCount: "2 videos", additionalVideoPrice: null, rollover: "Credits reset every month" },
+    yearly: { price: 0, perVideo: 0, videosLabel: "/month", videosCount: "2 videos", additionalVideoPrice: null, discount: 0, rollover: "Credits reset every month" },
+    features: [
+      { text: "2 videos/month included", included: true },
+      { text: "5 images per video", included: true },
+      { text: "Up to 15 seconds per video", included: true },
+      { text: "720p video resolution", included: false },
+      { text: "5 AI photo edits", included: true },
+      { text: "No additional videos", included: false },
+      { text: "Exports with watermark", included: false },
+      { text: "Credits reset every month", included: true },
+      { text: "Upload images up to 10MB", included: false },
+      { text: "Standard support", included: false },
+    ],
+  },
+  {
+    id: "starter",
+    name: "STARTER",
+    description: "For individuals ready to publish a few videos each month.",
+    monthly: { price: 49, perVideo: 16, videosLabel: "/month", videosCount: "3 videos", additionalVideoPrice: 8, rollover: "Credits rollover for 3 months" },
+    yearly: { price: 39, perVideo: 19, videosLabel: "/year", videosCount: "25 videos", additionalVideoPrice: 8, discount: 20, rollover: "Credits rollover for 1 year" },
+    features: [
+      { text: "{{videos}} included", included: true },
+      { text: "20 images per video", included: true },
+      { text: "Up to 60 seconds per video", included: true },
+      { text: "1080p video resolution", included: true },
+      { text: "Unlimited AI photo edits", included: true },
+      { text: "{{additionalPrice}} per additional video", included: true },
+      { text: "Exports without watermark", included: true },
+      { text: "{{rollover}}", included: true },
+      { text: "Upload images up to 10MB", included: false },
+      { text: "Standard support", included: false },
+    ],
+  },
+  {
+    id: "growth",
+    name: "GROWTH",
+    description: "For growing individuals and small teams scaling their video content.",
+    highlighted: true,
+    badge: "MOST POPULAR",
+    monthly: { price: 99, perVideo: 10, videosLabel: "/month", videosCount: "10 videos", additionalVideoPrice: 8, rollover: "Credits rollover for 3 months" },
+    yearly: { price: 79, perVideo: 9, videosLabel: "/year", videosCount: "100 videos", additionalVideoPrice: 7, discount: 20, rollover: "Credits rollover for 1 year" },
+    features: [
+      { text: "{{videos}} included", included: true },
+      { text: "20 images per video", included: true },
+      { text: "Up to 60 seconds per video", included: true },
+      { text: "1080p video resolution", included: true },
+      { text: "Unlimited AI photo edits", included: true },
+      { text: "{{additionalPrice}} per additional video", included: true },
+      { text: "Exports without watermark", included: true },
+      { text: "{{rollover}}", included: true },
+      { text: "Upload images up to 25MB", included: true },
+      { text: "Priority human support", included: true },
+    ],
+  },
+  {
+    id: "pro",
+    name: "PRO",
+    description: "For top producers, teams, and agencies creating videos at scale.",
+    monthly: { price: 179, perVideo: 9, videosLabel: "/month", videosCount: "20 videos", additionalVideoPrice: 7, rollover: "Credits rollover for 3 months" },
+    yearly: { price: 149, perVideo: 9, videosLabel: "/year", videosCount: "200 videos", additionalVideoPrice: 7, discount: 17, rollover: "Credits rollover for 1 year" },
+    features: [
+      { text: "{{videos}} included", included: true },
+      { text: "20 images per video", included: true },
+      { text: "Up to 60 seconds per video", included: true },
+      { text: "1080p video resolution", included: true },
+      { text: "Unlimited AI photo edits", included: true },
+      { text: "{{additionalPrice}} per additional video", included: true },
+      { text: "Exports without watermark", included: true },
+      { text: "{{rollover}}", included: true },
+      { text: "Upload images up to 25MB", included: true },
+      { text: "Priority human support", included: true },
+    ],
+  },
+  {
+    id: "enterprise",
+    name: "ENTERPRISE",
+    description: "For teams and principals at scale. Custom videos, seats and integrations.",
+    monthly: { price: -1, perVideo: 0, videosLabel: "", videosCount: "Custom", additionalVideoPrice: null, rollover: "" },
+    yearly: { price: -1, perVideo: 0, videosLabel: "", videosCount: "Custom", additionalVideoPrice: null, discount: 0, rollover: "" },
+    features: [
+      { text: "Everything in Pro", included: true },
+      { text: "Custom video limits", included: true },
+      { text: "Multiple team seats", included: true },
+      { text: "Dedicated account manager", included: true },
+      { text: "Custom integrations", included: true },
+      { text: "SLA support", included: true },
+    ],
+  },
+];
+
+function resolveFeatureText(text: string, plan: PlanTier, isYearly: boolean): string {
+  const tier = isYearly ? plan.yearly : plan.monthly;
+  return text
+    .replace("{{videos}}", `${tier.videosCount}${tier.videosLabel}`)
+    .replace("{{additionalPrice}}", tier.additionalVideoPrice ? `A$${tier.additionalVideoPrice}` : "N/A")
+    .replace("{{rollover}}", tier.rollover);
 }
 
 export default function Index() {
@@ -174,11 +243,12 @@ export default function Index() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
 
   const handleSelectPlan = async (planId: string) => {
-    // Enterprise requires contact sales
-    if (planId === "enterprise") {
-      window.location.href = "mailto:hello@propertymotion.com?subject=Enterprise%20Plan%20Inquiry";
+    // Free plan goes straight to signup
+    if (planId === "free") {
+      navigate(user ? "/create" : "/signup");
       return;
     }
 
@@ -200,7 +270,6 @@ export default function Index() {
       });
 
       if (data.url) {
-        // Redirect to Stripe checkout
         window.location.href = data.url;
       } else {
         throw new Error("No checkout URL returned");
@@ -288,48 +357,172 @@ export default function Index() {
       <section id="pricing" className="py-20">
         <div className="container mx-auto px-6">
           <h2 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-4">
-            Simple, Transparent Pricing
+            Start for free, upgrade when you love it.
           </h2>
-          <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
-            Choose the plan that fits your needs. Subscription plans or pay as you go.
-          </p>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto items-start">
-            <PricingCard
-              name="Starter"
-              price="$149"
-              period="month"
-              description="Perfect for 6-10 listings/month"
-              features={["30 credits per month", "HD videos (up to 10 images)", "All templates", "Email support"]}
-              cta="Start Free Trial"
-              planId="starter"
-              onSelectPlan={handleSelectPlan}
-              isLoading={loadingPlan === "starter"}
-            />
-            <PricingCard
-              name="Professional"
-              price="$299"
-              period="month"
-              description="Perfect for 12-20 listings/month"
-              features={["60 credits per month", "Everything in Starter", "Priority support", "Analytics dashboard"]}
-              cta="Start Free Trial"
-              highlighted
-              badge="⭐ RECOMMENDED"
-              planId="professional"
-              onSelectPlan={handleSelectPlan}
-              isLoading={loadingPlan === "professional"}
-            />
-            <PricingCard
-              name="Pay As You Go"
-              price="From $25"
-              period=""
-              description="Flexible credit packs"
-              features={["5 credits - $25", "25 credits - $99", "50 credits - $179", "100 credits - $329", "No expiry"]}
-              cta="Buy Credits"
-              planId="payg"
-              onSelectPlan={handleSelectPlan}
-              isLoading={loadingPlan === "payg"}
-            />
+          {/* Monthly / Yearly Toggle */}
+          <div className="flex items-center justify-center gap-1 mt-8 mb-12">
+            <button
+              onClick={() => setBillingPeriod("monthly")}
+              className={`px-6 py-2.5 rounded-full text-sm font-semibold transition-all ${
+                billingPeriod === "monthly"
+                  ? "bg-primary text-primary-foreground shadow-md"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setBillingPeriod("yearly")}
+              className={`px-6 py-2.5 rounded-full text-sm font-semibold transition-all ${
+                billingPeriod === "yearly"
+                  ? "bg-primary text-primary-foreground shadow-md"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Yearly &middot; up to 30% off
+            </button>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-5 max-w-7xl mx-auto items-start">
+            {pricingPlans.map((plan) => {
+              const isYearly = billingPeriod === "yearly";
+              const tier = isYearly ? plan.yearly : plan.monthly;
+              const isFree = plan.id === "free";
+              const isEnterprise = plan.id === "enterprise";
+              const isHighlighted = plan.highlighted;
+
+              return (
+                <div
+                  key={plan.id}
+                  className={`relative rounded-2xl p-7 transition-all duration-300 ${
+                    isHighlighted
+                      ? "border-2 border-primary shadow-xl"
+                      : "border border-border shadow-card"
+                  } bg-card`}
+                >
+                  {/* MOST POPULAR badge */}
+                  {plan.badge && (
+                    <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-bold px-4 py-1.5 rounded-full whitespace-nowrap">
+                      {plan.badge}
+                    </span>
+                  )}
+
+                  {/* Header: name + discount badge */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-lg font-bold text-primary">{plan.name}</h3>
+                    {isYearly && tier.discount > 0 && (
+                      <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-bold px-2.5 py-1 rounded-full">
+                        <Tag className="w-3 h-3" />
+                        {tier.discount}% OFF
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-sm text-muted-foreground mb-4 min-h-[40px]">
+                    {plan.description}
+                  </p>
+
+                  {/* Video count */}
+                  <div className="mb-4">
+                    <span className="text-3xl font-bold text-foreground">{tier.videosCount}</span>
+                    <span className="text-sm text-muted-foreground ml-2">{tier.videosLabel}</span>
+                  </div>
+
+                  {/* Price pills */}
+                  {isEnterprise ? (
+                    <div className="mb-1">
+                      <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-secondary text-sm font-bold text-foreground">
+                        Custom pricing
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-secondary text-sm font-bold text-foreground">
+                        A${tier.price} <span className="font-normal text-muted-foreground ml-1">/ month</span>
+                      </span>
+                      {!isFree && (
+                        <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-secondary text-sm font-bold text-foreground">
+                          A${tier.perVideo} <span className="font-normal text-muted-foreground ml-1">/ video</span>
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Strikethrough prices for yearly */}
+                  {isYearly && !isFree && !isEnterprise && tier.discount > 0 && (
+                    <div className="flex items-center gap-3 mt-1 mb-3">
+                      <span className="text-sm text-muted-foreground line-through">A${plan.monthly.price}/month</span>
+                      <span className="text-sm text-muted-foreground line-through">A${plan.monthly.perVideo}/video</span>
+                    </div>
+                  )}
+                  {(!isYearly || isFree || isEnterprise || tier.discount === 0) && <div className="h-4 mb-3" />}
+
+                  {/* CTA Button */}
+                  {isEnterprise ? (
+                    <>
+                      <Button
+                        variant="hero-outline"
+                        size="lg"
+                        className="w-full mb-2"
+                        asChild
+                      >
+                        <a href="mailto:hello@propertymotion.com.au">
+                          Contact Us <ArrowRight className="w-4 h-4" />
+                        </a>
+                      </Button>
+                      <div className="h-5 mb-5" />
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        variant="hero"
+                        size="lg"
+                        className="w-full mb-2"
+                        onClick={() => handleSelectPlan(isFree ? "free" : isYearly ? `${plan.id}_yearly` : plan.id)}
+                        disabled={!!loadingPlan}
+                      >
+                        {loadingPlan === plan.id || loadingPlan === `${plan.id}_yearly` ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Loading...
+                          </>
+                        ) : isFree ? (
+                          <>Try Now <ArrowRight className="w-4 h-4" /></>
+                        ) : (
+                          <>Start Free Trial <ArrowRight className="w-4 h-4" /></>
+                        )}
+                      </Button>
+                      {!isFree && (
+                        <p className="text-xs text-muted-foreground text-center mb-5">
+                          7-day free trial — cancel anytime*
+                        </p>
+                      )}
+                      {isFree && <div className="h-5 mb-5" />}
+                    </>
+                  )}
+
+                  {/* Feature list */}
+                  <ul className="space-y-2.5 border-t border-border pt-5">
+                    {plan.features.map((feature, index) => {
+                      const text = resolveFeatureText(feature.text, plan, isYearly);
+                      return (
+                        <li key={index} className="flex items-start gap-2.5 text-sm">
+                          {feature.included ? (
+                            <Check className="w-4 h-4 flex-shrink-0 text-primary mt-0.5" />
+                          ) : (
+                            <X className="w-4 h-4 flex-shrink-0 text-destructive/50 mt-0.5" />
+                          )}
+                          <span className={feature.included ? "text-foreground" : "text-muted-foreground"}>
+                            {text}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>

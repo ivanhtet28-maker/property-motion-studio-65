@@ -9,10 +9,9 @@ import { supabase } from "@/lib/supabase";
 import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 
 const billingHistory = [
-  { date: "Jan 15, 2025", description: "Growth Plan", amount: "$499.00" },
-  { date: "Dec 15, 2024", description: "Growth Plan", amount: "$499.00" },
-  { date: "Nov 15, 2024", description: "Growth Plan", amount: "$499.00" },
-  { date: "Oct 15, 2024", description: "Starter Plan", amount: "$299.00" },
+  { date: "Feb 15, 2026", description: "Growth Plan", amount: "$139.00" },
+  { date: "Jan 15, 2026", description: "Growth Plan", amount: "$139.00" },
+  { date: "Dec 15, 2025", description: "Essential Plan", amount: "$59.00" },
 ];
 
 export default function Billing() {
@@ -63,7 +62,7 @@ export default function Billing() {
     }
   };
 
-  const currentPlan = subscriptionData?.subscription_plan || "starter";
+  const currentPlan = subscriptionData?.subscription_plan || "free";
   const isActive = subscriptionData?.subscription_status === "active" || subscriptionData?.subscription_status === "trialing";
 
   return (

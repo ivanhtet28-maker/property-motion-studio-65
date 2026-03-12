@@ -948,20 +948,33 @@ import { corsHeaders } from "../_shared/cors.ts";
         rawBody = await req.json();
       }
 
-      // Lightweight auth guard — accept JWT from Authorization header OR body._jwt
-      // (body._jwt is used in CORS-preflight bypass mode where no auth headers are sent).
+      // Auth guard — accept JWT from Authorization header OR body._jwt
+      // Internal function-to-function calls use the service role key as Bearer token.
       const authHeader = req.headers.get("authorization");
       const jwt = authHeader?.startsWith("Bearer ")
         ? authHeader.replace("Bearer ", "")
         : (rawBody._jwt as string | undefined);
 
-      if (jwt) {
-        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-        const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+      // Allow internal calls that use the service role key directly
+      const isInternalCall = jwt === supabaseServiceKey;
+
+      if (!isInternalCall) {
+        if (!jwt) {
+          return new Response(
+            JSON.stringify({ error: "Authentication required" }),
+            { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
         const authClient = createClient(supabaseUrl, supabaseServiceKey);
         const { error: authError } = await authClient.auth.getUser(jwt);
         if (authError) {
-          console.warn("[stitch-video] JWT verification failed:", authError.message, "— continuing anyway for internal calls");
+          return new Response(
+            JSON.stringify({ error: "Invalid or expired token" }),
+            { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
         }
       }
 
