@@ -7,19 +7,18 @@ import { corsHeaders } from "../_shared/cors.ts";
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
 
 // Stripe price IDs from Stripe Dashboard (all prices AUD)
-// TODO: Replace these placeholder IDs with your actual Stripe price IDs
 const PRICE_IDS: Record<string, string> = {
   // Monthly subscription plans
-  starter:          "price_PLACEHOLDER_starter_monthly",     // A$49/month  - 3 videos
-  growth:           "price_PLACEHOLDER_growth_monthly",      // A$99/month  - 10 videos
-  pro:              "price_PLACEHOLDER_pro_monthly",         // A$179/month - 20 videos
+  starter:          "price_1TA346PbrXEZ5GmRT8CxvJ9X",       // A$49/month  - 3 videos
+  growth:           "price_1TA3BuPbrXEZ5GmR70K1NLJy",       // A$99/month  - 10 videos
+  pro:              "price_1TA3DWPbrXEZ5GmRP9tE0OD4",       // A$179/month - 20 videos
   // Yearly subscription plans
-  starter_yearly:   "price_PLACEHOLDER_starter_yearly",      // A$39/month (A$468/year) - 25 videos
-  growth_yearly:    "price_PLACEHOLDER_growth_yearly",       // A$79/month (A$948/year) - 100 videos
-  pro_yearly:       "price_PLACEHOLDER_pro_yearly",          // A$149/month (A$1788/year) - 200 videos
+  starter_yearly:   "price_1TA38IPbrXEZ5GmRuVuadZQy",       // A$39/month (A$468/year) - 25 videos
+  growth_yearly:    "price_1TA3CwPbrXEZ5GmRdKh2NUJi",       // A$79/month (A$948/year) - 100 videos
+  pro_yearly:       "price_1TA3ElPbrXEZ5GmRjQfWCEjb",       // A$149/month (A$1788/year) - 200 videos
   // One-time video top-up packs
-  topup_1:          "price_PLACEHOLDER_topup_1",             // A$8  - 1 extra video
-  topup_5:          "price_PLACEHOLDER_topup_5",             // A$35 - 5 extra videos
+  topup_1:          "price_1TA3G8PbrXEZ5GmRBRxiKkfs",       // A$8  - 1 extra video
+  topup_5:          "price_1TA3GdPbrXEZ5GmRmaaoxoP2",       // A$35 - 5 extra videos
 };
 
 // Map plan IDs to their base tier name (for storing in DB)
