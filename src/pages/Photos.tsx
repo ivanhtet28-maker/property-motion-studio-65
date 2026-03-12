@@ -1451,20 +1451,59 @@ function PhotoEditTab() {
                 {/* Local filter presets */}
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Filter presets</label>
-                  {PRESET_FILTERS.map((preset) => (
-                    <button
-                      key={preset.name}
-                      onClick={() => applyPreset(preset)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${
-                        activePreset === preset.name
-                          ? "bg-primary/10 ring-1 ring-primary"
-                          : "hover:bg-secondary"
-                      }`}
-                    >
-                      <Palette className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-sm font-medium text-foreground">{preset.name}</span>
-                    </button>
-                  ))}
+                  <div className="flex flex-wrap gap-1.5">
+                    {PRESET_FILTERS.map((preset) => (
+                      <button
+                        key={preset.name}
+                        onClick={() => applyPreset(preset)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                          activePreset === preset.name
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "bg-secondary text-foreground hover:bg-accent"
+                        }`}
+                      >
+                        {preset.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Finetune sliders */}
+                <div className="space-y-3 pt-2 border-t border-border">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Fine-tune</label>
+                    {hasAdjustments && (
+                      <button onClick={resetAdjustments} className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1">
+                        <RotateCcw className="w-3 h-3" /> Reset
+                      </button>
+                    )}
+                  </div>
+                  {ADJUSTMENT_CONTROLS.map((ctrl) => {
+                    const Icon = ctrl.icon;
+                    return (
+                      <div key={ctrl.key} className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                            <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+                            {ctrl.label}
+                          </label>
+                          <span className="text-xs text-muted-foreground tabular-nums w-8 text-right">
+                            {adjustments[ctrl.key] > 0 ? "+" : ""}{adjustments[ctrl.key]}
+                          </span>
+                        </div>
+                        <Slider
+                          min={ctrl.min}
+                          max={ctrl.max}
+                          step={1}
+                          value={[adjustments[ctrl.key]]}
+                          onValueChange={([v]) => {
+                            setAdjustments((prev) => ({ ...prev, [ctrl.key]: v }));
+                            setActivePreset("None");
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
