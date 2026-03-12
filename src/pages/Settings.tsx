@@ -20,18 +20,25 @@ const plans = [
     description: "Try it out",
   },
   {
-    id: "essential",
-    name: "Essential",
-    price: 59,
+    id: "starter",
+    name: "Starter",
+    price: 49,
     videos: 3,
     description: "For individuals",
   },
   {
     id: "growth",
     name: "Growth",
-    price: 139,
+    price: 99,
     videos: 10,
     description: "For growing teams",
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    price: 179,
+    videos: 20,
+    description: "For agencies & teams",
   },
   {
     id: "enterprise",
@@ -43,9 +50,9 @@ const plans = [
 ];
 
 const billingHistory = [
-  { date: "Feb 15, 2026", description: "Growth Plan", amount: "$139.00" },
-  { date: "Jan 15, 2026", description: "Growth Plan", amount: "$139.00" },
-  { date: "Dec 15, 2025", description: "Essential Plan", amount: "$59.00" },
+  { date: "Feb 15, 2026", description: "Growth Plan", amount: "A$99.00" },
+  { date: "Jan 15, 2026", description: "Growth Plan", amount: "A$99.00" },
+  { date: "Dec 15, 2025", description: "Starter Plan", amount: "A$49.00" },
 ];
 
 export default function Settings() {
@@ -331,7 +338,7 @@ export default function Settings() {
                       <h3 className="text-lg font-semibold text-foreground">Active Subscription</h3>
                       <p className="text-sm text-muted-foreground mt-1">
                         {subscriptionData.videos_used_this_period || 0} of{" "}
-                        {currentPlan === "enterprise" ? "Custom" : currentPlan === "growth" ? "10" : currentPlan === "essential" ? "3" : "2"} videos used this period
+                        {currentPlan === "enterprise" ? "Custom" : currentPlan === "pro" ? "20" : currentPlan === "growth" ? "10" : currentPlan === "starter" ? "3" : "2"} videos used this period
                       </p>
                       {subscriptionData.subscription_period_end && (
                         <p className="text-xs text-muted-foreground mt-1">
@@ -364,7 +371,7 @@ export default function Settings() {
               ) : null}
 
               {/* Current Plan */}
-              <div className="grid md:grid-cols-3 gap-6">
+              <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-4">
                 {plans.map((plan) => {
                   const isCurrent = plan.id === currentPlan && isActive;
                   return (
@@ -389,7 +396,7 @@ export default function Settings() {
                       </p>
                       <div className="mt-4">
                         <span className="text-3xl font-bold">
-                          {typeof plan.price === 'number' ? `$${plan.price}` : plan.price}
+                          {typeof plan.price === 'number' ? `A$${plan.price}` : plan.price}
                         </span>
                         {typeof plan.price === 'number' && (
                           <span className={`text-sm ${isCurrent ? "opacity-80" : "text-muted-foreground"}`}>
@@ -438,33 +445,35 @@ export default function Settings() {
                       <tr className="border-b border-border">
                         <th className="text-left p-4 font-medium text-muted-foreground">Feature</th>
                         <th className="text-center p-4 font-medium text-muted-foreground">Free</th>
-                        <th className="text-center p-4 font-medium text-muted-foreground">Essential</th>
+                        <th className="text-center p-4 font-medium text-muted-foreground">Starter</th>
                         <th className="text-center p-4 font-medium text-muted-foreground bg-accent">
                           Growth
                         </th>
+                        <th className="text-center p-4 font-medium text-muted-foreground">Pro</th>
                         <th className="text-center p-4 font-medium text-muted-foreground">Enterprise</th>
                       </tr>
                     </thead>
                     <tbody>
                       {[
-                        ["Videos per month", "2", "3", "10", "Custom"],
-                        ["Images per video", "5", "20", "20", "Custom"],
-                        ["Video length", "15s", "60s", "60s", "Custom"],
-                        ["Resolution", "720p", "1080p", "1080p", "1080p"],
-                        ["AI Photo Edits", "5", "Unlimited", "Unlimited", "Unlimited"],
-                        ["No Watermark", "—", "✓", "✓", "✓"],
-                        ["Credit Rollover", "—", "3 months", "3 months", "✓"],
-                        ["Upload limit", "10MB", "10MB", "25MB", "Custom"],
-                        ["Team Seats", "—", "—", "—", "✓"],
-                        ["Dedicated Account Manager", "—", "—", "—", "✓"],
-                        ["Custom Integrations", "—", "—", "—", "✓"],
-                        ["SLA Support", "—", "—", "✓", "✓"],
-                      ].map(([feature, free, essential, growth, enterprise], index) => (
+                        ["Videos per month", "2", "3", "10", "20", "Custom"],
+                        ["Images per video", "5", "20", "20", "20", "Custom"],
+                        ["Video length", "15s", "60s", "60s", "60s", "Custom"],
+                        ["Resolution", "720p", "1080p", "1080p", "1080p", "1080p"],
+                        ["AI Photo Edits", "5", "Unlimited", "Unlimited", "Unlimited", "Unlimited"],
+                        ["No Watermark", "—", "✓", "✓", "✓", "✓"],
+                        ["Credit Rollover", "—", "3 months", "3 months", "3 months", "✓"],
+                        ["Upload limit", "10MB", "10MB", "25MB", "25MB", "Custom"],
+                        ["Team Seats", "—", "—", "—", "—", "✓"],
+                        ["Dedicated Account Manager", "—", "—", "—", "—", "✓"],
+                        ["Custom Integrations", "—", "—", "—", "—", "✓"],
+                        ["SLA Support", "—", "—", "✓", "✓", "✓"],
+                      ].map(([feature, free, starter, growth, pro, enterprise], index) => (
                         <tr key={index} className="border-b border-border last:border-0">
                           <td className="p-4 text-foreground">{feature}</td>
                           <td className="p-4 text-center text-muted-foreground">{free}</td>
-                          <td className="p-4 text-center text-muted-foreground">{essential}</td>
+                          <td className="p-4 text-center text-muted-foreground">{starter}</td>
                           <td className="p-4 text-center bg-accent text-foreground">{growth}</td>
+                          <td className="p-4 text-center text-muted-foreground">{pro}</td>
                           <td className="p-4 text-center text-muted-foreground">{enterprise}</td>
                         </tr>
                       ))}
@@ -529,7 +538,7 @@ export default function Settings() {
                     <div key={pack.id} className="border border-border rounded-lg p-4 flex items-center justify-between">
                       <div>
                         <p className="font-semibold text-foreground">{pack.videos} Video{pack.videos > 1 ? "s" : ""}</p>
-                        <p className="text-sm text-muted-foreground">${pack.perVideo}/video</p>
+                        <p className="text-sm text-muted-foreground">A${pack.perVideo}/video</p>
                       </div>
                       <Button
                         variant="outline"
@@ -545,7 +554,7 @@ export default function Settings() {
                           }
                         }}
                       >
-                        ${pack.price}
+                        A${pack.price}
                       </Button>
                     </div>
                   ))}

@@ -20,10 +20,10 @@ interface SubscriptionModalProps {
 
 const plans = [
   {
-    id: "essential",
-    name: "Essential",
-    monthly: { price: 59, perVideo: 20, videos: "3 videos/month" },
-    yearly: { price: 30, perVideo: 14, videos: "25 videos/year", discount: 30 },
+    id: "starter",
+    name: "Starter",
+    monthly: { price: 49, perVideo: 16, videos: "3 videos/month" },
+    yearly: { price: 39, perVideo: 19, videos: "25 videos/year", discount: 20 },
     features: [
       { text: "20 images per video", included: true },
       { text: "Up to 60 seconds per video", included: true },
@@ -36,8 +36,21 @@ const plans = [
     id: "growth",
     name: "Growth",
     badge: "MOST POPULAR",
-    monthly: { price: 139, perVideo: 14, videos: "10 videos/month" },
-    yearly: { price: 90, perVideo: 11, videos: "100 videos/year", discount: 21 },
+    monthly: { price: 99, perVideo: 10, videos: "10 videos/month" },
+    yearly: { price: 79, perVideo: 9, videos: "100 videos/year", discount: 20 },
+    features: [
+      { text: "20 images per video", included: true },
+      { text: "Up to 60 seconds per video", included: true },
+      { text: "1080p video resolution", included: true },
+      { text: "Unlimited AI photo edits", included: true },
+      { text: "Priority human support", included: true },
+    ],
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    monthly: { price: 179, perVideo: 9, videos: "20 videos/month" },
+    yearly: { price: 149, perVideo: 9, videos: "200 videos/year", discount: 17 },
     features: [
       { text: "20 images per video", included: true },
       { text: "Up to 60 seconds per video", included: true },
@@ -52,7 +65,7 @@ const plans = [
     monthly: { price: -1, perVideo: 0, videos: "Custom" },
     yearly: { price: -1, perVideo: 0, videos: "Custom" },
     features: [
-      { text: "Everything in Growth", included: true },
+      { text: "Everything in Pro", included: true },
       { text: "Custom video limits", included: true },
       { text: "Multiple team seats", included: true },
       { text: "Dedicated account manager", included: true },
@@ -145,7 +158,7 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
           </button>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
           {plans.map((plan) => {
             const tier = isYearly ? plan.yearly : plan.monthly;
             const isSelected = selectedPlan === plan.id;
@@ -189,12 +202,12 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
                 ) : (
                   <>
                     <div className="text-center mb-2">
-                      <span className="text-4xl font-bold">${tier.price}</span>
+                      <span className="text-4xl font-bold">A${tier.price}</span>
                       <span className="text-muted-foreground">/month</span>
                     </div>
                     {isYearly && "discount" in tier && tier.discount > 0 && (
                       <p className="text-center text-sm text-muted-foreground line-through mb-4">
-                        ${plan.monthly.price}/month
+                        A${plan.monthly.price}/month
                       </p>
                     )}
                     {!isYearly && <div className="h-5 mb-4" />}
@@ -258,7 +271,7 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
 
         <div className="mt-4 p-4 bg-secondary/50 rounded-lg text-center">
           <p className="text-sm text-muted-foreground">
-            All prices in USD. Subscribe now to download your video and keep creating.
+            All prices in AUD. Subscribe now to download your video and keep creating.
           </p>
         </div>
       </DialogContent>

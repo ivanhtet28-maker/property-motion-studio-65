@@ -155,11 +155,11 @@ const pricingPlans: PlanTier[] = [
     ],
   },
   {
-    id: "essential",
-    name: "ESSENTIAL",
+    id: "starter",
+    name: "STARTER",
     description: "For individuals ready to publish a few videos each month.",
-    monthly: { price: 59, perVideo: 20, videosLabel: "/month", videosCount: "3 videos", additionalVideoPrice: 20, rollover: "Credits rollover for 3 months" },
-    yearly: { price: 30, perVideo: 14, videosLabel: "/year", videosCount: "25 videos", additionalVideoPrice: 16, discount: 30, rollover: "Credits rollover for 1 year" },
+    monthly: { price: 49, perVideo: 16, videosLabel: "/month", videosCount: "3 videos", additionalVideoPrice: 8, rollover: "Credits rollover for 3 months" },
+    yearly: { price: 39, perVideo: 19, videosLabel: "/year", videosCount: "25 videos", additionalVideoPrice: 8, discount: 20, rollover: "Credits rollover for 1 year" },
     features: [
       { text: "{{videos}} included", included: true },
       { text: "20 images per video", included: true },
@@ -179,8 +179,27 @@ const pricingPlans: PlanTier[] = [
     description: "For growing individuals and small teams scaling their video content.",
     highlighted: true,
     badge: "MOST POPULAR",
-    monthly: { price: 139, perVideo: 14, videosLabel: "/month", videosCount: "10 videos", additionalVideoPrice: 14, rollover: "Credits rollover for 3 months" },
-    yearly: { price: 90, perVideo: 11, videosLabel: "/year", videosCount: "100 videos", additionalVideoPrice: 12, discount: 21, rollover: "Credits rollover for 1 year" },
+    monthly: { price: 99, perVideo: 10, videosLabel: "/month", videosCount: "10 videos", additionalVideoPrice: 8, rollover: "Credits rollover for 3 months" },
+    yearly: { price: 79, perVideo: 9, videosLabel: "/year", videosCount: "100 videos", additionalVideoPrice: 7, discount: 20, rollover: "Credits rollover for 1 year" },
+    features: [
+      { text: "{{videos}} included", included: true },
+      { text: "20 images per video", included: true },
+      { text: "Up to 60 seconds per video", included: true },
+      { text: "1080p video resolution", included: true },
+      { text: "Unlimited AI photo edits", included: true },
+      { text: "{{additionalPrice}} per additional video", included: true },
+      { text: "Exports without watermark", included: true },
+      { text: "{{rollover}}", included: true },
+      { text: "Upload images up to 25MB", included: true },
+      { text: "Priority human support", included: true },
+    ],
+  },
+  {
+    id: "pro",
+    name: "PRO",
+    description: "For top producers, teams, and agencies creating videos at scale.",
+    monthly: { price: 179, perVideo: 9, videosLabel: "/month", videosCount: "20 videos", additionalVideoPrice: 7, rollover: "Credits rollover for 3 months" },
+    yearly: { price: 149, perVideo: 9, videosLabel: "/year", videosCount: "200 videos", additionalVideoPrice: 7, discount: 17, rollover: "Credits rollover for 1 year" },
     features: [
       { text: "{{videos}} included", included: true },
       { text: "20 images per video", included: true },
@@ -201,7 +220,7 @@ const pricingPlans: PlanTier[] = [
     monthly: { price: -1, perVideo: 0, videosLabel: "", videosCount: "Custom", additionalVideoPrice: null, rollover: "" },
     yearly: { price: -1, perVideo: 0, videosLabel: "", videosCount: "Custom", additionalVideoPrice: null, discount: 0, rollover: "" },
     features: [
-      { text: "Everything in Growth", included: true },
+      { text: "Everything in Pro", included: true },
       { text: "Custom video limits", included: true },
       { text: "Multiple team seats", included: true },
       { text: "Dedicated account manager", included: true },
@@ -215,7 +234,7 @@ function resolveFeatureText(text: string, plan: PlanTier, isYearly: boolean): st
   const tier = isYearly ? plan.yearly : plan.monthly;
   return text
     .replace("{{videos}}", `${tier.videosCount}${tier.videosLabel}`)
-    .replace("{{additionalPrice}}", tier.additionalVideoPrice ? `$${tier.additionalVideoPrice}` : "N/A")
+    .replace("{{additionalPrice}}", tier.additionalVideoPrice ? `A$${tier.additionalVideoPrice}` : "N/A")
     .replace("{{rollover}}", tier.rollover);
 }
 
@@ -365,7 +384,7 @@ export default function Index() {
             </button>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto items-start">
+          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-5 max-w-7xl mx-auto items-start">
             {pricingPlans.map((plan) => {
               const isYearly = billingPeriod === "yearly";
               const tier = isYearly ? plan.yearly : plan.monthly;
@@ -420,11 +439,11 @@ export default function Index() {
                   ) : (
                     <div className="flex items-center gap-2 mb-1">
                       <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-secondary text-sm font-bold text-foreground">
-                        ${tier.price} <span className="font-normal text-muted-foreground ml-1">/ month</span>
+                        A${tier.price} <span className="font-normal text-muted-foreground ml-1">/ month</span>
                       </span>
                       {!isFree && (
                         <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-secondary text-sm font-bold text-foreground">
-                          ${tier.perVideo} <span className="font-normal text-muted-foreground ml-1">/ video</span>
+                          A${tier.perVideo} <span className="font-normal text-muted-foreground ml-1">/ video</span>
                         </span>
                       )}
                     </div>
@@ -433,8 +452,8 @@ export default function Index() {
                   {/* Strikethrough prices for yearly */}
                   {isYearly && !isFree && !isEnterprise && tier.discount > 0 && (
                     <div className="flex items-center gap-3 mt-1 mb-3">
-                      <span className="text-sm text-muted-foreground line-through">${plan.monthly.price}/month</span>
-                      <span className="text-sm text-muted-foreground line-through">${plan.monthly.perVideo}/video</span>
+                      <span className="text-sm text-muted-foreground line-through">A${plan.monthly.price}/month</span>
+                      <span className="text-sm text-muted-foreground line-through">A${plan.monthly.perVideo}/video</span>
                     </div>
                   )}
                   {(!isYearly || isFree || isEnterprise || tier.discount === 0) && <div className="h-4 mb-3" />}
