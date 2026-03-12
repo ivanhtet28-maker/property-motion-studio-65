@@ -2024,16 +2024,6 @@ function VirtualStagingTab() {
                 <span className="px-2 py-0.5 bg-secondary text-foreground text-xs font-medium rounded-full">
                   {ROOM_TYPES.find((r) => r.value === roomType)?.label || roomType}
                 </span>
-                {declutterEnabled && (
-                  <span className="px-2 py-0.5 bg-orange-500/10 text-orange-600 text-xs font-medium rounded-full">
-                    Decluttered
-                  </span>
-                )}
-                {lighting !== "standard" && (
-                  <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 text-xs font-medium rounded-full">
-                    {LIGHTING_OPTIONS.find((l) => l.value === lighting)?.label}
-                  </span>
-                )}
                 {mlsLabel.enabled && (
                   <span className="px-2 py-0.5 bg-blue-500/10 text-blue-600 text-xs font-medium rounded-full flex items-center gap-1">
                     <Shield className="w-3 h-3" /> MLS Label
