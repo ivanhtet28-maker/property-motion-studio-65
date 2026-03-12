@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         image_name: imageName,
-        enhance_type: "property",
+        enhance_type: enhancements.enhance_type || "property",
       }),
     });
 
