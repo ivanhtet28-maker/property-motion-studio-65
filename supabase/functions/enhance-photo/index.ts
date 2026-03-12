@@ -15,11 +15,14 @@ Deno.serve(async (req) => {
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+  let job_id: string | null = null;
+
   try {
     const { user, error: authErr } = await requireAuth(req);
     if (authErr) return authErr;
 
-    const { job_id } = await req.json();
+    const body = await req.json();
+    job_id = body.job_id;
     if (!job_id) throw new Error("job_id is required");
 
     console.log("enhance-photo: starting job", job_id);
@@ -140,7 +143,7 @@ Deno.serve(async (req) => {
 
           // Upload the enhanced image to our Supabase storage
           const enhancedBuffer = await enhancedRes.arrayBuffer();
-          const enhancedPath = `enhanced/${job.user_id}/${Date.now()}-${imageId}.jpg`;
+          const enhancedPath = `${job.user_id}/enhanced/${Date.now()}-${imageId}.jpg`;
 
           const { error: storeError } = await supabase.storage
             .from("property-photos")
@@ -229,10 +232,9 @@ Deno.serve(async (req) => {
   } catch (err) {
     console.error("enhance-photo error:", err);
 
-    // Try to update the job as failed
-    try {
-      const { job_id } = await req.clone().json().catch(() => ({ job_id: null }));
-      if (job_id) {
+    // Mark the job as failed so the frontend knows
+    if (job_id) {
+      try {
         await supabase
           .from("photo_jobs")
           .update({
@@ -241,8 +243,10 @@ Deno.serve(async (req) => {
             updated_at: new Date().toISOString(),
           })
           .eq("id", job_id);
+      } catch (updateErr) {
+        console.error("enhance-photo: failed to mark job as failed:", updateErr);
       }
-    } catch { /* ignore */ }
+    }
 
     return new Response(
       JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),

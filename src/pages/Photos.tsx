@@ -308,6 +308,7 @@ function BeforeAfterSlider({
 
 async function downloadImage(url: string, filename: string) {
   const res = await fetch(url);
+  if (!res.ok) throw new Error(`Download failed: ${res.status} ${res.statusText}`);
   const blob = await res.blob();
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -325,6 +326,10 @@ async function downloadAllAsZip(
   await Promise.all(
     files.map(async ({ url, filename }) => {
       const res = await fetch(url);
+      if (!res.ok) {
+        console.error(`Failed to fetch ${filename}: ${res.status}`);
+        return;
+      }
       const blob = await res.blob();
       zip.file(filename, blob);
     })
@@ -638,7 +643,7 @@ function PhotoEditTab() {
       const uploadedJobs: PhotoJob[] = [];
       for (const f of files) {
         const ext = f.file.name.split(".").pop() || "jpg";
-        const path = `originals/${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const path = `${user.id}/originals/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const { error: uploadError } = await supabase.storage
           .from("property-photos")
           .upload(path, f.file, { cacheControl: "3600" });
@@ -678,7 +683,21 @@ function PhotoEditTab() {
 
       // Call edge function for each job
       for (const job of uploadedJobs) {
-        invokeEdgeFunction("enhance-photo", { body: { job_id: job.id } }).catch(console.error);
+        invokeEdgeFunction("enhance-photo", { body: { job_id: job.id } }).catch((err) => {
+          console.error("enhance-photo invocation failed:", err);
+          setJobs((prev) =>
+            prev.map((j) =>
+              j.id === job.id
+                ? { ...j, status: "failed" as const, error_message: err instanceof Error ? err.message : "Failed to start enhancement" }
+                : j,
+            ),
+          );
+          toast({
+            title: "Enhancement failed",
+            description: err instanceof Error ? err.message : "Failed to start photo enhancement",
+            variant: "destructive",
+          });
+        });
       }
 
       // Subscribe to realtime updates
@@ -1341,7 +1360,7 @@ function VirtualStagingTab() {
 
       for (const f of files) {
         const ext = f.file.name.split(".").pop() || "jpg";
-        const path = `originals/${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const path = `${user.id}/originals/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const { error: uploadError } = await supabase.storage
           .from("property-photos")
           .upload(path, f.file, { cacheControl: "3600" });
@@ -1384,7 +1403,21 @@ function VirtualStagingTab() {
 
       // Call edge function for each
       for (const job of uploadedJobs) {
-        invokeEdgeFunction("stage-room", { body: { job_id: job.id } }).catch(console.error);
+        invokeEdgeFunction("stage-room", { body: { job_id: job.id } }).catch((err) => {
+          console.error("stage-room invocation failed:", err);
+          setJobs((prev) =>
+            prev.map((j) =>
+              j.id === job.id
+                ? { ...j, status: "failed" as const, error_message: err instanceof Error ? err.message : "Failed to start staging" }
+                : j,
+            ),
+          );
+          toast({
+            title: "Staging failed",
+            description: err instanceof Error ? err.message : "Failed to start room staging",
+            variant: "destructive",
+          });
+        });
       }
 
       // Realtime + polling
@@ -1889,7 +1922,9 @@ function VirtualStagingTab() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      invokeEdgeFunction("stage-room", { body: { job_id: job.id } }).catch(console.error);
+                      invokeEdgeFunction("stage-room", { body: { job_id: job.id } }).catch((err) => {
+                        toast({ title: "Retry failed", description: err instanceof Error ? err.message : "Failed to retry staging", variant: "destructive" });
+                      });
                       setJobs((prev) => prev.map((j) => j.id === job.id ? { ...j, status: "processing", error_message: null } : j));
                     }}
                   >
