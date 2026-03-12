@@ -730,13 +730,40 @@ function PhotoEditTab() {
         )
         .subscribe();
 
-      // Poll fallback
+      // Poll fallback — also triggers check-enhance-status to poll Autoenhance
       const pollIds = new Set(uploadedJobs.map((j) => j.id));
+      let pollCount = 0;
+      const MAX_POLLS = 60; // 60 * 4s = 4 minutes max
       const pollInterval = setInterval(async () => {
-        if (pollIds.size === 0) {
+        pollCount++;
+        if (pollIds.size === 0 || pollCount > MAX_POLLS) {
           clearInterval(pollInterval);
+          channel.unsubscribe();
+          if (pollIds.size > 0) {
+            // Timed out — mark remaining as failed in UI
+            setJobs((prev) =>
+              prev.map((j) =>
+                pollIds.has(j.id) && j.status === "processing"
+                  ? { ...j, status: "failed" as const, error_message: "Enhancement timed out. Please try again." }
+                  : j
+              )
+            );
+          }
+          setIsProcessing(false);
           return;
         }
+
+        // For each processing job, call check-enhance-status to trigger
+        // Autoenhance polling and result download on the server side
+        for (const jobId of pollIds) {
+          try {
+            await invokeEdgeFunction("check-enhance-status", { body: { job_id: jobId } });
+          } catch (err) {
+            console.warn("check-enhance-status call failed:", err);
+          }
+        }
+
+        // Then read updated status from DB
         const { data } = await supabase
           .from("photo_jobs")
           .select("*")
@@ -760,7 +787,7 @@ function PhotoEditTab() {
           channel.unsubscribe();
           setIsProcessing(false);
         }
-      }, 3000);
+      }, 4000);
     } catch (err) {
       console.error("Enhance error:", err);
       toast({ title: "Error", description: "Failed to start enhancement", variant: "destructive" });
