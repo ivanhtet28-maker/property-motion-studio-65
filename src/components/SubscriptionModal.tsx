@@ -47,16 +47,17 @@ const plans = [
     ],
   },
   {
-    id: "pro",
-    name: "Pro",
-    monthly: { price: 249, perVideo: 12, videos: "20 videos/month" },
-    yearly: { price: 165, perVideo: 10, videos: "200 videos/year", discount: 17 },
+    id: "enterprise",
+    name: "Enterprise",
+    monthly: { price: -1, perVideo: 0, videos: "Custom" },
+    yearly: { price: -1, perVideo: 0, videos: "Custom" },
     features: [
-      { text: "20 images per video", included: true },
-      { text: "Up to 60 seconds per video", included: true },
-      { text: "1080p video resolution", included: true },
-      { text: "Unlimited AI photo edits", included: true },
-      { text: "Priority human support", included: true },
+      { text: "Everything in Growth", included: true },
+      { text: "Custom video limits", included: true },
+      { text: "Multiple team seats", included: true },
+      { text: "Dedicated account manager", included: true },
+      { text: "Custom integrations", included: true },
+      { text: "SLA support", included: true },
     ],
   },
 ];
@@ -149,6 +150,7 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
             const tier = isYearly ? plan.yearly : plan.monthly;
             const isSelected = selectedPlan === plan.id;
             const isLoading = isSubscribing && isSelected;
+            const isEnterprise = plan.id === "enterprise";
 
             return (
               <div
@@ -167,7 +169,7 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
 
                 <div className="flex items-center gap-2 mb-3">
                   <h3 className="text-xl font-bold text-primary">{plan.name}</h3>
-                  {isYearly && "discount" in tier && tier.discount > 0 && (
+                  {!isEnterprise && isYearly && "discount" in tier && tier.discount > 0 && (
                     <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded-full">
                       <Tag className="w-3 h-3" />
                       {tier.discount}% OFF
@@ -177,17 +179,27 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
 
                 <p className="text-sm text-muted-foreground mb-3">{tier.videos}</p>
 
-                <div className="text-center mb-2">
-                  <span className="text-4xl font-bold">${tier.price}</span>
-                  <span className="text-muted-foreground">/month</span>
-                </div>
-
-                {isYearly && "discount" in tier && tier.discount > 0 && (
-                  <p className="text-center text-sm text-muted-foreground line-through mb-4">
-                    ${plan.monthly.price}/month
-                  </p>
+                {isEnterprise ? (
+                  <>
+                    <div className="text-center mb-2">
+                      <span className="text-2xl font-bold">Custom pricing</span>
+                    </div>
+                    <div className="h-5 mb-4" />
+                  </>
+                ) : (
+                  <>
+                    <div className="text-center mb-2">
+                      <span className="text-4xl font-bold">${tier.price}</span>
+                      <span className="text-muted-foreground">/month</span>
+                    </div>
+                    {isYearly && "discount" in tier && tier.discount > 0 && (
+                      <p className="text-center text-sm text-muted-foreground line-through mb-4">
+                        ${plan.monthly.price}/month
+                      </p>
+                    )}
+                    {!isYearly && <div className="h-5 mb-4" />}
+                  </>
                 )}
-                {!isYearly && <div className="h-5 mb-4" />}
 
                 <ul className="space-y-2.5 mb-6">
                   {plan.features.map((feature, index) => (
@@ -202,24 +214,43 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
                   ))}
                 </ul>
 
-                <Button
-                  onClick={() => handleSubscribe(plan.id)}
-                  disabled={isSubscribing}
-                  className="w-full"
-                  variant={plan.badge ? "default" : "outline"}
-                >
-                  {isLoading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>Start Free Trial <ArrowRight className="w-4 h-4" /></>
-                  )}
-                </Button>
-                <p className="text-xs text-muted-foreground text-center mt-2">
-                  7-day free trial — cancel anytime*
-                </p>
+                {isEnterprise ? (
+                  <>
+                    <Button
+                      className="w-full"
+                      variant="outline"
+                      asChild
+                    >
+                      <a href="mailto:hello@propertymotion.com.au">
+                        Contact Us <ArrowRight className="w-4 h-4" />
+                      </a>
+                    </Button>
+                    <p className="text-xs text-muted-foreground text-center mt-2">
+                      &nbsp;
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      onClick={() => handleSubscribe(plan.id)}
+                      disabled={isSubscribing}
+                      className="w-full"
+                      variant={plan.badge ? "default" : "outline"}
+                    >
+                      {isLoading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>Start Free Trial <ArrowRight className="w-4 h-4" /></>
+                      )}
+                    </Button>
+                    <p className="text-xs text-muted-foreground text-center mt-2">
+                      7-day free trial — cancel anytime*
+                    </p>
+                  </>
+                )}
               </div>
             );
           })}

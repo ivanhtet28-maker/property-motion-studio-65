@@ -41,10 +41,32 @@ Deno.serve(async (req) => {
 
         const userId = session.metadata?.supabase_user_id;
         const plan = session.metadata?.plan;
-        const tier = session.metadata?.tier || plan;
-        const videosLimit = session.metadata?.videos_limit ? parseInt(session.metadata.videos_limit) : null;
+        const isTopup = session.metadata?.type === "topup";
 
-        if (userId && plan) {
+        if (userId && plan && isTopup) {
+          // One-time top-up: add extra videos to the user's current limit
+          const extraVideos = parseInt(session.metadata?.extra_videos || "0");
+          if (extraVideos > 0) {
+            // Use RPC or read-then-update to atomically increment
+            const { data: prefs } = await supabase
+              .from("user_preferences")
+              .select("videos_limit")
+              .eq("user_id", userId)
+              .single();
+
+            const currentLimit = prefs?.videos_limit || 2;
+            await supabase
+              .from("user_preferences")
+              .update({ videos_limit: currentLimit + extraVideos })
+              .eq("user_id", userId);
+
+            console.log(`Top-up: added ${extraVideos} videos for user ${userId} (${currentLimit} → ${currentLimit + extraVideos})`);
+          }
+        } else if (userId && plan) {
+          // Subscription checkout
+          const tier = session.metadata?.tier || plan;
+          const videosLimit = session.metadata?.videos_limit ? parseInt(session.metadata.videos_limit) : null;
+
           const updateData: Record<string, unknown> = {
             subscription_plan: plan,
             subscription_tier: tier,

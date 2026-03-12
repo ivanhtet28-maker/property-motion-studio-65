@@ -34,11 +34,11 @@ const plans = [
     description: "For growing teams",
   },
   {
-    id: "pro",
-    name: "Pro",
-    price: 249,
-    videos: 20,
-    description: "For agencies & teams",
+    id: "enterprise",
+    name: "Enterprise",
+    price: "Custom" as unknown as number,
+    videos: -1,
+    description: "Custom videos, seats & integrations",
   },
 ];
 
@@ -331,7 +331,7 @@ export default function Settings() {
                       <h3 className="text-lg font-semibold text-foreground">Active Subscription</h3>
                       <p className="text-sm text-muted-foreground mt-1">
                         {subscriptionData.videos_used_this_period || 0} of{" "}
-                        {currentPlan === "pro" ? "20" : currentPlan === "growth" ? "10" : currentPlan === "essential" ? "3" : "2"} videos used this period
+                        {currentPlan === "enterprise" ? "Custom" : currentPlan === "growth" ? "10" : currentPlan === "essential" ? "3" : "2"} videos used this period
                       </p>
                       {subscriptionData.subscription_period_end && (
                         <p className="text-xs text-muted-foreground mt-1">
@@ -398,16 +398,24 @@ export default function Settings() {
                         )}
                       </div>
                       <p className={`mt-2 text-sm ${isCurrent ? "opacity-80" : "text-muted-foreground"}`}>
-                        {plan.videos === -1 ? "Unlimited" : plan.videos} videos/month
+                        {plan.id === "enterprise" ? "Custom" : plan.videos} videos/month
                       </p>
                       {isCurrent ? (
                         <div className="mt-6 flex items-center gap-2 text-sm">
                           <Check className="w-4 h-4" />
-                          {subscriptionData?.videos_used_this_period || 0} of {plan.videos === -1 ? "unlimited" : plan.videos} used
+                          {subscriptionData?.videos_used_this_period || 0} of {plan.id === "enterprise" ? "custom" : plan.videos} used
                         </div>
+                      ) : plan.id === "enterprise" ? (
+                        <Button
+                          variant="outline"
+                          className="w-full mt-6"
+                          asChild
+                        >
+                          <a href="mailto:hello@propertymotion.com.au">Contact Us</a>
+                        </Button>
                       ) : (
                         <Button
-                          variant={isCurrent ? "secondary" : "outline"}
+                          variant="outline"
                           className="w-full mt-6"
                           onClick={() => navigate("/#pricing")}
                         >
@@ -434,27 +442,30 @@ export default function Settings() {
                         <th className="text-center p-4 font-medium text-muted-foreground bg-accent">
                           Growth
                         </th>
-                        <th className="text-center p-4 font-medium text-muted-foreground">Pro</th>
+                        <th className="text-center p-4 font-medium text-muted-foreground">Enterprise</th>
                       </tr>
                     </thead>
                     <tbody>
                       {[
-                        ["Videos per month", "2", "3", "10", "20"],
-                        ["Images per video", "5", "20", "20", "20"],
-                        ["Video length", "15s", "60s", "60s", "60s"],
+                        ["Videos per month", "2", "3", "10", "Custom"],
+                        ["Images per video", "5", "20", "20", "Custom"],
+                        ["Video length", "15s", "60s", "60s", "Custom"],
                         ["Resolution", "720p", "1080p", "1080p", "1080p"],
                         ["AI Photo Edits", "5", "Unlimited", "Unlimited", "Unlimited"],
                         ["No Watermark", "—", "✓", "✓", "✓"],
-                        ["Credit Rollover", "—", "3 months", "3 months", "3 months"],
-                        ["Upload limit", "10MB", "10MB", "25MB", "25MB"],
-                        ["Priority Support", "—", "—", "✓", "✓"],
-                      ].map(([feature, free, essential, growth, pro], index) => (
+                        ["Credit Rollover", "—", "3 months", "3 months", "✓"],
+                        ["Upload limit", "10MB", "10MB", "25MB", "Custom"],
+                        ["Team Seats", "—", "—", "—", "✓"],
+                        ["Dedicated Account Manager", "—", "—", "—", "✓"],
+                        ["Custom Integrations", "—", "—", "—", "✓"],
+                        ["SLA Support", "—", "—", "✓", "✓"],
+                      ].map(([feature, free, essential, growth, enterprise], index) => (
                         <tr key={index} className="border-b border-border last:border-0">
                           <td className="p-4 text-foreground">{feature}</td>
                           <td className="p-4 text-center text-muted-foreground">{free}</td>
                           <td className="p-4 text-center text-muted-foreground">{essential}</td>
                           <td className="p-4 text-center bg-accent text-foreground">{growth}</td>
-                          <td className="p-4 text-center text-muted-foreground">{pro}</td>
+                          <td className="p-4 text-center text-muted-foreground">{enterprise}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -505,6 +516,41 @@ export default function Settings() {
                     </Button>
                   </div>
                 )}</div>
+
+              {/* Video Top-Up Packs */}
+              <div className="bg-card rounded-xl border border-border p-6">
+                <h2 className="text-lg font-semibold text-foreground mb-2">Need More Videos?</h2>
+                <p className="text-sm text-muted-foreground mb-4">Buy extra videos as a one-time purchase. Added to your current allowance instantly.</p>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {[
+                    { id: "topup_1", videos: 1, price: 8, perVideo: 8 },
+                    { id: "topup_5", videos: 5, price: 35, perVideo: 7 },
+                  ].map((pack) => (
+                    <div key={pack.id} className="border border-border rounded-lg p-4 flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-foreground">{pack.videos} Video{pack.videos > 1 ? "s" : ""}</p>
+                        <p className="text-sm text-muted-foreground">${pack.perVideo}/video</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={async () => {
+                          if (!user) return;
+                          try {
+                            const data = await invokeEdgeFunction<{ url?: string }>("create-checkout-session", {
+                              body: { plan: pack.id, userId: user.id, email: user.email },
+                            });
+                            if (data.url) window.location.href = data.url;
+                          } catch (err) {
+                            toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to start checkout", variant: "destructive" });
+                          }
+                        }}
+                      >
+                        ${pack.price}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               {/* Billing History */}
               <div className="bg-card rounded-xl border border-border overflow-hidden">

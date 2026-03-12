@@ -195,22 +195,18 @@ const pricingPlans: PlanTier[] = [
     ],
   },
   {
-    id: "pro",
-    name: "PRO",
-    description: "For top producers, teams, and agencies creating videos at scale.",
-    monthly: { price: 249, perVideo: 12, videosLabel: "/month", videosCount: "20 videos", additionalVideoPrice: 12, rollover: "Credits rollover for 3 months" },
-    yearly: { price: 165, perVideo: 10, videosLabel: "/year", videosCount: "200 videos", additionalVideoPrice: 11, discount: 17, rollover: "Credits rollover for 1 year" },
+    id: "enterprise",
+    name: "ENTERPRISE",
+    description: "For teams and principals at scale. Custom videos, seats and integrations.",
+    monthly: { price: -1, perVideo: 0, videosLabel: "", videosCount: "Custom", additionalVideoPrice: null, rollover: "" },
+    yearly: { price: -1, perVideo: 0, videosLabel: "", videosCount: "Custom", additionalVideoPrice: null, discount: 0, rollover: "" },
     features: [
-      { text: "{{videos}} included", included: true },
-      { text: "20 images per video", included: true },
-      { text: "Up to 60 seconds per video", included: true },
-      { text: "1080p video resolution", included: true },
-      { text: "Unlimited AI photo edits", included: true },
-      { text: "{{additionalPrice}} per additional video", included: true },
-      { text: "Exports without watermark", included: true },
-      { text: "{{rollover}}", included: true },
-      { text: "Upload images up to 25MB", included: true },
-      { text: "Priority human support", included: true },
+      { text: "Everything in Growth", included: true },
+      { text: "Custom video limits", included: true },
+      { text: "Multiple team seats", included: true },
+      { text: "Dedicated account manager", included: true },
+      { text: "Custom integrations", included: true },
+      { text: "SLA support", included: true },
     ],
   },
 ];
@@ -374,6 +370,7 @@ export default function Index() {
               const isYearly = billingPeriod === "yearly";
               const tier = isYearly ? plan.yearly : plan.monthly;
               const isFree = plan.id === "free";
+              const isEnterprise = plan.id === "enterprise";
               const isHighlighted = plan.highlighted;
 
               return (
@@ -414,53 +411,77 @@ export default function Index() {
                   </div>
 
                   {/* Price pills */}
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-secondary text-sm font-bold text-foreground">
-                      ${tier.price} <span className="font-normal text-muted-foreground ml-1">/ month</span>
-                    </span>
-                    {!isFree && (
+                  {isEnterprise ? (
+                    <div className="mb-1">
                       <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-secondary text-sm font-bold text-foreground">
-                        ${tier.perVideo} <span className="font-normal text-muted-foreground ml-1">/ video</span>
+                        Custom pricing
                       </span>
-                    )}
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-secondary text-sm font-bold text-foreground">
+                        ${tier.price} <span className="font-normal text-muted-foreground ml-1">/ month</span>
+                      </span>
+                      {!isFree && (
+                        <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-secondary text-sm font-bold text-foreground">
+                          ${tier.perVideo} <span className="font-normal text-muted-foreground ml-1">/ video</span>
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   {/* Strikethrough prices for yearly */}
-                  {isYearly && !isFree && tier.discount > 0 && (
+                  {isYearly && !isFree && !isEnterprise && tier.discount > 0 && (
                     <div className="flex items-center gap-3 mt-1 mb-3">
                       <span className="text-sm text-muted-foreground line-through">${plan.monthly.price}/month</span>
                       <span className="text-sm text-muted-foreground line-through">${plan.monthly.perVideo}/video</span>
                     </div>
                   )}
-                  {(!isYearly || isFree || tier.discount === 0) && <div className="h-4 mb-3" />}
+                  {(!isYearly || isFree || isEnterprise || tier.discount === 0) && <div className="h-4 mb-3" />}
 
                   {/* CTA Button */}
-                  <Button
-                    variant="hero"
-                    size="lg"
-                    className="w-full mb-2"
-                    onClick={() => handleSelectPlan(isFree ? "free" : isYearly ? `${plan.id}_yearly` : plan.id)}
-                    disabled={!!loadingPlan}
-                  >
-                    {loadingPlan === plan.id || loadingPlan === `${plan.id}_yearly` ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Loading...
-                      </>
-                    ) : isFree ? (
-                      <>Try Now <ArrowRight className="w-4 h-4" /></>
-                    ) : (
-                      <>Start Free Trial <ArrowRight className="w-4 h-4" /></>
-                    )}
-                  </Button>
-
-                  {/* Trial note */}
-                  {!isFree && (
-                    <p className="text-xs text-muted-foreground text-center mb-5">
-                      7-day free trial — cancel anytime*
-                    </p>
+                  {isEnterprise ? (
+                    <>
+                      <Button
+                        variant="hero-outline"
+                        size="lg"
+                        className="w-full mb-2"
+                        asChild
+                      >
+                        <a href="mailto:hello@propertymotion.com.au">
+                          Contact Us <ArrowRight className="w-4 h-4" />
+                        </a>
+                      </Button>
+                      <div className="h-5 mb-5" />
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        variant="hero"
+                        size="lg"
+                        className="w-full mb-2"
+                        onClick={() => handleSelectPlan(isFree ? "free" : isYearly ? `${plan.id}_yearly` : plan.id)}
+                        disabled={!!loadingPlan}
+                      >
+                        {loadingPlan === plan.id || loadingPlan === `${plan.id}_yearly` ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Loading...
+                          </>
+                        ) : isFree ? (
+                          <>Try Now <ArrowRight className="w-4 h-4" /></>
+                        ) : (
+                          <>Start Free Trial <ArrowRight className="w-4 h-4" /></>
+                        )}
+                      </Button>
+                      {!isFree && (
+                        <p className="text-xs text-muted-foreground text-center mb-5">
+                          7-day free trial — cancel anytime*
+                        </p>
+                      )}
+                      {isFree && <div className="h-5 mb-5" />}
+                    </>
                   )}
-                  {isFree && <div className="h-5 mb-5" />}
 
                   {/* Feature list */}
                   <ul className="space-y-2.5 border-t border-border pt-5">
