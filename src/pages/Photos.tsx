@@ -52,6 +52,9 @@ import {
   Shield,
   Moon,
   Sunset,
+  ChevronDown,
+  ChevronUp,
+  Mountain,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -127,6 +130,12 @@ const ADJUSTMENT_CONTROLS: { key: keyof ImageAdjustments; label: string; icon: t
   { key: "warmth", label: "Warmth", icon: Thermometer, min: -50, max: 50 },
   { key: "sharpness", label: "Sharpness", icon: Sparkles, min: -30, max: 30 },
   { key: "vignette", label: "Vignette", icon: Eye, min: 0, max: 50 },
+];
+
+const ENHANCE_PRESETS = [
+  { value: "property", label: "Natural", description: "Balanced, true-to-life enhancement" },
+  { value: "warm", label: "Warm", description: "Warm tones, inviting feel" },
+  { value: "vivid", label: "Vivid", description: "Bold colours, high contrast" },
 ];
 
 const SKY_OPTIONS = [
@@ -516,8 +525,10 @@ export default function Photos() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TAB 1: PHOTO EDIT — Enhanced with manual controls, presets, watermarks
+// TAB 1: PHOTO EDIT — Autoenhance.ai-inspired dark editor layout
 // ═══════════════════════════════════════════════════════════════════════════
+
+type SidebarTab = "ai" | "finetune" | "presets";
 
 function PhotoEditTab() {
   const { user } = useAuth();
@@ -526,16 +537,21 @@ function PhotoEditTab() {
   // Upload state
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [selectedFileIndex, setSelectedFileIndex] = useState(0);
 
   // AI Enhancement options
   const [enhanceEnabled, setEnhanceEnabled] = useState(true);
+  const [enhanceType, setEnhanceType] = useState("property");
   const [skyEnabled, setSkyEnabled] = useState(false);
   const [skyType, setSkyType] = useState("DAY");
+
+  // Sidebar
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("ai");
+  const [skyExpanded, setSkyExpanded] = useState(false);
 
   // Manual adjustments
   const [adjustments, setAdjustments] = useState<ImageAdjustments>({ ...DEFAULT_ADJUSTMENTS });
   const [activePreset, setActivePreset] = useState("None");
-  const [showManualControls, setShowManualControls] = useState(false);
 
   // Watermark
   const [watermarkEnabled, setWatermarkEnabled] = useState(false);
@@ -550,8 +566,8 @@ function PhotoEditTab() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [jobs, setJobs] = useState<PhotoJob[]>([]);
 
-  // Edit mode — when viewing results, allow further adjustments
-  const [editingJobId, setEditingJobId] = useState<string | null>(null);
+  // Compare mode (before/after slider)
+  const [compareMode, setCompareMode] = useState(false);
 
   // File handling
   const addFiles = useCallback((newFiles: File[]) => {
@@ -572,7 +588,9 @@ function PhotoEditTab() {
   const removeFile = (index: number) => {
     setFiles((prev) => {
       URL.revokeObjectURL(prev[index].preview);
-      return prev.filter((_, i) => i !== index);
+      const next = prev.filter((_, i) => i !== index);
+      if (selectedFileIndex >= next.length) setSelectedFileIndex(Math.max(0, next.length - 1));
+      return next;
     });
   };
 
@@ -582,7 +600,7 @@ function PhotoEditTab() {
     addFiles(Array.from(e.dataTransfer.files));
   }, [addFiles]);
 
-  // Apply preset
+  // Apply preset filter
   const applyPreset = (preset: typeof PRESET_FILTERS[number]) => {
     setActivePreset(preset.name);
     setAdjustments({ ...preset.adjustments });
@@ -600,6 +618,9 @@ function PhotoEditTab() {
     () => Object.values(adjustments).some((v) => v !== 0),
     [adjustments],
   );
+
+  // Current selected job (when viewing results)
+  const selectedJob = jobs.length > 0 ? jobs[selectedFileIndex] || jobs[0] : null;
 
   // Process photos
   const handleEnhance = async () => {
@@ -659,7 +680,7 @@ function PhotoEditTab() {
             job_type: "enhance",
             original_url: urlData.publicUrl,
             status: "pending",
-            enhancements: { enhance: enhanceEnabled, sky: skyEnabled, sky_type: skyType },
+            enhancements: { enhance: enhanceEnabled, sky: skyEnabled, sky_type: skyType, enhance_type: enhanceType },
           })
           .select()
           .single();
@@ -730,17 +751,16 @@ function PhotoEditTab() {
         )
         .subscribe();
 
-      // Poll fallback — also triggers check-enhance-status to poll Autoenhance
+      // Poll fallback
       const pollIds = new Set(uploadedJobs.map((j) => j.id));
       let pollCount = 0;
-      const MAX_POLLS = 60; // 60 * 4s = 4 minutes max
+      const MAX_POLLS = 60;
       const pollInterval = setInterval(async () => {
         pollCount++;
         if (pollIds.size === 0 || pollCount > MAX_POLLS) {
           clearInterval(pollInterval);
           channel.unsubscribe();
           if (pollIds.size > 0) {
-            // Timed out — mark remaining as failed in UI
             setJobs((prev) =>
               prev.map((j) =>
                 pollIds.has(j.id) && j.status === "processing"
@@ -753,21 +773,30 @@ function PhotoEditTab() {
           return;
         }
 
-        // For each processing job, call check-enhance-status to trigger
-        // Autoenhance polling and result download on the server side
-        for (const jobId of pollIds) {
-          try {
-            await invokeEdgeFunction("check-enhance-status", { body: { job_id: jobId } });
-          } catch (err) {
-            console.warn("check-enhance-status call failed:", err);
-          }
-        }
-
-        // Then read updated status from DB
         const { data } = await supabase
           .from("photo_jobs")
           .select("*")
           .in("id", Array.from(pollIds));
+
+        if (data) {
+          for (const row of data) {
+            if (row.status === "processing" && row.external_id) {
+              try {
+                await invokeEdgeFunction("check-enhance-status", { body: { job_id: row.id } });
+              } catch (err) {
+                console.warn("check-enhance-status call failed:", err);
+              }
+              const { data: updated } = await supabase
+                .from("photo_jobs")
+                .select("*")
+                .eq("id", row.id)
+                .single();
+              if (updated) {
+                Object.assign(row, updated);
+              }
+            }
+          }
+        }
         if (data) {
           for (const row of data) {
             if (row.status === "complete" || row.status === "failed") {
@@ -806,7 +835,6 @@ function PhotoEditTab() {
     await downloadAllAsZip(downloadFiles, "propertymotion-enhanced.zip");
   };
 
-  // Download a single result with manual adjustments applied
   const handleDownloadWithEdits = async (job: PhotoJob) => {
     try {
       const sourceUrl = job.sky_url || job.enhanced_url || job.original_url;
@@ -825,496 +853,638 @@ function PhotoEditTab() {
     }
   };
 
+  // ── UPLOAD VIEW ───────────────────────────────────────────────────────────
+  if (files.length === 0 && jobs.length === 0) {
+    return (
+      <label
+        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+        onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
+        onDrop={handleDrop}
+        className={`block border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all ${
+          isDragging
+            ? "border-primary bg-primary/5 scale-[1.01]"
+            : "border-border hover:border-primary/50 hover:bg-secondary/30"
+        }`}
+      >
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          className="hidden"
+          onChange={(e) => e.target.files && addFiles(Array.from(e.target.files))}
+        />
+        <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-secondary flex items-center justify-center">
+          <Upload className="w-6 h-6 text-muted-foreground" />
+        </div>
+        <p className="font-semibold text-foreground text-lg">
+          {isDragging ? "Drop photos here" : "Drop your listing photos here or click to browse"}
+        </p>
+        <p className="text-sm text-muted-foreground mt-2">JPG, PNG, WEBP — Max 20MB per file, up to 20 files</p>
+      </label>
+    );
+  }
+
+  // ── EDITOR VIEW (Autoenhance.ai-inspired) ─────────────────────────────────
+  const hasResults = jobs.length > 0;
+  const currentPreviewUrl = hasResults
+    ? (selectedJob?.sky_url || selectedJob?.enhanced_url || selectedJob?.original_url || "")
+    : (files[selectedFileIndex]?.preview || "");
+  const currentOriginalUrl = hasResults
+    ? (selectedJob?.original_url || "")
+    : (files[selectedFileIndex]?.preview || "");
+  const jobIsComplete = selectedJob?.status === "complete";
+  const jobIsProcessing = selectedJob?.status === "processing" || selectedJob?.status === "pending";
+  const jobIsFailed = selectedJob?.status === "failed";
+
   return (
-    <div className="space-y-8">
-      {/* Upload Zone */}
-      {jobs.length === 0 && (
-        <>
-          <label
-            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-            onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
-            onDrop={handleDrop}
-            className={`block border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all ${
-              isDragging
-                ? "border-primary bg-primary/5 scale-[1.01]"
-                : "border-border hover:border-primary/50 hover:bg-secondary/30"
-            }`}
-          >
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              multiple
-              className="hidden"
-              onChange={(e) => e.target.files && addFiles(Array.from(e.target.files))}
-            />
-            <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-secondary flex items-center justify-center">
-              <Upload className="w-6 h-6 text-muted-foreground" />
-            </div>
-            <p className="font-semibold text-foreground text-lg">
-              {isDragging ? "Drop photos here" : "Drop your listing photos here or click to browse"}
-            </p>
-            <p className="text-sm text-muted-foreground mt-2">JPG, PNG, WEBP — Max 20MB per file, up to 20 files</p>
-          </label>
+    <div className="flex flex-col h-[calc(100vh-12rem)]">
+      {/* ── Top Bar ─────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between mb-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => { setJobs([]); setFiles([]); resetAdjustments(); setCompareMode(false); }}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Upload
+        </Button>
 
-          {/* Thumbnail grid */}
-          {files.length > 0 && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
-                {files.map((f, i) => (
-                  <div key={i} className="relative group rounded-lg overflow-hidden border border-border">
-                    <img
-                      src={f.preview}
-                      alt={f.name}
-                      className="aspect-square object-cover w-full"
-                      style={hasAdjustments ? { filter: cssFilter } : undefined}
-                    />
-                    {adjustments.vignette > 0 && (
-                      <div
-                        className="absolute inset-0 pointer-events-none"
-                        style={{
-                          background: `radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,${adjustments.vignette / 100}) 100%)`,
-                        }}
-                      />
-                    )}
-                    <button
-                      onClick={() => removeFile(i)}
-                      className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/60 hover:bg-destructive text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                    <div className="absolute bottom-0 inset-x-0 bg-black/50 px-2 py-1">
-                      <p className="text-[10px] text-white truncate">{f.name}</p>
-                      <p className="text-[10px] text-white/70">{f.size}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* ── AI Enhancement Options ────────────────────────────── */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-primary" /> AI Enhancement
-                </h3>
-                {/* Auto Enhance */}
-                <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-card">
-                  <div>
-                    <p className="text-sm font-semibold text-foreground flex items-center gap-2">
-                      <span className="text-primary">✦</span> Auto Enhance
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Colour, HDR, exposure & perspective correction — ~30 sec
-                    </p>
-                  </div>
-                  <Switch checked={enhanceEnabled} onCheckedChange={setEnhanceEnabled} />
-                </div>
-
-                {/* Sky Replacement */}
-                <div className="p-4 rounded-xl border border-border bg-card space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-foreground flex items-center gap-2">
-                        <span className="text-blue-400">☁</span> Sky Replacement
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Replace grey skies with clear blue sky — ~15 sec
-                      </p>
-                    </div>
-                    <Switch checked={skyEnabled} onCheckedChange={setSkyEnabled} />
-                  </div>
-                  {skyEnabled && (
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        {SKY_OPTIONS.map((opt) => (
-                          <button
-                            key={opt.value}
-                            onClick={() => setSkyType(opt.value)}
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                              skyType === opt.value
-                                ? "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2 ring-offset-background"
-                                : "bg-secondary text-foreground hover:bg-accent"
-                            }`}
-                          >
-                            <span className={`inline-block w-3 h-3 rounded-full bg-gradient-to-br ${opt.gradient}`} />
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                      <p className="text-xs text-muted-foreground pl-1">
-                        {SKY_OPTIONS.find((o) => o.value === skyType)?.description}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* ── Manual Adjustments ──────────────────────────────── */}
-              <div className="space-y-3">
-                <button
-                  onClick={() => setShowManualControls(!showManualControls)}
-                  className="flex items-center gap-2 text-sm font-semibold text-foreground hover:text-primary transition-colors"
-                >
-                  <SlidersHorizontal className="w-4 h-4" />
-                  Manual Adjustments
-                  <span className={`text-xs transition-transform ${showManualControls ? "rotate-180" : ""}`}>▼</span>
-                  {hasAdjustments && (
-                    <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full">Active</span>
-                  )}
-                </button>
-
-                {showManualControls && (
-                  <div className="space-y-4 p-4 rounded-xl border border-border bg-card">
-                    {/* Preset Filters */}
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Presets</label>
-                      <div className="flex gap-2 overflow-x-auto pb-2">
-                        {PRESET_FILTERS.map((preset) => (
-                          <button
-                            key={preset.name}
-                            onClick={() => applyPreset(preset)}
-                            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                              activePreset === preset.name
-                                ? "bg-primary text-primary-foreground shadow-sm"
-                                : "bg-secondary text-foreground hover:bg-accent"
-                            }`}
-                          >
-                            {preset.name}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Sliders */}
-                    <div className="space-y-3">
-                      {ADJUSTMENT_CONTROLS.map((ctrl) => {
-                        const Icon = ctrl.icon;
-                        return (
-                          <div key={ctrl.key} className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                                <Icon className="w-3.5 h-3.5 text-muted-foreground" />
-                                {ctrl.label}
-                              </label>
-                              <span className="text-xs text-muted-foreground tabular-nums w-8 text-right">
-                                {adjustments[ctrl.key] > 0 ? "+" : ""}{adjustments[ctrl.key]}
-                              </span>
-                            </div>
-                            <Slider
-                              min={ctrl.min}
-                              max={ctrl.max}
-                              step={1}
-                              value={[adjustments[ctrl.key]]}
-                              onValueChange={([v]) => {
-                                setAdjustments((prev) => ({ ...prev, [ctrl.key]: v }));
-                                setActivePreset("None");
-                              }}
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Reset */}
-                    {hasAdjustments && (
-                      <Button variant="ghost" size="sm" onClick={resetAdjustments} className="text-xs">
-                        <RotateCcw className="w-3 h-3" />
-                        Reset All
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* ── Watermark ──────────────────────────────────────── */}
-              <div className="p-4 rounded-xl border border-border bg-card space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-foreground flex items-center gap-2">
-                      <Type className="w-4 h-4 text-muted-foreground" /> Text Overlay / Watermark
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Add branding text to your photos
-                    </p>
-                  </div>
-                  <Switch checked={watermarkEnabled} onCheckedChange={setWatermarkEnabled} />
-                </div>
-                {watermarkEnabled && (
-                  <div className="space-y-3">
-                    <input
-                      type="text"
-                      value={watermark.text}
-                      onChange={(e) => setWatermark((prev) => ({ ...prev, text: e.target.value }))}
-                      placeholder="Your Agency Name"
-                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground"
-                    />
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium text-muted-foreground">Position</label>
-                        <div className="flex flex-wrap gap-1.5">
-                          {WATERMARK_POSITIONS.map((pos) => (
-                            <button
-                              key={pos.value}
-                              onClick={() => setWatermark((prev) => ({ ...prev, position: pos.value }))}
-                              className={`px-2 py-1 rounded text-xs transition-colors ${
-                                watermark.position === pos.value
-                                  ? "bg-primary text-primary-foreground"
-                                  : "bg-secondary text-foreground hover:bg-accent"
-                              }`}
-                            >
-                              {pos.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="space-y-1">
-                          <label className="text-xs font-medium text-muted-foreground">Opacity: {watermark.opacity}%</label>
-                          <Slider
-                            min={10}
-                            max={100}
-                            step={5}
-                            value={[watermark.opacity]}
-                            onValueChange={([v]) => setWatermark((prev) => ({ ...prev, opacity: v }))}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs font-medium text-muted-foreground">Size: {watermark.fontSize}px</label>
-                          <Slider
-                            min={16}
-                            max={120}
-                            step={4}
-                            value={[watermark.fontSize]}
-                            onValueChange={([v]) => setWatermark((prev) => ({ ...prev, fontSize: v }))}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Action Button */}
-              <Button
-                variant="hero"
-                size="lg"
-                onClick={handleEnhance}
-                disabled={files.length === 0 || (!enhanceEnabled && !skyEnabled && !hasAdjustments && !watermarkEnabled) || isProcessing}
-                className="w-full"
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    {enhanceEnabled || skyEnabled
-                      ? `Enhance ${files.length} Photo${files.length !== 1 ? "s" : ""}`
-                      : `Export ${files.length} Photo${files.length !== 1 ? "s" : ""} with Edits`
-                    }
-                  </>
-                )}
-              </Button>
-            </div>
+        <div className="flex items-center gap-2">
+          {hasResults && hasAdjustments && (
+            <span className="flex items-center gap-1 px-2.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded-full">
+              <SlidersHorizontal className="w-3 h-3" /> Edits Applied
+            </span>
           )}
-        </>
-      )}
-
-      {/* Results */}
-      {jobs.length > 0 && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-foreground">Results</h2>
-            <div className="flex gap-2">
-              {hasAdjustments && (
-                <span className="flex items-center gap-1 px-2.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded-full">
-                  <SlidersHorizontal className="w-3 h-3" /> Edits Applied
-                </span>
+          {hasResults && canDownloadAll && (
+            <Button variant="outline" size="sm" onClick={handleDownloadAll}>
+              <Archive className="w-4 h-4" />
+              Export All
+            </Button>
+          )}
+          {hasResults && selectedJob && jobIsComplete && (
+            <Button
+              variant="hero"
+              size="sm"
+              onClick={() => handleDownloadWithEdits(selectedJob)}
+            >
+              <Download className="w-4 h-4" />
+              Export {completedJobs.length > 0 ? `${completedJobs.length} image${completedJobs.length !== 1 ? "s" : ""}` : ""}
+            </Button>
+          )}
+          {!hasResults && (
+            <Button
+              variant="hero"
+              size="sm"
+              onClick={handleEnhance}
+              disabled={files.length === 0 || (!enhanceEnabled && !skyEnabled && !hasAdjustments && !watermarkEnabled) || isProcessing}
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  {enhanceEnabled || skyEnabled
+                    ? `Enhance ${files.length} Photo${files.length !== 1 ? "s" : ""}`
+                    : `Export ${files.length} Photo${files.length !== 1 ? "s" : ""}`
+                  }
+                </>
               )}
-              {canDownloadAll && (
-                <Button variant="outline" size="sm" onClick={handleDownloadAll}>
-                  <Archive className="w-4 h-4" />
-                  Download All
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Main Editor Area ────────────────────────────────────── */}
+      <div className="flex flex-1 gap-0 rounded-xl overflow-hidden border border-border min-h-0">
+        {/* ── Canvas Area (dark background) ────────────────────── */}
+        <div className="flex-1 bg-[#1a1a2e] relative flex flex-col min-w-0">
+          {/* Image preview */}
+          <div className="flex-1 relative flex items-center justify-center p-4 min-h-0">
+            {/* Processing overlay */}
+            {hasResults && jobIsProcessing && (
+              <div className="absolute inset-0 bg-black/50 z-30 flex flex-col items-center justify-center gap-3">
+                <Loader2 className="w-10 h-10 text-white animate-spin" />
+                <p className="text-white text-sm font-medium">Enhancing your photo...</p>
+                <p className="text-white/60 text-xs">This takes about 30 seconds</p>
+              </div>
+            )}
+
+            {/* Failed overlay */}
+            {hasResults && jobIsFailed && (
+              <div className="absolute inset-0 bg-black/50 z-30 flex flex-col items-center justify-center gap-3">
+                <AlertCircle className="w-10 h-10 text-red-400" />
+                <p className="text-white text-sm font-medium">Enhancement failed</p>
+                <p className="text-white/60 text-xs">{selectedJob?.error_message || "Please try again"}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 border-white/20 text-white hover:bg-white/10"
+                  onClick={() => {
+                    if (selectedJob) {
+                      invokeEdgeFunction("enhance-photo", { body: { job_id: selectedJob.id } }).catch(console.error);
+                      setJobs((prev) => prev.map((j) => j.id === selectedJob.id ? { ...j, status: "processing", error_message: null } : j));
+                    }
+                  }}
+                >
+                  <RotateCcw className="w-4 h-4" /> Retry
                 </Button>
+              </div>
+            )}
+
+            {/* Compare mode: before/after slider */}
+            {compareMode && hasResults && jobIsComplete && currentPreviewUrl !== currentOriginalUrl ? (
+              <div className="w-full h-full max-w-full max-h-full">
+                <BeforeAfterSlider
+                  beforeUrl={currentOriginalUrl}
+                  afterUrl={currentPreviewUrl}
+                  large
+                  afterFilter={hasAdjustments ? cssFilter : undefined}
+                  vignetteAmount={adjustments.vignette}
+                />
+              </div>
+            ) : (
+              /* Normal preview */
+              <div className="relative max-w-full max-h-full">
+                <img
+                  src={currentPreviewUrl}
+                  alt="Preview"
+                  className="max-w-full max-h-[60vh] object-contain rounded-lg"
+                  style={hasAdjustments ? { filter: cssFilter } : undefined}
+                />
+                {adjustments.vignette > 0 && (
+                  <div
+                    className="absolute inset-0 pointer-events-none rounded-lg"
+                    style={{
+                      background: `radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,${adjustments.vignette / 100}) 100%)`,
+                    }}
+                  />
+                )}
+              </div>
+            )}
+
+            {/* Compare button */}
+            {hasResults && jobIsComplete && currentPreviewUrl !== currentOriginalUrl && (
+              <button
+                onClick={() => setCompareMode(!compareMode)}
+                className={`absolute bottom-6 right-6 px-4 py-2 rounded-lg text-sm font-medium transition-all z-20 ${
+                  compareMode
+                    ? "bg-primary text-primary-foreground shadow-lg"
+                    : "bg-black/70 text-white hover:bg-black/90 backdrop-blur-sm"
+                }`}
+              >
+                Compare
+              </button>
+            )}
+          </div>
+
+          {/* ── Bottom Thumbnail Strip ────────────────────────── */}
+          <div className="border-t border-white/10 bg-[#16162a] px-4 py-3">
+            <div className="flex gap-2 overflow-x-auto">
+              {(hasResults ? jobs : files).map((item, i) => {
+                const isJob = "status" in item;
+                const thumbUrl = isJob
+                  ? ((item as PhotoJob).sky_url || (item as PhotoJob).enhanced_url || (item as PhotoJob).original_url)
+                  : (item as UploadedFile).preview;
+                const isSelected = i === selectedFileIndex;
+                const status = isJob ? (item as PhotoJob).status : null;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => setSelectedFileIndex(i)}
+                    className={`relative flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden transition-all ${
+                      isSelected
+                        ? "ring-2 ring-primary ring-offset-2 ring-offset-[#16162a]"
+                        : "opacity-60 hover:opacity-100"
+                    }`}
+                  >
+                    <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
+                    {/* Status indicator */}
+                    {status === "processing" && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <Loader2 className="w-4 h-4 text-white animate-spin" />
+                      </div>
+                    )}
+                    {status === "pending" && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                        <Loader2 className="w-3 h-3 text-white/60 animate-spin" />
+                      </div>
+                    )}
+                    {status === "complete" && (
+                      <div className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-green-500 flex items-center justify-center">
+                        <Check className="w-2 h-2 text-white" />
+                      </div>
+                    )}
+                    {status === "failed" && (
+                      <div className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-red-500 flex items-center justify-center">
+                        <X className="w-2 h-2 text-white" />
+                      </div>
+                    )}
+                    {/* Remove button (only in upload mode) */}
+                    {!hasResults && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeFile(i); }}
+                        className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/70 hover:bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    )}
+                  </button>
+                );
+              })}
+              {/* Add more photos button */}
+              {!hasResults && files.length < 20 && (
+                <label className="flex-shrink-0 w-16 h-12 rounded-lg border-2 border-dashed border-white/20 hover:border-primary/50 flex items-center justify-center cursor-pointer transition-colors">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => e.target.files && addFiles(Array.from(e.target.files))}
+                  />
+                  <ImagePlus className="w-4 h-4 text-white/40" />
+                </label>
               )}
             </div>
           </div>
+        </div>
 
-          {/* Manual controls panel for post-AI refinement */}
-          {completedJobs.length > 0 && (
-            <div className="space-y-3">
-              <button
-                onClick={() => setShowManualControls(!showManualControls)}
-                className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Palette className="w-4 h-4" />
-                Fine-tune results
-                <span className={`text-xs transition-transform ${showManualControls ? "rotate-180" : ""}`}>▼</span>
-              </button>
+        {/* ── Right Mini Toolbar ─────────────────────────────── */}
+        <div className="w-12 bg-[#1e1e3a] border-l border-white/10 flex flex-col items-center py-3 gap-1">
+          <button
+            onClick={() => setSidebarTab("ai")}
+            className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all ${
+              sidebarTab === "ai"
+                ? "bg-primary/20 text-primary"
+                : "text-white/50 hover:text-white hover:bg-white/5"
+            }`}
+            title="AI Settings"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span className="text-[8px] font-medium leading-none">AI</span>
+          </button>
+          <button
+            onClick={() => setSidebarTab("finetune")}
+            className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all ${
+              sidebarTab === "finetune"
+                ? "bg-primary/20 text-primary"
+                : "text-white/50 hover:text-white hover:bg-white/5"
+            }`}
+            title="Finetune"
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            <span className="text-[8px] font-medium leading-none">Tune</span>
+          </button>
+          <button
+            onClick={() => setSidebarTab("presets")}
+            className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all ${
+              sidebarTab === "presets"
+                ? "bg-primary/20 text-primary"
+                : "text-white/50 hover:text-white hover:bg-white/5"
+            }`}
+            title="Presets"
+          >
+            <Palette className="w-4 h-4" />
+            <span className="text-[8px] font-medium leading-none">Presets</span>
+          </button>
+        </div>
 
-              {showManualControls && (
-                <div className="p-4 rounded-xl border border-border bg-card space-y-4">
-                  {/* Presets */}
-                  <div className="flex gap-2 overflow-x-auto pb-2">
-                    {PRESET_FILTERS.map((preset) => (
+        {/* ── Right Sidebar Panel ────────────────────────────── */}
+        <div className="w-72 bg-card border-l border-border flex flex-col overflow-y-auto">
+          {/* ── AI Settings Tab ──────────────────────────────── */}
+          {sidebarTab === "ai" && (
+            <div className="flex-1 flex flex-col">
+              <div className="p-4 border-b border-border flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-foreground">Adjust enhancement</h3>
+                <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-muted-foreground" onClick={resetAdjustments}>
+                  Reset
+                </Button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {/* Auto Enhance */}
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <div className="flex items-center justify-between p-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-primary" />
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">Auto Enhance</p>
+                        <p className="text-[10px] text-muted-foreground">{enhanceEnabled ? "On" : "Off"}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
                       <button
-                        key={preset.name}
-                        onClick={() => applyPreset(preset)}
-                        className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                          activePreset === preset.name
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-secondary text-foreground hover:bg-accent"
+                        onClick={() => setEnhanceEnabled(false)}
+                        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                          !enhanceEnabled ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"
                         }`}
                       >
-                        {preset.name}
+                        Off
                       </button>
-                    ))}
+                      <button
+                        onClick={() => setEnhanceEnabled(true)}
+                        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                          enhanceEnabled ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        On
+                      </button>
+                    </div>
                   </div>
+                  {/* Preview thumbnail */}
+                  {files[selectedFileIndex] && (
+                    <div className="px-3 pb-3">
+                      <div className="rounded-lg overflow-hidden border border-border">
+                        <img
+                          src={files[selectedFileIndex]?.preview || currentOriginalUrl}
+                          alt="Preview"
+                          className="w-full aspect-[16/10] object-cover"
+                          style={enhanceEnabled ? { filter: "brightness(1.05) contrast(1.1) saturate(1.1)" } : undefined}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
 
-                  {/* Sliders */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
-                    {ADJUSTMENT_CONTROLS.map((ctrl) => {
-                      const Icon = ctrl.icon;
-                      return (
-                        <div key={ctrl.key} className="space-y-1">
-                          <div className="flex items-center justify-between">
-                            <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                              <Icon className="w-3.5 h-3.5 text-muted-foreground" />
-                              {ctrl.label}
-                            </label>
-                            <span className="text-xs text-muted-foreground tabular-nums w-8 text-right">
-                              {adjustments[ctrl.key] > 0 ? "+" : ""}{adjustments[ctrl.key]}
-                            </span>
-                          </div>
-                          <Slider
-                            min={ctrl.min}
-                            max={ctrl.max}
-                            step={1}
-                            value={[adjustments[ctrl.key]]}
-                            onValueChange={([v]) => {
-                              setAdjustments((prev) => ({ ...prev, [ctrl.key]: v }));
-                              setActivePreset("None");
-                            }}
-                          />
+                {/* Sky Replacement */}
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <button
+                    onClick={() => setSkyExpanded(!skyExpanded)}
+                    className="w-full flex items-center justify-between p-3 hover:bg-secondary/30 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Mountain className="w-4 h-4 text-blue-400" />
+                      <div className="text-left">
+                        <p className="text-sm font-semibold text-foreground">Sky Replacement</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {skyEnabled ? SKY_OPTIONS.find((o) => o.value === skyType)?.label || "On" : "Off"}
+                        </p>
+                      </div>
+                    </div>
+                    {skyExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                  </button>
+                  {skyExpanded && (
+                    <div className="px-3 pb-3 space-y-3">
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => setSkyEnabled(false)}
+                          className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                            !skyEnabled ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          Off
+                        </button>
+                        <button
+                          onClick={() => setSkyEnabled(true)}
+                          className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                            skyEnabled ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          On
+                        </button>
+                      </div>
+                      {skyEnabled && (
+                        <div className="space-y-2">
+                          {SKY_OPTIONS.map((opt) => (
+                            <button
+                              key={opt.value}
+                              onClick={() => setSkyType(opt.value)}
+                              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all ${
+                                skyType === opt.value
+                                  ? "bg-primary/10 ring-1 ring-primary text-foreground"
+                                  : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                              }`}
+                            >
+                              <span className={`w-5 h-5 rounded-full bg-gradient-to-br ${opt.gradient} flex-shrink-0`} />
+                              <div>
+                                <p className="text-xs font-medium">{opt.label}</p>
+                                <p className="text-[10px] text-muted-foreground">{opt.description}</p>
+                              </div>
+                            </button>
+                          ))}
                         </div>
-                      );
-                    })}
-                  </div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
-                  {/* Watermark toggle in results view */}
-                  <div className="flex items-center gap-3 pt-2 border-t border-border">
-                    <Switch checked={watermarkEnabled} onCheckedChange={setWatermarkEnabled} />
-                    <span className="text-xs font-medium text-foreground">Watermark</span>
-                    {watermarkEnabled && (
+                {/* Watermark */}
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <div className="flex items-center justify-between p-3">
+                    <div className="flex items-center gap-2">
+                      <Type className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">Watermark</p>
+                        <p className="text-[10px] text-muted-foreground">{watermarkEnabled ? "On" : "Off"}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => setWatermarkEnabled(false)}
+                        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                          !watermarkEnabled ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        Off
+                      </button>
+                      <button
+                        onClick={() => setWatermarkEnabled(true)}
+                        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                          watermarkEnabled ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        On
+                      </button>
+                    </div>
+                  </div>
+                  {watermarkEnabled && (
+                    <div className="px-3 pb-3 space-y-2">
                       <input
                         type="text"
                         value={watermark.text}
                         onChange={(e) => setWatermark((prev) => ({ ...prev, text: e.target.value }))}
                         placeholder="Your Agency Name"
-                        className="flex-1 px-2 py-1 rounded border border-border bg-background text-xs"
+                        className="w-full px-3 py-1.5 rounded-lg border border-border bg-background text-xs text-foreground placeholder:text-muted-foreground"
                       />
-                    )}
-                  </div>
-
-                  {hasAdjustments && (
-                    <Button variant="ghost" size="sm" onClick={resetAdjustments} className="text-xs">
-                      <RotateCcw className="w-3 h-3" /> Reset
-                    </Button>
+                      <div className="flex flex-wrap gap-1">
+                        {WATERMARK_POSITIONS.map((pos) => (
+                          <button
+                            key={pos.value}
+                            onClick={() => setWatermark((prev) => ({ ...prev, position: pos.value }))}
+                            className={`px-2 py-0.5 rounded text-[10px] transition-colors ${
+                              watermark.position === pos.value
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-secondary text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            {pos.label}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-medium text-muted-foreground">Opacity: {watermark.opacity}%</label>
+                        <Slider
+                          min={10} max={100} step={5}
+                          value={[watermark.opacity]}
+                          onValueChange={([v]) => setWatermark((prev) => ({ ...prev, opacity: v }))}
+                        />
+                      </div>
+                    </div>
                   )}
+                </div>
+              </div>
+
+              {/* Apply button */}
+              {!hasResults && (
+                <div className="p-4 border-t border-border">
+                  <Button
+                    variant="hero"
+                    className="w-full"
+                    onClick={handleEnhance}
+                    disabled={files.length === 0 || (!enhanceEnabled && !skyEnabled && !hasAdjustments && !watermarkEnabled) || isProcessing}
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>Apply to {files.length} image{files.length !== 1 ? "s" : ""}</>
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {/* Start over */}
+              {hasResults && !isProcessing && (
+                <div className="p-4 border-t border-border">
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => { setJobs([]); setFiles([]); resetAdjustments(); setCompareMode(false); }}
+                  >
+                    <ImagePlus className="w-4 h-4" />
+                    Enhance More Photos
+                  </Button>
                 </div>
               )}
             </div>
           )}
 
-          <div className="space-y-6">
-            {jobs.map((job) => (
-              <div key={job.id} className="rounded-xl border border-border p-4 space-y-3">
-                {/* Status badge */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {job.status === "complete" && (
-                      <span className="flex items-center gap-1 px-2.5 py-0.5 bg-success/10 text-success text-xs font-semibold rounded-full">
-                        <Check className="w-3 h-3" /> Enhanced
-                      </span>
-                    )}
-                    {job.status === "processing" && (
-                      <span className="flex items-center gap-1 px-2.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded-full animate-pulse">
-                        <Loader2 className="w-3 h-3 animate-spin" /> Processing...
-                      </span>
-                    )}
-                    {job.status === "pending" && (
-                      <span className="flex items-center gap-1 px-2.5 py-0.5 bg-secondary text-muted-foreground text-xs font-semibold rounded-full">
-                        <Loader2 className="w-3 h-3 animate-spin" /> Queued
-                      </span>
-                    )}
-                    {job.status === "failed" && (
-                      <span className="flex items-center gap-1 px-2.5 py-0.5 bg-destructive/10 text-destructive text-xs font-semibold rounded-full">
-                        <AlertCircle className="w-3 h-3" /> Failed
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex gap-2">
-                    {job.status === "complete" && (
-                      <Button variant="outline" size="sm" onClick={() => handleDownloadWithEdits(job)}>
-                        <Download className="w-4 h-4" />
-                        {hasAdjustments || watermarkEnabled ? "Export with Edits" : "Download"}
-                      </Button>
-                    )}
-
-                    {job.status === "failed" && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          invokeEdgeFunction("enhance-photo", { body: { job_id: job.id } }).catch(console.error);
-                          setJobs((prev) => prev.map((j) => j.id === job.id ? { ...j, status: "processing", error_message: null } : j));
-                        }}
-                      >
-                        <RotateCcw className="w-4 h-4" />
-                        Retry
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Before/After */}
-                {job.status === "complete" && (job.enhanced_url || job.sky_url) ? (
-                  <div className="relative group">
-                    <BeforeAfterSlider
-                      beforeUrl={job.original_url}
-                      afterUrl={job.sky_url || job.enhanced_url!}
-                      afterFilter={hasAdjustments ? cssFilter : undefined}
-                      vignetteAmount={adjustments.vignette}
-                    />
-                    <button
-                      onClick={() => handleDownloadWithEdits(job)}
-                      className="absolute top-2 right-10 p-1.5 rounded-md bg-white/90 text-foreground hover:bg-white transition-all opacity-0 group-hover:opacity-100"
-                    >
-                      <Download className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="aspect-[4/3] bg-secondary rounded-lg flex items-center justify-center">
-                    {job.status === "failed" ? (
-                      <p className="text-sm text-destructive">{job.error_message || "Enhancement failed"}</p>
-                    ) : (
-                      <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
-                    )}
-                  </div>
+          {/* ── Finetune Tab ─────────────────────────────────── */}
+          {sidebarTab === "finetune" && (
+            <div className="flex-1 flex flex-col">
+              <div className="p-4 border-b border-border flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-foreground">Finetune</h3>
+                {hasAdjustments && (
+                  <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-muted-foreground" onClick={resetAdjustments}>
+                    Reset
+                  </Button>
                 )}
               </div>
-            ))}
-          </div>
 
-          {/* Start over */}
-          {!isProcessing && (
-            <Button variant="outline" onClick={() => { setJobs([]); setFiles([]); resetAdjustments(); }}>
-              <ImagePlus className="w-4 h-4" />
-              Enhance More Photos
-            </Button>
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {/* Adjustment sliders */}
+                {ADJUSTMENT_CONTROLS.map((ctrl) => {
+                  const Icon = ctrl.icon;
+                  return (
+                    <div key={ctrl.key} className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                          <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+                          {ctrl.label}
+                        </label>
+                        <span className="text-xs text-muted-foreground tabular-nums w-8 text-right">
+                          {adjustments[ctrl.key] > 0 ? "+" : ""}{adjustments[ctrl.key]}
+                        </span>
+                      </div>
+                      <Slider
+                        min={ctrl.min}
+                        max={ctrl.max}
+                        step={1}
+                        value={[adjustments[ctrl.key]]}
+                        onValueChange={([v]) => {
+                          setAdjustments((prev) => ({ ...prev, [ctrl.key]: v }));
+                          setActivePreset("None");
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── Presets Tab ──────────────────────────────────── */}
+          {sidebarTab === "presets" && (
+            <div className="flex-1 flex flex-col">
+              <div className="p-4 border-b border-border">
+                <h3 className="text-sm font-semibold text-foreground">Presets</h3>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {/* AI Enhancement Presets (Warm / Vivid / Natural) */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Enhancement style</label>
+                  {ENHANCE_PRESETS.map((preset) => (
+                    <button
+                      key={preset.value}
+                      onClick={() => setEnhanceType(preset.value)}
+                      className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all ${
+                        enhanceType === preset.value
+                          ? "bg-primary/10 ring-1 ring-primary"
+                          : "hover:bg-secondary"
+                      }`}
+                    >
+                      <Mountain className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{preset.label}</p>
+                        <p className="text-[10px] text-muted-foreground">{preset.description}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Local filter presets */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Filter presets</label>
+                  {PRESET_FILTERS.map((preset) => (
+                    <button
+                      key={preset.name}
+                      onClick={() => applyPreset(preset)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${
+                        activePreset === preset.name
+                          ? "bg-primary/10 ring-1 ring-primary"
+                          : "hover:bg-secondary"
+                      }`}
+                    >
+                      <Palette className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-sm font-medium text-foreground">{preset.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Apply button */}
+              {!hasResults && (
+                <div className="p-4 border-t border-border">
+                  <Button
+                    variant="hero"
+                    className="w-full"
+                    onClick={handleEnhance}
+                    disabled={files.length === 0 || (!enhanceEnabled && !skyEnabled && !hasAdjustments && !watermarkEnabled) || isProcessing}
+                  >
+                    Apply
+                  </Button>
+                </div>
+              )}
+            </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
