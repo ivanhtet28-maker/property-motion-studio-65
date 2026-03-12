@@ -7,7 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Check, Sparkles, Zap, Crown } from "lucide-react";
+import { Check, X, Tag, ArrowRight } from "lucide-react";
 import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
@@ -20,52 +20,43 @@ interface SubscriptionModalProps {
 
 const plans = [
   {
-    id: "starter",
-    name: "Starter",
-    price: "A$79",
-    period: "month",
-    videos: 8,
-    icon: Sparkles,
+    id: "essential",
+    name: "Essential",
+    monthly: { price: 59, perVideo: 20, videos: "3 videos/month" },
+    yearly: { price: 30, perVideo: 14, videos: "25 videos/year", discount: 30 },
     features: [
-      "8 videos per month",
-      "Up to 10 photos per video",
-      "Agent branding & logo",
-      "Background music",
-      "AI voiceover",
-      "1080p quality",
+      { text: "20 images per video", included: true },
+      { text: "Up to 60 seconds per video", included: true },
+      { text: "1080p video resolution", included: true },
+      { text: "Unlimited AI photo edits", included: true },
+      { text: "Exports without watermark", included: true },
     ],
-    priceId: "price_1Syaj2GkPU4YhgKfafjlmn2s",
   },
   {
     id: "growth",
-    name: "Pro",
-    price: "A$149",
-    period: "month",
-    videos: 25,
-    icon: Zap,
-    badge: "⭐ MOST POPULAR",
+    name: "Growth",
+    badge: "MOST POPULAR",
+    monthly: { price: 139, perVideo: 14, videos: "10 videos/month" },
+    yearly: { price: 90, perVideo: 11, videos: "100 videos/year", discount: 21 },
     features: [
-      "25 videos per month",
-      "Everything in Starter",
-      "Priority processing",
-      "Credits roll over 3 months",
-      "Email support",
+      { text: "20 images per video", included: true },
+      { text: "Up to 60 seconds per video", included: true },
+      { text: "1080p video resolution", included: true },
+      { text: "Unlimited AI photo edits", included: true },
+      { text: "Priority human support", included: true },
     ],
-    priceId: "price_1SyajHGkPU4YhgKfesr95mxL",
   },
   {
-    id: "enterprise",
-    name: "Agency",
-    price: "A$299",
-    period: "month",
-    videos: 70,
-    icon: Crown,
+    id: "pro",
+    name: "Pro",
+    monthly: { price: 249, perVideo: 12, videos: "20 videos/month" },
+    yearly: { price: 165, perVideo: 10, videos: "200 videos/year", discount: 17 },
     features: [
-      "70 videos per month",
-      "Everything in Pro",
-      "3 team members",
-      "Dedicated support",
-      "White-label option",
+      { text: "20 images per video", included: true },
+      { text: "Up to 60 seconds per video", included: true },
+      { text: "1080p video resolution", included: true },
+      { text: "Unlimited AI photo edits", included: true },
+      { text: "Priority human support", included: true },
     ],
   },
 ];
@@ -76,6 +67,7 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
   const { toast } = useToast();
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
 
   const handleSubscribe = async (planId: string) => {
     if (!user) {
@@ -83,10 +75,7 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
       return;
     }
 
-    if (planId === "enterprise") {
-      // Agency plan goes through same Stripe checkout flow
-      // priceId will be set when Stripe product is created for Agency tier
-    }
+    const fullPlanId = billingPeriod === "yearly" ? `${planId}_yearly` : planId;
 
     setIsSubscribing(true);
     setSelectedPlan(planId);
@@ -94,14 +83,13 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
     try {
       const data = await invokeEdgeFunction<{ url?: string }>("create-checkout-session", {
         body: {
-          plan: planId,
+          plan: fullPlanId,
           userId: user.id,
           email: user.email,
         },
       });
 
       if (data.url) {
-        // Redirect to Stripe checkout
         window.location.href = data.url;
       } else {
         throw new Error("No checkout URL returned");
@@ -118,6 +106,8 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
     }
   };
 
+  const isYearly = billingPeriod === "yearly";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
@@ -130,9 +120,33 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid md:grid-cols-3 gap-6 mt-8">
+        {/* Billing Toggle */}
+        <div className="flex items-center justify-center gap-1 mt-4 mb-6">
+          <button
+            onClick={() => setBillingPeriod("monthly")}
+            className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${
+              billingPeriod === "monthly"
+                ? "bg-primary text-primary-foreground shadow-md"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Monthly
+          </button>
+          <button
+            onClick={() => setBillingPeriod("yearly")}
+            className={`px-5 py-2 rounded-full text-sm font-semibold transition-all ${
+              billingPeriod === "yearly"
+                ? "bg-primary text-primary-foreground shadow-md"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Yearly &middot; up to 30% off
+          </button>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6">
           {plans.map((plan) => {
-            const Icon = plan.icon;
+            const tier = isYearly ? plan.yearly : plan.monthly;
             const isSelected = selectedPlan === plan.id;
             const isLoading = isSubscribing && isSelected;
 
@@ -141,43 +155,49 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
                 key={plan.id}
                 className={`relative border-2 rounded-2xl p-6 transition-all ${
                   plan.badge
-                    ? "border-primary bg-primary/5 shadow-lg scale-105"
+                    ? "border-primary shadow-lg"
                     : "border-border hover:border-primary/50"
                 }`}
               >
                 {plan.badge && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-4 py-1 rounded-full text-sm font-semibold">
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-4 py-1 rounded-full text-xs font-bold">
                     {plan.badge}
                   </div>
                 )}
 
-                <div className="flex items-center justify-center mb-4">
-                  <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
-                    plan.badge ? "bg-primary/20" : "bg-secondary"
-                  }`}>
-                    <Icon className={`w-8 h-8 ${plan.badge ? "text-primary" : "text-muted-foreground"}`} />
-                  </div>
-                </div>
-
-                <h3 className="text-2xl font-bold text-center mb-2">{plan.name}</h3>
-
-                <div className="text-center mb-6">
-                  <span className="text-4xl font-bold">
-                    {plan.price}
-                  </span>
-                  {plan.period && (
-                    <span className="text-muted-foreground">/{plan.period}</span>
+                <div className="flex items-center gap-2 mb-3">
+                  <h3 className="text-xl font-bold text-primary">{plan.name}</h3>
+                  {isYearly && "discount" in tier && tier.discount > 0 && (
+                    <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded-full">
+                      <Tag className="w-3 h-3" />
+                      {tier.discount}% OFF
+                    </span>
                   )}
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {`${plan.videos} videos/month`}
-                  </p>
                 </div>
 
-                <ul className="space-y-3 mb-6">
+                <p className="text-sm text-muted-foreground mb-3">{tier.videos}</p>
+
+                <div className="text-center mb-2">
+                  <span className="text-4xl font-bold">${tier.price}</span>
+                  <span className="text-muted-foreground">/month</span>
+                </div>
+
+                {isYearly && "discount" in tier && tier.discount > 0 && (
+                  <p className="text-center text-sm text-muted-foreground line-through mb-4">
+                    ${plan.monthly.price}/month
+                  </p>
+                )}
+                {!isYearly && <div className="h-5 mb-4" />}
+
+                <ul className="space-y-2.5 mb-6">
                   {plan.features.map((feature, index) => (
                     <li key={index} className="flex items-start gap-2">
-                      <Check className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                      <span className="text-sm">{feature}</span>
+                      {feature.included ? (
+                        <Check className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                      ) : (
+                        <X className="w-4 h-4 text-destructive/50 flex-shrink-0 mt-0.5" />
+                      )}
+                      <span className="text-sm">{feature.text}</span>
                     </li>
                   ))}
                 </ul>
@@ -193,20 +213,21 @@ export function SubscriptionModal({ open, onOpenChange }: SubscriptionModalProps
                       <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
                       Processing...
                     </>
-                  ) : plan.id === "enterprise" ? (
-                    `Subscribe to ${plan.name}`
                   ) : (
-                    `Subscribe to ${plan.name}`
+                    <>Start Free Trial <ArrowRight className="w-4 h-4" /></>
                   )}
                 </Button>
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  7-day free trial — cancel anytime*
+                </p>
               </div>
             );
           })}
         </div>
 
-        <div className="mt-6 p-4 bg-secondary/50 rounded-lg text-center">
+        <div className="mt-4 p-4 bg-secondary/50 rounded-lg text-center">
           <p className="text-sm text-muted-foreground">
-            ✨ <strong>Your free trial video is ready!</strong> All prices in AUD. Subscribe now to download it and keep creating cinematic property videos.
+            All prices in USD. Subscribe now to download your video and keep creating.
           </p>
         </div>
       </DialogContent>

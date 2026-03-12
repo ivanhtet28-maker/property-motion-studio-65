@@ -41,17 +41,24 @@ Deno.serve(async (req) => {
 
         const userId = session.metadata?.supabase_user_id;
         const plan = session.metadata?.plan;
+        const tier = session.metadata?.tier || plan;
+        const videosLimit = session.metadata?.videos_limit ? parseInt(session.metadata.videos_limit) : null;
 
         if (userId && plan) {
+          const updateData: Record<string, unknown> = {
+            subscription_plan: plan,
+            subscription_tier: tier,
+          };
+          if (videosLimit) {
+            updateData.videos_limit = videosLimit;
+          }
+
           await supabase
             .from("user_preferences")
-            .update({
-              subscription_plan: plan,
-              subscription_tier: plan,
-            })
+            .update(updateData)
             .eq("user_id", userId);
 
-          console.log(`Updated user ${userId} to plan ${plan}`);
+          console.log(`Updated user ${userId} to plan ${plan} (tier: ${tier}, limit: ${videosLimit})`);
         }
         break;
       }
@@ -89,21 +96,32 @@ Deno.serve(async (req) => {
         }
 
         // Update subscription in database
+        const plan = subscription.metadata?.plan || "free";
+        const tier = subscription.metadata?.tier || plan;
+        const videosLimit = subscription.metadata?.videos_limit
+          ? parseInt(subscription.metadata.videos_limit)
+          : null;
+
+        const subUpdate: Record<string, unknown> = {
+          stripe_subscription_id: subscription.id,
+          subscription_status: subscription.status,
+          subscription_plan: plan,
+          subscription_tier: tier,
+          subscription_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+          subscription_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          subscription_cancel_at_period_end: subscription.cancel_at_period_end,
+          period_reset_date: new Date(subscription.current_period_end * 1000).toISOString(),
+          videos_used_this_period: 0,
+          payment_method_last4: paymentMethodLast4,
+          payment_method_brand: paymentMethodBrand,
+        };
+        if (videosLimit) {
+          subUpdate.videos_limit = videosLimit;
+        }
+
         await supabase
           .from("user_preferences")
-          .update({
-            stripe_subscription_id: subscription.id,
-            subscription_status: subscription.status,
-            subscription_plan: subscription.metadata?.plan || "starter",
-            subscription_tier: subscription.metadata?.plan || "starter",
-            subscription_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-            subscription_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-            subscription_cancel_at_period_end: subscription.cancel_at_period_end,
-            period_reset_date: new Date(subscription.current_period_end * 1000).toISOString(),
-            videos_used_this_period: 0, // Reset on new period
-            payment_method_last4: paymentMethodLast4,
-            payment_method_brand: paymentMethodBrand,
-          })
+          .update(subUpdate)
           .eq("user_id", userId);
 
         console.log(`Updated subscription for user ${userId}`);
@@ -127,8 +145,9 @@ Deno.serve(async (req) => {
             stripe_subscription_id: null,
             subscription_status: "canceled",
             subscription_plan: null,
-            subscription_tier: "starter",
+            subscription_tier: "free",
             subscription_cancel_at_period_end: false,
+            videos_limit: 2,
           })
           .eq("user_id", userId);
 

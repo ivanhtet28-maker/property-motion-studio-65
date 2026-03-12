@@ -6,16 +6,42 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
 
-// Stripe price IDs from Stripe Dashboard (LIVE MODE)
-const PRICE_IDS = {
-  starter: "price_1Sya0mGkPU4YhgKfmAj63FX0", // $299/month - 10 videos
-  growth: "price_1SyZzMGkPU4YhgKfWTj39Enj",  // $499/month - 30 videos
-  // Enterprise is custom - handled separately
+// Stripe price IDs from Stripe Dashboard
+// TODO: Replace these placeholder IDs with your actual Stripe price IDs
+const PRICE_IDS: Record<string, string> = {
+  // Monthly plans
+  essential:        "price_PLACEHOLDER_essential_monthly",   // $59/month  - 3 videos
+  growth:           "price_PLACEHOLDER_growth_monthly",      // $139/month - 10 videos
+  pro:              "price_PLACEHOLDER_pro_monthly",         // $249/month - 20 videos
+  // Yearly plans
+  essential_yearly: "price_PLACEHOLDER_essential_yearly",    // $30/month ($360/year) - 25 videos
+  growth_yearly:    "price_PLACEHOLDER_growth_yearly",       // $90/month ($1080/year) - 100 videos
+  pro_yearly:       "price_PLACEHOLDER_pro_yearly",          // $165/month ($1980/year) - 200 videos
+};
+
+// Map plan IDs to their base tier name (for storing in DB)
+const PLAN_TO_TIER: Record<string, string> = {
+  essential: "essential",
+  growth: "growth",
+  pro: "pro",
+  essential_yearly: "essential",
+  growth_yearly: "growth",
+  pro_yearly: "pro",
+};
+
+// Video limits per plan
+const VIDEO_LIMITS: Record<string, number> = {
+  essential: 3,
+  growth: 10,
+  pro: 20,
+  essential_yearly: 25,
+  growth_yearly: 100,
+  pro_yearly: 200,
 };
 
 interface CheckoutRequest {
   priceId?: string;
-  plan: "starter" | "growth" | "enterprise";
+  plan: string;
   userId: string;
   email: string;
 }
@@ -70,13 +96,10 @@ Deno.serve(async (req) => {
       throw new Error("STRIPE_SECRET_KEY not configured");
     }
 
-    // Enterprise plan requires contact sales
-    if (plan === "enterprise") {
+    // Validate plan
+    if (!PRICE_IDS[plan]) {
       return new Response(
-        JSON.stringify({
-          error: "Enterprise plan requires contacting sales",
-          contactSales: true,
-        }),
+        JSON.stringify({ error: `Invalid plan: ${plan}` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -98,7 +121,7 @@ Deno.serve(async (req) => {
         .from("user_preferences")
         .insert({
           user_id: userId,
-          subscription_tier: 'starter',
+          subscription_tier: 'free',
         })
         .select("stripe_customer_id")
         .single();
@@ -147,11 +170,10 @@ Deno.serve(async (req) => {
 
     // Get the price ID for the plan
     const priceId = PRICE_IDS[plan];
-    if (!priceId) {
-      throw new Error(`Invalid plan: ${plan}`);
-    }
+    const tier = PLAN_TO_TIER[plan] || plan;
+    const videosLimit = VIDEO_LIMITS[plan] || 2;
 
-    // Create checkout session
+    // Create checkout session with 7-day free trial
     const origin = req.headers.get("origin") || "http://localhost:5173";
     const sessionResponse = await fetch("https://api.stripe.com/v1/checkout/sessions", {
       method: "POST",
@@ -170,8 +192,13 @@ Deno.serve(async (req) => {
         cancel_url: `${origin}/#pricing`,
         "metadata[supabase_user_id]": userId,
         "metadata[plan]": plan,
+        "metadata[tier]": tier,
+        "metadata[videos_limit]": String(videosLimit),
+        "subscription_data[trial_period_days]": "7",
         "subscription_data[metadata][supabase_user_id]": userId,
         "subscription_data[metadata][plan]": plan,
+        "subscription_data[metadata][tier]": tier,
+        "subscription_data[metadata][videos_limit]": String(videosLimit),
       }).toString(),
     });
 

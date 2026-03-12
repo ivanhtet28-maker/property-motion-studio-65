@@ -13,34 +13,39 @@ import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 
 const plans = [
   {
-    id: "starter",
-    name: "Starter",
-    price: 299,
-    videos: 10,
-    description: "Perfect for solo agents",
+    id: "free",
+    name: "Free",
+    price: 0,
+    videos: 2,
+    description: "Try it out",
+  },
+  {
+    id: "essential",
+    name: "Essential",
+    price: 59,
+    videos: 3,
+    description: "For individuals",
   },
   {
     id: "growth",
     name: "Growth",
-    price: 499,
-    videos: 30,
-    description: "For busy agents",
-    current: true,
+    price: 139,
+    videos: 10,
+    description: "For growing teams",
   },
   {
-    id: "enterprise",
-    name: "Enterprise",
-    price: "Custom",
-    videos: -1,
+    id: "pro",
+    name: "Pro",
+    price: 249,
+    videos: 20,
     description: "For agencies & teams",
   },
 ];
 
 const billingHistory = [
-  { date: "Jan 15, 2025", description: "Growth Plan", amount: "$499.00" },
-  { date: "Dec 15, 2024", description: "Growth Plan", amount: "$499.00" },
-  { date: "Nov 15, 2024", description: "Growth Plan", amount: "$499.00" },
-  { date: "Oct 15, 2024", description: "Starter Plan", amount: "$299.00" },
+  { date: "Feb 15, 2026", description: "Growth Plan", amount: "$139.00" },
+  { date: "Jan 15, 2026", description: "Growth Plan", amount: "$139.00" },
+  { date: "Dec 15, 2025", description: "Essential Plan", amount: "$59.00" },
 ];
 
 export default function Settings() {
@@ -116,7 +121,7 @@ export default function Settings() {
   };
 
   // Determine current plan from subscription data
-  const currentPlan = subscriptionData?.subscription_plan || "starter";
+  const currentPlan = subscriptionData?.subscription_plan || "free";
   const subscriptionStatus = subscriptionData?.subscription_status;
   const isActive = subscriptionStatus === "active" || subscriptionStatus === "trialing";
 
@@ -326,7 +331,7 @@ export default function Settings() {
                       <h3 className="text-lg font-semibold text-foreground">Active Subscription</h3>
                       <p className="text-sm text-muted-foreground mt-1">
                         {subscriptionData.videos_used_this_period || 0} of{" "}
-                        {currentPlan === "growth" ? "30" : currentPlan === "starter" ? "10" : "unlimited"} videos used this period
+                        {currentPlan === "pro" ? "20" : currentPlan === "growth" ? "10" : currentPlan === "essential" ? "3" : "2"} videos used this period
                       </p>
                       {subscriptionData.subscription_period_end && (
                         <p className="text-xs text-muted-foreground mt-1">
@@ -406,7 +411,7 @@ export default function Settings() {
                           className="w-full mt-6"
                           onClick={() => navigate("/#pricing")}
                         >
-                          {plan.id === 'enterprise' ? 'Contact Sales' : (typeof plan.price === 'number' && plan.price > 499) ? "Upgrade" : "Change Plan"}
+                          Change Plan
                         </Button>
                       )}
                     </div>
@@ -424,30 +429,32 @@ export default function Settings() {
                     <thead>
                       <tr className="border-b border-border">
                         <th className="text-left p-4 font-medium text-muted-foreground">Feature</th>
-                        <th className="text-center p-4 font-medium text-muted-foreground">Starter</th>
+                        <th className="text-center p-4 font-medium text-muted-foreground">Free</th>
+                        <th className="text-center p-4 font-medium text-muted-foreground">Essential</th>
                         <th className="text-center p-4 font-medium text-muted-foreground bg-accent">
                           Growth
                         </th>
-                        <th className="text-center p-4 font-medium text-muted-foreground">Enterprise</th>
+                        <th className="text-center p-4 font-medium text-muted-foreground">Pro</th>
                       </tr>
                     </thead>
                     <tbody>
                       {[
-                        ["Videos per month", "10", "30", "Unlimited"],
-                        ["HD Quality", "✓", "✓", "✓"],
-                        ["All Templates", "✓", "✓", "✓"],
-                        ["Agent Branding", "✓", "✓", "✓"],
-                        ["Priority Support", "—", "✓", "✓"],
-                        ["Analytics", "—", "✓", "✓"],
-                        ["White Label", "—", "—", "✓"],
-                        ["Multi-user", "—", "—", "✓"],
-                        ["API Access", "—", "—", "✓"],
-                      ].map(([feature, starter, growth, enterprise], index) => (
+                        ["Videos per month", "2", "3", "10", "20"],
+                        ["Images per video", "5", "20", "20", "20"],
+                        ["Video length", "15s", "60s", "60s", "60s"],
+                        ["Resolution", "720p", "1080p", "1080p", "1080p"],
+                        ["AI Photo Edits", "5", "Unlimited", "Unlimited", "Unlimited"],
+                        ["No Watermark", "—", "✓", "✓", "✓"],
+                        ["Credit Rollover", "—", "3 months", "3 months", "3 months"],
+                        ["Upload limit", "10MB", "10MB", "25MB", "25MB"],
+                        ["Priority Support", "—", "—", "✓", "✓"],
+                      ].map(([feature, free, essential, growth, pro], index) => (
                         <tr key={index} className="border-b border-border last:border-0">
                           <td className="p-4 text-foreground">{feature}</td>
-                          <td className="p-4 text-center text-muted-foreground">{starter}</td>
+                          <td className="p-4 text-center text-muted-foreground">{free}</td>
+                          <td className="p-4 text-center text-muted-foreground">{essential}</td>
                           <td className="p-4 text-center bg-accent text-foreground">{growth}</td>
-                          <td className="p-4 text-center text-muted-foreground">{enterprise}</td>
+                          <td className="p-4 text-center text-muted-foreground">{pro}</td>
                         </tr>
                       ))}
                     </tbody>
