@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
     const createData = await createRes.json();
     console.log("enhance-photo: Autoenhance create response:", JSON.stringify(createData));
     const imageId = createData.image_id || createData.id;
-    const uploadUrl = createData.upload_url;
+    const uploadUrl = createData.s3PutObjectUrl || createData.upload_url;
     console.log("enhance-photo: Autoenhance image ID:", imageId);
 
     if (!imageId) {

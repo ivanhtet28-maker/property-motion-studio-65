@@ -753,21 +753,35 @@ function PhotoEditTab() {
           return;
         }
 
-        // For each processing job, call check-enhance-status to trigger
-        // Autoenhance polling and result download on the server side
-        for (const jobId of pollIds) {
-          try {
-            await invokeEdgeFunction("check-enhance-status", { body: { job_id: jobId } });
-          } catch (err) {
-            console.warn("check-enhance-status call failed:", err);
-          }
-        }
-
-        // Then read updated status from DB
+        // First check DB status
         const { data } = await supabase
           .from("photo_jobs")
           .select("*")
           .in("id", Array.from(pollIds));
+
+        // For jobs that are still processing with an external_id,
+        // call check-enhance-status to trigger Autoenhance download
+        if (data) {
+          for (const row of data) {
+            if (row.status === "processing" && row.external_id) {
+              try {
+                await invokeEdgeFunction("check-enhance-status", { body: { job_id: row.id } });
+              } catch (err) {
+                // Auth errors during polling are non-fatal — we'll retry next tick
+                console.warn("check-enhance-status call failed:", err);
+              }
+              // Re-fetch this job's status after the check
+              const { data: updated } = await supabase
+                .from("photo_jobs")
+                .select("*")
+                .eq("id", row.id)
+                .single();
+              if (updated) {
+                Object.assign(row, updated);
+              }
+            }
+          }
+        }
         if (data) {
           for (const row of data) {
             if (row.status === "complete" || row.status === "failed") {
