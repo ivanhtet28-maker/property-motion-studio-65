@@ -2,36 +2,7 @@
 -- Storage security: add missing bucket policies
 -- ============================================================
 
--- 1. Create property-photos bucket (used by photo enhancement & staging)
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('property-photos', 'property-photos', true)
-ON CONFLICT (id) DO NOTHING;
-
--- Users can only upload to their own folder (originals/{user_id}/...)
-CREATE POLICY "Users upload own photos"
-ON storage.objects FOR INSERT
-TO authenticated
-WITH CHECK (
-  bucket_id = 'property-photos'
-  AND auth.uid()::text = (storage.foldername(name))[1]
-);
-
--- Public read (needed for image URLs used by external APIs)
-CREATE POLICY "Public can view property photos"
-ON storage.objects FOR SELECT
-TO public
-USING (bucket_id = 'property-photos');
-
--- Users can only delete their own photos
-CREATE POLICY "Users delete own photos"
-ON storage.objects FOR DELETE
-TO authenticated
-USING (
-  bucket_id = 'property-photos'
-  AND auth.uid()::text = (storage.foldername(name))[1]
-);
-
--- 2. Create video-assets bucket (used by video generation pipeline)
+-- 1. Create video-assets bucket (used by video generation pipeline)
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('video-assets', 'video-assets', true)
 ON CONFLICT (id) DO NOTHING;
@@ -61,7 +32,7 @@ USING (
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
 
--- 3. Fix property-images INSERT policy: restrict uploads to user's folder
+-- 2. Fix property-images INSERT policy: restrict uploads to user's folder
 -- Drop the overly permissive policy and replace with folder-scoped one
 DROP POLICY IF EXISTS "Authenticated users can upload images" ON storage.objects;
 
@@ -73,7 +44,7 @@ WITH CHECK (
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
 
--- 4. Add missing DELETE policies for tables
+-- 3. Add missing DELETE policies for tables
 DO $$ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies WHERE policyname = 'Users can delete own scraping jobs'

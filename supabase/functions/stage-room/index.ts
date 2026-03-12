@@ -83,7 +83,8 @@ Deno.serve(async (req) => {
     }
 
     const stageData = await stageRes.json();
-    console.log("stage-room: Decor8 response received");
+    console.log("stage-room: Decor8 response keys:", Object.keys(stageData));
+    console.log("stage-room: Decor8 response (truncated):", JSON.stringify(stageData).slice(0, 500));
 
     // Extract image URLs — handle variable response shapes
     let stagedUrls: string[] = [];
@@ -109,8 +110,8 @@ Deno.serve(async (req) => {
     console.log(`stage-room: ${stagedUrls.length} staged image(s) received`);
 
     if (stagedUrls.length === 0) {
-      console.warn("stage-room: no images in response, full response:", JSON.stringify(stageData));
-      throw new Error("No staged images returned from Decor8");
+      console.error("stage-room: no images in response, full response:", JSON.stringify(stageData));
+      throw new Error(`No staged images returned from Decor8. Response keys: ${Object.keys(stageData).join(", ")}`);
     }
 
     // 4. Save results

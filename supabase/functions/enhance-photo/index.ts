@@ -89,12 +89,16 @@ Deno.serve(async (req) => {
       }
 
       const createData = await createRes.json();
+      console.log("enhance-photo: Autoenhance create response:", JSON.stringify(createData));
       const imageId = createData.image_id || createData.id;
       const uploadUrl = createData.upload_url;
       console.log("enhance-photo: Autoenhance image ID:", imageId);
 
+      if (!imageId) {
+        throw new Error(`Autoenhance did not return an image_id. Response: ${JSON.stringify(createData)}`);
+      }
       if (!uploadUrl) {
-        throw new Error("Autoenhance did not return an upload_url");
+        throw new Error(`Autoenhance did not return an upload_url. Response: ${JSON.stringify(createData)}`);
       }
 
       // Step 3: Upload the binary image to the upload_url
@@ -143,21 +147,23 @@ Deno.serve(async (req) => {
 
           // Upload the enhanced image to our Supabase storage
           const enhancedBuffer = await enhancedRes.arrayBuffer();
+          console.log("enhance-photo: enhanced image downloaded, size:", enhancedBuffer.byteLength);
           const enhancedPath = `${job.user_id}/enhanced/${Date.now()}-${imageId}.jpg`;
 
           const { error: storeError } = await supabase.storage
-            .from("property-photos")
+            .from("property-images")
             .upload(enhancedPath, enhancedBuffer, {
               contentType: "image/jpeg",
               cacheControl: "3600",
             });
 
           if (storeError) {
+            console.error("enhance-photo: storage upload error:", JSON.stringify(storeError));
             throw new Error(`Failed to store enhanced image: ${storeError.message}`);
           }
 
           const { data: publicUrlData } = supabase.storage
-            .from("property-photos")
+            .from("property-images")
             .getPublicUrl(enhancedPath);
 
           resultUrl = publicUrlData.publicUrl;
@@ -206,10 +212,11 @@ Deno.serve(async (req) => {
       }
 
       const skyData = await skyRes.json();
+      console.log("enhance-photo: Decor8 sky response:", JSON.stringify(skyData).slice(0, 500));
       const skyUrl = skyData.new_image_url || skyData.info?.url || skyData.url || skyData.output_url;
 
       if (!skyUrl) {
-        throw new Error("Sky replacement did not return an image URL");
+        throw new Error(`Sky replacement did not return an image URL. Response keys: ${Object.keys(skyData).join(", ")}`);
       }
 
       console.log("enhance-photo: sky_url saved:", skyUrl);

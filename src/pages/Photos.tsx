@@ -645,11 +645,11 @@ function PhotoEditTab() {
         const ext = f.file.name.split(".").pop() || "jpg";
         const path = `${user.id}/originals/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const { error: uploadError } = await supabase.storage
-          .from("property-photos")
+          .from("property-images")
           .upload(path, f.file, { cacheControl: "3600" });
         if (uploadError) throw uploadError;
 
-        const { data: urlData } = supabase.storage.from("property-photos").getPublicUrl(path);
+        const { data: urlData } = supabase.storage.from("property-images").getPublicUrl(path);
 
         // Create job record
         const { data: job, error: jobError } = await supabase
@@ -1362,11 +1362,11 @@ function VirtualStagingTab() {
         const ext = f.file.name.split(".").pop() || "jpg";
         const path = `${user.id}/originals/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const { error: uploadError } = await supabase.storage
-          .from("property-photos")
+          .from("property-images")
           .upload(path, f.file, { cacheControl: "3600" });
         if (uploadError) throw uploadError;
 
-        const { data: urlData } = supabase.storage.from("property-photos").getPublicUrl(path);
+        const { data: urlData } = supabase.storage.from("property-images").getPublicUrl(path);
 
         const { data: job, error: jobError } = await supabase
           .from("photo_jobs")
