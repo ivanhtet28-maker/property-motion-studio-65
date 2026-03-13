@@ -69,7 +69,6 @@ Deno.serve(async (req) => {
 
           const updateData: Record<string, unknown> = {
             subscription_plan: plan,
-            subscription_tier: tier,
           };
           if (videosLimit) {
             updateData.videos_limit = videosLimit;
@@ -128,7 +127,6 @@ Deno.serve(async (req) => {
           stripe_subscription_id: subscription.id,
           subscription_status: subscription.status,
           subscription_plan: plan,
-          subscription_tier: tier,
           subscription_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
           subscription_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
           subscription_cancel_at_period_end: subscription.cancel_at_period_end,
@@ -167,7 +165,6 @@ Deno.serve(async (req) => {
             stripe_subscription_id: null,
             subscription_status: "canceled",
             subscription_plan: null,
-            subscription_tier: "free",
             subscription_cancel_at_period_end: false,
             videos_limit: 2,
           })
