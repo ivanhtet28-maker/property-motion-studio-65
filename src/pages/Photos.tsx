@@ -166,9 +166,9 @@ const ENHANCE_PRESETS = [
 ];
 
 const SKY_OPTIONS = [
-  { value: "DAY", label: "Blue Sky", gradient: "from-sky-300 to-blue-500", description: "Clear blue daytime sky" },
-  { value: "DUSK", label: "Dusk", gradient: "from-orange-400 via-rose-400 to-purple-500", description: "Warm sunset / golden hour tones" },
-  { value: "NIGHT", label: "Night", gradient: "from-indigo-800 to-slate-900", description: "Dramatic twilight sky" },
+  { value: "day", label: "Blue Sky", gradient: "from-sky-300 to-blue-500", description: "Clear blue daytime sky" },
+  { value: "dusk", label: "Dusk", gradient: "from-orange-400 via-rose-400 to-purple-500", description: "Warm sunset / golden hour tones" },
+  { value: "night", label: "Night", gradient: "from-indigo-800 to-slate-900", description: "Dramatic twilight sky" },
 ];
 
 const ROOM_TYPES = [
@@ -665,7 +665,7 @@ function PhotoEditTab() {
   const [enhanceEnabled, setEnhanceEnabled] = useState(true);
   const [enhanceType, setEnhanceType] = useState("neutral");
   const [skyEnabled, setSkyEnabled] = useState(false);
-  const [skyType, setSkyType] = useState("DAY");
+  const [skyType, setSkyType] = useState("day");
 
   // Sidebar
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("ai");
@@ -831,7 +831,7 @@ function PhotoEditTab() {
     setEnhanceEnabled(true);
     setEnhanceType("neutral");
     setSkyEnabled(false);
-    setSkyType("DAY");
+    setSkyType("day");
   };
 
   // Bulk selection helpers

@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
     if (!enhancements.enhance) {
       // If only sky replacement, we still need to process it — but sky is fast
       if (enhancements.sky) {
-        const skyUrl = await doSkyReplacement(job.original_url, enhancements.sky_type || "DAY");
+        const skyUrl = await doSkyReplacement(job.original_url, enhancements.sky_type || "day");
         await supabase.from("photo_jobs").update({
           sky_url: skyUrl,
           status: "complete",
