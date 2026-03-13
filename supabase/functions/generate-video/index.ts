@@ -776,6 +776,26 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
       );
     } catch (error) {
       console.error("Error in video generation:", error);
+
+      // Mark video record as failed so it doesn't stay stuck in "processing"
+      if (videoRecordId) {
+        try {
+          const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+          const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+          const supabase = createClient(supabaseUrl, supabaseServiceKey);
+          await supabase
+            .from("videos")
+            .update({
+              status: "failed",
+              error_message: error instanceof Error ? error.message : "Video generation failed",
+            })
+            .eq("id", videoRecordId);
+          console.log("Marked video", videoRecordId, "as failed");
+        } catch (dbErr) {
+          console.error("Failed to mark video as failed:", dbErr);
+        }
+      }
+
       return new Response(
         JSON.stringify({
           success: false,

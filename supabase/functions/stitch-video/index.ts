@@ -1473,6 +1473,26 @@ import { corsHeaders } from "../_shared/cors.ts";
       );
     } catch (error) {
       console.error("Error stitching video:", error);
+
+      // Mark video record as failed so it doesn't stay stuck in "processing"
+      if (videoId) {
+        try {
+          const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+          const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+          const supabase = createClient(supabaseUrl, supabaseServiceKey);
+          await supabase
+            .from("videos")
+            .update({
+              status: "failed",
+              error_message: error instanceof Error ? error.message : "Video stitching failed",
+            })
+            .eq("id", videoId);
+          console.log("Marked video", videoId, "as failed (stitch error)");
+        } catch (dbErr) {
+          console.error("Failed to mark video as failed:", dbErr);
+        }
+      }
+
       return new Response(
         JSON.stringify({
           success: false,
