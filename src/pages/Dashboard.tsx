@@ -230,7 +230,7 @@ export default function Dashboard() {
     }
 
     // Check if user has active subscription
-    if (subscriptionStatus !== "active") {
+    if (subscriptionStatus !== "active" && subscriptionStatus !== "trialing") {
       // Redirect to landing page pricing section
       navigate("/");
       setTimeout(() => {

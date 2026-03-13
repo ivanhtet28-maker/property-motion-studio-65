@@ -356,7 +356,9 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
             .single();
 
           if (!userError && userPrefs) {
-            const hasActiveSubscription = userPrefs.subscription_status === "active";
+            const hasActiveSubscription =
+              userPrefs.subscription_status === "active" ||
+              userPrefs.subscription_status === "trialing";
             const hasFreeTrial = !userPrefs.free_video_used;
 
             if (hasActiveSubscription) {
