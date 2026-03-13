@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Loader2, Check, Download, LayoutTemplate, Home } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Check, Download, LayoutTemplate, Home, Pencil, Clapperboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -796,13 +796,32 @@ export default function CreateVideo() {
                   Landscape 16:9
                 </Button>
               </div>
-              <Button
-                variant="ghost"
-                className="mt-4"
-                onClick={() => navigate("/dashboard")}
-              >
-                Back to dashboard
-              </Button>
+              <div className="flex items-center justify-center gap-3 mt-4">
+                {videoRecordId && (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => navigate(`/quick-edit/${videoRecordId}`)}
+                    >
+                      <Pencil className="w-4 h-4" />
+                      Quick Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => navigate(`/studio/${videoRecordId}`)}
+                    >
+                      <Clapperboard className="w-4 h-4" />
+                      Studio
+                    </Button>
+                  </>
+                )}
+                <Button
+                  variant="ghost"
+                  onClick={() => navigate("/dashboard")}
+                >
+                  Back to dashboard
+                </Button>
+              </div>
             </div>
           )}
         </div>

@@ -54,10 +54,16 @@ export default function QuickEdit() {
 
         // Parse scene data from the video's photos/metadata
         const photos: string[] = [];
+        let cameraAngles: string[] = [];
+        let clipDurations: number[] = [];
         if (data.photos) {
           try {
-            const parsed = JSON.parse(data.photos);
+            const parsed = typeof data.photos === "string"
+              ? JSON.parse(data.photos)
+              : data.photos;
             if (parsed.imageUrls) photos.push(...parsed.imageUrls);
+            if (Array.isArray(parsed.cameraAngles)) cameraAngles = parsed.cameraAngles;
+            if (Array.isArray(parsed.clipDurations)) clipDurations = parsed.clipDurations;
           } catch {
             // photos field might be array of URLs directly
           }
@@ -69,8 +75,8 @@ export default function QuickEdit() {
             photos.map((url, i) => ({
               id: `scene-${i}`,
               imageUrl: url,
-              cameraAction: "push-in" as CameraAction,
-              duration: 3.5,
+              cameraAction: (cameraAngles[i] || "push-in") as CameraAction,
+              duration: clipDurations[i] || 3.5,
             }))
           );
         } else {
@@ -100,11 +106,63 @@ export default function QuickEdit() {
   };
 
   const handleSave = async () => {
+    if (!id || !user?.id) return;
     setSaving(true);
-    // Simulate save — in production this would re-render the affected scene
-    await new Promise((r) => setTimeout(r, 1500));
-    setSaving(false);
-    toast({ title: "Changes saved", description: "Your video has been updated." });
+    try {
+      // Load existing photos JSON so we can merge updated camera actions
+      const { data: videoData, error: fetchErr } = await supabase
+        .from("videos")
+        .select("photos")
+        .eq("id", id)
+        .eq("user_id", user.id)
+        .single();
+
+      if (fetchErr) throw fetchErr;
+
+      let photosJson: Record<string, unknown> = {};
+      if (videoData?.photos) {
+        try {
+          photosJson = typeof videoData.photos === "string"
+            ? JSON.parse(videoData.photos)
+            : videoData.photos;
+        } catch {
+          photosJson = {};
+        }
+      }
+
+      // Update camera actions in the stored metadata
+      const updatedCameraAngles = scenes.map((s) => s.cameraAction);
+      photosJson.cameraAngles = updatedCameraAngles;
+
+      // Also update imageMetadata if it exists
+      if (Array.isArray(photosJson.imageMetadata)) {
+        photosJson.imageMetadata = (photosJson.imageMetadata as Record<string, unknown>[]).map(
+          (meta, i) => ({
+            ...meta,
+            cameraAction: scenes[i]?.cameraAction || meta.cameraAction,
+          })
+        );
+      }
+
+      const { error: updateErr } = await supabase
+        .from("videos")
+        .update({ photos: JSON.stringify(photosJson) })
+        .eq("id", id)
+        .eq("user_id", user.id);
+
+      if (updateErr) throw updateErr;
+
+      toast({ title: "Changes saved", description: "Your video has been updated." });
+    } catch (err) {
+      console.error("Failed to save changes:", err);
+      toast({
+        title: "Save failed",
+        description: err instanceof Error ? err.message : "Could not save changes",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
