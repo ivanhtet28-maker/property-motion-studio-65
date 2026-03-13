@@ -367,6 +367,10 @@ export default function Dashboard() {
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="start">
+                            <DropdownMenuItem onClick={() => navigate(`/photos?property=${video.id}`)}>
+                              <Image className="w-4 h-4 mr-2" />
+                              Edit Photos
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => navigate(`/quick-edit/${video.id}`)}>
                               <Pencil className="w-4 h-4 mr-2" />
                               Quick Edit
