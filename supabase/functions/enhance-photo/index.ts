@@ -3,6 +3,20 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { requireAuth } from "../_shared/auth.ts";
+import {
+  ImageMagick,
+  initializeImageMagick,
+  Percentage,
+} from "npm:@imagemagick/magick-wasm@0.0.30";
+
+// Load and initialize the WASM binary once at module level
+const wasmBytes = await Deno.readFile(
+  new URL(
+    "magick.wasm",
+    import.meta.resolve("npm:@imagemagick/magick-wasm@0.0.30"),
+  ),
+);
+await initializeImageMagick(wasmBytes);
 
 const AUTOENHANCE_API_KEY = Deno.env.get("AUTOENHANCE_API_KEY");
 
@@ -51,6 +65,56 @@ Deno.serve(async (req) => {
     console.log("enhance-photo: status set to processing");
 
     const enhancements = job.enhancements || {};
+
+    // 3a. HDR boost — server-side tone mapping via ImageMagick WASM
+    if (enhancements.hdr) {
+      console.log("enhance-photo: applying HDR boost via ImageMagick WASM");
+
+      const imageRes = await fetch(job.original_url);
+      if (!imageRes.ok) {
+        throw new Error(`Failed to download original image: ${imageRes.status}`);
+      }
+      const imageBytes = new Uint8Array(await imageRes.arrayBuffer());
+
+      const hdrBytes = ImageMagick.read(imageBytes, (image) => {
+        // Tone mapping: modulate 100,130,100 (brightness, saturation, hue)
+        image.modulate(new Percentage(100), new Percentage(130), new Percentage(100));
+        // Sigmoidal contrast: 5 strength at 50% midpoint
+        image.sigmoidalContrast(true, 5, new Percentage(50));
+        // Unsharp mask: radius 0, sigma 1, amount 1, threshold 0
+        image.unsharpMask(0, 1, 1, 0);
+
+        image.quality = 92;
+        return image.write((data) => new Uint8Array(data));
+      });
+
+      // Upload to property-images under enhanced/hdr/
+      const supabaseUrl2 = Deno.env.get("SUPABASE_URL")!;
+      const supabaseKey2 = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const sb = createClient(supabaseUrl2, supabaseKey2);
+
+      const hdrPath = `${job.user_id}/enhanced/hdr/${Date.now()}-${job_id}.jpg`;
+      const { error: uploadErr } = await sb.storage
+        .from("property-images")
+        .upload(hdrPath, hdrBytes, { contentType: "image/jpeg", upsert: true });
+      if (uploadErr) throw new Error(`HDR upload failed: ${uploadErr.message}`);
+
+      const { data: urlData } = sb.storage
+        .from("property-images")
+        .getPublicUrl(hdrPath);
+
+      await supabase.from("photo_jobs").update({
+        enhanced_url: urlData.publicUrl,
+        status: "complete",
+        updated_at: new Date().toISOString(),
+      }).eq("id", job_id);
+
+      console.log("enhance-photo: HDR boost complete", job_id);
+      return new Response(
+        JSON.stringify({ success: true, job_id, status: "complete" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     // 3. If no auto-enhance requested, skip to sky replacement handling
     if (!enhancements.enhance) {

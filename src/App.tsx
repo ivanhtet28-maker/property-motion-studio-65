@@ -88,6 +88,11 @@ const App = () => (
                 <Photos />
               </ProtectedRoute>
             } />
+            <Route path="/photos/:propertyId" element={
+              <ProtectedRoute>
+                <Photos />
+              </ProtectedRoute>
+            } />
             <Route path="/support" element={
               <ProtectedRoute>
                 <Support />
