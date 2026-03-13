@@ -160,9 +160,9 @@ const ADJUSTMENT_CONTROLS: { key: keyof ImageAdjustments; label: string; icon: t
 ];
 
 const ENHANCE_PRESETS = [
-  { value: "property", label: "Natural", description: "Balanced, true-to-life enhancement" },
+  { value: "neutral", label: "Natural", description: "Balanced, true-to-life enhancement" },
   { value: "warm", label: "Warm", description: "Warm tones, inviting feel" },
-  { value: "vivid", label: "Vivid", description: "Bold colours, high contrast" },
+  { value: "authentic", label: "Vivid", description: "Bold colours, high contrast" },
 ];
 
 const SKY_OPTIONS = [
@@ -663,7 +663,7 @@ function PhotoEditTab() {
 
   // AI Enhancement options
   const [enhanceEnabled, setEnhanceEnabled] = useState(true);
-  const [enhanceType, setEnhanceType] = useState("property");
+  const [enhanceType, setEnhanceType] = useState("neutral");
   const [skyEnabled, setSkyEnabled] = useState(false);
   const [skyType, setSkyType] = useState("DAY");
 
@@ -829,7 +829,7 @@ function PhotoEditTab() {
     setAdjustments({ ...DEFAULT_ADJUSTMENTS });
     setActivePreset("None");
     setEnhanceEnabled(true);
-    setEnhanceType("property");
+    setEnhanceType("neutral");
     setSkyEnabled(false);
     setSkyType("DAY");
   };
@@ -926,7 +926,7 @@ function PhotoEditTab() {
             job_type: "enhance",
             original_url: urlData.publicUrl,
             status: "pending",
-            enhancements: { enhance: enhanceEnabled, sky: skyEnabled, sky_type: skyType, enhance_type: enhanceType },
+            enhancements: { enhance: enhanceEnabled, sky: skyEnabled, sky_type: skyType, editing_style: enhanceType },
           })
           .select()
           .single();
