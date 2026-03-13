@@ -55,12 +55,12 @@ Deno.serve(async (req) => {
               .single();
 
             const currentLimit = prefs?.videos_limit || 2;
-            await supabase
+            const { error: topupError } = await supabase
               .from("users")
               .update({ videos_limit: currentLimit + extraVideos })
               .eq("id", userId);
-
-            console.log(`Top-up: added ${extraVideos} videos for user ${userId} (${currentLimit} → ${currentLimit + extraVideos})`);
+            if (topupError) console.error("Top-up DB update failed:", topupError);
+            else console.log(`Top-up: added ${extraVideos} videos for user ${userId} (${currentLimit} → ${currentLimit + extraVideos})`);
           }
         } else if (userId && plan) {
           // Subscription checkout
@@ -74,12 +74,12 @@ Deno.serve(async (req) => {
             updateData.videos_limit = videosLimit;
           }
 
-          await supabase
+          const { error: checkoutError } = await supabase
             .from("users")
             .update(updateData)
             .eq("id", userId);
-
-          console.log(`Updated user ${userId} to plan ${plan} (tier: ${tier}, limit: ${videosLimit})`);
+          if (checkoutError) console.error("Checkout subscription DB update failed:", checkoutError);
+          else console.log(`Updated user ${userId} to plan ${plan} (tier: ${tier}, limit: ${videosLimit})`);
         }
         break;
       }
@@ -139,11 +139,15 @@ Deno.serve(async (req) => {
           subUpdate.videos_limit = videosLimit;
         }
 
-        await supabase
+        const { error: subError } = await supabase
           .from("users")
           .update(subUpdate)
           .eq("id", userId);
 
+        if (subError) {
+          console.error(`Failed to update subscription for user ${userId}:`, subError);
+          throw new Error(`DB update failed: ${subError.message}`);
+        }
         console.log(`Updated subscription for user ${userId}`);
         break;
       }
@@ -159,7 +163,7 @@ Deno.serve(async (req) => {
         }
 
         // Downgrade to free tier
-        await supabase
+        const { error: deleteError } = await supabase
           .from("users")
           .update({
             stripe_subscription_id: null,
@@ -169,8 +173,8 @@ Deno.serve(async (req) => {
             videos_limit: 2,
           })
           .eq("id", userId);
-
-        console.log(`Canceled subscription for user ${userId}`);
+        if (deleteError) console.error("Subscription delete DB update failed:", deleteError);
+        else console.log(`Canceled subscription for user ${userId}`);
         break;
       }
 
