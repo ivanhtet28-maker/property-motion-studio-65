@@ -117,29 +117,15 @@ Deno.serve(async (req) => {
 
     // Check if user has a Stripe customer ID in user_preferences
     let { data: userPrefs } = await supabase
-      .from("user_preferences")
+      .from("users")
       .select("stripe_customer_id")
-      .eq("user_id", userId)
+      .eq("id", userId)
       .single();
 
-    // If user_preferences row doesn't exist (handle_new_user trigger may not have fired), create it
+    // If user row doesn't exist, the handle_new_user trigger didn't fire — surface a clear error
     if (!userPrefs) {
-      console.log("User preferences not found, creating...");
-      const { data: newPrefs, error: insertError } = await supabase
-        .from("user_preferences")
-        .insert({
-          user_id: userId,
-          subscription_tier: 'free',
-        })
-        .select("stripe_customer_id")
-        .single();
-
-      if (insertError) {
-        console.error("Failed to create user preferences:", insertError);
-        throw new Error(`Failed to create user preferences: ${insertError.message}`);
-      }
-
-      userPrefs = newPrefs;
+      console.error("User profile not found for userId:", userId);
+      throw new Error("User profile not found. Please sign out and sign back in.");
     }
 
     let customerId = userPrefs?.stripe_customer_id;
@@ -169,9 +155,9 @@ Deno.serve(async (req) => {
 
       // Save customer ID to user_preferences (same table stripe-webhook reads from)
       await supabase
-        .from("user_preferences")
+        .from("users")
         .update({ stripe_customer_id: customerId })
-        .eq("user_id", userId);
+        .eq("id", userId);
 
       console.log("Stripe customer created:", customerId);
     }

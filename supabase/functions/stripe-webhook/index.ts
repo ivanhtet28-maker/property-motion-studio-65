@@ -49,16 +49,16 @@ Deno.serve(async (req) => {
           if (extraVideos > 0) {
             // Use RPC or read-then-update to atomically increment
             const { data: prefs } = await supabase
-              .from("user_preferences")
+              .from("users")
               .select("videos_limit")
-              .eq("user_id", userId)
+              .eq("id", userId)
               .single();
 
             const currentLimit = prefs?.videos_limit || 2;
             await supabase
-              .from("user_preferences")
+              .from("users")
               .update({ videos_limit: currentLimit + extraVideos })
-              .eq("user_id", userId);
+              .eq("id", userId);
 
             console.log(`Top-up: added ${extraVideos} videos for user ${userId} (${currentLimit} → ${currentLimit + extraVideos})`);
           }
@@ -76,9 +76,9 @@ Deno.serve(async (req) => {
           }
 
           await supabase
-            .from("user_preferences")
+            .from("users")
             .update(updateData)
-            .eq("user_id", userId);
+            .eq("id", userId);
 
           console.log(`Updated user ${userId} to plan ${plan} (tier: ${tier}, limit: ${videosLimit})`);
         }
@@ -142,9 +142,9 @@ Deno.serve(async (req) => {
         }
 
         await supabase
-          .from("user_preferences")
+          .from("users")
           .update(subUpdate)
-          .eq("user_id", userId);
+          .eq("id", userId);
 
         console.log(`Updated subscription for user ${userId}`);
         break;
@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
 
         // Downgrade to free tier
         await supabase
-          .from("user_preferences")
+          .from("users")
           .update({
             stripe_subscription_id: null,
             subscription_status: "canceled",
@@ -171,7 +171,7 @@ Deno.serve(async (req) => {
             subscription_cancel_at_period_end: false,
             videos_limit: 2,
           })
-          .eq("user_id", userId);
+          .eq("id", userId);
 
         console.log(`Canceled subscription for user ${userId}`);
         break;
@@ -185,7 +185,7 @@ Deno.serve(async (req) => {
         const subscriptionId = invoice.subscription;
         if (subscriptionId) {
           await supabase
-            .from("user_preferences")
+            .from("users")
             .update({
               videos_used_this_period: 0,
               period_reset_date: new Date().toISOString(),
@@ -202,7 +202,7 @@ Deno.serve(async (req) => {
         const subscriptionId = invoice.subscription;
         if (subscriptionId) {
           await supabase
-            .from("user_preferences")
+            .from("users")
             .update({
               subscription_status: "past_due",
             })
