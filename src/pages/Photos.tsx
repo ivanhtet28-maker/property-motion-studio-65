@@ -54,7 +54,12 @@ import {
   Sunset,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Mountain,
+  Undo2,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -101,7 +106,29 @@ interface WatermarkSettings {
   fontSize: number;
 }
 
+interface EditSnapshot {
+  adjustments: ImageAdjustments;
+  activePreset: string;
+  enhanceEnabled: boolean;
+  enhanceType: string;
+  skyEnabled: boolean;
+  skyType: string;
+}
+
 // ── Constants ──────────────────────────────────────────────────────────────
+
+const MAX_UNDO_HISTORY = 5;
+
+const PRESET_CSS_FILTERS: Record<string, string> = {
+  "None": "none",
+  "Bright & Airy": "brightness(1.15) contrast(1.05) saturate(0.9)",
+  "Warm Glow": "sepia(0.2) saturate(1.3) brightness(1.05)",
+  "Cool & Crisp": "saturate(0.85) contrast(1.15) hue-rotate(10deg)",
+  "Twilight": "brightness(0.9) contrast(1.2) saturate(1.2) hue-rotate(-20deg)",
+  "Magazine": "brightness(1.1) contrast(1.2) saturate(1.1)",
+  "HDR Pop": "contrast(1.3) saturate(1.25) brightness(1.02)",
+  "Soft Focus": "brightness(1.1) contrast(0.9) saturate(0.95) blur(0.3px)",
+};
 
 const DEFAULT_ADJUSTMENTS: ImageAdjustments = {
   brightness: 0,
@@ -530,6 +557,101 @@ export default function Photos() {
 
 type SidebarTab = "ai" | "finetune" | "presets";
 
+// ── Enhanced Before/After Slider (clip-path based) ──────────────────────
+
+function EditorBeforeAfterSlider({
+  beforeUrl,
+  afterUrl,
+  afterFilter,
+  vignetteAmount,
+}: {
+  beforeUrl: string;
+  afterUrl: string;
+  afterFilter?: string;
+  vignetteAmount?: number;
+}) {
+  const [position, setPosition] = useState(50);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+
+  const handleMove = useCallback((clientX: number) => {
+    if (!containerRef.current || !dragging.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+    setPosition((x / rect.width) * 100);
+  }, []);
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => handleMove(e.clientX);
+    const onTouchMove = (e: TouchEvent) => handleMove(e.touches[0].clientX);
+    const onUp = () => { dragging.current = false; };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("touchmove", onTouchMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchend", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchend", onUp);
+    };
+  }, [handleMove]);
+
+  return (
+    <div className="w-full h-full flex flex-col">
+      {/* Labels */}
+      <div className="flex items-center justify-between px-1 pb-1.5">
+        <span className="text-[11px] text-white/50 font-medium">Original</span>
+        <span className="text-[11px] text-white/50 font-medium">Enhanced</span>
+      </div>
+      <div
+        ref={containerRef}
+        className="relative flex-1 overflow-hidden rounded-lg select-none cursor-col-resize"
+        onMouseDown={() => { dragging.current = true; }}
+        onTouchStart={() => { dragging.current = true; }}
+      >
+        {/* After (full) */}
+        <img
+          src={afterUrl}
+          alt="After"
+          className="absolute inset-0 w-full h-full object-contain"
+          style={afterFilter ? { filter: afterFilter } : undefined}
+        />
+        {vignetteAmount && vignetteAmount > 0 ? (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ background: `radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,${vignetteAmount / 100}) 100%)` }}
+          />
+        ) : null}
+        {/* Before (clipped with clip-path) */}
+        <div
+          className="absolute inset-0"
+          style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}
+        >
+          <img
+            src={beforeUrl}
+            alt="Before"
+            className="absolute inset-0 w-full h-full object-contain"
+          />
+        </div>
+        {/* Divider line + handle */}
+        <div
+          className="absolute top-0 bottom-0 w-0.5 bg-white/80 z-10 pointer-events-none"
+          style={{ left: `${position}%` }}
+        >
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white shadow-lg flex items-center justify-center pointer-events-auto cursor-col-resize">
+            <div className="flex gap-0.5">
+              <ArrowLeft className="w-3.5 h-3.5 text-gray-700" />
+              <ArrowRight className="w-3.5 h-3.5 text-gray-700" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PhotoEditTab() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -569,6 +691,93 @@ function PhotoEditTab() {
   // Compare mode (before/after slider)
   const [compareMode, setCompareMode] = useState(false);
 
+  // Bulk selection
+  const [selectedPhotos, setSelectedPhotos] = useState<Set<number>>(new Set());
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
+
+  // Undo history
+  const [undoHistory, setUndoHistory] = useState<EditSnapshot[]>([]);
+
+  // Progress bar
+  const [progressPercent, setProgressPercent] = useState(0);
+  const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Preset hover preview
+  const [hoveredPreset, setHoveredPreset] = useState<string | null>(null);
+
+  // Thumbnail strip scroll
+  const stripRef = useRef<HTMLDivElement>(null);
+
+  // ── Undo helpers ─────────────────────────────────────────────────────────
+  const pushSnapshot = useCallback(() => {
+    const snap: EditSnapshot = {
+      adjustments: { ...adjustments },
+      activePreset,
+      enhanceEnabled,
+      enhanceType,
+      skyEnabled,
+      skyType,
+    };
+    setUndoHistory((prev) => [...prev.slice(-(MAX_UNDO_HISTORY - 1)), snap]);
+  }, [adjustments, activePreset, enhanceEnabled, enhanceType, skyEnabled, skyType]);
+
+  const handleUndo = useCallback(() => {
+    setUndoHistory((prev) => {
+      if (prev.length === 0) return prev;
+      const next = [...prev];
+      const snap = next.pop()!;
+      setAdjustments(snap.adjustments);
+      setActivePreset(snap.activePreset);
+      setEnhanceEnabled(snap.enhanceEnabled);
+      setEnhanceType(snap.enhanceType);
+      setSkyEnabled(snap.skyEnabled);
+      setSkyType(snap.skyType);
+      return next;
+    });
+  }, []);
+
+  // Keyboard shortcut: Ctrl/Cmd+Z for undo
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "z") {
+        e.preventDefault();
+        handleUndo();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleUndo]);
+
+  // Progress bar timer helpers
+  const startProgressTimer = useCallback(() => {
+    setProgressPercent(0);
+    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+    const start = Date.now();
+    const duration = 15000; // 15 seconds fake timer
+    progressTimerRef.current = setInterval(() => {
+      const elapsed = Date.now() - start;
+      const pct = Math.min(95, (elapsed / duration) * 100);
+      setProgressPercent(pct);
+      if (pct >= 95 && progressTimerRef.current) {
+        clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+    }, 200);
+  }, []);
+
+  const stopProgressTimer = useCallback(() => {
+    if (progressTimerRef.current) { clearInterval(progressTimerRef.current); progressTimerRef.current = null; }
+    setProgressPercent(100);
+    setTimeout(() => setProgressPercent(0), 1500);
+  }, []);
+
+  // Thumbnail strip scroll helpers
+  const scrollStrip = useCallback((dir: "left" | "right") => {
+    if (!stripRef.current) return;
+    stripRef.current.scrollBy({ left: dir === "left" ? -200 : 200, behavior: "smooth" });
+  }, []);
+
   // File handling
   const addFiles = useCallback((newFiles: File[]) => {
     const valid = newFiles.filter(
@@ -592,6 +801,7 @@ function PhotoEditTab() {
       if (selectedFileIndex >= next.length) setSelectedFileIndex(Math.max(0, next.length - 1));
       return next;
     });
+    setSelectedPhotos((prev) => { const n = new Set(prev); n.delete(index); return n; });
   };
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -600,17 +810,45 @@ function PhotoEditTab() {
     addFiles(Array.from(e.dataTransfer.files));
   }, [addFiles]);
 
-  // Apply preset filter
+  // Apply preset filter (with undo snapshot)
   const applyPreset = (preset: typeof PRESET_FILTERS[number]) => {
+    pushSnapshot();
     setActivePreset(preset.name);
     setAdjustments({ ...preset.adjustments });
   };
 
   // Reset adjustments
   const resetAdjustments = () => {
+    pushSnapshot();
     setAdjustments({ ...DEFAULT_ADJUSTMENTS });
     setActivePreset("None");
   };
+
+  const resetToOriginal = () => {
+    pushSnapshot();
+    setAdjustments({ ...DEFAULT_ADJUSTMENTS });
+    setActivePreset("None");
+    setEnhanceEnabled(true);
+    setEnhanceType("property");
+    setSkyEnabled(false);
+    setSkyType("DAY");
+  };
+
+  // Bulk selection helpers
+  const togglePhotoSelection = (index: number) => {
+    setSelectedPhotos((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index); else next.add(index);
+      return next;
+    });
+  };
+  const selectAll = () => {
+    const items = hasResults ? jobs : files;
+    setSelectedPhotos(new Set(items.map((_, i) => i)));
+  };
+  const deselectAll = () => setSelectedPhotos(new Set());
+  const hasResults = jobs.length > 0;
+  const bulkCount = selectedPhotos.size;
 
   // CSS filter string for live preview
   const cssFilter = useMemo(() => adjustmentsToCSS(adjustments), [adjustments]);
@@ -622,10 +860,16 @@ function PhotoEditTab() {
   // Current selected job (when viewing results)
   const selectedJob = jobs.length > 0 ? jobs[selectedFileIndex] || jobs[0] : null;
 
-  // Process photos
-  const handleEnhance = async () => {
-    if (!user?.id || files.length === 0 || (!enhanceEnabled && !skyEnabled && !hasAdjustments && !watermarkEnabled)) return;
+  // ── Process photos (single or bulk) ───────────────────────────────────────
+
+  const processFiles = useCallback(async (fileIndices: number[]) => {
+    if (!user?.id || fileIndices.length === 0) return;
+    const filesToProcess = fileIndices.map((i) => files[i]).filter(Boolean);
+    if (filesToProcess.length === 0) return;
+
+    pushSnapshot();
     setIsProcessing(true);
+    startProgressTimer();
     setJobs([]);
 
     try {
@@ -635,12 +879,10 @@ function PhotoEditTab() {
       // If only manual adjustments (no AI), export locally
       if (!enhanceEnabled && !skyEnabled) {
         const localJobs: PhotoJob[] = [];
-        for (const f of files) {
-          const blob = await exportImageWithEdits(
-            f.preview,
-            adjustments,
-            watermarkEnabled ? watermark : null,
-          );
+        for (let idx = 0; idx < filesToProcess.length; idx++) {
+          setBulkProgress({ current: idx + 1, total: filesToProcess.length });
+          const f = filesToProcess[idx];
+          const blob = await exportImageWithEdits(f.preview, adjustments, watermarkEnabled ? watermark : null);
           const url = URL.createObjectURL(blob);
           localJobs.push({
             id: crypto.randomUUID(),
@@ -654,15 +896,20 @@ function PhotoEditTab() {
             enhancements: {},
             stage_options: {},
           });
+          setJobs([...localJobs]);
         }
-        setJobs(localJobs);
+        stopProgressTimer();
         setIsProcessing(false);
+        setBulkProcessing(false);
+        toast({ title: `${localJobs.length} photo${localJobs.length !== 1 ? "s" : ""} enhanced` });
         return;
       }
 
-      // Upload all files to storage
+      // Upload all files to storage sequentially
       const uploadedJobs: PhotoJob[] = [];
-      for (const f of files) {
+      for (let idx = 0; idx < filesToProcess.length; idx++) {
+        setBulkProgress({ current: idx + 1, total: filesToProcess.length });
+        const f = filesToProcess[idx];
         const ext = f.file.name.split(".").pop() || "jpg";
         const path = `${user.id}/originals/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const { error: uploadError } = await supabase.storage
@@ -672,7 +919,6 @@ function PhotoEditTab() {
 
         const { data: urlData } = supabase.storage.from("property-images").getPublicUrl(path);
 
-        // Create job record
         const { data: job, error: jobError } = await supabase
           .from("photo_jobs")
           .insert({
@@ -698,13 +944,14 @@ function PhotoEditTab() {
           enhancements: job.enhancements,
           stage_options: {},
         });
+        setJobs([...uploadedJobs]);
       }
 
-      setJobs(uploadedJobs);
-
-      // Call edge function for each job
+      // Call edge function for each job SEQUENTIALLY to avoid rate limits
       for (const job of uploadedJobs) {
-        invokeEdgeFunction("enhance-photo", { body: { job_id: job.id } }).catch((err) => {
+        try {
+          await invokeEdgeFunction("enhance-photo", { body: { job_id: job.id } });
+        } catch (err) {
           console.error("enhance-photo invocation failed:", err);
           setJobs((prev) =>
             prev.map((j) =>
@@ -713,12 +960,7 @@ function PhotoEditTab() {
                 : j,
             ),
           );
-          toast({
-            title: "Enhancement failed",
-            description: err instanceof Error ? err.message : "Failed to start photo enhancement",
-            variant: "destructive",
-          });
-        });
+        }
       }
 
       // Subscribe to realtime updates
@@ -769,7 +1011,11 @@ function PhotoEditTab() {
               )
             );
           }
+          stopProgressTimer();
           setIsProcessing(false);
+          setBulkProcessing(false);
+          const doneCount = uploadedJobs.length;
+          toast({ title: `${doneCount} photo${doneCount !== 1 ? "s" : ""} enhanced` });
           return;
         }
 
@@ -791,17 +1037,13 @@ function PhotoEditTab() {
                 .select("*")
                 .eq("id", row.id)
                 .single();
-              if (updated) {
-                Object.assign(row, updated);
-              }
+              if (updated) Object.assign(row, updated);
             }
           }
         }
         if (data) {
           for (const row of data) {
-            if (row.status === "complete" || row.status === "failed") {
-              pollIds.delete(row.id);
-            }
+            if (row.status === "complete" || row.status === "failed") pollIds.delete(row.id);
             setJobs((prev) =>
               prev.map((j) =>
                 j.id === row.id
@@ -814,14 +1056,31 @@ function PhotoEditTab() {
         if (pollIds.size === 0) {
           clearInterval(pollInterval);
           channel.unsubscribe();
+          stopProgressTimer();
           setIsProcessing(false);
+          setBulkProcessing(false);
+          const doneCount = uploadedJobs.length;
+          toast({ title: `${doneCount} photo${doneCount !== 1 ? "s" : ""} enhanced` });
         }
       }, 4000);
     } catch (err) {
       console.error("Enhance error:", err);
       toast({ title: "Error", description: "Failed to start enhancement", variant: "destructive" });
+      stopProgressTimer();
       setIsProcessing(false);
+      setBulkProcessing(false);
     }
+  }, [user, files, enhanceEnabled, skyEnabled, skyType, enhanceType, adjustments, watermarkEnabled, watermark, hasAdjustments, pushSnapshot, startProgressTimer, stopProgressTimer, toast]);
+
+  const handleEnhance = () => {
+    if (files.length === 0 || (!enhanceEnabled && !skyEnabled && !hasAdjustments && !watermarkEnabled)) return;
+    processFiles(files.map((_, i) => i));
+  };
+
+  const handleBulkProcess = () => {
+    if (selectedPhotos.size < 2) return;
+    setBulkProcessing(true);
+    processFiles(Array.from(selectedPhotos));
   };
 
   const completedJobs = jobs.filter((j) => j.status === "complete");
@@ -846,10 +1105,25 @@ function PhotoEditTab() {
         a.click();
         URL.revokeObjectURL(a.href);
       } else {
-        downloadImage(sourceUrl, `propertymotion-enhanced-${job.id.slice(0, 8)}.jpg`);
+        await downloadImage(sourceUrl, `propertymotion-enhanced-${job.id.slice(0, 8)}.jpg`);
       }
     } catch {
       toast({ title: "Error", description: "Failed to export image", variant: "destructive" });
+    }
+  };
+
+  // Force-download helper (fetch + blob)
+  const handleForceDownload = async (url: string, filename: string) => {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch {
+      toast({ title: "Error", description: "Download failed", variant: "destructive" });
     }
   };
 
@@ -885,7 +1159,6 @@ function PhotoEditTab() {
   }
 
   // ── EDITOR VIEW (Autoenhance.ai-inspired) ─────────────────────────────────
-  const hasResults = jobs.length > 0;
   const currentPreviewUrl = hasResults
     ? (selectedJob?.sky_url || selectedJob?.enhanced_url || selectedJob?.original_url || "")
     : (files[selectedFileIndex]?.preview || "");
@@ -900,17 +1173,70 @@ function PhotoEditTab() {
     <div className="flex flex-col h-[calc(100vh-12rem)]">
       {/* ── Top Bar ─────────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => { setJobs([]); setFiles([]); resetAdjustments(); setCompareMode(false); }}
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Upload
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { setJobs([]); setFiles([]); setAdjustments({ ...DEFAULT_ADJUSTMENTS }); setActivePreset("None"); setCompareMode(false); setSelectedPhotos(new Set()); setUndoHistory([]); }}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Upload
+          </Button>
+          {/* Undo button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleUndo}
+            disabled={undoHistory.length === 0}
+            className="text-muted-foreground hover:text-foreground"
+            title="Undo (Ctrl+Z)"
+          >
+            <Undo2 className="w-4 h-4" />
+          </Button>
+          {/* Reset to original */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={resetToOriginal}
+            className="text-muted-foreground hover:text-foreground text-xs"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Reset
+          </Button>
+        </div>
 
         <div className="flex items-center gap-2">
+          {/* Bulk progress indicator */}
+          {bulkProcessing && bulkProgress.total > 1 && (
+            <span className="text-xs text-muted-foreground">
+              Processing {bulkProgress.current} of {bulkProgress.total} photos...
+            </span>
+          )}
+          {/* Bulk select toggle */}
+          {!hasResults && files.length > 1 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={selectedPhotos.size === files.length ? deselectAll : selectAll}
+              className="text-xs text-muted-foreground"
+            >
+              {selectedPhotos.size === files.length ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+              {selectedPhotos.size === files.length ? "Deselect all" : "Select all"}
+            </Button>
+          )}
+          {/* Bulk process button */}
+          {!hasResults && bulkCount >= 2 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBulkProcess}
+              disabled={isProcessing}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Process selected ({bulkCount})
+            </Button>
+          )}
           {hasResults && hasAdjustments && (
             <span className="flex items-center gap-1 px-2.5 py-0.5 bg-primary/10 text-primary text-xs font-semibold rounded-full">
               <SlidersHorizontal className="w-3 h-3" /> Edits Applied
@@ -932,7 +1258,7 @@ function PhotoEditTab() {
               Export {completedJobs.length > 0 ? `${completedJobs.length} image${completedJobs.length !== 1 ? "s" : ""}` : ""}
             </Button>
           )}
-          {!hasResults && (
+          {!hasResults && bulkCount < 2 && (
             <Button
               variant="hero"
               size="sm"
@@ -942,7 +1268,7 @@ function PhotoEditTab() {
               {isProcessing ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Processing...
+                  Enhancing...
                 </>
               ) : (
                 <>
@@ -957,6 +1283,30 @@ function PhotoEditTab() {
           )}
         </div>
       </div>
+
+      {/* ── Progress Bar ────────────────────────────────────────── */}
+      {progressPercent > 0 && (
+        <div className="mb-2">
+          <div className="h-1 bg-secondary rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+          {isProcessing && (
+            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Enhancing... this takes ~15 seconds
+            </p>
+          )}
+          {!isProcessing && progressPercent >= 100 && (
+            <p className="text-xs text-green-500 mt-1 flex items-center gap-1.5">
+              <Check className="w-3 h-3" />
+              Done! Download your photo below.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* ── Main Editor Area ────────────────────────────────────── */}
       <div className="flex flex-1 gap-0 rounded-xl overflow-hidden border border-border min-h-0">
@@ -997,11 +1347,10 @@ function PhotoEditTab() {
 
             {/* Compare mode: before/after slider */}
             {compareMode && hasResults && jobIsComplete && currentPreviewUrl !== currentOriginalUrl ? (
-              <div className="w-full h-full max-w-full max-h-full">
-                <BeforeAfterSlider
+              <div className="w-full h-full max-w-full max-h-full p-2">
+                <EditorBeforeAfterSlider
                   beforeUrl={currentOriginalUrl}
                   afterUrl={currentPreviewUrl}
-                  large
                   afterFilter={hasAdjustments ? cssFilter : undefined}
                   vignetteAmount={adjustments.vignette}
                 />
@@ -1026,76 +1375,115 @@ function PhotoEditTab() {
               </div>
             )}
 
-            {/* Compare button */}
+            {/* Compare toggle (top-right eye icon) */}
             {hasResults && jobIsComplete && currentPreviewUrl !== currentOriginalUrl && (
               <button
                 onClick={() => setCompareMode(!compareMode)}
-                className={`absolute bottom-6 right-6 px-4 py-2 rounded-lg text-sm font-medium transition-all z-20 ${
+                className={`absolute top-6 right-6 flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all z-20 ${
                   compareMode
                     ? "bg-primary text-primary-foreground shadow-lg"
                     : "bg-black/70 text-white hover:bg-black/90 backdrop-blur-sm"
                 }`}
+                title="Toggle before/after comparison"
               >
+                <Eye className="w-3.5 h-3.5" />
                 Compare
+              </button>
+            )}
+
+            {/* Download button overlay (bottom-right, after enhancement) */}
+            {hasResults && jobIsComplete && selectedJob && (
+              <button
+                onClick={() => handleForceDownload(
+                  selectedJob.sky_url || selectedJob.enhanced_url || selectedJob.original_url,
+                  `propertymotion-enhanced-${selectedJob.id.slice(0, 8)}.jpg`,
+                )}
+                className="absolute bottom-6 right-6 flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium shadow-lg hover:bg-primary/90 transition-all z-20"
+              >
+                <Download className="w-4 h-4" />
+                Download enhanced photo
               </button>
             )}
           </div>
 
-          {/* ── Bottom Thumbnail Strip ────────────────────────── */}
-          <div className="border-t border-white/10 bg-[#16162a] px-4 py-3">
-            <div className="flex gap-2 overflow-x-auto">
+          {/* ── Bottom Thumbnail Strip with scroll arrows ──── */}
+          <div className="border-t border-white/10 bg-[#16162a] px-1 py-3 relative">
+            {/* Left scroll arrow */}
+            {(hasResults ? jobs : files).length > 4 && (
+              <button
+                onClick={() => scrollStrip("left")}
+                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 bg-black/80 hover:bg-black rounded-full flex items-center justify-center text-white/70 hover:text-white"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            )}
+            <div ref={stripRef} className="flex gap-2 overflow-x-auto px-3 scrollbar-hide" style={{ scrollbarWidth: "none" }}>
               {(hasResults ? jobs : files).map((item, i) => {
                 const isJob = "status" in item;
                 const thumbUrl = isJob
                   ? ((item as PhotoJob).sky_url || (item as PhotoJob).enhanced_url || (item as PhotoJob).original_url)
                   : (item as UploadedFile).preview;
-                const isSelected = i === selectedFileIndex;
+                const isViewing = i === selectedFileIndex;
                 const status = isJob ? (item as PhotoJob).status : null;
+                const isBulkSelected = selectedPhotos.has(i);
                 return (
-                  <button
-                    key={i}
-                    onClick={() => setSelectedFileIndex(i)}
-                    className={`relative flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden transition-all ${
-                      isSelected
-                        ? "ring-2 ring-primary ring-offset-2 ring-offset-[#16162a]"
-                        : "opacity-60 hover:opacity-100"
-                    }`}
-                  >
-                    <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
-                    {/* Status indicator */}
-                    {status === "processing" && (
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                        <Loader2 className="w-4 h-4 text-white animate-spin" />
-                      </div>
+                  <div key={i} className="relative group flex-shrink-0">
+                    <button
+                      onClick={() => setSelectedFileIndex(i)}
+                      className={`relative w-16 h-12 rounded-lg overflow-hidden transition-all ${
+                        isViewing
+                          ? "ring-2 ring-primary ring-offset-2 ring-offset-[#16162a]"
+                          : "opacity-60 hover:opacity-100"
+                      }`}
+                    >
+                      <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
+                      {status === "processing" && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          <Loader2 className="w-4 h-4 text-white animate-spin" />
+                        </div>
+                      )}
+                      {status === "pending" && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          <Loader2 className="w-3 h-3 text-white/60 animate-spin" />
+                        </div>
+                      )}
+                      {status === "complete" && (
+                        <div className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-green-500 flex items-center justify-center">
+                          <Check className="w-2 h-2 text-white" />
+                        </div>
+                      )}
+                      {status === "failed" && (
+                        <div className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-red-500 flex items-center justify-center">
+                          <X className="w-2 h-2 text-white" />
+                        </div>
+                      )}
+                    </button>
+                    {/* Bulk selection checkbox (visible on hover or when selected) */}
+                    {!hasResults && files.length > 1 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); togglePhotoSelection(i); }}
+                        className={`absolute top-0.5 left-0.5 w-4 h-4 rounded flex items-center justify-center transition-all ${
+                          isBulkSelected
+                            ? "bg-primary text-white opacity-100"
+                            : "bg-black/50 text-white/60 opacity-0 group-hover:opacity-100"
+                        }`}
+                      >
+                        {isBulkSelected ? <Check className="w-2.5 h-2.5" /> : null}
+                      </button>
                     )}
-                    {status === "pending" && (
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                        <Loader2 className="w-3 h-3 text-white/60 animate-spin" />
-                      </div>
-                    )}
-                    {status === "complete" && (
-                      <div className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-green-500 flex items-center justify-center">
-                        <Check className="w-2 h-2 text-white" />
-                      </div>
-                    )}
-                    {status === "failed" && (
-                      <div className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-red-500 flex items-center justify-center">
-                        <X className="w-2 h-2 text-white" />
-                      </div>
-                    )}
-                    {/* Remove button (only in upload mode) */}
+                    {/* Remove button */}
                     {!hasResults && (
                       <button
                         onClick={(e) => { e.stopPropagation(); removeFile(i); }}
-                        className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/70 hover:bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:opacity-100 transition-opacity"
+                        className="absolute top-0.5 right-0.5 w-4 h-4 bg-black/70 hover:bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         <X className="w-2.5 h-2.5" />
                       </button>
                     )}
-                  </button>
+                  </div>
                 );
               })}
-              {/* Add more photos button */}
+              {/* Add more photos */}
               {!hasResults && files.length < 20 && (
                 <label className="flex-shrink-0 w-16 h-12 rounded-lg border-2 border-dashed border-white/20 hover:border-primary/50 flex items-center justify-center cursor-pointer transition-colors">
                   <input
@@ -1109,6 +1497,15 @@ function PhotoEditTab() {
                 </label>
               )}
             </div>
+            {/* Right scroll arrow */}
+            {(hasResults ? jobs : files).length > 4 && (
+              <button
+                onClick={() => scrollStrip("right")}
+                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 bg-black/80 hover:bg-black rounded-full flex items-center justify-center text-white/70 hover:text-white"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -1337,9 +1734,9 @@ function PhotoEditTab() {
                 </div>
               </div>
 
-              {/* Apply button */}
+              {/* Apply button + credit cost */}
               {!hasResults && (
-                <div className="p-4 border-t border-border">
+                <div className="p-4 border-t border-border space-y-2">
                   <Button
                     variant="hero"
                     className="w-full"
@@ -1355,6 +1752,11 @@ function PhotoEditTab() {
                       <>Apply to {files.length} image{files.length !== 1 ? "s" : ""}</>
                     )}
                   </Button>
+                  {(enhanceEnabled || skyEnabled) && (
+                    <p className="text-[10px] text-muted-foreground text-center">
+                      Will use {files.length} credit{files.length !== 1 ? "s" : ""}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -1448,29 +1850,89 @@ function PhotoEditTab() {
                   ))}
                 </div>
 
-                {/* Local filter presets */}
+                {/* Local filter presets with hover thumbnails */}
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Filter presets</label>
-                  {PRESET_FILTERS.map((preset) => (
-                    <button
-                      key={preset.name}
-                      onClick={() => applyPreset(preset)}
-                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all ${
-                        activePreset === preset.name
-                          ? "bg-primary/10 ring-1 ring-primary"
-                          : "hover:bg-secondary"
-                      }`}
-                    >
-                      <Palette className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-sm font-medium text-foreground">{preset.name}</span>
-                    </button>
-                  ))}
+                  <div className="space-y-1">
+                    {PRESET_FILTERS.map((preset) => (
+                      <div
+                        key={preset.name}
+                        className="relative"
+                        onMouseEnter={() => setHoveredPreset(preset.name)}
+                        onMouseLeave={() => setHoveredPreset(null)}
+                      >
+                        <button
+                          onClick={() => applyPreset(preset)}
+                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-xs font-medium transition-all ${
+                            activePreset === preset.name
+                              ? "bg-primary/10 ring-1 ring-primary text-foreground"
+                              : "hover:bg-secondary text-foreground"
+                          }`}
+                        >
+                          <Palette className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                          {preset.name}
+                        </button>
+                        {/* Hover preview thumbnail */}
+                        {hoveredPreset === preset.name && preset.name !== "None" && currentPreviewUrl && (
+                          <div className="absolute right-0 top-0 -translate-x-0 translate-y-[-100%] z-50 p-1 bg-popover border border-border rounded-lg shadow-xl">
+                            <div className="w-20 h-[60px] rounded overflow-hidden">
+                              <img
+                                src={hasResults ? (selectedJob?.original_url || currentPreviewUrl) : currentPreviewUrl}
+                                alt={preset.name}
+                                className="w-full h-full object-cover"
+                                style={{ filter: PRESET_CSS_FILTERS[preset.name] || "none" }}
+                              />
+                            </div>
+                            <p className="text-[9px] text-muted-foreground text-center mt-0.5">{preset.name}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Finetune sliders */}
+                <div className="space-y-3 pt-2 border-t border-border">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Fine-tune</label>
+                    {hasAdjustments && (
+                      <button onClick={resetAdjustments} className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1">
+                        <RotateCcw className="w-3 h-3" /> Reset
+                      </button>
+                    )}
+                  </div>
+                  {ADJUSTMENT_CONTROLS.map((ctrl) => {
+                    const Icon = ctrl.icon;
+                    return (
+                      <div key={ctrl.key} className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                            <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+                            {ctrl.label}
+                          </label>
+                          <span className="text-xs text-muted-foreground tabular-nums w-8 text-right">
+                            {adjustments[ctrl.key] > 0 ? "+" : ""}{adjustments[ctrl.key]}
+                          </span>
+                        </div>
+                        <Slider
+                          min={ctrl.min}
+                          max={ctrl.max}
+                          step={1}
+                          value={[adjustments[ctrl.key]]}
+                          onValueChange={([v]) => {
+                            setAdjustments((prev) => ({ ...prev, [ctrl.key]: v }));
+                            setActivePreset("None");
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Apply button */}
+              {/* Apply button + credit cost */}
               {!hasResults && (
-                <div className="p-4 border-t border-border">
+                <div className="p-4 border-t border-border space-y-2">
                   <Button
                     variant="hero"
                     className="w-full"
@@ -1479,6 +1941,11 @@ function PhotoEditTab() {
                   >
                     Apply
                   </Button>
+                  {(enhanceEnabled || skyEnabled) && (
+                    <p className="text-[10px] text-muted-foreground text-center">
+                      Will use {files.length} credit{files.length !== 1 ? "s" : ""}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -2024,16 +2491,6 @@ function VirtualStagingTab() {
                 <span className="px-2 py-0.5 bg-secondary text-foreground text-xs font-medium rounded-full">
                   {ROOM_TYPES.find((r) => r.value === roomType)?.label || roomType}
                 </span>
-                {declutterEnabled && (
-                  <span className="px-2 py-0.5 bg-orange-500/10 text-orange-600 text-xs font-medium rounded-full">
-                    Decluttered
-                  </span>
-                )}
-                {lighting !== "standard" && (
-                  <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 text-xs font-medium rounded-full">
-                    {LIGHTING_OPTIONS.find((l) => l.value === lighting)?.label}
-                  </span>
-                )}
                 {mlsLabel.enabled && (
                   <span className="px-2 py-0.5 bg-blue-500/10 text-blue-600 text-xs font-medium rounded-full flex items-center gap-1">
                     <Shield className="w-3 h-3" /> MLS Label
