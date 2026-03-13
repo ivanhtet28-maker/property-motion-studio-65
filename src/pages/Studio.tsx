@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   X,
@@ -45,21 +45,25 @@ import {
   Mail,
   Bell,
   Gift,
+  Save,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { callStitchVideo } from "@/lib/callStitchVideo";
+import { callVideoStatus } from "@/lib/callVideoStatus";
+import { getMusicUrl } from "@/config/musicMapping";
 
 // ─── Template data ───────────────────────────────────
 const TEMPLATES = [
+  { id: "open-house", name: "Open House" },
   { id: "modern-treehouse", name: "Modern Treehouse" },
-  { id: "apartment-for-sale", name: "Apartment For Sale, Contact" },
-  { id: "open-house-blue", name: "Open House Blue Banner" },
   { id: "big-bold", name: "Big and Bold" },
   { id: "simple-white", name: "Simple White" },
+  { id: "elegant-classic", name: "Elegant Classic" },
 ];
 
 // ─── Sticker icons (matching AutoReel) ───────────────
@@ -115,6 +119,7 @@ interface TimelineClip {
   src: string;
   duration: number; // seconds
   label: string;
+  cameraAction: string;
 }
 
 // ─── Left sidebar tabs ──────────────────────────────
@@ -133,14 +138,21 @@ export default function Studio() {
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [rendering, setRendering] = useState(false);
+  const [renderProgress, setRenderProgress] = useState(0);
   const [videoTitle, setVideoTitle] = useState("Untitled video");
   const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("template");
 
+  // Stored video context for re-rendering
+  const [storedContext, setStoredContext] = useState<Record<string, unknown> | null>(null);
+  const [videoData, setVideoData] = useState<Record<string, unknown> | null>(null);
+
   // Template
   const [templateSearch, setTemplateSearch] = useState("");
   const [templateType, setTemplateType] = useState<"intro" | "outro">("intro");
-  const [selectedTemplate, setSelectedTemplate] = useState("open-house-blue");
+  const [selectedTemplate, setSelectedTemplate] = useState("open-house");
 
   // Timeline
   const [clips, setClips] = useState<TimelineClip[]>([]);
@@ -162,8 +174,58 @@ export default function Studio() {
   >([]);
 
   const totalDuration = clips.reduce((acc, c) => acc + c.duration, 0);
+  const playIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollCancelledRef = useRef(false);
 
-  // Load video data
+  // ─── Determine which clip is visible at the current playback time ───
+  const getClipAtTime = useCallback(
+    (time: number): TimelineClip | null => {
+      let elapsed = 0;
+      for (const clip of clips) {
+        if (time >= elapsed && time < elapsed + clip.duration) return clip;
+        elapsed += clip.duration;
+      }
+      return clips[clips.length - 1] || null;
+    },
+    [clips]
+  );
+
+  const previewClip = selectedClip
+    ? clips.find((c) => c.id === selectedClip) || null
+    : getClipAtTime(currentTime);
+
+  const previewSrc = previewClip?.src || thumbnailUrl;
+
+  // ─── Playback timer ───
+  useEffect(() => {
+    if (isPlaying) {
+      playIntervalRef.current = setInterval(() => {
+        setCurrentTime((prev) => {
+          const next = prev + 0.1;
+          if (next >= totalDuration) {
+            setIsPlaying(false);
+            return 0;
+          }
+          return next;
+        });
+      }, 100);
+    } else if (playIntervalRef.current) {
+      clearInterval(playIntervalRef.current);
+      playIntervalRef.current = null;
+    }
+    return () => {
+      if (playIntervalRef.current) clearInterval(playIntervalRef.current);
+    };
+  }, [isPlaying, totalDuration]);
+
+  // ─── Cleanup on unmount ───
+  useEffect(() => {
+    return () => {
+      pollCancelledRef.current = true;
+    };
+  }, []);
+
+  // ─── Load video data ───
   useEffect(() => {
     if (!id || !user?.id) return;
     (async () => {
@@ -178,15 +240,28 @@ export default function Studio() {
 
         setVideoTitle(data.property_address || "Untitled video");
         setThumbnailUrl(data.thumbnail_url);
+        setVideoData(data);
 
-        // Build timeline clips from stored data
+        // Parse stored context
         const imageUrls: string[] = [];
+        let cameraAngles: string[] = [];
+        let clipDurations: number[] = [];
+        let ctx: Record<string, unknown> = {};
+
         if (data.photos) {
           try {
-            const parsed = JSON.parse(data.photos);
+            const parsed = typeof data.photos === "string"
+              ? JSON.parse(data.photos)
+              : data.photos;
+            ctx = parsed;
             if (parsed.imageUrls) imageUrls.push(...parsed.imageUrls);
+            if (Array.isArray(parsed.cameraAngles)) cameraAngles = parsed.cameraAngles;
+            if (Array.isArray(parsed.clipDurations)) clipDurations = parsed.clipDurations;
+            if (parsed.style) setSelectedTemplate(parsed.style);
           } catch { /* ignore */ }
         }
+
+        setStoredContext(ctx);
 
         if (imageUrls.length > 0) {
           setClips(
@@ -194,12 +269,12 @@ export default function Studio() {
               id: `clip-${i}`,
               type: "image" as const,
               src: url,
-              duration: 3.5,
-              label: url.split("/").pop()?.substring(0, 20) || `Clip ${i + 1}`,
+              duration: clipDurations[i] || 3.5,
+              label: `Scene ${i + 1}`,
+              cameraAction: cameraAngles[i] || "push-in",
             }))
           );
         } else {
-          // Fallback placeholder clips
           setClips(
             Array.from({ length: 5 }, (_, i) => ({
               id: `clip-${i}`,
@@ -207,17 +282,20 @@ export default function Studio() {
               src: data.thumbnail_url || "",
               duration: 3,
               label: `Scene ${i + 1}`,
+              cameraAction: "push-in",
             }))
           );
         }
       } catch (err) {
         console.error("Failed to load video:", err);
+        toast({ title: "Error loading video", variant: "destructive" });
       } finally {
         setLoading(false);
       }
     })();
   }, [id, user]);
 
+  // ─── Add media clips ───
   const addMediaClip = () => {
     const input = document.createElement("input");
     input.type = "file";
@@ -231,6 +309,7 @@ export default function Studio() {
         src: URL.createObjectURL(f),
         duration: 3.5,
         label: f.name.substring(0, 20),
+        cameraAction: "push-in",
       }));
       setClips((prev) => [...prev, ...newClips]);
       toast({ title: `Added ${files.length} clip${files.length > 1 ? "s" : ""}` });
@@ -255,8 +334,148 @@ export default function Studio() {
     ]);
   };
 
-  const handleRender = () => {
-    toast({ title: "Rendering video...", description: "This may take a few minutes." });
+  // ─── Save changes to database ───
+  const handleSave = async () => {
+    if (!id || !user?.id) return;
+    setSaving(true);
+    try {
+      const updatedContext = { ...storedContext };
+      updatedContext.cameraAngles = clips.map((c) => c.cameraAction);
+      updatedContext.clipDurations = clips.map((c) => c.duration);
+      updatedContext.imageUrls = clips.map((c) => c.src);
+      updatedContext.style = selectedTemplate;
+
+      const { error } = await supabase
+        .from("videos")
+        .update({ photos: JSON.stringify(updatedContext) })
+        .eq("id", id)
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+      setStoredContext(updatedContext);
+      toast({ title: "Changes saved", description: "Your edits have been saved." });
+    } catch (err) {
+      console.error("Save failed:", err);
+      toast({
+        title: "Save failed",
+        description: err instanceof Error ? err.message : "Could not save changes",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ─── Render video via stitch-video ───
+  const handleRender = async () => {
+    if (!id || !user?.id || !storedContext) return;
+
+    setRendering(true);
+    setRenderProgress(0);
+    pollCancelledRef.current = false;
+
+    try {
+      // Build the stitch payload from stored context + studio edits
+      const ctx = storedContext;
+      const imageUrls = clips.map((c) => c.src);
+      const clipDurations = clips.map((c) => c.duration);
+      const cameraAngles = clips.map((c) => c.cameraAction);
+
+      const musicUrl = selectedTrack ? getMusicUrl(selectedTrack) : (ctx.musicUrl as string | undefined) || undefined;
+
+      const stitchResult = await callStitchVideo<{
+        success: boolean;
+        jobId?: string;
+        error?: string;
+      }>({
+        imageUrls,
+        clipDurations,
+        cameraAngles,
+        audioUrl: (ctx.audioUrl as string) || undefined,
+        musicUrl: musicUrl || undefined,
+        agentInfo: (ctx.agentInfo as Record<string, unknown>) || undefined,
+        propertyData: (ctx.propertyData as Record<string, unknown>) || {
+          address: videoTitle,
+          price: "",
+          beds: 0,
+          baths: 0,
+          description: "",
+        },
+        style: selectedTemplate,
+        layout: selectedTemplate,
+        customTitle: (ctx.customTitle as string) || "",
+        videoId: id,
+        outputFormat: "portrait",
+      });
+
+      if (!stitchResult.success || !stitchResult.jobId) {
+        throw new Error(stitchResult.error || "Failed to start render");
+      }
+
+      setRenderProgress(20);
+      toast({ title: "Rendering started", description: "Your video is being rendered..." });
+
+      // Poll for completion
+      const jobId = stitchResult.jobId;
+      let attempts = 0;
+      const maxAttempts = 120;
+
+      const poll = async () => {
+        if (pollCancelledRef.current || attempts >= maxAttempts) {
+          if (attempts >= maxAttempts) {
+            toast({ title: "Render timed out", variant: "destructive" });
+          }
+          setRendering(false);
+          return;
+        }
+        attempts++;
+
+        try {
+          const statusData = await callVideoStatus<{
+            status: string;
+            videoUrl?: string;
+            progress?: number;
+          }>({
+            stitchJobId: jobId,
+            videoId: id,
+            generationIds: [],
+            clipDurations,
+            propertyData: (ctx.propertyData as Record<string, unknown>) || { address: videoTitle, price: "", beds: 0, baths: 0, description: "" },
+            style: selectedTemplate,
+          });
+
+          if (statusData.status === "done" && statusData.videoUrl) {
+            setRenderProgress(100);
+            setRendering(false);
+            toast({
+              title: "Video rendered!",
+              description: "Your updated video is ready.",
+            });
+            window.open(statusData.videoUrl, "_blank");
+            return;
+          } else if (statusData.status === "failed") {
+            setRendering(false);
+            toast({ title: "Render failed", variant: "destructive" });
+            return;
+          } else {
+            setRenderProgress(statusData.progress || Math.min(20 + attempts * 1.5, 95));
+            setTimeout(poll, 5000);
+          }
+        } catch {
+          setTimeout(poll, 5000);
+        }
+      };
+
+      await poll();
+    } catch (err) {
+      console.error("Render failed:", err);
+      setRendering(false);
+      toast({
+        title: "Render failed",
+        description: err instanceof Error ? err.message : "Error",
+        variant: "destructive",
+      });
+    }
   };
 
   const filteredTemplates = TEMPLATES.filter((t) =>
@@ -266,6 +485,16 @@ export default function Studio() {
   const filteredTracks = MUSIC_TRACKS.filter((t) =>
     t.toLowerCase().includes(musicSearch.toLowerCase())
   );
+
+  // ─── Seek on timeline click ───
+  const handleTimelineSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left - 32; // account for grip column
+    if (x < 0) return;
+    const seekTime = x / (zoom * 2);
+    setCurrentTime(Math.max(0, Math.min(seekTime, totalDuration)));
+    setSelectedClip(null);
+  };
 
   if (loading) {
     return (
@@ -293,14 +522,34 @@ export default function Studio() {
           <span className="text-sm font-medium">{videoTitle}</span>
         </div>
 
-        <Button
-          variant="hero"
-          size="sm"
-          onClick={handleRender}
-          className="text-xs"
-        >
-          Render Video
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSave}
+            disabled={saving}
+            className="text-xs bg-white/10 border-white/10 text-white hover:bg-white/20"
+          >
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+            {saving ? "Saving..." : "Save"}
+          </Button>
+          <Button
+            variant="hero"
+            size="sm"
+            onClick={handleRender}
+            disabled={rendering}
+            className="text-xs"
+          >
+            {rendering ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Rendering {Math.round(renderProgress)}%
+              </>
+            ) : (
+              "Render Video"
+            )}
+          </Button>
+        </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
@@ -388,7 +637,7 @@ export default function Studio() {
             <div className="p-4">
               <h3 className="text-sm font-semibold mb-3">Media</h3>
               <p className="text-xs text-white/50 mb-4">
-                Add photos or videos to the timeline. No image-to-video generation in Studio mode.
+                Add photos or videos to the timeline.
               </p>
               <Button
                 variant="outline"
@@ -404,8 +653,21 @@ export default function Studio() {
                 {clips.map((clip) => (
                   <div
                     key={clip.id}
-                    className="flex items-center gap-2 p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
-                    onClick={() => setSelectedClip(clip.id)}
+                    className={`flex items-center gap-2 p-2 rounded-lg transition-colors cursor-pointer ${
+                      selectedClip === clip.id
+                        ? "bg-primary/20 ring-1 ring-primary"
+                        : "bg-white/5 hover:bg-white/10"
+                    }`}
+                    onClick={() => {
+                      setSelectedClip(clip.id);
+                      // Seek to the clip's start time
+                      let seekTime = 0;
+                      for (const c of clips) {
+                        if (c.id === clip.id) break;
+                        seekTime += c.duration;
+                      }
+                      setCurrentTime(seekTime);
+                    }}
                   >
                     <div className="w-12 h-8 rounded bg-white/10 overflow-hidden flex-shrink-0">
                       {clip.src && (
@@ -467,6 +729,12 @@ export default function Studio() {
                     <div key={t.id} className="flex items-center gap-2 py-1.5 text-xs">
                       <Type className="w-3 h-3 text-white/40" />
                       <span className="truncate">{t.text}</span>
+                      <button
+                        onClick={() => setTextOverlays((prev) => prev.filter((o) => o.id !== t.id))}
+                        className="ml-auto p-0.5 text-white/30 hover:text-red-400"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -580,11 +848,36 @@ export default function Studio() {
           {/* Preview area */}
           <div className="flex-1 flex items-center justify-center bg-[#12122a] p-6">
             <div className="aspect-[9/16] h-full max-h-[500px] bg-black rounded-lg overflow-hidden border border-white/10 relative">
-              {thumbnailUrl ? (
-                <img src={thumbnailUrl} alt="Preview" className="w-full h-full object-cover" />
+              {previewSrc ? (
+                <img
+                  src={previewSrc}
+                  alt="Preview"
+                  className="w-full h-full object-cover transition-opacity duration-200"
+                />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-white/20">
                   <Play className="w-16 h-16" />
+                </div>
+              )}
+              {/* Scene indicator */}
+              {previewClip && (
+                <div className="absolute top-3 left-3 bg-black/50 backdrop-blur-sm rounded-md px-2 py-1">
+                  <span className="text-[10px] font-medium text-white/80">
+                    {previewClip.label} — {previewClip.cameraAction}
+                  </span>
+                </div>
+              )}
+              {/* Render progress overlay */}
+              {rendering && (
+                <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center">
+                  <Loader2 className="w-10 h-10 animate-spin text-primary mb-3" />
+                  <p className="text-sm font-medium">Rendering {Math.round(renderProgress)}%</p>
+                  <div className="w-40 h-1.5 bg-white/20 rounded-full mt-2 overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full transition-all duration-500"
+                      style={{ width: `${renderProgress}%` }}
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -604,7 +897,11 @@ export default function Studio() {
               1x
             </button>
             <button
-              onClick={() => setIsPlaying(!isPlaying)}
+              onClick={() => {
+                if (!isPlaying && currentTime >= totalDuration) setCurrentTime(0);
+                setIsPlaying(!isPlaying);
+                setSelectedClip(null);
+              }}
               className="w-8 h-8 rounded-full bg-primary flex items-center justify-center"
             >
               {isPlaying ? (
@@ -615,7 +912,8 @@ export default function Studio() {
             </button>
             <span className="text-xs text-white/60 tabular-nums">
               {String(Math.floor(currentTime / 60)).padStart(2, "0")}:
-              {String(Math.floor(currentTime % 60)).padStart(2, "0")}.00 /{" "}
+              {String(Math.floor(currentTime % 60)).padStart(2, "0")}.
+              {String(Math.floor((currentTime % 1) * 10)).padStart(1, "0")}0 /{" "}
               {String(Math.floor(totalDuration / 60)).padStart(2, "0")}:
               {String(Math.floor(totalDuration % 60)).padStart(2, "0")}.00
             </span>
@@ -660,11 +958,23 @@ export default function Studio() {
               ))}
             </div>
 
+            {/* Playhead */}
+            <div
+              className="absolute h-[174px] w-px bg-primary z-10 pointer-events-none"
+              style={{
+                left: `${32 + currentTime * zoom * 2}px`,
+                marginTop: "0px",
+              }}
+            />
+
             {/* Tracks */}
-            <div className="py-1">
-              {/* Video track labels */}
+            <div className="py-1 relative">
               {["Video", "Text", "Audio", "Overlay", "Stickers"].map((trackName, trackIdx) => (
-                <div key={trackName} className="flex items-center h-7 border-b border-white/5">
+                <div
+                  key={trackName}
+                  className="flex items-center h-7 border-b border-white/5"
+                  onClick={trackIdx === 0 ? handleTimelineSeek : undefined}
+                >
                   <div className="w-8 flex-shrink-0 flex items-center justify-center">
                     <GripVertical className="w-3 h-3 text-white/20" />
                   </div>
@@ -672,20 +982,33 @@ export default function Studio() {
                     {/* Render clips on video track */}
                     {trackIdx === 0 && (
                       <div className="absolute inset-0 flex items-center gap-px">
-                        {clips.map((clip) => (
-                          <div
-                            key={clip.id}
-                            onClick={() => setSelectedClip(clip.id)}
-                            className={`h-5 rounded-sm flex items-center px-1.5 text-[9px] font-medium cursor-pointer transition-colors flex-shrink-0 ${
-                              selectedClip === clip.id
-                                ? "bg-primary ring-1 ring-primary"
-                                : "bg-pink-600/80 hover:bg-pink-500/80"
-                            }`}
-                            style={{ width: `${clip.duration * zoom * 2}px` }}
-                          >
-                            <span className="truncate text-white">{clip.label}</span>
-                          </div>
-                        ))}
+                        {clips.map((clip) => {
+                          const isActive = selectedClip === clip.id ||
+                            (!selectedClip && previewClip?.id === clip.id);
+                          return (
+                            <div
+                              key={clip.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedClip(clip.id);
+                                let seekTime = 0;
+                                for (const c of clips) {
+                                  if (c.id === clip.id) break;
+                                  seekTime += c.duration;
+                                }
+                                setCurrentTime(seekTime);
+                              }}
+                              className={`h-5 rounded-sm flex items-center px-1.5 text-[9px] font-medium cursor-pointer transition-colors flex-shrink-0 ${
+                                isActive
+                                  ? "bg-primary ring-1 ring-primary"
+                                  : "bg-pink-600/80 hover:bg-pink-500/80"
+                              }`}
+                              style={{ width: `${clip.duration * zoom * 2}px` }}
+                            >
+                              <span className="truncate text-white">{clip.label}</span>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                     {/* Audio track */}
