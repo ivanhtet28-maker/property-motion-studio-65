@@ -52,6 +52,8 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
     preGeneratedVideoUrls?: string[];
     // When true, skip ALL AI generation and use Shotstack Ken Burns effects on raw photos
     useKenBurns?: boolean;
+    // "portrait" (9:16, default) or "landscape" (16:9)
+    outputFormat?: "portrait" | "landscape";
   }
 
   // Map user camera angle selections to Shotstack Ken Burns effect names.
@@ -259,7 +261,8 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
         );
       }
 
-      const { imageUrls, imageMetadata, propertyData, style, layout, customTitle, detailsText, voice, music, customMusicUrl, musicTrimStart, musicTrimEnd, userId, propertyId, script, source, agentInfo, preGeneratedVideoUrls, useKenBurns }: GenerateVideoRequest = await req.json();
+      const { imageUrls, imageMetadata, propertyData, style, layout, customTitle, detailsText, voice, music, customMusicUrl, musicTrimStart, musicTrimEnd, userId, propertyId, script, source, agentInfo, preGeneratedVideoUrls, useKenBurns, outputFormat: requestedFormat }: GenerateVideoRequest = await req.json();
+      const outputFormat = requestedFormat === "landscape" ? "landscape" : "portrait";
 
       console.log("=== VIDEO GENERATION ===");
       console.log("Mode:", useKenBurns ? "Ken Burns (Shotstack direct)" : "Runway Gen4 Turbo");
@@ -420,7 +423,7 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
               car_spaces: propertyData.carSpaces ?? null,
               template_used: style,
               music_used: music,
-              aspect_ratio: "9:16", // DB default — updated by stitch-video based on actual outputFormat
+              aspect_ratio: outputFormat === "landscape" ? "16:9" : "9:16",
               status: "processing",
               agent_name: agentInfo?.name || null,
               agent_phone: agentInfo?.phone || null,
@@ -504,6 +507,7 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
               customTitle: customTitle || "",
               detailsText: detailsText || "",
               videoId: videoRecordId,
+              outputFormat,
             }),
           }
         );
@@ -568,6 +572,7 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
               customTitle: customTitle || "",
               detailsText: detailsText || "",
               videoId: videoRecordId,
+              outputFormat,
             }),
           }
         );
@@ -614,35 +619,40 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
 
       // Smart 9:16 pre-crop: Runway center-crops blindly when aspect ratio doesn't match.
       // Pre-cropping landscape images to 9:16 ensures the most important content is preserved.
-      console.log("Running smart 9:16 portrait crop on", reliableImageUrls.length, "images...");
+      // Skip for landscape output — images are already landscape-native.
       let portraitImageUrls = reliableImageUrls;
-      try {
-        const cropResponse = await fetch(
-          `${Deno.env.get("SUPABASE_URL")}/functions/v1/smart-crop-portrait`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-            },
-            body: JSON.stringify({
-              images: reliableImageUrls.map(url => ({ imageUrl: url })),
-            }),
-          }
-        );
+      if (outputFormat !== "landscape") {
+        console.log("Running smart 9:16 portrait crop on", reliableImageUrls.length, "images...");
+        try {
+          const cropResponse = await fetch(
+            `${Deno.env.get("SUPABASE_URL")}/functions/v1/smart-crop-portrait`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              },
+              body: JSON.stringify({
+                images: reliableImageUrls.map(url => ({ imageUrl: url })),
+              }),
+            }
+          );
 
-        if (cropResponse.ok) {
-          const cropData = await cropResponse.json();
-          if (cropData.success && Array.isArray(cropData.results)) {
-            portraitImageUrls = cropData.results.map((r: { url: string }) => r.url);
-            const croppedCount = cropData.results.filter((r: { cropped: boolean }) => r.cropped).length;
-            console.log(`Smart crop: ${croppedCount}/${reliableImageUrls.length} images cropped to 9:16`);
+          if (cropResponse.ok) {
+            const cropData = await cropResponse.json();
+            if (cropData.success && Array.isArray(cropData.results)) {
+              portraitImageUrls = cropData.results.map((r: { url: string }) => r.url);
+              const croppedCount = cropData.results.filter((r: { cropped: boolean }) => r.cropped).length;
+              console.log(`Smart crop: ${croppedCount}/${reliableImageUrls.length} images cropped to 9:16`);
+            }
+          } else {
+            console.warn("Smart crop failed, using original images:", cropResponse.status);
           }
-        } else {
-          console.warn("Smart crop failed, using original images:", cropResponse.status);
+        } catch (cropErr) {
+          console.warn("Smart crop error, using original images:", cropErr instanceof Error ? cropErr.message : cropErr);
         }
-      } catch (cropErr) {
-        console.warn("Smart crop error, using original images:", cropErr instanceof Error ? cropErr.message : cropErr);
+      } else {
+        console.log("Landscape mode — skipping portrait crop");
       }
 
       const baseMetadata = imageMetadata || portraitImageUrls.map(url => ({
@@ -658,10 +668,9 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
       }));
       const finalImageUrls = portraitImageUrls;
 
-      // Always generate portrait (9:16) clips — the app targets social media reels.
-      // Images are now pre-cropped to 9:16, so Runway won't need to center-crop blindly.
-      const computedOutputFormat = "portrait";
-      console.log(`Sending ${metadataForRunway.length} images to Runway, outputFormat=${computedOutputFormat} (pre-cropped to 9:16)`);
+      // Use the requested format: portrait (9:16) for social reels, landscape (16:9) for widescreen.
+      const computedOutputFormat = outputFormat;
+      console.log(`Sending ${metadataForRunway.length} images to Runway, outputFormat=${computedOutputFormat}`);
 
       const runwayResponse = await fetch(
         `${Deno.env.get("SUPABASE_URL")}/functions/v1/generate-runway-batch`,
@@ -742,6 +751,7 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
                 customTitle: customTitle || "",
                 detailsText: detailsText || "",
                 imageUrls: finalImageUrls,
+                outputFormat,
               }),
             })
             .eq("id", videoRecordId);
