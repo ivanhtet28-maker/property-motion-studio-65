@@ -1,130 +1,57 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  X,
-  LayoutTemplate,
-  FolderOpen,
-  Type,
-  Music,
-  Sticker,
-  Search,
-  Upload,
-  Play,
-  Pause,
-  Undo2,
-  Redo2,
-  ZoomIn,
-  ZoomOut,
-  Settings,
-  Plus,
+  ArrowLeft,
   Loader2,
-  GripVertical,
-  Trash2,
-  Home,
-  BedDouble,
-  Bath,
-  Utensils,
-  LayoutGrid,
-  Square,
-  DollarSign,
-  MapPin,
-  Car,
-  Sprout,
-  Waves,
-  Flame,
-  Thermometer,
-  Snowflake,
-  CalendarDays,
-  Eye,
-  Sun,
-  Heart,
-  Star,
-  ThumbsUp,
-  Camera,
-  Phone,
-  Mail,
-  Bell,
-  Gift,
+  Download,
+  AlertCircle,
+  Check,
+  RotateCcw,
+  Clock,
+  Sparkles,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
+import VideoPlayer from "@/components/VideoPlayer";
+import EditControls, { type StudioChanges } from "@/components/EditControls";
 
-// ─── Template data ───────────────────────────────────
-const TEMPLATES = [
-  { id: "modern-treehouse", name: "Modern Treehouse" },
-  { id: "apartment-for-sale", name: "Apartment For Sale, Contact" },
-  { id: "open-house-blue", name: "Open House Blue Banner" },
-  { id: "big-bold", name: "Big and Bold" },
-  { id: "simple-white", name: "Simple White" },
-];
+// ── Types ──────────────────────────────────────────────────────────────────
 
-// ─── Sticker icons (matching AutoReel) ───────────────
-const ICON_STICKERS = [
-  { icon: Home, label: "Home" },
-  { icon: BedDouble, label: "Bed" },
-  { icon: Bath, label: "Bath" },
-  { icon: Utensils, label: "Kitchen" },
-  { icon: LayoutGrid, label: "Layout" },
-  { icon: Square, label: "Square" },
-  { icon: DollarSign, label: "Dollar" },
-  { icon: MapPin, label: "Location" },
-  { icon: Car, label: "Car" },
-  { icon: Sprout, label: "Garden" },
-  { icon: Waves, label: "Pool" },
-  { icon: Flame, label: "Fire" },
-  { icon: Thermometer, label: "Temp" },
-  { icon: Snowflake, label: "AC" },
-  { icon: CalendarDays, label: "Date" },
-  { icon: Eye, label: "View" },
-  { icon: Sun, label: "Sun" },
-  { icon: Heart, label: "Heart" },
-  { icon: Star, label: "Star" },
-  { icon: ThumbsUp, label: "Like" },
-  { icon: Camera, label: "Camera" },
-  { icon: Phone, label: "Phone" },
-  { icon: Mail, label: "Mail" },
-  { icon: Bell, label: "Bell" },
-  { icon: Gift, label: "Gift" },
-];
-
-// ─── Music tracks ────────────────────────────────────
-const MUSIC_TRACKS = [
-  "ambient-relaxing-1",
-  "ambient-relaxing-2",
-  "cinematic-epic-1",
-  "cinematic-epic-2",
-  "cinematic-epic-3",
-  "classical-elegant-1",
-  "classical-elegant-2",
-  "Lofi 2 .mp3",
-  "Luxury 1.mp3",
-  "modern-chill-1",
-  "modern-chill-2",
-  "Upbeat 1 .mp3",
-  "upbeat-energetic-3.mp3",
-];
-
-// ─── Timeline clip type ──────────────────────────────
-interface TimelineClip {
+interface VideoRecord {
   id: string;
-  type: "image" | "video";
-  src: string;
-  duration: number; // seconds
-  label: string;
+  user_id: string;
+  video_url: string | null;
+  thumbnail_url: string | null;
+  status: string;
+  duration: number | null;
+  template: string | null;
+  style: string | null;
+  music_id: string | null;
+  voice_id: string | null;
+  aspect_ratio: string | null;
+  agent_name: string | null;
+  agent_company: string | null;
+  agent_phone: string | null;
+  agent_email: string | null;
+  property_address?: string | null;
+  render_id: string | null;
+  original_render_id: string | null;
+  current_render_id: string | null;
+  is_editing: boolean | null;
+  edit_history: unknown[] | null;
+  shotstack_composition: unknown | null;
+  photos: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
-// ─── Left sidebar tabs ──────────────────────────────
-const SIDEBAR_TABS = [
-  { id: "template", icon: LayoutTemplate, label: "Template" },
-  { id: "media", icon: FolderOpen, label: "Media" },
-  { id: "text", icon: Type, label: "Text" },
-  { id: "audio", icon: Music, label: "Audio" },
-  { id: "stickers", icon: Sticker, label: "Stickers" },
-];
+// ═══════════════════════════════════════════════════════════════════════════
+// STUDIO PAGE
+// ═══════════════════════════════════════════════════════════════════════════
 
 export default function Studio() {
   const { id } = useParams<{ id: string }>();
@@ -132,140 +59,241 @@ export default function Studio() {
   const { user } = useAuth();
   const { toast } = useToast();
 
+  // Video data
+  const [video, setVideo] = useState<VideoRecord | null>(null);
   const [loading, setLoading] = useState(true);
-  const [videoTitle, setVideoTitle] = useState("Untitled video");
-  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("template");
+  const [error, setError] = useState<string | null>(null);
 
-  // Template
-  const [templateSearch, setTemplateSearch] = useState("");
-  const [templateType, setTemplateType] = useState<"intro" | "outro">("intro");
-  const [selectedTemplate, setSelectedTemplate] = useState("open-house-blue");
+  // Edit state
+  const [changes, setChanges] = useState<StudioChanges>({});
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isApplying, setIsApplying] = useState(false);
+  const [renderStatus, setRenderStatus] = useState<string | null>(null);
 
-  // Timeline
-  const [clips, setClips] = useState<TimelineClip[]>([]);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [zoom, setZoom] = useState(50);
-  const [selectedClip, setSelectedClip] = useState<string | null>(null);
+  // Track the latest video URL (may change after re-render)
+  const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null);
 
-  // Music
-  const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
-  const [musicSearch, setMusicSearch] = useState("");
+  // Polling ref
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Sticker tab
-  const [stickerTab, setStickerTab] = useState<"icons" | "emojis" | "shapes">("icons");
+  // ── Load video data ──────────────────────────────────────────────────────
 
-  // Text overlays on timeline
-  const [textOverlays, setTextOverlays] = useState<
-    { id: string; text: string; start: number; duration: number }[]
-  >([]);
-
-  const totalDuration = clips.reduce((acc, c) => acc + c.duration, 0);
-
-  // Load video data
   useEffect(() => {
     if (!id || !user?.id) return;
+
     (async () => {
       try {
-        const { data, error } = await supabase
+        const { data, error: fetchErr } = await supabase
           .from("videos")
           .select("*")
           .eq("id", id)
           .eq("user_id", user.id)
           .single();
-        if (error) throw error;
 
-        setVideoTitle(data.property_address || "Untitled video");
-        setThumbnailUrl(data.thumbnail_url);
+        if (fetchErr) throw fetchErr;
+        if (!data) throw new Error("Video not found");
 
-        // Build timeline clips from stored data
-        const imageUrls: string[] = [];
-        if (data.photos) {
-          try {
-            const parsed = JSON.parse(data.photos);
-            if (parsed.imageUrls) imageUrls.push(...parsed.imageUrls);
-          } catch { /* ignore */ }
-        }
+        setVideo(data as VideoRecord);
+        setCurrentVideoUrl(data.video_url);
 
-        if (imageUrls.length > 0) {
-          setClips(
-            imageUrls.map((url, i) => ({
-              id: `clip-${i}`,
-              type: "image" as const,
-              src: url,
-              duration: 3.5,
-              label: url.split("/").pop()?.substring(0, 20) || `Clip ${i + 1}`,
-            }))
-          );
-        } else {
-          // Fallback placeholder clips
-          setClips(
-            Array.from({ length: 5 }, (_, i) => ({
-              id: `clip-${i}`,
-              type: "image" as const,
-              src: data.thumbnail_url || "",
-              duration: 3,
-              label: `Scene ${i + 1}`,
-            }))
-          );
+        // Pre-populate changes from existing data
+        setChanges({
+          agent_name: data.agent_name || undefined,
+          agent_phone: data.agent_phone || undefined,
+          agent_email: data.agent_email || undefined,
+          agent_company: data.agent_company || undefined,
+          music_volume: 80,
+          voiceover_volume: 100,
+          music_fade_in: 1,
+          music_fade_out: 2,
+          video_speed: 1.0,
+          clip_duration: 3.5,
+          output_format: "mp4",
+          resolution: "hd",
+          aspect_ratio: data.aspect_ratio || "9:16",
+        });
+
+        // If video is currently editing, start polling
+        if (data.is_editing && data.current_render_id) {
+          startPolling(data.current_render_id, data.id);
         }
       } catch (err) {
         console.error("Failed to load video:", err);
+        setError(err instanceof Error ? err.message : "Failed to load video");
       } finally {
         setLoading(false);
       }
     })();
+
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
   }, [id, user]);
 
-  const addMediaClip = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*,video/*";
-    input.multiple = true;
-    input.onchange = (e) => {
-      const files = Array.from((e.target as HTMLInputElement).files || []);
-      const newClips: TimelineClip[] = files.map((f, i) => ({
-        id: `clip-${Date.now()}-${i}`,
-        type: f.type.startsWith("video") ? "video" : "image",
-        src: URL.createObjectURL(f),
-        duration: 3.5,
-        label: f.name.substring(0, 20),
-      }));
-      setClips((prev) => [...prev, ...newClips]);
-      toast({ title: `Added ${files.length} clip${files.length > 1 ? "s" : ""}` });
+  // ── Warn on unsaved changes ──────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
     };
-    input.click();
-  };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [hasUnsavedChanges]);
 
-  const removeClip = (clipId: string) => {
-    setClips((prev) => prev.filter((c) => c.id !== clipId));
-    if (selectedClip === clipId) setSelectedClip(null);
-  };
+  // ── Handle changes ───────────────────────────────────────────────────────
 
-  const addTextOverlay = () => {
-    setTextOverlays((prev) => [
-      ...prev,
-      {
-        id: `text-${Date.now()}`,
-        text: "New Text",
-        start: currentTime,
-        duration: 3,
-      },
-    ]);
-  };
+  const handleChange = useCallback((newChanges: StudioChanges) => {
+    setChanges(newChanges);
+    setHasUnsavedChanges(true);
+  }, []);
 
-  const handleRender = () => {
-    toast({ title: "Rendering video...", description: "This may take a few minutes." });
-  };
+  // ── Poll for render completion ───────────────────────────────────────────
 
-  const filteredTemplates = TEMPLATES.filter((t) =>
-    t.name.toLowerCase().includes(templateSearch.toLowerCase())
-  );
+  const startPolling = useCallback((renderId: string, videoId: string) => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    setRenderStatus("Re-rendering video...");
+    setIsApplying(true);
 
-  const filteredTracks = MUSIC_TRACKS.filter((t) =>
-    t.toLowerCase().includes(musicSearch.toLowerCase())
-  );
+    let pollCount = 0;
+    const MAX_POLLS = 90; // ~4.5 minutes at 3s intervals
+
+    pollRef.current = setInterval(async () => {
+      pollCount++;
+
+      if (pollCount > MAX_POLLS) {
+        clearInterval(pollRef.current!);
+        pollRef.current = null;
+        setRenderStatus(null);
+        setIsApplying(false);
+        toast({
+          title: "Render timeout",
+          description: "The re-render is taking longer than expected. Please check back later.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      try {
+        // Check Shotstack render status
+        const statusRes = await fetch(`https://api.shotstack.io/v1/render/${renderId}`, {
+          headers: { "x-api-key": "" }, // Will be handled server-side
+        }).catch(() => null);
+
+        // Fallback: poll the video record
+        const { data } = await supabase
+          .from("videos")
+          .select("video_url, status, is_editing, current_render_id")
+          .eq("id", videoId)
+          .single();
+
+        if (data) {
+          if (data.status === "completed" && !data.is_editing) {
+            clearInterval(pollRef.current!);
+            pollRef.current = null;
+            setRenderStatus(null);
+            setIsApplying(false);
+
+            if (data.video_url) {
+              setCurrentVideoUrl(data.video_url);
+              setVideo((prev) => prev ? { ...prev, video_url: data.video_url, is_editing: false, status: "completed" } : prev);
+            }
+
+            toast({ title: "Video re-rendered!", description: "Your changes have been applied." });
+            setHasUnsavedChanges(false);
+            return;
+          }
+
+          if (data.status === "failed") {
+            clearInterval(pollRef.current!);
+            pollRef.current = null;
+            setRenderStatus(null);
+            setIsApplying(false);
+            setVideo((prev) => prev ? { ...prev, is_editing: false, status: "failed" } : prev);
+            toast({ title: "Render failed", description: "Please try again.", variant: "destructive" });
+            return;
+          }
+
+          // Update progress message
+          if (pollCount < 10) {
+            setRenderStatus("Submitting to render engine...");
+          } else if (pollCount < 30) {
+            setRenderStatus("Rendering video clips...");
+          } else {
+            setRenderStatus("Finalizing video...");
+          }
+        }
+      } catch (err) {
+        console.warn("Poll error:", err);
+      }
+    }, 3000);
+  }, [toast]);
+
+  // ── Apply Changes ────────────────────────────────────────────────────────
+
+  const handleApplyChanges = useCallback(async () => {
+    if (!video || !id) return;
+
+    setIsApplying(true);
+    setRenderStatus("Submitting changes...");
+
+    try {
+      const result = await invokeEdgeFunction<{
+        success: boolean;
+        renderId: string;
+        estimatedTime: number;
+        error?: string;
+      }>("studio-edit", {
+        body: {
+          videoId: id,
+          changes,
+        },
+      });
+
+      if (result.renderId) {
+        toast({
+          title: "Re-rendering started",
+          description: `Estimated time: ~${result.estimatedTime || 45} seconds`,
+        });
+
+        // Update local state
+        setVideo((prev) => prev ? { ...prev, is_editing: true, status: "processing" } : prev);
+
+        // Start polling for completion
+        startPolling(result.renderId, id);
+      }
+    } catch (err) {
+      console.error("Apply changes error:", err);
+      setIsApplying(false);
+      setRenderStatus(null);
+      toast({
+        title: "Failed to apply changes",
+        description: err instanceof Error ? err.message : "Please try again",
+        variant: "destructive",
+      });
+    }
+  }, [video, id, changes, toast, startPolling]);
+
+  // ── Download ─────────────────────────────────────────────────────────────
+
+  const handleDownload = useCallback(async () => {
+    const url = currentVideoUrl;
+    if (!url) return;
+
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `propertymotion-${video?.id?.slice(0, 8) || "video"}.${changes.output_format || "mp4"}`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch {
+      toast({ title: "Download failed", description: "Please try again.", variant: "destructive" });
+    }
+  }, [currentVideoUrl, video, changes.output_format, toast]);
+
+  // ── Loading State ────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -275,452 +303,219 @@ export default function Studio() {
     );
   }
 
+  if (error || !video) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-background gap-4">
+        <AlertCircle className="w-10 h-10 text-destructive" />
+        <p className="text-foreground font-medium">{error || "Video not found"}</p>
+        <Button variant="outline" onClick={() => navigate("/dashboard")}>
+          <ArrowLeft className="w-4 h-4" />
+          Back to Dashboard
+        </Button>
+      </div>
+    );
+  }
+
+  // ── Main Layout ──────────────────────────────────────────────────────────
+
   return (
-    <div className="h-screen flex flex-col bg-[#1a1a2e] text-white overflow-hidden">
-      {/* Top bar */}
-      <header className="h-12 bg-[#16162a] border-b border-white/10 flex items-center justify-between px-4 flex-shrink-0">
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
+      {/* ── Top Bar ───────────────────────────────────────────────── */}
+      <header className="h-14 border-b border-border flex items-center justify-between px-4 flex-shrink-0 bg-card">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="flex items-center gap-1.5 text-xs text-white/60 hover:text-white transition-colors"
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (hasUnsavedChanges && !window.confirm("You have unsaved changes. Leave anyway?")) return;
+              navigate("/dashboard");
+            }}
+            className="text-muted-foreground hover:text-foreground"
           >
-            <X className="w-4 h-4" />
-            Exit
-          </button>
+            <ArrowLeft className="w-4 h-4" />
+            Dashboard
+          </Button>
+          <div className="h-5 w-px bg-border" />
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <span className="text-sm font-semibold text-foreground">Studio</span>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">{videoTitle}</span>
-        </div>
+          {/* Unsaved changes indicator */}
+          {hasUnsavedChanges && !isApplying && (
+            <span className="flex items-center gap-1 px-2.5 py-1 bg-amber-500/10 text-amber-600 text-xs font-medium rounded-full">
+              <Clock className="w-3 h-3" />
+              Unsaved changes
+            </span>
+          )}
 
-        <Button
-          variant="hero"
-          size="sm"
-          onClick={handleRender}
-          className="text-xs"
-        >
-          Render Video
-        </Button>
+          {/* Edit history count */}
+          {video.edit_history && video.edit_history.length > 0 && (
+            <span className="px-2.5 py-1 bg-secondary text-muted-foreground text-xs font-medium rounded-full">
+              {video.edit_history.length} edit{video.edit_history.length !== 1 ? "s" : ""}
+            </span>
+          )}
+
+          {/* Download button */}
+          {currentVideoUrl && !isApplying && (
+            <Button variant="outline" size="sm" onClick={handleDownload}>
+              <Download className="w-4 h-4" />
+              Download
+            </Button>
+          )}
+
+          {/* Apply Changes button */}
+          <Button
+            variant="hero"
+            size="sm"
+            onClick={handleApplyChanges}
+            disabled={isApplying || !hasUnsavedChanges}
+          >
+            {isApplying ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Rendering...
+              </>
+            ) : (
+              <>
+                <Check className="w-4 h-4" />
+                Apply Changes
+              </>
+            )}
+          </Button>
+        </div>
       </header>
 
+      {/* ── Main Content ─────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left icon sidebar */}
-        <div className="w-14 bg-[#16162a] border-r border-white/10 flex flex-col items-center py-3 gap-1 flex-shrink-0">
-          {SIDEBAR_TABS.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex flex-col items-center gap-0.5 w-12 py-2 rounded-lg transition-colors ${
-                  isActive ? "bg-primary/20 text-primary" : "text-white/50 hover:text-white/80"
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span className="text-[9px] font-medium">{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Left panel content */}
-        <div className="w-[260px] bg-[#1e1e38] border-r border-white/10 overflow-y-auto flex-shrink-0">
-          {/* Template */}
-          {activeTab === "template" && (
-            <div className="p-4">
-              <h3 className="text-sm font-semibold mb-3">Template</h3>
-              <Input
-                placeholder="Search templates..."
-                value={templateSearch}
-                onChange={(e) => setTemplateSearch(e.target.value)}
-                className="bg-white/10 border-white/10 text-white placeholder:text-white/40 h-9 mb-3"
+        {/* ── Left Panel: Video Preview ──────────────────────────── */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="flex-1 flex items-center justify-center bg-[#1a1a2e] p-6">
+            <div className="w-full max-w-sm">
+              <VideoPlayer
+                src={currentVideoUrl}
+                thumbnailUrl={video.thumbnail_url}
+                isRendering={isApplying}
+                renderProgress={renderStatus || undefined}
               />
-              <div className="flex gap-1 mb-4">
-                <button
-                  onClick={() => setTemplateType("intro")}
-                  className={`flex-1 text-xs py-1.5 rounded font-medium transition-colors ${
-                    templateType === "intro"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-white/10 text-white/60"
-                  }`}
-                >
-                  Intro
-                </button>
-                <button
-                  onClick={() => setTemplateType("outro")}
-                  className={`flex-1 text-xs py-1.5 rounded font-medium transition-colors ${
-                    templateType === "outro"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-white/10 text-white/60"
-                  }`}
-                >
-                  Outro
-                </button>
-              </div>
-              <div className="space-y-3">
-                {filteredTemplates.map((template) => (
-                  <button
-                    key={template.id}
-                    onClick={() => setSelectedTemplate(template.id)}
-                    className={`w-full rounded-lg border-2 overflow-hidden transition-all ${
-                      selectedTemplate === template.id
-                        ? "border-primary"
-                        : "border-white/10 hover:border-white/30"
-                    }`}
-                  >
-                    <div className="aspect-video bg-white/5 flex items-center justify-center">
-                      {thumbnailUrl ? (
-                        <img src={thumbnailUrl} alt={template.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <LayoutTemplate className="w-8 h-8 text-white/20" />
-                      )}
-                    </div>
-                    <p className="text-xs font-medium py-2 px-2">{template.name}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Media */}
-          {activeTab === "media" && (
-            <div className="p-4">
-              <h3 className="text-sm font-semibold mb-3">Media</h3>
-              <p className="text-xs text-white/50 mb-4">
-                Add photos or videos to the timeline. No image-to-video generation in Studio mode.
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full bg-white/10 border-white/10 text-white hover:bg-white/20 mb-4"
-                onClick={addMediaClip}
-              >
-                <Upload className="w-4 h-4 mr-1.5" />
-                Upload media
-              </Button>
-              {/* Existing clips */}
-              <div className="space-y-2">
-                {clips.map((clip) => (
-                  <div
-                    key={clip.id}
-                    className="flex items-center gap-2 p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
-                    onClick={() => setSelectedClip(clip.id)}
-                  >
-                    <div className="w-12 h-8 rounded bg-white/10 overflow-hidden flex-shrink-0">
-                      {clip.src && (
-                        <img src={clip.src} alt="" className="w-full h-full object-cover" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium truncate">{clip.label}</p>
-                      <p className="text-[10px] text-white/40">{clip.duration}s</p>
-                    </div>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); removeClip(clip.id); }}
-                      className="p-1 text-white/30 hover:text-red-400 transition-colors"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Text */}
-          {activeTab === "text" && (
-            <div className="p-4">
-              <h3 className="text-sm font-semibold mb-3">Text</h3>
-              <p className="text-xs text-white/50 mb-4">
-                Add text overlays to your video.
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full bg-white/10 border-white/10 text-white hover:bg-white/20 mb-4"
-                onClick={addTextOverlay}
-              >
-                <Plus className="w-4 h-4 mr-1.5" />
-                Add text
-              </Button>
-              <div className="space-y-3">
-                {[
-                  { name: "Heading", size: "text-xl", weight: "font-bold" },
-                  { name: "Subheading", size: "text-base", weight: "font-semibold" },
-                  { name: "Body", size: "text-sm", weight: "font-normal" },
-                  { name: "Caption", size: "text-xs", weight: "font-light" },
-                ].map((style) => (
-                  <button
-                    key={style.name}
-                    onClick={addTextOverlay}
-                    className="w-full p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-left"
-                  >
-                    <span className={`${style.size} ${style.weight}`}>{style.name}</span>
-                  </button>
-                ))}
-              </div>
-              {textOverlays.length > 0 && (
-                <div className="mt-4 border-t border-white/10 pt-3">
-                  <p className="text-xs text-white/40 mb-2">On timeline</p>
-                  {textOverlays.map((t) => (
-                    <div key={t.id} className="flex items-center gap-2 py-1.5 text-xs">
-                      <Type className="w-3 h-3 text-white/40" />
-                      <span className="truncate">{t.text}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Audio */}
-          {activeTab === "audio" && (
-            <div className="p-4">
-              <h3 className="text-sm font-semibold mb-3">Audio</h3>
-              <Input
-                placeholder="Search tracks..."
-                value={musicSearch}
-                onChange={(e) => setMusicSearch(e.target.value)}
-                className="bg-white/10 border-white/10 text-white placeholder:text-white/40 h-9 mb-3"
-              />
-              <div className="space-y-0.5">
-                {filteredTracks.map((track) => {
-                  const isSelected = selectedTrack === track;
-                  return (
-                    <button
-                      key={track}
-                      onClick={() => setSelectedTrack(isSelected ? null : track)}
-                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs transition-colors ${
-                        isSelected
-                          ? "bg-primary/20 text-primary"
-                          : "text-white/70 hover:bg-white/10"
-                      }`}
-                    >
-                      <span>{track}</span>
-                      <Play className="w-3.5 h-3.5" />
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Stickers */}
-          {activeTab === "stickers" && (
-            <div className="p-4">
-              <h3 className="text-sm font-semibold mb-3">Stickers</h3>
-              <div className="flex gap-1 mb-4">
-                {(["icons", "emojis", "shapes"] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setStickerTab(tab)}
-                    className={`flex-1 text-xs py-1.5 rounded font-medium capitalize transition-colors ${
-                      stickerTab === tab
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-white/10 text-white/60"
-                    }`}
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
-
-              {stickerTab === "icons" && (
-                <div className="grid grid-cols-3 gap-2">
-                  {ICON_STICKERS.map(({ icon: Icon, label }) => (
-                    <button
-                      key={label}
-                      onClick={() => toast({ title: `Added ${label} sticker` })}
-                      className="aspect-square rounded-lg border border-white/10 flex items-center justify-center hover:bg-white/10 hover:border-white/30 transition-colors"
-                    >
-                      <Icon className="w-6 h-6 text-white/70" />
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {stickerTab === "emojis" && (
-                <div className="grid grid-cols-5 gap-2">
-                  {["🏠", "🏡", "🏢", "🏗️", "🏘️", "🛏️", "🛁", "🍳", "🚗", "🌳", "🏊", "🔥", "❄️", "☀️", "🌊", "⭐", "❤️", "👍", "📸", "📞"].map(
-                    (emoji) => (
-                      <button
-                        key={emoji}
-                        onClick={() => toast({ title: `Added ${emoji}` })}
-                        className="text-xl p-2 rounded-lg hover:bg-white/10 transition-colors"
-                      >
-                        {emoji}
-                      </button>
-                    )
-                  )}
-                </div>
-              )}
-
-              {stickerTab === "shapes" && (
-                <div className="grid grid-cols-3 gap-2">
-                  {["circle", "square", "rounded", "diamond", "triangle", "hexagon"].map(
-                    (shape) => (
-                      <button
-                        key={shape}
-                        onClick={() => toast({ title: `Added ${shape}` })}
-                        className="aspect-square rounded-lg border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors text-xs text-white/50 capitalize"
-                      >
-                        {shape}
-                      </button>
-                    )
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Center: Preview + Timeline */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Preview area */}
-          <div className="flex-1 flex items-center justify-center bg-[#12122a] p-6">
-            <div className="aspect-[9/16] h-full max-h-[500px] bg-black rounded-lg overflow-hidden border border-white/10 relative">
-              {thumbnailUrl ? (
-                <img src={thumbnailUrl} alt="Preview" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-white/20">
-                  <Play className="w-16 h-16" />
-                </div>
-              )}
             </div>
           </div>
 
-          {/* Playback controls */}
-          <div className="h-12 bg-[#1e1e38] border-t border-white/10 flex items-center gap-4 px-4">
+          {/* Video Info Bar */}
+          <div className="h-12 bg-card border-t border-border flex items-center justify-between px-4">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Info className="w-3 h-3" />
+                {video.template || "Custom"} template
+              </span>
+              {video.music_id && (
+                <span>Music: {video.music_id}</span>
+              )}
+              {video.voice_id && (
+                <span>Voice: {video.voice_id}</span>
+              )}
+            </div>
             <div className="flex items-center gap-2">
-              <button className="p-1 text-white/40 hover:text-white transition-colors">
-                <Undo2 className="w-4 h-4" />
-              </button>
-              <button className="p-1 text-white/40 hover:text-white transition-colors">
-                <Redo2 className="w-4 h-4" />
-              </button>
-            </div>
-            <button className="text-xs px-2 py-1 rounded bg-white/10 text-white/60">
-              1x
-            </button>
-            <button
-              onClick={() => setIsPlaying(!isPlaying)}
-              className="w-8 h-8 rounded-full bg-primary flex items-center justify-center"
-            >
-              {isPlaying ? (
-                <Pause className="w-4 h-4 text-primary-foreground" />
-              ) : (
-                <Play className="w-4 h-4 text-primary-foreground ml-0.5" />
+              {video.duration && (
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {Math.floor(video.duration / 60)}:{String(video.duration % 60).padStart(2, "0")} duration
+                </span>
               )}
-            </button>
-            <span className="text-xs text-white/60 tabular-nums">
-              {String(Math.floor(currentTime / 60)).padStart(2, "0")}:
-              {String(Math.floor(currentTime % 60)).padStart(2, "0")}.00 /{" "}
-              {String(Math.floor(totalDuration / 60)).padStart(2, "0")}:
-              {String(Math.floor(totalDuration % 60)).padStart(2, "0")}.00
-            </span>
-            <div className="flex-1" />
-            <button
-              onClick={() => setZoom(Math.max(20, zoom - 10))}
-              className="p-1 text-white/40 hover:text-white transition-colors"
-            >
-              <ZoomOut className="w-4 h-4" />
-            </button>
-            <input
-              type="range"
-              min={20}
-              max={100}
-              value={zoom}
-              onChange={(e) => setZoom(Number(e.target.value))}
-              className="w-24 accent-primary"
-            />
-            <button
-              onClick={() => setZoom(Math.min(100, zoom + 10))}
-              className="p-1 text-white/40 hover:text-white transition-colors"
-            >
-              <ZoomIn className="w-4 h-4" />
-            </button>
-            <button className="p-1 text-white/40 hover:text-white transition-colors">
-              <Settings className="w-4 h-4" />
-            </button>
+              <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                video.status === "completed"
+                  ? "bg-success/10 text-success"
+                  : video.status === "processing"
+                    ? "bg-primary/10 text-primary"
+                    : video.status === "failed"
+                      ? "bg-destructive/10 text-destructive"
+                      : "bg-secondary text-muted-foreground"
+              }`}>
+                {video.status === "completed" ? "Ready" : video.status}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Right Panel: Edit Controls ─────────────────────────── */}
+        <div className="w-[360px] border-l border-border bg-card flex flex-col flex-shrink-0 overflow-hidden">
+          {/* Panel header */}
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-foreground">Edit Video</h2>
+            {hasUnsavedChanges && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground h-7 px-2"
+                onClick={() => {
+                  setChanges({
+                    agent_name: video.agent_name || undefined,
+                    agent_phone: video.agent_phone || undefined,
+                    agent_email: video.agent_email || undefined,
+                    agent_company: video.agent_company || undefined,
+                    music_volume: 80,
+                    voiceover_volume: 100,
+                    music_fade_in: 1,
+                    music_fade_out: 2,
+                    video_speed: 1.0,
+                    clip_duration: 3.5,
+                    output_format: "mp4",
+                    resolution: "hd",
+                    aspect_ratio: video.aspect_ratio || "9:16",
+                  });
+                  setHasUnsavedChanges(false);
+                }}
+              >
+                <RotateCcw className="w-3 h-3" />
+                Reset
+              </Button>
+            )}
           </div>
 
-          {/* Timeline */}
-          <div className="h-[200px] bg-[#16162a] border-t border-white/10 overflow-x-auto">
-            {/* Time ruler */}
-            <div className="h-6 border-b border-white/5 flex items-end px-8 text-[9px] text-white/30">
-              {Array.from({ length: Math.ceil(totalDuration) + 1 }, (_, i) => (
-                <div
-                  key={i}
-                  className="flex-shrink-0"
-                  style={{ width: `${zoom * 2}px` }}
-                >
-                  {i}.00s
-                </div>
-              ))}
-            </div>
+          {/* Edit controls */}
+          <EditControls
+            changes={changes}
+            onChange={handleChange}
+            videoData={{
+              agent_name: video.agent_name || undefined,
+              agent_phone: video.agent_phone || undefined,
+              agent_email: video.agent_email || undefined,
+              agent_company: video.agent_company || undefined,
+              template: video.template || undefined,
+              music_id: video.music_id || undefined,
+              voice_id: video.voice_id || undefined,
+              duration: video.duration || undefined,
+              aspect_ratio: video.aspect_ratio || undefined,
+            }}
+            disabled={isApplying}
+          />
 
-            {/* Tracks */}
-            <div className="py-1">
-              {/* Video track labels */}
-              {["Video", "Text", "Audio", "Overlay", "Stickers"].map((trackName, trackIdx) => (
-                <div key={trackName} className="flex items-center h-7 border-b border-white/5">
-                  <div className="w-8 flex-shrink-0 flex items-center justify-center">
-                    <GripVertical className="w-3 h-3 text-white/20" />
-                  </div>
-                  <div className="flex-1 relative h-full">
-                    {/* Render clips on video track */}
-                    {trackIdx === 0 && (
-                      <div className="absolute inset-0 flex items-center gap-px">
-                        {clips.map((clip) => (
-                          <div
-                            key={clip.id}
-                            onClick={() => setSelectedClip(clip.id)}
-                            className={`h-5 rounded-sm flex items-center px-1.5 text-[9px] font-medium cursor-pointer transition-colors flex-shrink-0 ${
-                              selectedClip === clip.id
-                                ? "bg-primary ring-1 ring-primary"
-                                : "bg-pink-600/80 hover:bg-pink-500/80"
-                            }`}
-                            style={{ width: `${clip.duration * zoom * 2}px` }}
-                          >
-                            <span className="truncate text-white">{clip.label}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {/* Audio track */}
-                    {trackIdx === 2 && selectedTrack && (
-                      <div className="absolute inset-0 flex items-center">
-                        <div
-                          className="h-5 rounded-sm bg-blue-600/60 flex items-center px-1.5 text-[9px] font-medium text-white"
-                          style={{ width: `${totalDuration * zoom * 2}px` }}
-                        >
-                          <Music className="w-2.5 h-2.5 mr-1" />
-                          {selectedTrack}
-                        </div>
-                      </div>
-                    )}
-                    {/* Text overlays on text track */}
-                    {trackIdx === 1 && textOverlays.length > 0 && (
-                      <div className="absolute inset-0 flex items-center gap-px">
-                        {textOverlays.map((t) => (
-                          <div
-                            key={t.id}
-                            className="h-5 rounded-sm bg-green-600/60 flex items-center px-1.5 text-[9px] font-medium text-white"
-                            style={{
-                              width: `${t.duration * zoom * 2}px`,
-                              marginLeft: `${t.start * zoom * 2}px`,
-                            }}
-                          >
-                            {t.text}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+          {/* Bottom action bar */}
+          <div className="p-4 border-t border-border space-y-2">
+            <Button
+              variant="hero"
+              className="w-full"
+              onClick={handleApplyChanges}
+              disabled={isApplying || !hasUnsavedChanges}
+            >
+              {isApplying ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Re-rendering...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  Apply Changes
+                </>
+              )}
+            </Button>
+            {hasUnsavedChanges && !isApplying && (
+              <p className="text-[10px] text-muted-foreground text-center">
+                Re-rendering takes ~30-60 seconds via Shotstack
+              </p>
+            )}
           </div>
         </div>
       </div>
