@@ -218,6 +218,8 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
       return new Response("ok", { status: 200, headers: corsHeaders });
     }
 
+    let videoRecordId: string | null = null;
+
     try {
       // Lightweight auth guard — verify a valid Supabase JWT is present.
       // We disabled infra-level verify_jwt because it was rejecting valid tokens.
@@ -344,7 +346,6 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
         }
       }
 
-      let videoRecordId: string | null = null;
       let isFreeTrial = false;
 
       if (userId) {
