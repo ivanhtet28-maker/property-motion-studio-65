@@ -121,7 +121,7 @@ async function checkRunwayBatch(generationIds: string[]) {
   const statusPromises = generationIds.map(async (generationId: string) => {
     try {
       const response = await fetch(
-        `https://api.dev.runwayml.com/v1/tasks/${generationId}`,
+        `https://api.runwayml.com/v1/tasks/${generationId}`,
         {
           headers: {
             "Authorization": `Bearer ${RUNWAY_API_KEY}`,
