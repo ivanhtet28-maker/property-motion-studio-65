@@ -129,7 +129,7 @@ export function StepEdit({
               {/* Thumbnail — using background-image for reliable crop positioning */}
               <div
                 className={`rounded-lg overflow-hidden border bg-secondary ${
-                  orientation === "portrait" ? "aspect-[9/16]" : "aspect-[4/3]"
+                  orientation === "portrait" ? "aspect-[9/16]" : "aspect-[16/9]"
                 } ${isCropped ? "border-primary" : "border-border"}`}
                 style={{
                   backgroundImage: `url(${thumbUrl})`,

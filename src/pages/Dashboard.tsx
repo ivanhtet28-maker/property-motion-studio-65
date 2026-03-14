@@ -17,6 +17,7 @@ import {
   Share2,
   ChevronDown,
   Search,
+  ImagePlus,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -38,6 +39,7 @@ interface VideoItem {
   state?: string;
   renderId?: string;
   generationContext?: string; // JSON string with Luma generation IDs + polling data
+  propertyId?: string;
 }
 
 export default function Dashboard() {
@@ -109,6 +111,7 @@ export default function Dashboard() {
           thumbnailUrl: v.thumbnail_url,
           renderId: v.render_id || undefined,
           generationContext: v.photos || undefined,
+          propertyId: v.property_id || undefined,
         };
       });
 
@@ -379,6 +382,12 @@ export default function Dashboard() {
                               <Clapperboard className="w-4 h-4 mr-2" />
                               Studio
                             </DropdownMenuItem>
+                            {video.propertyId && (
+                              <DropdownMenuItem onClick={() => navigate(`/photos/${video.propertyId}`)}>
+                                <ImagePlus className="w-4 h-4 mr-2" />
+                                Edit Photos
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                         <button className="flex items-center gap-1 px-3 py-1.5 border border-border rounded-lg text-xs font-medium text-foreground hover:bg-accent transition-colors">

@@ -585,6 +585,7 @@ export default function CreateVideo() {
           userId: user?.id,
           script: videoScript,
           source: "upload",
+          outputFormat: orientation,
           agentInfo: {
             name: customization.agentInfo.name,
             phone: customization.agentInfo.phone,
@@ -774,27 +775,29 @@ export default function CreateVideo() {
               </p>
 
               {/* Video preview */}
-              <div className="aspect-[9/16] max-w-[280px] mx-auto rounded-xl overflow-hidden border border-border mb-6">
+              <div className={`${orientation === "landscape" ? "aspect-[16/9] max-w-[560px]" : "aspect-[9/16] max-w-[280px]"} mx-auto rounded-xl overflow-hidden border border-border mb-6`}>
                 <video src={videoUrl} controls className="w-full h-full object-contain bg-black" />
               </div>
 
               <div className="flex items-center justify-center gap-3">
                 <Button variant="hero" onClick={() => window.open(videoUrl, "_blank")}>
                   <Download className="w-4 h-4" />
-                  Download Portrait
+                  {orientation === "landscape" ? "Download Landscape" : "Download Portrait"}
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleDownloadLandscape}
-                  disabled={isDownloadingLandscape}
-                >
-                  {isDownloadingLandscape ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Download className="w-4 h-4" />
-                  )}
-                  Landscape 16:9
-                </Button>
+                {orientation === "portrait" && (
+                  <Button
+                    variant="outline"
+                    onClick={handleDownloadLandscape}
+                    disabled={isDownloadingLandscape}
+                  >
+                    {isDownloadingLandscape ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Download className="w-4 h-4" />
+                    )}
+                    Landscape 16:9
+                  </Button>
+                )}
               </div>
               <div className="flex items-center justify-center gap-3 mt-4">
                 {videoRecordId && (

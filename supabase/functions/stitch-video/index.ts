@@ -1299,8 +1299,8 @@ import { corsHeaders } from "../_shared/cors.ts";
                       </div>
                     `,
                     css: "",
-                    width: 1080,
-                    height: 1920,
+                    width: outputFormat === "landscape" ? 1920 : 1080,
+                    height: outputFormat === "landscape" ? 1080 : 1920,
                   },
                   start: videoClipsDuration,
                   length: agentCardDuration,

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -113,6 +113,7 @@ interface EditSnapshot {
   enhanceType: string;
   skyEnabled: boolean;
   skyType: string;
+  hdrEnabled: boolean;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -522,6 +523,7 @@ async function exportWithMlsLabel(
 
 export default function Photos() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { propertyId } = useParams<{ propertyId: string }>();
   const activeTab = searchParams.get("tab") || "edit";
 
   const setTab = (tab: string) => {
@@ -540,7 +542,7 @@ export default function Photos() {
           </TabsList>
 
           <TabsContent value="edit" className="mt-6">
-            <PhotoEditTab />
+            <PhotoEditTab propertyId={propertyId} />
           </TabsContent>
           <TabsContent value="staging" className="mt-6">
             <VirtualStagingTab />
@@ -652,7 +654,7 @@ function EditorBeforeAfterSlider({
   );
 }
 
-function PhotoEditTab() {
+function PhotoEditTab({ propertyId }: { propertyId?: string }) {
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -666,6 +668,7 @@ function PhotoEditTab() {
   const [enhanceType, setEnhanceType] = useState("property");
   const [skyEnabled, setSkyEnabled] = useState(false);
   const [skyType, setSkyType] = useState("DAY");
+  const [hdrEnabled, setHdrEnabled] = useState(false);
 
   // Sidebar
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("ai");
@@ -709,6 +712,52 @@ function PhotoEditTab() {
   // Thumbnail strip scroll
   const stripRef = useRef<HTMLDivElement>(null);
 
+  // ── Load property images when navigated from Dashboard ─────────────────
+  useEffect(() => {
+    if (!propertyId || !user?.id) return;
+    let cancelled = false;
+
+    (async () => {
+      const { data, error } = await supabase
+        .from("properties")
+        .select("image_urls")
+        .eq("id", propertyId)
+        .eq("user_id", user.id)
+        .single();
+
+      if (cancelled || error || !data?.image_urls?.length) return;
+
+      const loaded: UploadedFile[] = await Promise.all(
+        data.image_urls.map(async (url: string) => {
+          try {
+            const res = await fetch(url);
+            const blob = await res.blob();
+            const name = url.split("/").pop() || "photo.jpg";
+            const file = new File([blob], name, { type: blob.type || "image/jpeg" });
+            return {
+              file,
+              preview: URL.createObjectURL(blob),
+              name,
+              size: `${(blob.size / 1024).toFixed(0)} KB`,
+            } as UploadedFile;
+          } catch {
+            return null;
+          }
+        }),
+      );
+
+      if (!cancelled) {
+        const valid = loaded.filter(Boolean) as UploadedFile[];
+        if (valid.length) {
+          setFiles(valid);
+          setSelectedFileIndex(0);
+        }
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [propertyId, user?.id]);
+
   // ── Undo helpers ─────────────────────────────────────────────────────────
   const pushSnapshot = useCallback(() => {
     const snap: EditSnapshot = {
@@ -718,9 +767,10 @@ function PhotoEditTab() {
       enhanceType,
       skyEnabled,
       skyType,
+      hdrEnabled,
     };
     setUndoHistory((prev) => [...prev.slice(-(MAX_UNDO_HISTORY - 1)), snap]);
-  }, [adjustments, activePreset, enhanceEnabled, enhanceType, skyEnabled, skyType]);
+  }, [adjustments, activePreset, enhanceEnabled, enhanceType, skyEnabled, skyType, hdrEnabled]);
 
   const handleUndo = useCallback(() => {
     setUndoHistory((prev) => {
@@ -733,6 +783,7 @@ function PhotoEditTab() {
       setEnhanceType(snap.enhanceType);
       setSkyEnabled(snap.skyEnabled);
       setSkyType(snap.skyType);
+      setHdrEnabled(snap.hdrEnabled);
       return next;
     });
   }, []);
@@ -877,7 +928,7 @@ function PhotoEditTab() {
       if (!session) throw new Error("Not authenticated");
 
       // If only manual adjustments (no AI), export locally
-      if (!enhanceEnabled && !skyEnabled) {
+      if (!enhanceEnabled && !skyEnabled && !hdrEnabled) {
         const localJobs: PhotoJob[] = [];
         for (let idx = 0; idx < filesToProcess.length; idx++) {
           setBulkProgress({ current: idx + 1, total: filesToProcess.length });
@@ -926,7 +977,7 @@ function PhotoEditTab() {
             job_type: "enhance",
             original_url: urlData.publicUrl,
             status: "pending",
-            enhancements: { enhance: enhanceEnabled, sky: skyEnabled, sky_type: skyType, enhance_type: enhanceType },
+            enhancements: { enhance: enhanceEnabled, sky: skyEnabled, sky_type: skyType, enhance_type: enhanceType, hdr: hdrEnabled },
           })
           .select()
           .single();
@@ -1070,10 +1121,10 @@ function PhotoEditTab() {
       setIsProcessing(false);
       setBulkProcessing(false);
     }
-  }, [user, files, enhanceEnabled, skyEnabled, skyType, enhanceType, adjustments, watermarkEnabled, watermark, hasAdjustments, pushSnapshot, startProgressTimer, stopProgressTimer, toast]);
+  }, [user, files, enhanceEnabled, skyEnabled, hdrEnabled, skyType, enhanceType, adjustments, watermarkEnabled, watermark, hasAdjustments, pushSnapshot, startProgressTimer, stopProgressTimer, toast]);
 
   const handleEnhance = () => {
-    if (files.length === 0 || (!enhanceEnabled && !skyEnabled && !hasAdjustments && !watermarkEnabled)) return;
+    if (files.length === 0 || (!enhanceEnabled && !skyEnabled && !hdrEnabled && !hasAdjustments && !watermarkEnabled)) return;
     processFiles(files.map((_, i) => i));
   };
 
@@ -1263,7 +1314,7 @@ function PhotoEditTab() {
               variant="hero"
               size="sm"
               onClick={handleEnhance}
-              disabled={files.length === 0 || (!enhanceEnabled && !skyEnabled && !hasAdjustments && !watermarkEnabled) || isProcessing}
+              disabled={files.length === 0 || (!enhanceEnabled && !skyEnabled && !hdrEnabled && !hasAdjustments && !watermarkEnabled) || isProcessing}
             >
               {isProcessing ? (
                 <>
@@ -1668,6 +1719,39 @@ function PhotoEditTab() {
                   )}
                 </div>
 
+                {/* HDR Boost */}
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <div className="flex items-center justify-between p-3">
+                    <div className="flex items-center gap-2">
+                      <Layers className="w-4 h-4 text-amber-400" />
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">HDR Boost</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {hdrEnabled ? "On — tone mapping + sharpening" : "Off"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => setHdrEnabled(false)}
+                        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                          !hdrEnabled ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        Off
+                      </button>
+                      <button
+                        onClick={() => { setHdrEnabled(true); setEnhanceEnabled(false); }}
+                        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                          hdrEnabled ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        On
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Watermark */}
                 <div className="rounded-xl border border-border overflow-hidden">
                   <div className="flex items-center justify-between p-3">
@@ -1741,7 +1825,7 @@ function PhotoEditTab() {
                     variant="hero"
                     className="w-full"
                     onClick={handleEnhance}
-                    disabled={files.length === 0 || (!enhanceEnabled && !skyEnabled && !hasAdjustments && !watermarkEnabled) || isProcessing}
+                    disabled={files.length === 0 || (!enhanceEnabled && !skyEnabled && !hdrEnabled && !hasAdjustments && !watermarkEnabled) || isProcessing}
                   >
                     {isProcessing ? (
                       <>
@@ -1937,7 +2021,7 @@ function PhotoEditTab() {
                     variant="hero"
                     className="w-full"
                     onClick={handleEnhance}
-                    disabled={files.length === 0 || (!enhanceEnabled && !skyEnabled && !hasAdjustments && !watermarkEnabled) || isProcessing}
+                    disabled={files.length === 0 || (!enhanceEnabled && !skyEnabled && !hdrEnabled && !hasAdjustments && !watermarkEnabled) || isProcessing}
                   >
                     Apply
                   </Button>
