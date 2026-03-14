@@ -18,6 +18,7 @@ import {
   ChevronDown,
   Search,
   ImagePlus,
+  Image,
 } from "lucide-react";
 import {
   DropdownMenu,
