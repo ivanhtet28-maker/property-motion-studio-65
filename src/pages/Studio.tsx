@@ -290,6 +290,13 @@ export default function Studio() {
     setRenderStatus("Submitting changes...");
 
     try {
+      // Build changes payload with clip-level data
+      const payload: Record<string, unknown> = { ...changes };
+      if (clips.length > 0) {
+        payload.clipDurations = clips.map((c) => c.duration);
+        payload.cameraAngles = clips.map((c) => c.camera_angle);
+      }
+
       const result = await invokeEdgeFunction<{
         success: boolean;
         renderId: string;
@@ -298,7 +305,7 @@ export default function Studio() {
       }>("studio-edit", {
         body: {
           videoId: id,
-          changes,
+          changes: payload,
         },
       });
 

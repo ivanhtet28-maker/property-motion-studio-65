@@ -5,6 +5,16 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SHOTSTACK_API_KEY = Deno.env.get("SHOTSTACK_API_KEY");
 
+interface TextOverlay {
+  id: string;
+  content: string;
+  fontSize?: number;
+  color?: string;
+  startTime?: number;
+  duration?: number;
+  position?: string;
+}
+
 interface StudioEditRequest {
   videoId: string;
   changes: {
@@ -15,11 +25,17 @@ interface StudioEditRequest {
     property_address?: string;
     custom_title?: string;
     music_volume?: number; // 0-100
+    musicVolume?: number; // 0-100 (camelCase alias)
     voiceover_volume?: number; // 0-100
+    voiceoverVolume?: number; // 0-100 (camelCase alias)
     music_fade_in?: number; // seconds
     music_fade_out?: number; // seconds
     video_speed?: number; // 0.8-1.5
-    clip_duration?: number; // 2-5 seconds
+    clip_duration?: number; // 2-5 seconds (uniform for all clips)
+    clipDurations?: number[]; // per-clip durations
+    cameraAngles?: string[]; // per-clip camera angles
+    selectedTemplate?: string; // template override
+    textOverlays?: TextOverlay[]; // custom text overlay layers
     logo_url?: string;
     logo_position?: string;
     color_scheme?: string;
@@ -236,11 +252,14 @@ function buildCompositionFromVideo(
 ): Record<string, unknown> {
   // Build a minimal Shotstack timeline from stored video data
   const tracks: unknown[] = [];
-  const clipDuration = changes.clip_duration || 3.5;
+  const defaultClipDuration = changes.clip_duration || 3.5;
   const speed = changes.video_speed || 1.0;
+  const clipDurations = changes.clipDurations || [];
+  const cameraAngles = changes.cameraAngles || [];
 
-  // Parse photos/imageUrls from the video record
+  // Parse photos/imageUrls and existing clip video URLs from the video record
   let imageUrls: string[] = [];
+  let clipVideoUrls: string[] = [];
   if (video.photos) {
     try {
       const parsed = typeof video.photos === "string" ? JSON.parse(video.photos as string) : video.photos;
@@ -248,39 +267,79 @@ function buildCompositionFromVideo(
     } catch { /* ignore */ }
   }
 
-  // Video clips track
-  if (video.video_url) {
+  // Check clips column for individual clip video URLs
+  if (Array.isArray(video.clips)) {
+    clipVideoUrls = (video.clips as Array<{ url?: string }>)
+      .map((c) => c.url || "")
+      .filter(Boolean);
+  }
+
+  // Video clips track — prefer individual clip URLs, then full video, then images
+  if (clipVideoUrls.length > 0) {
+    // Per-clip video URLs (from regenerate-clip results)
+    let offset = 0;
+    tracks.push({
+      clips: clipVideoUrls.map((url, i) => {
+        const dur = clipDurations[i] || defaultClipDuration;
+        const clip = {
+          asset: {
+            type: "video" as const,
+            src: url,
+            ...(speed !== 1.0 ? { playbackRate: speed } : {}),
+          },
+          start: offset,
+          length: dur,
+          transition: { in: "fade", out: "fade" },
+        };
+        offset += dur;
+        return clip;
+      }),
+    });
+  } else if (video.video_url) {
     tracks.push({
       clips: [{
         asset: {
           type: "video",
           src: video.video_url as string,
+          ...(speed !== 1.0 ? { playbackRate: speed } : {}),
         },
         start: 0,
         length: (video.duration as number) || 30,
-        effect: speed !== 1.0 ? `speed${speed}x` : undefined,
       }],
     });
   } else if (imageUrls.length > 0) {
+    let offset = 0;
     tracks.push({
-      clips: imageUrls.map((url, i) => ({
-        asset: {
-          type: "image",
-          src: url,
-        },
-        start: i * clipDuration,
-        length: clipDuration,
-        effect: "zoomInSlow",
-      })),
+      clips: imageUrls.map((url, i) => {
+        const dur = clipDurations[i] || defaultClipDuration;
+        const clip = {
+          asset: {
+            type: "image" as const,
+            src: url,
+          },
+          start: offset,
+          length: dur,
+          effect: "zoomInSlow",
+        };
+        offset += dur;
+        return clip;
+      }),
     });
   }
 
-  // Text overlay track
+  // Calculate total duration
+  const clipCount = clipVideoUrls.length || imageUrls.length || 1;
+  let totalDuration = 0;
+  for (let i = 0; i < clipCount; i++) {
+    totalDuration += clipDurations[i] || defaultClipDuration;
+  }
+  if (!clipVideoUrls.length && !imageUrls.length && video.duration) {
+    totalDuration = video.duration as number;
+  }
+
+  // Text overlay track — agent info
   const agentName = changes.agent_name || (video.agent_name as string) || "";
   const agentPhone = changes.agent_phone || (video.agent_phone as string) || "";
-  const totalDuration = imageUrls.length > 0
-    ? imageUrls.length * clipDuration
-    : (video.duration as number) || 30;
 
   if (agentName || agentPhone) {
     tracks.push({
@@ -294,12 +353,33 @@ function buildCompositionFromVideo(
           width: 400,
           height: 120,
         },
-        start: totalDuration - 5,
-        length: 5,
+        start: Math.max(0, totalDuration - 5),
+        length: Math.min(5, totalDuration),
         position: "bottom",
         offset: { y: -0.1 },
       }],
     });
+  }
+
+  // Custom text overlays from the editor
+  if (changes.textOverlays && changes.textOverlays.length > 0) {
+    for (const overlay of changes.textOverlays) {
+      tracks.push({
+        clips: [{
+          asset: {
+            type: "html",
+            html: `<div style="font-family: Arial, sans-serif; color: ${overlay.color || "#ffffff"}; text-align: center; padding: 16px;">
+              <p style="font-size: ${overlay.fontSize || 48}px; font-weight: bold; margin: 0;">${overlay.content}</p>
+            </div>`,
+            width: 600,
+            height: 200,
+          },
+          start: overlay.startTime || 0,
+          length: overlay.duration || 5,
+          position: overlay.position || "center",
+        }],
+      });
+    }
   }
 
   return {
@@ -334,29 +414,35 @@ function applyChangesToComposition(
     }
   }
 
-  // Apply clip duration changes to image clips
-  if (changes.clip_duration) {
+  // Apply per-clip duration and camera angle changes
+  if (changes.clipDurations || changes.clip_duration) {
     let offset = 0;
+    let clipIdx = 0;
     for (const track of timeline.tracks) {
       if (!track.clips) continue;
       for (const clip of track.clips) {
-        if (clip.asset?.type === "image") {
+        if (clip.asset?.type === "image" || clip.asset?.type === "video") {
+          const dur = changes.clipDurations?.[clipIdx] || changes.clip_duration || clip.length;
           clip.start = offset;
-          clip.length = changes.clip_duration;
-          offset += changes.clip_duration;
+          clip.length = dur;
+          offset += dur;
+          clipIdx++;
         }
       }
     }
   }
 
-  // Apply audio volume changes
-  if (changes.music_volume !== undefined || changes.music_fade_in !== undefined || changes.music_fade_out !== undefined) {
+  // Apply audio volume changes (accept both snake_case and camelCase)
+  const musicVol = changes.music_volume ?? changes.musicVolume;
+  const voiceoverVol = changes.voiceover_volume ?? changes.voiceoverVolume;
+
+  if (musicVol !== undefined || changes.music_fade_in !== undefined || changes.music_fade_out !== undefined) {
     for (const track of timeline.tracks) {
       if (!track.clips) continue;
       for (const clip of track.clips) {
         if (clip.asset?.type === "audio") {
-          if (changes.music_volume !== undefined) {
-            clip.asset.volume = changes.music_volume / 100;
+          if (musicVol !== undefined) {
+            clip.asset.volume = musicVol / 100;
           }
           if (changes.music_fade_in !== undefined) {
             clip.transition = clip.transition || {};
@@ -372,12 +458,12 @@ function applyChangesToComposition(
   }
 
   // Apply voiceover volume
-  if (changes.voiceover_volume !== undefined) {
+  if (voiceoverVol !== undefined) {
     for (const track of timeline.tracks) {
       if (!track.clips) continue;
       for (const clip of track.clips) {
         if (clip.asset?.type === "audio" && clip.asset?.src?.includes("voiceover")) {
-          clip.asset.volume = changes.voiceover_volume / 100;
+          clip.asset.volume = voiceoverVol / 100;
         }
       }
     }
@@ -401,6 +487,34 @@ function applyChangesToComposition(
           clip.asset.html = html;
         }
       }
+    }
+  }
+
+  // Add/replace custom text overlays
+  if (changes.textOverlays && changes.textOverlays.length > 0) {
+    // Remove any existing custom text overlay tracks (tagged with _studio_overlay)
+    timeline.tracks = timeline.tracks.filter(
+      (t: Record<string, unknown>) => !t._studio_overlay,
+    );
+
+    // Add new text overlay tracks
+    for (const overlay of changes.textOverlays) {
+      timeline.tracks.push({
+        _studio_overlay: true,
+        clips: [{
+          asset: {
+            type: "html",
+            html: `<div style="font-family: Arial, sans-serif; color: ${overlay.color || "#ffffff"}; text-align: center; padding: 16px;">
+              <p style="font-size: ${overlay.fontSize || 48}px; font-weight: bold; margin: 0;">${overlay.content}</p>
+            </div>`,
+            width: 600,
+            height: 200,
+          },
+          start: overlay.startTime || 0,
+          length: overlay.duration || 5,
+          position: overlay.position || "center",
+        }],
+      });
     }
   }
 
