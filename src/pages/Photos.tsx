@@ -546,20 +546,7 @@ export default function Photos() {
             <PhotoEditTab propertyId={propertyId} />
           </TabsContent>
           <TabsContent value="staging" className="mt-6">
-            {step === 1 && selectedIndices.length > 0 && (
-              <StagingFlow
-                imageUrls={uploadedImageUrls.filter((_, i) => selectedIndices.includes(i))}
-                onComplete={(jobs) => {
-                  toast({ title: "Staging complete!", description: `${jobs.length} photos staged successfully` });
-                }}
-                userId={user?.id || ""}
-              />
-            )}
-            {step === 1 && selectedIndices.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>Select photos from Step 1 to get started with virtual staging</p>
-              </div>
-            )}
+            <VirtualStagingTab />
           </TabsContent>
         </Tabs>
       </div>
