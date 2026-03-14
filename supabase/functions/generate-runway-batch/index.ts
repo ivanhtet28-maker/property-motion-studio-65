@@ -4,7 +4,7 @@ import { requireAuth } from "../_shared/auth.ts";
 
 
 const RUNWAY_API_KEY = Deno.env.get("RUNWAY_API_KEY");
-const RUNWAY_API_URL = "https://api.runwayml.com/v1/image_to_video";
+const RUNWAY_API_URL = "https://api.dev.runwayml.com/v1/image_to_video";
 const RUNWAY_VERSION = "2024-11-06";
 
 async function fetchWithRetry(url: string, options: RequestInit, retries = 2, attempt = 1): Promise<Response> {
