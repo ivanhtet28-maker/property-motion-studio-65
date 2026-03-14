@@ -1,4 +1,4 @@
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
 // Edge function for video generation using Runway Gen4 Turbo
   /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
@@ -212,9 +212,13 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
   }
 
   Deno.serve(async (req) => {
+    const corsHeaders = getCorsHeaders(req);
+
     if (req.method === "OPTIONS") {
       return new Response("ok", { status: 200, headers: corsHeaders });
     }
+
+    let videoRecordId: string | null = null;
 
     try {
       // Lightweight auth guard — verify a valid Supabase JWT is present.
@@ -342,7 +346,6 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
         }
       }
 
-      let videoRecordId: string | null = null;
       let isFreeTrial = false;
 
       if (userId) {
