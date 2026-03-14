@@ -57,9 +57,9 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { data: userPrefs, error: dbError } = await supabase
-      .from("user_preferences")
+      .from("users")
       .select("stripe_customer_id")
-      .eq("user_id", userId)
+      .eq("id", userId)
       .single();
 
     if (dbError || !userPrefs?.stripe_customer_id) {

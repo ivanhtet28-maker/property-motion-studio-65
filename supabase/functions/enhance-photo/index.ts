@@ -192,7 +192,9 @@ async function doSkyReplacement(imageUrl: string, skyType: string): Promise<stri
     throw new Error("DECOR8_API_KEY not configured. Please set it in Supabase Edge Function secrets.");
   }
 
-  console.log("enhance-photo: submitting sky replacement, type:", skyType);
+  // Decor8 API expects lowercase: "day", "dusk", "night"
+  const normalizedSkyType = skyType.toLowerCase();
+  console.log("enhance-photo: submitting sky replacement, type:", normalizedSkyType);
 
   const skyRes = await fetch("https://api.decor8.ai/replace_sky_behind_house", {
     method: "POST",
@@ -202,7 +204,7 @@ async function doSkyReplacement(imageUrl: string, skyType: string): Promise<stri
     },
     body: JSON.stringify({
       input_image_url: imageUrl,
-      sky_type: skyType,
+      sky_type: normalizedSkyType,
     }),
   });
 

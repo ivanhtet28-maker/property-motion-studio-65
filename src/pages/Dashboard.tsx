@@ -230,7 +230,7 @@ export default function Dashboard() {
     }
 
     // Check if user has active subscription
-    if (subscriptionStatus !== "active") {
+    if (subscriptionStatus !== "active" && subscriptionStatus !== "trialing") {
       // Redirect to landing page pricing section
       navigate("/");
       setTimeout(() => {
@@ -367,6 +367,10 @@ export default function Dashboard() {
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="start">
+                            <DropdownMenuItem onClick={() => navigate(`/photos?property=${video.id}`)}>
+                              <Image className="w-4 h-4 mr-2" />
+                              Edit Photos
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => navigate(`/quick-edit/${video.id}`)}>
                               <Pencil className="w-4 h-4 mr-2" />
                               Quick Edit

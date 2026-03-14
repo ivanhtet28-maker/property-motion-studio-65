@@ -433,7 +433,7 @@ export default function CreateVideo() {
         .eq("id", user.id)
         .single();
       if (!userError && userData) {
-        const hasActive = userData.subscription_status === "active";
+        const hasActive = userData.subscription_status === "active" || userData.subscription_status === "trialing";
         if (!hasActive && userData.free_video_used) {
           setError("Subscribe to generate more videos!");
           return;

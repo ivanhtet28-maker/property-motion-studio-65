@@ -196,9 +196,9 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
       const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
       const { error } = await supabase
-        .from("user_preferences")
+        .from("users")
         .update({ free_video_used: true })
-        .eq("user_id", userId);
+        .eq("id", userId);
       if (error) {
         console.error("Failed to mark free trial as used:", error);
       } else {
@@ -350,13 +350,15 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
 
           // Check user subscription status, quota, and free trial availability
           const { data: userPrefs, error: userError } = await supabase
-            .from("user_preferences")
+            .from("users")
             .select("subscription_status, free_video_used, videos_used_this_period, videos_limit")
-            .eq("user_id", userId)
+            .eq("id", userId)
             .single();
 
           if (!userError && userPrefs) {
-            const hasActiveSubscription = userPrefs.subscription_status === "active";
+            const hasActiveSubscription =
+              userPrefs.subscription_status === "active" ||
+              userPrefs.subscription_status === "trialing";
             const hasFreeTrial = !userPrefs.free_video_used;
 
             if (hasActiveSubscription) {
@@ -376,7 +378,7 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
               const ipHash = await hashIP(clientIP);
 
               const { count: ipTrialCount } = await supabase
-                .from("user_preferences")
+                .from("users")
                 .select("user_id", { count: "exact", head: true })
                 .eq("signup_ip_hash", ipHash)
                 .eq("free_video_used", true);
@@ -391,9 +393,9 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
 
               // Save IP hash for future abuse detection
               await supabase
-                .from("user_preferences")
+                .from("users")
                 .update({ signup_ip_hash: ipHash })
-                .eq("user_id", userId)
+                .eq("id", userId)
                 .is("signup_ip_hash", null);
 
               isFreeTrial = true;
@@ -440,9 +442,9 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
             // Mark free trial as used AFTER video record exists (so user has a video to show for it)
             if (isFreeTrial) {
               const { error: updateError } = await supabase
-                .from("user_preferences")
+                .from("users")
                 .update({ free_video_used: true })
-                .eq("user_id", userId);
+                .eq("id", userId);
 
               if (updateError) {
                 console.error("Failed to mark free trial as used:", updateError);
@@ -458,9 +460,9 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
                 // Fallback: manual increment if RPC doesn't exist yet
                 console.warn("RPC increment_video_count failed, using manual increment:", quotaError.message);
                 await supabase
-                  .from("user_preferences")
+                  .from("users")
                   .update({ videos_used_this_period: (userPrefs?.videos_used_this_period ?? 0) + 1 })
-                  .eq("user_id", userId);
+                  .eq("id", userId);
               }
             }
           }
@@ -776,6 +778,26 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
       );
     } catch (error) {
       console.error("Error in video generation:", error);
+
+      // Mark video record as failed so it doesn't stay stuck in "processing"
+      if (videoRecordId) {
+        try {
+          const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+          const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+          const supabase = createClient(supabaseUrl, supabaseServiceKey);
+          await supabase
+            .from("videos")
+            .update({
+              status: "failed",
+              error_message: error instanceof Error ? error.message : "Video generation failed",
+            })
+            .eq("id", videoRecordId);
+          console.log("Marked video", videoRecordId, "as failed");
+        } catch (dbErr) {
+          console.error("Failed to mark video as failed:", dbErr);
+        }
+      }
+
       return new Response(
         JSON.stringify({
           success: false,

@@ -2272,8 +2272,8 @@ function VirtualStagingTab() {
       {step === 2 && (
         <div className="space-y-8">
           <div>
-            <h2 className="text-lg font-semibold text-foreground">Configure Staging</h2>
-            <p className="text-sm text-muted-foreground mt-1">Choose the room type, design style, and staging options.</p>
+            <h2 className="text-lg font-semibold text-foreground">Choose Your Staging Style</h2>
+            <p className="text-sm text-muted-foreground mt-1">Pick a room type and design style. We'll virtually stage your photos to show potential.</p>
           </div>
 
           {/* Room Type */}
