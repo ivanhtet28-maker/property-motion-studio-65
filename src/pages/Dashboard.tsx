@@ -18,7 +18,7 @@ import {
   ChevronDown,
   Search,
   ImagePlus,
-  Image,
+  Image as ImageIcon,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -372,7 +372,7 @@ export default function Dashboard() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="start">
                             <DropdownMenuItem onClick={() => navigate(`/photos?property=${video.id}`)}>
-                              <Image className="w-4 h-4 mr-2" />
+                              <ImageIcon className="w-4 h-4 mr-2" />
                               Edit Photos
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => navigate(`/quick-edit/${video.id}`)}>
