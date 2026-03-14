@@ -52,7 +52,7 @@ function getTransform(
   // the camera travels far enough to reveal hidden content (e.g. kitchen).
   // Base 5% offset, boosted up to ~20% when 30%+ of the image is cropped.
   // Capped at 0.22 to keep the motion cinematic (not a full side-to-side pan).
-  const panRange = Math.min(0.22, 0.05 + sideOverflow * 0.55);
+  const panRange = Math.min(0.30, 0.10 + sideOverflow * 0.55);
 
   switch (angle) {
     case "push-in":
@@ -70,7 +70,7 @@ function getTransform(
     }
     case "orbit": {
       const t = easeInOut(progress);
-      return { scale: 1, offsetX: -panRange * t, offsetY: 0 };
+      return { scale: 1, offsetX: panRange * t, offsetY: 0 };
     }
     case "crane-up": {
       const t = easeInOut(progress);
