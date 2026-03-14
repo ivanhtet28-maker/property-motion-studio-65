@@ -14,6 +14,7 @@ import {
   X,
   Pencil,
   Clapperboard,
+  Construction,
   Share2,
   ChevronDown,
   Search,
@@ -379,9 +380,9 @@ export default function Dashboard() {
                               <Pencil className="w-4 h-4 mr-2" />
                               Quick Edit
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => navigate(`/studio/${video.id}`)}>
-                              <Clapperboard className="w-4 h-4 mr-2" />
-                              Studio
+                            <DropdownMenuItem onClick={() => toast({ title: "Under Construction", description: "Studio mode is currently under construction. Stay tuned!" })}>
+                              <Construction className="w-4 h-4 mr-2 text-muted-foreground" />
+                              <span className="text-muted-foreground">Studio</span>
                             </DropdownMenuItem>
                             {video.propertyId && (
                               <DropdownMenuItem onClick={() => navigate(`/photos/${video.propertyId}`)}>

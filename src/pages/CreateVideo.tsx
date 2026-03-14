@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Loader2, Check, Download, LayoutTemplate, Home, Pencil, Clapperboard } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Check, Download, LayoutTemplate, Home, Pencil, Construction } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -805,9 +805,10 @@ export default function CreateVideo() {
                     </Button>
                     <Button
                       variant="outline"
-                      onClick={() => navigate(`/studio/${videoRecordId}`)}
+                      className="text-muted-foreground"
+                      onClick={() => toast({ title: "Under Construction", description: "Studio mode is currently under construction. Stay tuned!" })}
                     >
-                      <Clapperboard className="w-4 h-4" />
+                      <Construction className="w-4 h-4" />
                       Studio
                     </Button>
                   </>
