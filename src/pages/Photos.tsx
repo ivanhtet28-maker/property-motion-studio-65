@@ -883,6 +883,7 @@ function PhotoEditTab({ propertyId }: { propertyId?: string }) {
     setEnhanceType("neutral");
     setSkyEnabled(false);
     setSkyType("day");
+    setHdrEnabled(false);
   };
 
   // Bulk selection helpers
