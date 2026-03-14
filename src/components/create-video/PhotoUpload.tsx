@@ -14,16 +14,18 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-export type CameraAngle = "auto" | "wide-shot" | "push-in" | "pull-out" | "tracking" | "orbit" | "static" | "crane-up" | "drone-up";
+export type CameraAngle = "auto" | "wide-shot" | "push-in" | "pull-out" | "tracking" | "orbit" | "orbit-right" | "orbit-left" | "static" | "crane-up" | "drone-up";
 
 const CLIP_DURATION = 3.5; // seconds — fixed for Ken Burns mode; Runway uses 5s
 
-// ── Camera Actions (user-facing dropdown — 7 high-impact motions) ────────────
+// ── Camera Actions (user-facing dropdown — 9 cinematic motions) ────────────
 export type CameraAction =
   | "push-in"
   | "pull-out"
   | "tracking"
   | "orbit"
+  | "orbit-right"
+  | "orbit-left"
   | "crane-up"
   | "drone-up"
   | "static";
@@ -32,7 +34,9 @@ export const CAMERA_ACTION_OPTIONS: { value: CameraAction; label: string; descri
   { value: "push-in",   label: "Push In",   description: "Dolly forward into the scene" },
   { value: "pull-out",  label: "Pull Out",   description: "Dolly backward revealing the space" },
   { value: "tracking",  label: "Tracking",   description: "Smooth lateral slide across the scene" },
-  { value: "orbit",     label: "Orbit",      description: "Cinematic arc around the subject" },
+  { value: "orbit",     label: "Orbit (Center)", description: "Cinematic arc around the subject" },
+  { value: "orbit-right", label: "Orbit Right", description: "Clockwise arc around subject" },
+  { value: "orbit-left",  label: "Orbit Left", description: "Counter-clockwise arc around subject" },
   { value: "crane-up",  label: "Crane Up",   description: "Camera rises vertically" },
   { value: "drone-up",  label: "Drone Up",   description: "Aerial rising reveal for exteriors" },
   { value: "static",    label: "Static",     description: "Locked tripod, zero movement" },
