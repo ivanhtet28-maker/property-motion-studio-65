@@ -53,6 +53,13 @@ const STABILITY_SUFFIX =
   "Preserve the existing lighting and color temperature throughout. " +
   "Photo-realistic cinematography, 24fps filmic motion blur.";
 
+// Enhanced geometry preservation for rotational/vertical motions.
+// Mitigates hallucination risk on orbit, crane, drone motions.
+const GEOMETRY_PRESERVATION =
+  "Critical: Maintain perfect perspective geometry—walls remain perfectly straight, " +
+  "floor lines parallel, ceiling lines parallel. No architectural distortion, no furniture repositioning, " +
+  "no morphing of existing elements. All architectural lines must remain unchanged.";
+
 interface MotionConfig {
   promptText: string;
   duration: 5; // Always 5s — research shows best quality and consistency
@@ -95,7 +102,7 @@ const MOTION_MAP: Record<string, MotionConfig> = {
       "Slow cinematic orbit moving clockwise around the center of the scene at approximately 20 degrees. " +
       "Camera follows a curved dolly track moving to the right, maintaining a fixed distance from the subject. " +
       "Ease in from stillness, constant arc speed, ease out to stillness. Smooth rightward motion revealing adjacent features and spatial depth. " +
-      STABILITY_SUFFIX,
+      GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
     duration: 5,
   },
   "orbit-left": {
@@ -103,7 +110,7 @@ const MOTION_MAP: Record<string, MotionConfig> = {
       "Slow cinematic orbit moving counter-clockwise around the center of the scene at approximately 20 degrees. " +
       "Camera follows a curved dolly track moving to the left, maintaining a fixed distance from the subject. " +
       "Ease in from stillness, constant arc speed, ease out to stillness. Smooth leftward motion revealing adjacent features and spatial depth. " +
-      STABILITY_SUFFIX,
+      GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
     duration: 5,
   },
   "crane-up": {
@@ -111,7 +118,7 @@ const MOTION_MAP: Record<string, MotionConfig> = {
       "Professional videography: Slow vertical crane rise revealing the full vertical extent of the space. " +
       "Camera ascends straight up while tilting gently downward to keep the scene centered in frame. " +
       "Ease in from stillness, constant ascent speed, ease out at the top. Cinematic vertical reveal showcasing room height and features. " +
-      STABILITY_SUFFIX,
+      GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
     duration: 5,
   },
   "drone-up": {
@@ -119,7 +126,7 @@ const MOTION_MAP: Record<string, MotionConfig> = {
       "Professional aerial videography: Rising drone reveal ascending vertically while tilting down to keep the property centered in frame. " +
       "Smooth constant rise speed with gentle ease-in from the ground. The landscape and context gradually enter the frame from the edges. " +
       "Cinematic aerial reveal showcasing property scale and surroundings. " +
-      STABILITY_SUFFIX,
+      GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
     duration: 5,
   },
   "static": {
