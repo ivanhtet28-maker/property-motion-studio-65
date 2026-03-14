@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera, Play, Pause, Check, Loader2, Save } from "lucide-react";
+import { ArrowLeft, Camera, Play, Pause, Check, Loader2, Save, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -34,6 +34,7 @@ export default function QuickEdit() {
   const [saving, setSaving] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoTitle, setVideoTitle] = useState("Untitled video");
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // Load video data
   useEffect(() => {
@@ -105,6 +106,16 @@ export default function QuickEdit() {
     );
   };
 
+  const handleReorder = (fromIndex: number, toIndex: number) => {
+    setScenes((prev) => {
+      const next = [...prev];
+      const [removed] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, removed);
+      return next;
+    });
+    setSelectedScene(toIndex);
+  };
+
   const handleSave = async () => {
     if (!id || !user?.id) return;
     setSaving(true);
@@ -130,18 +141,20 @@ export default function QuickEdit() {
         }
       }
 
-      // Update camera actions in the stored metadata
-      const updatedCameraAngles = scenes.map((s) => s.cameraAction);
-      photosJson.cameraAngles = updatedCameraAngles;
+      // Persist the current scene order (imageUrls, cameraAngles, clipDurations)
+      photosJson.imageUrls = scenes.map((s) => s.imageUrl);
+      photosJson.cameraAngles = scenes.map((s) => s.cameraAction);
+      photosJson.clipDurations = scenes.map((s) => s.duration);
 
-      // Also update imageMetadata if it exists
+      // Also update imageMetadata if it exists — rebuild in scene order
       if (Array.isArray(photosJson.imageMetadata)) {
-        photosJson.imageMetadata = (photosJson.imageMetadata as Record<string, unknown>[]).map(
-          (meta, i) => ({
-            ...meta,
-            cameraAction: scenes[i]?.cameraAction || meta.cameraAction,
-          })
-        );
+        const oldMeta = photosJson.imageMetadata as Record<string, unknown>[];
+        // Match metadata by imageUrl to handle reordering
+        const metaByUrl = new Map(oldMeta.map((m) => [m.url as string, m]));
+        photosJson.imageMetadata = scenes.map((s, i) => {
+          const existing = metaByUrl.get(s.imageUrl) || oldMeta[i] || {};
+          return { ...existing, cameraAction: s.cameraAction, url: s.imageUrl };
+        });
       }
 
       const { error: updateErr } = await supabase
@@ -231,24 +244,37 @@ export default function QuickEdit() {
           {scenes.map((scene, i) => (
             <button
               key={scene.id}
+              draggable
               onClick={() => setSelectedScene(i)}
+              onDragStart={() => setDraggedIndex(i)}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (draggedIndex !== null && draggedIndex !== i) {
+                  handleReorder(draggedIndex, i);
+                  setDraggedIndex(i);
+                }
+              }}
+              onDragEnd={() => setDraggedIndex(null)}
               className={`relative w-16 mx-auto mb-2 rounded-md overflow-hidden border-2 transition-all block ${
                 selectedScene === i
                   ? "border-primary ring-2 ring-primary/20"
                   : "border-transparent hover:border-border"
-              }`}
+              } ${draggedIndex === i ? "opacity-50 scale-95" : ""}`}
             >
               <div className="aspect-[9/16] bg-secondary">
                 {scene.imageUrl && (
                   <img
                     src={scene.imageUrl}
                     alt={`Scene ${i + 1}`}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover pointer-events-none"
                   />
                 )}
               </div>
               <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-black/50 flex items-center justify-center text-[9px] font-bold text-white">
                 {i + 1}
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 flex justify-center py-0.5 bg-black/40">
+                <GripVertical className="w-3 h-3 text-white/70" />
               </div>
             </button>
           ))}
