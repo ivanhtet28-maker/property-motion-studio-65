@@ -27,6 +27,12 @@ export async function requireAuth(req: Request): Promise<{
   const jwt = authHeader.replace("Bearer ", "");
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  // Allow service-role key for server-to-server calls between edge functions
+  if (jwt === supabaseServiceKey) {
+    return { user: { id: "service-role" }, error: null };
+  }
+
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   const { data: { user }, error: authError } = await supabase.auth.getUser(jwt);
