@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2, Download, RotateCcw, ImagePlus, Check, AlertCircle } from "lucide-react";
 import { useStagingJobs, type StagingJob } from "@/hooks/useStagingJobs";
-import { BeforeAfterSlider } from "./BeforeAfterSlider";
 
 const ROOM_TYPES = [
   { value: "LIVINGROOM", label: "Living" },
@@ -202,11 +201,14 @@ export function StagingFlow({ imageUrls, onComplete, userId }: StagingFlowProps)
                 <div key={job.id} className="border rounded-lg p-4">
                   {job.status === "complete" && job.staged_urls.length > 0 ? (
                     <div className="space-y-3">
-                      {/* Before/After Slider */}
-                      <BeforeAfterSlider
-                        beforeUrl={job.original_url}
-                        afterUrl={job.staged_urls[getSelectedVariationIndex(job.id)]}
-                      />
+                      {/* Staged Image Preview */}
+                      <div className="aspect-square rounded-lg overflow-hidden border border-border">
+                        <img 
+                          src={job.staged_urls[getSelectedVariationIndex(job.id)]} 
+                          alt="Staged" 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
 
                       {/* Variation Thumbnails */}
                       {job.staged_urls.length > 1 && (
@@ -284,10 +286,10 @@ export function StagingFlow({ imageUrls, onComplete, userId }: StagingFlowProps)
           </DialogHeader>
           {fullscreenJob && fullscreenJob.staged_urls.length > 0 && (
             <div className="space-y-4">
-              <BeforeAfterSlider
-                beforeUrl={fullscreenJob.original_url}
-                afterUrl={fullscreenJob.staged_urls[getSelectedVariationIndex(fullscreenJob.id)]}
-                large
+              <img 
+                src={fullscreenJob.staged_urls[getSelectedVariationIndex(fullscreenJob.id)]} 
+                alt="Staged preview"
+                className="w-full rounded-lg"
               />
             </div>
           )}
