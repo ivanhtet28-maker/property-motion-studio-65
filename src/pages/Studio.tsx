@@ -18,6 +18,7 @@ import { supabase } from "@/lib/supabase";
 import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import VideoPlayer from "@/components/VideoPlayer";
 import EditControls, { type StudioChanges } from "@/components/EditControls";
+import ClipEditor, { type Clip } from "@/components/ClipEditor";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -44,6 +45,7 @@ interface VideoRecord {
   is_editing: boolean | null;
   edit_history: unknown[] | null;
   shotstack_composition: unknown | null;
+  clips: unknown[] | null;
   photos: string | null;
   created_at: string;
   updated_at: string;
@@ -73,6 +75,9 @@ export default function Studio() {
   // Track the latest video URL (may change after re-render)
   const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null);
 
+  // Clips state for individual clip editing
+  const [clips, setClips] = useState<Clip[]>([]);
+
   // Polling ref
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -95,6 +100,12 @@ export default function Studio() {
 
         setVideo(data as VideoRecord);
         setCurrentVideoUrl(data.video_url);
+
+        // Extract clips from video record
+        const videoClips = extractClips(data);
+        if (videoClips.length > 0) {
+          setClips(videoClips);
+        }
 
         // Pre-populate changes from existing data
         setChanges({
@@ -146,6 +157,47 @@ export default function Studio() {
   const handleChange = useCallback((newChanges: StudioChanges) => {
     setChanges(newChanges);
     setHasUnsavedChanges(true);
+  }, []);
+
+  // ── Extract clips from video data ───────────────────────────────────────
+
+  function extractClips(data: Record<string, unknown>): Clip[] {
+    // If clips column is populated, use it directly
+    if (Array.isArray(data.clips) && data.clips.length > 0) {
+      return data.clips as Clip[];
+    }
+
+    // Otherwise, build clips from the photos JSONB (generation context)
+    try {
+      const photos = typeof data.photos === "string" ? JSON.parse(data.photos) : data.photos;
+      if (!photos || !Array.isArray(photos.imageUrls)) return [];
+
+      const cameraAngles: string[] = photos.cameraAngles || [];
+      const clipDurations: number[] = photos.clipDurations || [];
+
+      return photos.imageUrls.map((imageUrl: string, i: number) => ({
+        index: i,
+        url: "", // No individual clip URLs stored in legacy format
+        duration: clipDurations[i] || 3.5,
+        camera_angle: cameraAngles[i] || "push-in",
+        image_url: imageUrl,
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  // ── Handle clip regeneration ──────────────────────────────────────────
+
+  const handleClipRegenerated = useCallback((clipIndex: number, newClip: Clip) => {
+    setClips((prev) => {
+      const updated = [...prev];
+      const idx = updated.findIndex((c) => c.index === clipIndex);
+      if (idx >= 0) {
+        updated[idx] = newClip;
+      }
+      return updated;
+    });
   }, []);
 
   // ── Poll for render completion ───────────────────────────────────────────
@@ -402,6 +454,16 @@ export default function Studio() {
               />
             </div>
           </div>
+
+          {/* ── Clip Timeline & Editor ─────────────────────────── */}
+          {clips.length > 0 && (
+            <ClipEditor
+              videoId={id!}
+              clips={clips}
+              onClipRegenerated={handleClipRegenerated}
+              disabled={isApplying}
+            />
+          )}
 
           {/* Video Info Bar */}
           <div className="h-12 bg-card border-t border-border flex items-center justify-between px-4">
