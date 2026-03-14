@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import {
   LayoutTemplate,
   Music,
-  Mic,
   Play,
   Pause,
   Smartphone,
@@ -89,15 +88,6 @@ function formatTime(secs: number): string {
   const s = Math.floor(secs % 60);
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
-
-const VOICE_OPTIONS = [
-  "Australian Male",
-  "Australian Female",
-  "British Male",
-  "British Female",
-  "American Male",
-  "American Female",
-];
 
 interface StepBrandingProps {
   settings: CustomizationSettings;
@@ -257,7 +247,7 @@ export function StepBranding({
   const TAB_LIST = [
     { id: "templates", icon: LayoutTemplate, label: "Templates" },
     { id: "music", icon: Music, label: "Music" },
-    { id: "voiceover", icon: Mic, label: "Voiceover\nand Avatar" },
+    { id: "agent", icon: User, label: "Agent\nBranding" },
   ];
 
   // Sync previewFocus with templateStyleTab when on templates tab
@@ -1301,85 +1291,49 @@ export function StepBranding({
           </div>
         )}
 
-        {/* Voiceover & Avatar tab */}
-        {activeTab === "voiceover" && (
+        {/* Agent Branding tab */}
+        {activeTab === "agent" && (
           <div>
             <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
-              <Mic className="w-4 h-4 text-primary" />
-              Voiceover & Avatar
+              <User className="w-4 h-4 text-primary" />
+              Agent Branding
             </h3>
             <p className="text-sm text-muted-foreground mt-1 mb-5">
-              Configure voiceover and agent branding for the video.
+              Configure agent branding for the video.
             </p>
 
             <div className="space-y-5">
-              {/* Voiceover toggle */}
-              <div className="flex items-center justify-between">
-                <Label>Include voiceover</Label>
-                <Switch
-                  checked={settings.includeVoiceover}
-                  onCheckedChange={(v) => updateSettings({ includeVoiceover: v })}
-                />
-              </div>
-
-              {settings.includeVoiceover && (
+              <div className="space-y-3">
                 <div>
-                  <Label>Voice type</Label>
-                  <Select
-                    value={settings.voiceType}
-                    onValueChange={(v) => updateSettings({ voiceType: v })}
-                  >
-                    <SelectTrigger className="mt-1.5 h-10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {VOICE_OPTIONS.map((v) => (
-                        <SelectItem key={v} value={v}>
-                          {v}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="agent-name">Name *</Label>
+                  <Input
+                    id="agent-name"
+                    placeholder="John Smith"
+                    value={settings.agentInfo.name}
+                    onChange={(e) => updateAgent({ name: e.target.value })}
+                    className="mt-1 h-10"
+                  />
                 </div>
-              )}
-
-              {/* Agent info */}
-              <div className="border-t border-border pt-5">
-                <h4 className="text-sm font-semibold text-foreground mb-3">
-                  Agent branding
-                </h4>
-                <div className="space-y-3">
-                  <div>
-                    <Label htmlFor="agent-name">Name *</Label>
-                    <Input
-                      id="agent-name"
-                      placeholder="John Smith"
-                      value={settings.agentInfo.name}
-                      onChange={(e) => updateAgent({ name: e.target.value })}
-                      className="mt-1 h-10"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="agent-phone">Phone *</Label>
-                    <Input
-                      id="agent-phone"
-                      placeholder="0412 345 678"
-                      value={settings.agentInfo.phone}
-                      onChange={(e) => updateAgent({ phone: e.target.value })}
-                      className="mt-1 h-10"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="agent-email">Email</Label>
-                    <Input
-                      id="agent-email"
-                      type="email"
-                      placeholder="john@agency.com"
-                      value={settings.agentInfo.email}
-                      onChange={(e) => updateAgent({ email: e.target.value })}
-                      className="mt-1 h-10"
-                    />
-                  </div>
+                <div>
+                  <Label htmlFor="agent-phone">Phone *</Label>
+                  <Input
+                    id="agent-phone"
+                    placeholder="0412 345 678"
+                    value={settings.agentInfo.phone}
+                    onChange={(e) => updateAgent({ phone: e.target.value })}
+                    className="mt-1 h-10"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="agent-email">Email</Label>
+                  <Input
+                    id="agent-email"
+                    type="email"
+                    placeholder="john@agency.com"
+                    value={settings.agentInfo.email}
+                    onChange={(e) => updateAgent({ email: e.target.value })}
+                    className="mt-1 h-10"
+                  />
                 </div>
               </div>
             </div>

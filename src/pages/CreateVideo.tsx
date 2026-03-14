@@ -16,7 +16,6 @@ import { uploadImagesToStorage } from "@/utils/uploadToStorage";
 import { uploadVideoToStorage } from "@/utils/uploadVideoToStorage";
 import { generateCanvasVideo } from "@/utils/generateCanvasVideo";
 import { getMusicId } from "@/config/musicMapping";
-import { getVoiceId } from "@/config/voiceMapping";
 import { cropImageToFile } from "@/utils/cropImage";
 import { type CameraAction, type ImageMetadata } from "@/components/create-video/PhotoUpload";
 import { StepUpload } from "@/components/create-video/StepUpload";
@@ -62,8 +61,6 @@ export default function CreateVideo() {
   const [script, setScript] = useState("");
 
   const [customization, setCustomization] = useState<CustomizationSettings>({
-    includeVoiceover: true,
-    voiceType: "Australian Male",
     musicStyle: "Cinematic & Epic",
     musicTrack: "cinematic-epic-1",
     customAudioUrl: null,
@@ -534,8 +531,6 @@ export default function CreateVideo() {
         musicId = getMusicId(customization.musicTrack);
       }
 
-      const voiceId = customization.includeVoiceover ? getVoiceId(customization.voiceType) : null;
-
       const imageMetadataPayload = imageUrls.map((url, index) => {
         const meta = imageMetadata[index];
         const payload: Record<string, unknown> = {
@@ -577,7 +572,6 @@ export default function CreateVideo() {
           layout: customization.selectedLayout,
           customTitle: customization.customTitle,
           detailsText: customization.detailsText,
-          voice: voiceId,
           music: musicId,
           customMusicUrl,
           musicTrimStart: musicTrimStart || undefined,
