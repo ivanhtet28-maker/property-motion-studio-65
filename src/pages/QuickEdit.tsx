@@ -32,19 +32,31 @@ interface SceneData {
   duration: number;
 }
 
-// Layout options (same as VideoTemplateSelector)
+// Layout options — matches stitch-video's supported layouts
 const LAYOUT_OPTIONS = [
+  { id: "open-house", name: "Open House", description: "Classic real estate intro overlay" },
   { id: "bold-banner", name: "Bold Banner", description: "Bottom banner with price and details" },
   { id: "warm-elegance", name: "Warm Elegance", description: "Elegant serif with dark vignette" },
+  { id: "elegant-classic", name: "Elegant Classic", description: "Refined classic typography" },
+  { id: "big-bold", name: "Big and Bold", description: "Large impactful text overlay" },
+  { id: "simple-white", name: "Simple White", description: "Clean white text on image" },
+  { id: "modern-treehouse", name: "Modern Treehouse", description: "Contemporary nature-inspired" },
+  { id: "none", name: "No Overlay", description: "Video only, no text overlay" },
 ] as const;
 
-// Template options (same as VideoTemplateSelector)
+// Template options — matches stitch-video's TEMPLATE_NAMES
 const TEMPLATE_OPTIONS = [
+  { id: "open-house", name: "Open House" },
   { id: "just-listed", name: "Just Listed" },
   { id: "minimalist", name: "Minimalist" },
   { id: "cinematic", name: "Cinematic" },
   { id: "luxury", name: "Luxury" },
   { id: "real-estate-pro", name: "Real Estate Pro" },
+  { id: "elegant-classic", name: "Elegant Classic" },
+  { id: "big-bold", name: "Big and Bold" },
+  { id: "simple-white", name: "Simple White" },
+  { id: "modern-treehouse", name: "Modern Treehouse" },
+  { id: "warm-elegance", name: "Warm Elegance" },
 ] as const;
 
 export default function QuickEdit() {
@@ -67,8 +79,8 @@ export default function QuickEdit() {
   const [regeneratedClips, setRegeneratedClips] = useState<Record<number, string>>({});
 
   // Template/layout state
-  const [selectedTemplate, setSelectedTemplate] = useState("just-listed");
-  const [selectedLayout, setSelectedLayout] = useState("bold-banner");
+  const [selectedTemplate, setSelectedTemplate] = useState("open-house");
+  const [selectedLayout, setSelectedLayout] = useState("open-house");
 
   // Video playback
   const [clipIsPlaying, setClipIsPlaying] = useState(false);
@@ -521,7 +533,6 @@ export default function QuickEdit() {
                         loop
                         muted
                         playsInline
-                        crossOrigin="anonymous"
                         onError={() => {
                           console.error("Clip failed to load:", activeClipUrl);
                           setClipError(true);
