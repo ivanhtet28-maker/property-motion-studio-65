@@ -1342,7 +1342,7 @@ export function StepBranding({
       </div>
 
       {/* Right: Preview */}
-      <div className="w-[40%] min-w-[360px] flex-shrink-0">
+      <div className="w-[40%] min-w-[360px] flex-shrink-0 self-start">
         <div className="text-center mb-4">
           <h3 className="text-sm font-semibold text-foreground">Preview</h3>
           <p className="text-xs text-muted-foreground">
@@ -1379,8 +1379,8 @@ export function StepBranding({
         <div className="flex gap-3">
           {/* Preview image/outro */}
           <div
-            className={`bg-secondary rounded-xl overflow-hidden border border-border flex-1 relative shadow-lg ${
-              orientation === "portrait" ? "aspect-[9/16]" : "aspect-video"
+            className={`bg-secondary rounded-xl overflow-hidden border border-border relative shadow-lg ${
+              orientation === "portrait" ? "aspect-[9/16] max-h-[520px]" : "aspect-video"
             }`}
           >
             {previewFocus === "intro" ? (
