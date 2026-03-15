@@ -70,11 +70,8 @@ function getTransform(
       const t = easeInOut(progress);
       return { scale: 1, offsetX: -panRange * t, offsetY: 0 };
     }
-    case "glide-right": {
-      const t = easeInOut(progress);
-      return { scale: 1, offsetX: panRange * t, offsetY: 0 };
-    }
-    case "orbit": {
+    case "glide-right":
+    case "orbit": { // backwards compat — orbit mapped to rightward pan
       const t = easeInOut(progress);
       return { scale: 1, offsetX: panRange * t, offsetY: 0 };
     }

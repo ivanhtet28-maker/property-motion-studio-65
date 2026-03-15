@@ -425,7 +425,6 @@ function CameraActionPicker({
           { value: "push-in" as CameraAction, label: "Auto", recommended: true },
           { value: "push-in" as CameraAction, label: "Push In" },
           { value: "pull-out" as CameraAction, label: "Pull Out" },
-          { value: "orbit" as CameraAction, label: "Orbit (Center)" },
           { value: "orbit-right" as CameraAction, label: "Orbit Right" },
           { value: "orbit-left" as CameraAction, label: "Orbit Left" },
           { value: "glide-left" as CameraAction, label: "Glide Left" },

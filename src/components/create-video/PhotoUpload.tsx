@@ -18,13 +18,12 @@ export type CameraAngle = "auto" | "wide-shot" | "push-in" | "pull-out" | "glide
 
 const CLIP_DURATION = 3.5; // seconds — fixed for Ken Burns mode; Runway uses 5s
 
-// ── Camera Actions (user-facing dropdown — 9 cinematic motions) ────────────
+// ── Camera Actions (user-facing dropdown) ────────────
 export type CameraAction =
   | "push-in"
   | "pull-out"
   | "glide-left"
   | "glide-right"
-  | "orbit"
   | "orbit-right"
   | "orbit-left"
   | "drone-up"
@@ -35,7 +34,6 @@ export const CAMERA_ACTION_OPTIONS: { value: CameraAction; label: string; descri
   { value: "pull-out",  label: "Pull Out",   description: "Dolly backward revealing the space" },
   { value: "glide-left",  label: "Glide Left",   description: "Smooth lateral slide to the left" },
   { value: "glide-right", label: "Glide Right",  description: "Smooth lateral slide to the right" },
-  { value: "orbit",     label: "Orbit (Center)", description: "Cinematic arc around the subject" },
   { value: "orbit-right", label: "Orbit Right", description: "Clockwise arc around subject" },
   { value: "orbit-left",  label: "Orbit Left", description: "Counter-clockwise arc around subject" },
   { value: "drone-up",  label: "Drone Up",   description: "Aerial rising reveal" },
