@@ -269,7 +269,12 @@ export function StagingFlow({ imageUrls, onComplete, userId }: StagingFlowProps)
                   {/* Image or Color Preview Block */}
                   {style.imageUrl ? (
                     <div className="h-24 overflow-hidden bg-gray-200">
-                      <img src={style.imageUrl} alt={style.label} className="w-full h-full object-cover" />
+                      <img 
+                        src={style.imageUrl} 
+                        alt={style.label} 
+                        className="w-full h-full object-cover" 
+                        loading="lazy"
+                      />
                     </div>
                   ) : (
                     <div className={`h-16 bg-gradient-to-br ${style.gradient} flex items-center justify-center`}>
@@ -303,7 +308,12 @@ export function StagingFlow({ imageUrls, onComplete, userId }: StagingFlowProps)
                   {/* Image or Color Preview Block */}
                   {style.imageUrl ? (
                     <div className="h-24 overflow-hidden bg-gray-200">
-                      <img src={style.imageUrl} alt={style.label} className="w-full h-full object-cover" />
+                      <img 
+                        src={style.imageUrl} 
+                        alt={style.label} 
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
                     </div>
                   ) : (
                     <div className={`h-16 bg-gradient-to-br ${style.gradient} flex items-center justify-center`}>
