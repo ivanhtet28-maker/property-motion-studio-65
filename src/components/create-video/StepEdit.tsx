@@ -16,6 +16,7 @@ import {
   type CameraAction,
   CAMERA_ACTION_OPTIONS,
 } from "./PhotoUpload";
+import { CameraMotionPreview } from "@/components/CameraMotionPreview";
 
 export interface CropData {
   x: number; // 0-1 offset from left
@@ -405,6 +406,7 @@ function CameraActionPicker({
   label: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [hoveredMotion, setHoveredMotion] = useState<CameraAction | null>(null);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -417,41 +419,53 @@ function CameraActionPicker({
           </svg>
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-52 p-1" align="start">
-        <div className="text-xs text-muted-foreground px-2 py-1.5">
-          Choose camera motion...
+      <PopoverContent className="w-auto p-1" align="start">
+        <div className="flex gap-2">
+          <div className="w-48">
+            <div className="text-xs text-muted-foreground px-2 py-1.5">
+              Choose camera motion...
+            </div>
+            {[
+              { value: "push-in" as CameraAction, label: "Auto", recommended: true },
+              { value: "push-in" as CameraAction, label: "Push In" },
+              { value: "pull-out" as CameraAction, label: "Pull Out" },
+              { value: "orbit-right" as CameraAction, label: "Orbit Right" },
+              { value: "orbit-left" as CameraAction, label: "Orbit Left" },
+              { value: "glide-left" as CameraAction, label: "Glide Left" },
+              { value: "glide-right" as CameraAction, label: "Glide Right" },
+              { value: "drone-up" as CameraAction, label: "Drone Up" },
+              { value: "static" as CameraAction, label: "Static" },
+            ].map((option, i) => (
+              <button
+                key={`${option.value}-${i}`}
+                onClick={() => {
+                  onChange(option.value);
+                  setOpen(false);
+                }}
+                onMouseEnter={() => setHoveredMotion(option.value)}
+                onMouseLeave={() => setHoveredMotion(null)}
+                className={`w-full flex items-center gap-2 px-2 py-2 rounded text-sm hover:bg-accent transition-colors ${
+                  (i === 0 && value === "push-in") ||
+                  option.label.toLowerCase().replace(" ", "-") === value
+                    ? "text-primary font-medium"
+                    : "text-foreground"
+                }`}
+              >
+                <Camera className="w-3.5 h-3.5 text-muted-foreground" />
+                {option.label}
+                {option.recommended && (
+                  <span className="text-xs text-muted-foreground ml-auto">(Recommended)</span>
+                )}
+              </button>
+            ))}
+          </div>
+          {hoveredMotion && (
+            <div className="flex flex-col items-center gap-1 pt-1">
+              <CameraMotionPreview motion={hoveredMotion} width={180} height={120} />
+              <span className="text-[10px] text-muted-foreground">Preview</span>
+            </div>
+          )}
         </div>
-        {[
-          { value: "push-in" as CameraAction, label: "Auto", recommended: true },
-          { value: "push-in" as CameraAction, label: "Push In" },
-          { value: "pull-out" as CameraAction, label: "Pull Out" },
-          { value: "orbit-right" as CameraAction, label: "Orbit Right" },
-          { value: "orbit-left" as CameraAction, label: "Orbit Left" },
-          { value: "glide-left" as CameraAction, label: "Glide Left" },
-          { value: "glide-right" as CameraAction, label: "Glide Right" },
-          { value: "drone-up" as CameraAction, label: "Drone Up" },
-          { value: "static" as CameraAction, label: "Static" },
-        ].map((option, i) => (
-          <button
-            key={`${option.value}-${i}`}
-            onClick={() => {
-              onChange(option.value);
-              setOpen(false);
-            }}
-            className={`w-full flex items-center gap-2 px-2 py-2 rounded text-sm hover:bg-accent transition-colors ${
-              (i === 0 && value === "push-in") ||
-              option.label.toLowerCase().replace(" ", "-") === value
-                ? "text-primary font-medium"
-                : "text-foreground"
-            }`}
-          >
-            <Camera className="w-3.5 h-3.5 text-muted-foreground" />
-            {option.label}
-            {option.recommended && (
-              <span className="text-xs text-muted-foreground ml-auto">(Recommended)</span>
-            )}
-          </button>
-        ))}
       </PopoverContent>
     </Popover>
   );

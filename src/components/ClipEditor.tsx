@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { CameraMotionPreview } from "@/components/CameraMotionPreview";
 import {
   X,
   Loader2,
@@ -67,6 +68,7 @@ export default function ClipEditor({ videoId, clips, onClipRegenerated, disabled
 
   // Preview state
   const [previewClipIndex, setPreviewClipIndex] = useState<number | null>(null);
+  const [hoveredAngle, setHoveredAngle] = useState<string | null>(null);
 
   // ── Select a clip for editing ─────────────────────────────────────────
 
@@ -331,6 +333,8 @@ export default function ClipEditor({ videoId, clips, onClipRegenerated, disabled
                   <button
                     key={angle.value}
                     onClick={() => setSelectedAngle(angle.value)}
+                    onMouseEnter={() => setHoveredAngle(angle.value)}
+                    onMouseLeave={() => setHoveredAngle(null)}
                     disabled={isRegenerating}
                     className={`text-left px-2.5 py-1.5 rounded-md border text-xs transition-all ${
                       selectedAngle === angle.value
@@ -345,6 +349,12 @@ export default function ClipEditor({ videoId, clips, onClipRegenerated, disabled
                   </button>
                 ))}
               </div>
+              {hoveredAngle && (
+                <div className="mt-2 flex flex-col items-center">
+                  <CameraMotionPreview motion={hoveredAngle as any} width={200} height={130} />
+                  <span className="text-[10px] text-muted-foreground mt-1">Preview</span>
+                </div>
+              )}
             </div>
 
             {/* Duration slider */}

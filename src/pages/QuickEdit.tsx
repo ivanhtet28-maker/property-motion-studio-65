@@ -23,6 +23,7 @@ import {
   type CameraAction,
   CAMERA_ACTION_OPTIONS,
 } from "@/components/create-video/PhotoUpload";
+import { CameraMotionPreview } from "@/components/CameraMotionPreview";
 
 interface SceneData {
   id: string;
@@ -76,6 +77,7 @@ export default function QuickEdit() {
   const [selectedCameraAngle, setSelectedCameraAngle] = useState<CameraAction>("push-in");
   const [regenerating, setRegenerating] = useState(false);
   const [newClipUrl, setNewClipUrl] = useState<string | null>(null);
+  const [hoveredMotion, setHoveredMotion] = useState<CameraAction | null>(null);
   const [regeneratedClips, setRegeneratedClips] = useState<Record<number, string>>({});
 
   // Template/layout state
@@ -676,6 +678,8 @@ export default function QuickEdit() {
                   <button
                     key={option.value}
                     onClick={() => updateSceneMotion(selectedScene, option.value)}
+                    onMouseEnter={() => setHoveredMotion(option.value)}
+                    onMouseLeave={() => setHoveredMotion(null)}
                     disabled={regenerating}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all text-left ${
                       isSelected
@@ -690,11 +694,19 @@ export default function QuickEdit() {
                 );
               })}
             </div>
-            <p className="text-[11px] text-muted-foreground mt-2">
-              {CAMERA_ACTION_OPTIONS.find(
-                (o) => o.value === selectedCameraAngle
-              )?.description}
-            </p>
+            {hoveredMotion && (
+              <div className="mt-2 flex flex-col items-center">
+                <CameraMotionPreview motion={hoveredMotion} width={200} height={130} />
+                <span className="text-[10px] text-muted-foreground mt-1">Preview</span>
+              </div>
+            )}
+            {!hoveredMotion && (
+              <p className="text-[11px] text-muted-foreground mt-2">
+                {CAMERA_ACTION_OPTIONS.find(
+                  (o) => o.value === selectedCameraAngle
+                )?.description}
+              </p>
+            )}
           </div>
 
           {/* Template & Layout selector */}
