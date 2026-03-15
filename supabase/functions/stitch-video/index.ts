@@ -1136,7 +1136,7 @@ import { corsHeaders } from "../_shared/cors.ts";
               x: [{ from: 0, to: panTo, start: 0, length: clipDuration,
                      interpolation: "bezier", easing: "easeInOutQuart" }]
             };
-          } else if (angle === "pull-out" || angle === "drone-up" || angle === "crane-up") {
+          } else if (angle === "pull-out" || angle === "drone-up" || angle === "crane-up" /* backwards compat */) {
             clip.effect = "zoomOutSlow";
           } else if (angle === "push-in") {
             clip.effect = "zoomInSlow";
@@ -1157,7 +1157,7 @@ import { corsHeaders } from "../_shared/cors.ts";
               x: [{ from: 0, to: panTo, start: 0, length: clipDuration,
                      interpolation: "bezier", easing: "easeInOutQuart" }]
             };
-          } else if (angle === "pull-out" || angle === "drone-up" || angle === "crane-up") {
+          } else if (angle === "pull-out" || angle === "drone-up" || angle === "crane-up" /* backwards compat */) {
             clip.effect = "zoomOutSlow";
           } else if (angle === "static") {
             // No effect — locked shot

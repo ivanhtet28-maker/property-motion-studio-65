@@ -63,7 +63,7 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
     switch (cameraAngle) {
       case "pull-out":
       case "drone-up":
-      case "crane-up":     return "zoomOutSlow";
+      case "crane-up":     return "zoomOutSlow"; // crane-up kept for backwards compat
       case "tracking":
       case "orbit":        return "slideLeftSlow";
       case "static":       return "none"; // locked shot — no Ken Burns effect

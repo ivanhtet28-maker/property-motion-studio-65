@@ -10,7 +10,6 @@ type CameraAngle =
   | "pull-out"
   | "tracking"
   | "orbit"
-  | "crane-up"
   | "drone-up"
   | "static";
 
@@ -72,10 +71,7 @@ function getTransform(
       const t = easeInOut(progress);
       return { scale: 1, offsetX: panRange * t, offsetY: 0 };
     }
-    case "crane-up": {
-      const t = easeInOut(progress);
-      return { scale: 1, offsetX: 0, offsetY: 0.03 * t };
-    }
+    case "crane-up": // backwards compat — merged into drone-up
     case "drone-up": {
       const t = easeIn(progress);
       return { scale: 1.04 - 0.04 * t, offsetX: 0, offsetY: 0.02 * t };

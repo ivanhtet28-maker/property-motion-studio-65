@@ -32,13 +32,9 @@ const MOTION_MAP: Record<string, string> = {
     "Camera moves along a curved dolly track, maintaining a fixed distance from the subject. " +
     "Ease in from stillness, constant arc speed, ease out to stillness. Subtle parallax shift between foreground and background. " +
     STABILITY_SUFFIX,
-  "crane-up":
-    "Slow vertical crane rise. Camera ascends straight up while tilting gently downward to keep the scene centered in frame. " +
-    "Ease in from stillness, constant ascent speed, ease out at the top. " +
-    STABILITY_SUFFIX,
   "drone-up":
-    "Rising aerial drone reveal. Camera ascends vertically while tilting down to keep the property centered in frame. " +
-    "Smooth constant rise speed with gentle ease-in from the ground. The landscape gradually enters the frame from the edges. " +
+    "Rising aerial reveal. Camera ascends vertically while tilting down to keep the scene centered in frame. " +
+    "Smooth constant rise speed with gentle ease-in, clearing foreground obstructions. The landscape gradually enters the frame from the edges. " +
     STABILITY_SUFFIX,
   "static":
     "Locked-off tripod shot. Camera is perfectly stationary on a heavy tripod with zero movement. " +
@@ -54,10 +50,12 @@ const ORBIT_PORTRAIT_PROMPT =
   STABILITY_SUFFIX;
 
 function getPrompt(cameraAngle: string, aspectRatio?: string): string {
-  if (cameraAngle === "orbit" && aspectRatio !== "16:9") {
+  // Backwards compat: crane-up was merged into drone-up
+  const angle = cameraAngle === "crane-up" ? "drone-up" : cameraAngle;
+  if (angle === "orbit" && aspectRatio !== "16:9") {
     return ORBIT_PORTRAIT_PROMPT;
   }
-  return MOTION_MAP[cameraAngle] || MOTION_MAP["push-in"];
+  return MOTION_MAP[angle] || MOTION_MAP["push-in"];
 }
 
 // ── Clip interface ────────────────────────────────────────────────────────

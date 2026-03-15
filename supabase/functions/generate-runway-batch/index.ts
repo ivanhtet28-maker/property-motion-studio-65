@@ -113,19 +113,11 @@ const MOTION_MAP: Record<string, MotionConfig> = {
       GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
     duration: 5,
   },
-  "crane-up": {
-    promptText:
-      "Professional videography: Slow vertical crane rise revealing the full vertical extent of the space. " +
-      "Camera ascends straight up while tilting gently downward to keep the scene centered in frame. " +
-      "Ease in from stillness, constant ascent speed, ease out at the top. Cinematic vertical reveal showcasing room height and features. " +
-      GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
-    duration: 5,
-  },
   "drone-up": {
     promptText:
-      "Professional aerial videography: Rising drone reveal ascending vertically while tilting down to keep the property centered in frame. " +
-      "Smooth constant rise speed with gentle ease-in from the ground. The landscape and context gradually enter the frame from the edges. " +
-      "Cinematic aerial reveal showcasing property scale and surroundings. " +
+      "Professional aerial videography: Rising reveal ascending vertically while tilting down to keep the scene centered in frame. " +
+      "Smooth constant rise speed with gentle ease-in from the ground, clearing foreground obstructions. " +
+      "The landscape and context gradually enter the frame from the edges. Cinematic vertical reveal showcasing scale and surroundings. " +
       GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
     duration: 5,
   },

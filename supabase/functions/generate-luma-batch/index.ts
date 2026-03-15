@@ -62,10 +62,8 @@ Deno.serve(async (req) => {
                 ? "Slow smooth lateral tracking shot, camera slides sideways."
                 : cameraAngle === "orbit"
                   ? "Slow cinematic orbit arc, camera curves around the subject with parallax."
-                  : cameraAngle === "crane-up"
-                    ? "Slow smooth rise, camera glides gently upward."
-                    : cameraAngle === "drone-up"
-                      ? "Slow smooth aerial rise, camera ascends revealing the property."
+                  : cameraAngle === "crane-up" || cameraAngle === "drone-up"
+                    ? "Slow smooth aerial rise, camera ascends revealing the property."
                       : cameraAngle === "static"
                         ? "Locked tripod shot, camera perfectly still, only ambient light shifts."
                         : "Slow smooth camera movement.";

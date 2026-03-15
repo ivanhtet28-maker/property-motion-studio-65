@@ -28,7 +28,6 @@ const VALID_INTENTS = [
   "pull-out",
   "tracking",
   "orbit",
-  "crane-up",
   "drone-up",
   "static",
 ] as const;
@@ -55,13 +54,12 @@ Step 4 — CHOOSE YOUR SHOT from these standard videography moves:
 - pull-out: Dolly backward revealing space. Use for bedrooms, tight rooms, any "look how spacious" shot.
 - tracking: Smooth lateral slide across the scene. Use for entries with staircases, rooms with side features to reveal.
 - orbit: Cinematic arc around subject. Use for living rooms, kitchens, open-plan spaces with features to reveal.
-- crane-up: Camera rises vertically. Use for exteriors with fences/obstructions to clear foreground.
-- drone-up: Aerial rising reveal. Use for pools, backyards, outdoor areas, large properties.
+- drone-up: Aerial rising reveal. Use for pools, backyards, outdoor areas, large properties, or exteriors with fences/obstructions to clear foreground.
 - static: Locked tripod, no movement. Use sparingly — only when the composition is already perfect.
 
 RULES:
 - Bedrooms: ALWAYS pull-out. Never push-in toward a bed.
-- Exteriors with fence: ALWAYS crane-up or drone-up. Never push-in through a fence.
+- Exteriors with fence: ALWAYS drone-up. Never push-in through a fence.
 - Living rooms with visible kitchen: orbit toward the kitchen side.
 - Entries with staircase: tracking to reveal the staircase.
 
