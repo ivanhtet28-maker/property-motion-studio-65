@@ -29,16 +29,16 @@ const STYLE_RECOMMENDATIONS: Record<string, string[]> = {
 };
 
 const DESIGN_STYLES = [
-  { value: "MODERN", label: "Modern", description: "Clean, sleek, contemporary" },
-  { value: "SCANDINAVIAN", label: "Scandinavian", description: "Light, minimal, cozy" },
-  { value: "LUXEMODERN", label: "Luxury Modern", description: "Elegant, premium finishes" },
-  { value: "FARMHOUSE", label: "Farmhouse", description: "Rustic, warm, homey" },
-  { value: "MINIMALIST", label: "Minimalist", description: "Simple, uncluttered, calm" },
-  { value: "INDUSTRIAL", label: "Industrial", description: "Raw, exposed, edgy" },
-  { value: "COASTAL", label: "Coastal", description: "Breezy, beach, relaxed" },
-  { value: "ARTDECO", label: "Art Deco", description: "Glamorous, geometric, bold" },
-  { value: "BOHO", label: "Bohemian", description: "Eclectic, artistic, free" },
-  { value: "CONTEMPORARY", label: "Contemporary", description: "Current, trendy, stylish" },
+  { value: "MODERN", label: "Modern", description: "Clean, sleek, contemporary", gradient: "from-gray-100 to-gray-900", emoji: "🏢" },
+  { value: "SCANDINAVIAN", label: "Scandinavian", description: "Light, minimal, cozy", gradient: "from-blue-50 to-blue-200", emoji: "❄️" },
+  { value: "LUXEMODERN", label: "Luxury Modern", description: "Elegant, premium finishes", gradient: "from-yellow-50 to-amber-700", emoji: "✨" },
+  { value: "FARMHOUSE", label: "Farmhouse", description: "Rustic, warm, homey", gradient: "from-yellow-100 to-amber-800", emoji: "🌾" },
+  { value: "MINIMALIST", label: "Minimalist", description: "Simple, uncluttered, calm", gradient: "from-white to-gray-400", emoji: "⬜" },
+  { value: "INDUSTRIAL", label: "Industrial", description: "Raw, exposed, edgy", gradient: "from-gray-700 to-gray-900", emoji: "🏭" },
+  { value: "COASTAL", label: "Coastal", description: "Breezy, beach, relaxed", gradient: "from-blue-100 to-blue-300", emoji: "🌊" },
+  { value: "ARTDECO", label: "Art Deco", description: "Glamorous, geometric, bold", gradient: "from-gray-900 to-yellow-600", emoji: "💎" },
+  { value: "BOHO", label: "Bohemian", description: "Eclectic, artistic, free", gradient: "from-orange-200 to-orange-900", emoji: "🎨" },
+  { value: "CONTEMPORARY", label: "Contemporary", description: "Current, trendy, stylish", gradient: "from-yellow-400 to-gray-800", emoji: "🎭" },
 ];
 
 interface StagingFlowProps {
@@ -182,29 +182,60 @@ export function StagingFlow({ imageUrls, onComplete, userId }: StagingFlowProps)
             </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {DESIGN_STYLES.map((style) => {
-              const isRecommended = isStyleRecommended(style.value);
-              return (
+          {/* Recommended Styles First */}
+          <div>
+            <p className="text-sm font-medium text-primary mb-3">✨ Best for {ROOM_TYPES.find((r) => r.value === roomType)?.label}:</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+              {DESIGN_STYLES.filter((s) => isStyleRecommended(s.value)).map((style) => (
                 <button
                   key={style.value}
                   onClick={() => setDesignStyle(style.value)}
-                  className={`p-4 rounded-xl border-2 transition-all text-left ${
+                  className={`rounded-xl border-2 transition-all overflow-hidden ${
                     designStyle === style.value
-                      ? "border-primary bg-primary/10"
-                      : isRecommended
-                        ? "border-primary/30 hover:border-primary/50"
-                        : "border-border hover:border-border"
+                      ? "border-primary ring-2 ring-primary"
+                      : "border-primary/30 hover:border-primary/50"
                   }`}
                 >
-                  <div className="font-medium text-sm">{style.label}</div>
-                  <div className="text-xs text-muted-foreground">{style.description}</div>
-                  {isRecommended && designStyle !== style.value && (
-                    <div className="text-xs text-primary font-medium mt-2">✨ Recommended</div>
-                  )}
+                  {/* Color Preview Block */}
+                  <div className={`h-16 bg-gradient-to-br ${style.gradient} flex items-center justify-center`}>
+                    <span className="text-2xl">{style.emoji}</span>
+                  </div>
+                  {/* Style Info */}
+                  <div className="p-3 bg-background">
+                    <div className="font-medium text-sm">{style.label}</div>
+                    <div className="text-xs text-muted-foreground">{style.description}</div>
+                  </div>
                 </button>
-              );
-            })}
+              ))}
+            </div>
+          </div>
+
+          {/* Other Styles */}
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-3">Other styles:</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {DESIGN_STYLES.filter((s) => !isStyleRecommended(s.value)).map((style) => (
+                <button
+                  key={style.value}
+                  onClick={() => setDesignStyle(style.value)}
+                  className={`rounded-xl border-2 transition-all overflow-hidden ${
+                    designStyle === style.value
+                      ? "border-primary ring-2 ring-primary"
+                      : "border-border hover:border-primary/30"
+                  }`}
+                >
+                  {/* Color Preview Block */}
+                  <div className={`h-16 bg-gradient-to-br ${style.gradient} flex items-center justify-center`}>
+                    <span className="text-2xl">{style.emoji}</span>
+                  </div>
+                  {/* Style Info */}
+                  <div className="p-3 bg-background">
+                    <div className="font-medium text-sm">{style.label}</div>
+                    <div className="text-xs text-muted-foreground">{style.description}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
