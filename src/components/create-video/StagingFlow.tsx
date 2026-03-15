@@ -57,17 +57,19 @@ const ROOM_TYPES = [
   { value: "KIDSROOM", label: "Kids Room", icon: Baby },
 ];
 
+const STAGING_STYLES_BASE = "https://pxhpfewunsetuxygeprp.supabase.co/storage/v1/object/public/staging-styles";
+
 const DESIGN_STYLES = [
-  { value: "MODERN", label: "Modern", description: "Clean, sleek, contemporary", color: "from-slate-400 to-slate-600", imageUrl: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=500&h=400&fit=crop" },
-  { value: "SCANDINAVIAN", label: "Scandinavian", description: "Light, minimal, cozy", color: "from-amber-100 to-stone-300", imageUrl: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=500&h=400&fit=crop" },
-  { value: "LUXEMODERN", label: "Luxury Modern", description: "Elegant, premium finishes", color: "from-yellow-600 to-amber-800", imageUrl: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500&h=400&fit=crop" },
-  { value: "FARMHOUSE", label: "Farmhouse", description: "Rustic, warm, homey", color: "from-green-300 to-emerald-500", imageUrl: "https://images.unsplash.com/photo-1578500494198-246f612d03b3?w=500&h=400&fit=crop" },
-  { value: "MINIMALIST", label: "Minimalist", description: "Simple, uncluttered, calm", color: "from-gray-100 to-gray-300", imageUrl: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=500&h=400&fit=crop" },
-  { value: "INDUSTRIAL", label: "Industrial", description: "Raw, exposed, edgy", color: "from-zinc-500 to-zinc-700", imageUrl: "https://images.unsplash.com/photo-1567767292278-a4f21aa2d36d?w=500&h=400&fit=crop" },
-  { value: "COASTAL", label: "Coastal", description: "Breezy, beach, relaxed", color: "from-sky-200 to-blue-400", imageUrl: "https://images.unsplash.com/photo-1513694712202-7900aea1fc97?w=500&h=400&fit=crop" },
-  { value: "ARTDECO", label: "Art Deco", description: "Glamorous, geometric, bold", color: "from-yellow-400 to-orange-600", imageUrl: "https://images.unsplash.com/photo-1549887534-2e3eef43c859?w=500&h=400&fit=crop" },
-  { value: "BOHO", label: "Bohemian", description: "Eclectic, artistic, free", color: "from-rose-300 to-orange-400", imageUrl: "https://images.unsplash.com/photo-1594736797933-d0501ba2fe65?w=500&h=400&fit=crop" },
-  { value: "CONTEMPORARY", label: "Contemporary", description: "Current, trendy, stylish", color: "from-violet-300 to-purple-500", imageUrl: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=500&h=400&fit=crop" },
+  { value: "MODERN", label: "Modern", description: "Clean, sleek, contemporary", color: "from-slate-400 to-slate-600", imageUrl: `${STAGING_STYLES_BASE}/modern.jpg` },
+  { value: "SCANDINAVIAN", label: "Scandinavian", description: "Light, minimal, cozy", color: "from-amber-100 to-stone-300", imageUrl: `${STAGING_STYLES_BASE}/scandinavian.jpg` },
+  { value: "LUXEMODERN", label: "Luxury Modern", description: "Elegant, premium finishes", color: "from-yellow-600 to-amber-800", imageUrl: `${STAGING_STYLES_BASE}/luxury-modern.jpg` },
+  { value: "FARMHOUSE", label: "Farmhouse", description: "Rustic, warm, homey", color: "from-green-300 to-emerald-500", imageUrl: `${STAGING_STYLES_BASE}/farmhouse.jpg` },
+  { value: "MINIMALIST", label: "Minimalist", description: "Simple, uncluttered, calm", color: "from-gray-100 to-gray-300", imageUrl: `${STAGING_STYLES_BASE}/minimalist.jpg` },
+  { value: "INDUSTRIAL", label: "Industrial", description: "Raw, exposed, edgy", color: "from-zinc-500 to-zinc-700", imageUrl: `${STAGING_STYLES_BASE}/industrial.jpg` },
+  { value: "COASTAL", label: "Coastal", description: "Breezy, beach, relaxed", color: "from-sky-200 to-blue-400", imageUrl: `${STAGING_STYLES_BASE}/coastal.jpg` },
+  { value: "ARTDECO", label: "Art Deco", description: "Glamorous, geometric, bold", color: "from-yellow-400 to-orange-600", imageUrl: `${STAGING_STYLES_BASE}/artdeco.jpg` },
+  { value: "BOHO", label: "Bohemian", description: "Eclectic, artistic, free", color: "from-rose-300 to-orange-400", imageUrl: `${STAGING_STYLES_BASE}/boho.jpg` },
+  { value: "CONTEMPORARY", label: "Contemporary", description: "Current, trendy, stylish", color: "from-violet-300 to-purple-500", imageUrl: `${STAGING_STYLES_BASE}/contemporary.jpg` },
 ];
 
 const FURNITURE_DENSITIES = [
