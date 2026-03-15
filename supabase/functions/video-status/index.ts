@@ -648,6 +648,37 @@ Deno.serve(async (req) => {
 
     await updateVideoRecord(videoId, "processing", null, 85, "Clips ready — starting stitch...");
 
+    // ── Persist individual clip URLs to the clips column ──────────────
+    // This is the authoritative server-side save so Quick Edit can play them.
+    if (videoId) {
+      try {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const supa = createClient(supabaseUrl, supabaseServiceKey);
+
+        const clipRecords = finalVideoUrls.map((url: string, i: number) => ({
+          index: i,
+          url,
+          duration: clipDurations?.[i] || 5,
+          camera_angle: cameraAngles?.[i] || "push-in",
+          image_url: imageUrls?.[i] || "",
+        }));
+
+        const { error: clipSaveErr } = await supa
+          .from("videos")
+          .update({ clips: clipRecords, updated_at: new Date().toISOString() })
+          .eq("id", videoId);
+
+        if (clipSaveErr) {
+          console.error("Failed to save clips to DB:", clipSaveErr);
+        } else {
+          console.log(`Saved ${clipRecords.length} clip records to DB`);
+        }
+      } catch (clipErr) {
+        console.error("Error saving clips:", clipErr);
+      }
+    }
+
     return new Response(
       JSON.stringify({
         status: "ready_to_stitch",

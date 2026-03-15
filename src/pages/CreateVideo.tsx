@@ -341,6 +341,7 @@ export default function CreateVideo() {
           setGeneratingProgress(87);
 
           // Save individual clip URLs to the clips column so Quick Edit can play them
+          // (Also saved server-side in video-status, but save here too as a safety net)
           if (videoId && Array.isArray(data.finalVideoUrls)) {
             const clipRecords = (data.finalVideoUrls as string[]).map((url: string, i: number) => ({
               index: i,
@@ -349,13 +350,15 @@ export default function CreateVideo() {
               camera_angle: cameraAngles?.[i] || "push-in",
               image_url: imageUrls?.[i] || "",
             }));
-            supabase
-              .from("videos")
-              .update({ clips: clipRecords })
-              .eq("id", videoId)
-              .then(({ error: clipErr }) => {
-                if (clipErr) console.error("Failed to save clips to DB:", clipErr);
-              });
+            try {
+              const { error: clipErr } = await supabase
+                .from("videos")
+                .update({ clips: clipRecords })
+                .eq("id", videoId);
+              if (clipErr) console.error("Failed to save clips to DB:", clipErr);
+            } catch (clipSaveErr) {
+              console.error("Error saving clips:", clipSaveErr);
+            }
           }
 
           try {
