@@ -358,8 +358,10 @@ export default function CreateVideo() {
           // (bypasses internal edge-function-to-function gateway 401 issue)
           setGeneratingProgress(87);
 
-          // Save individual clip URLs to the clips column so Quick Edit can play them
-          // (Also saved server-side in video-status, but save here too as a safety net)
+          // Save individual clip URLs so Quick Edit can play them.
+          // We save to BOTH the `clips` column AND inside the `photos` JSON
+          // as a redundant fallback — if the clips column doesn't exist or
+          // the update fails, QuickEdit can still read them from photos.
           if (videoId && Array.isArray(data.finalVideoUrls)) {
             const clipRecords = (data.finalVideoUrls as string[]).map((url: string, i: number) => ({
               index: i,
@@ -368,14 +370,38 @@ export default function CreateVideo() {
               camera_angle: cameraAngles?.[i] || "push-in",
               image_url: imageUrls?.[i] || "",
             }));
+
+            // 1) Try saving to dedicated clips column
+            supabase
+              .from("videos")
+              .update({ clips: clipRecords })
+              .eq("id", videoId)
+              .then(({ error: clipErr }) => {
+                if (clipErr) console.error("Failed to save clips column:", clipErr);
+                else console.log(`Saved ${clipRecords.length} clips to clips column`);
+              });
+
+            // 2) Also embed clip URLs in the photos JSON as a fallback
             try {
-              const { error: clipErr } = await supabase
+              const { data: currentVideo } = await supabase
                 .from("videos")
-                .update({ clips: clipRecords })
-                .eq("id", videoId);
-              if (clipErr) console.error("Failed to save clips to DB:", clipErr);
-            } catch (clipSaveErr) {
-              console.error("Error saving clips:", clipSaveErr);
+                .select("photos")
+                .eq("id", videoId)
+                .single();
+
+              if (currentVideo?.photos) {
+                const photosJson = typeof currentVideo.photos === "string"
+                  ? JSON.parse(currentVideo.photos)
+                  : currentVideo.photos;
+                photosJson.clipUrls = (data.finalVideoUrls as string[]);
+                await supabase
+                  .from("videos")
+                  .update({ photos: JSON.stringify(photosJson) })
+                  .eq("id", videoId);
+                console.log("Saved clip URLs to photos JSON fallback");
+              }
+            } catch (photosFallbackErr) {
+              console.error("Failed to save clips to photos JSON:", photosFallbackErr);
             }
           }
 

@@ -82,6 +82,9 @@ export default function QuickEdit() {
   const [selectedTemplate, setSelectedTemplate] = useState("open-house");
   const [selectedLayout, setSelectedLayout] = useState("open-house");
 
+  // Final stitched video URL (for full-video preview when individual clips unavailable)
+  const [finalVideoUrl, setFinalVideoUrl] = useState<string | null>(null);
+
   // Video playback
   const [clipIsPlaying, setClipIsPlaying] = useState(false);
   const [clipError, setClipError] = useState(false);
@@ -129,13 +132,14 @@ export default function QuickEdit() {
           }
         }
 
-        // Clip URLs are stored in a separate `clips` column, not inside `photos`
-        if (Array.isArray(data.clips)) {
+        // Clip URLs: try multiple sources in order of priority
+        // 1) Dedicated `clips` column (authoritative)
+        if (Array.isArray(data.clips) && data.clips.length > 0) {
           clips = data.clips;
+          console.log(`Loaded ${clips.length} clips from clips column`);
         }
 
-        // Recovery: if clips column is empty but we have generationIds in photos,
-        // re-check Runway for completed clip URLs and save them to DB
+        // 2) Fallback: read clipUrls embedded in the photos JSON
         let parsedPhotos: Record<string, unknown> | null = null;
         if (data.photos) {
           try {
@@ -143,6 +147,13 @@ export default function QuickEdit() {
           } catch { /* ignore */ }
         }
 
+        if (clips.length === 0 && parsedPhotos?.clipUrls && Array.isArray(parsedPhotos.clipUrls)) {
+          const clipUrlsFromPhotos = parsedPhotos.clipUrls as string[];
+          clips = clipUrlsFromPhotos.map((url, i) => ({ index: i, url }));
+          console.log(`Loaded ${clips.length} clips from photos JSON fallback`);
+        }
+
+        // 3) Last resort: recover from generation IDs by calling video-status
         if (
           clips.length === 0 &&
           parsedPhotos?.generationIds &&
@@ -150,7 +161,7 @@ export default function QuickEdit() {
           (parsedPhotos.generationIds as string[]).length > 0
         ) {
           try {
-            console.log("Clips column empty — recovering clip URLs from generation IDs...");
+            console.log("No clips found — recovering from generation IDs...");
             const statusResult = await invokeEdgeFunction<{
               status: string;
               finalVideoUrls?: string[];
@@ -164,21 +175,29 @@ export default function QuickEdit() {
                 cameraAngles: parsedPhotos.cameraAngles || [],
               },
             });
-            // If clips were recovered and saved by video-status, re-fetch them
-            if (statusResult.status === "ready_to_stitch" || statusResult.finalVideoUrls) {
+            if (statusResult.finalVideoUrls && statusResult.finalVideoUrls.length > 0) {
+              clips = statusResult.finalVideoUrls.map((url, i) => ({ index: i, url }));
+              console.log(`Recovered ${clips.length} clips from generation IDs`);
+            } else if (statusResult.status === "ready_to_stitch") {
+              // Re-fetch from DB in case video-status saved them
               const { data: refreshed } = await supabase
                 .from("videos")
                 .select("clips")
                 .eq("id", id)
                 .single();
-              if (Array.isArray(refreshed?.clips)) {
+              if (Array.isArray(refreshed?.clips) && refreshed.clips.length > 0) {
                 clips = refreshed.clips;
-                console.log(`Recovered ${clips.length} clips from generation IDs`);
+                console.log(`Recovered ${clips.length} clips after video-status re-save`);
               }
             }
           } catch (recoverErr) {
             console.error("Clip recovery failed:", recoverErr);
           }
+        }
+
+        // Store the final stitched video URL for full-video preview
+        if (data.video_url) {
+          setFinalVideoUrl(data.video_url);
         }
 
         if (photos.length > 0) {
@@ -519,7 +538,7 @@ export default function QuickEdit() {
               {/* Main preview: Video clip if available, otherwise static image */}
               <div className="text-center">
                 <p className="text-xs text-muted-foreground mb-2 font-medium">
-                  {activeClipUrl ? "Generated Clip" : "Original Photo"}
+                  {activeClipUrl ? "Generated Clip" : finalVideoUrl ? "Full Video Preview" : "Original Photo"}
                 </p>
                 <div className="aspect-[9/16] w-[200px] sm:w-[260px] bg-secondary rounded-xl overflow-hidden border border-border relative">
                   {activeClipUrl && !clipError ? (
@@ -561,6 +580,24 @@ export default function QuickEdit() {
                           <Pause className="w-3.5 h-3.5 text-white" />
                         </button>
                       )}
+                    </>
+                  ) : finalVideoUrl && !activeClipUrl ? (
+                    <>
+                      <video
+                        key={`final-${selectedScene}`}
+                        src={finalVideoUrl}
+                        className="w-full h-full object-cover"
+                        poster={currentScene?.imageUrl}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        onPlay={() => setClipIsPlaying(true)}
+                        onPause={() => setClipIsPlaying(false)}
+                      />
+                      <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/60 text-[10px] text-white font-medium">
+                        Full Video
+                      </div>
                     </>
                   ) : currentScene?.imageUrl ? (
                     <img
