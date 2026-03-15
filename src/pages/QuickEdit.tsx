@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera, Play, Check, Loader2, Save } from "lucide-react";
+import { ArrowLeft, Camera, Play, Pause, Check, Loader2, Save, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -34,6 +34,7 @@ export default function QuickEdit() {
   const [saving, setSaving] = useState(false);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoTitle, setVideoTitle] = useState("Untitled video");
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // Load video data
   useEffect(() => {
@@ -105,6 +106,16 @@ export default function QuickEdit() {
     );
   };
 
+  const handleReorder = (fromIndex: number, toIndex: number) => {
+    setScenes((prev) => {
+      const next = [...prev];
+      const [removed] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, removed);
+      return next;
+    });
+    setSelectedScene(toIndex);
+  };
+
   const handleSave = async () => {
     if (!id || !user?.id) return;
     setSaving(true);
@@ -130,18 +141,20 @@ export default function QuickEdit() {
         }
       }
 
-      // Update camera actions in the stored metadata
-      const updatedCameraAngles = scenes.map((s) => s.cameraAction);
-      photosJson.cameraAngles = updatedCameraAngles;
+      // Persist the current scene order (imageUrls, cameraAngles, clipDurations)
+      photosJson.imageUrls = scenes.map((s) => s.imageUrl);
+      photosJson.cameraAngles = scenes.map((s) => s.cameraAction);
+      photosJson.clipDurations = scenes.map((s) => s.duration);
 
-      // Also update imageMetadata if it exists
+      // Also update imageMetadata if it exists — rebuild in scene order
       if (Array.isArray(photosJson.imageMetadata)) {
-        photosJson.imageMetadata = (photosJson.imageMetadata as Record<string, unknown>[]).map(
-          (meta, i) => ({
-            ...meta,
-            cameraAction: scenes[i]?.cameraAction || meta.cameraAction,
-          })
-        );
+        const oldMeta = photosJson.imageMetadata as Record<string, unknown>[];
+        // Match metadata by imageUrl to handle reordering
+        const metaByUrl = new Map(oldMeta.map((m) => [m.url as string, m]));
+        photosJson.imageMetadata = scenes.map((s, i) => {
+          const existing = metaByUrl.get(s.imageUrl) || oldMeta[i] || {};
+          return { ...existing, cameraAction: s.cameraAction, url: s.imageUrl };
+        });
       }
 
       const { error: updateErr } = await supabase
@@ -174,6 +187,28 @@ export default function QuickEdit() {
   }
 
   const currentScene = scenes[selectedScene];
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  const togglePlay = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      video.play();
+      setIsPlaying(true);
+    } else {
+      video.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const formatTime = (t: number) => {
+    const m = Math.floor(t / 60);
+    const s = Math.floor(t % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -209,24 +244,37 @@ export default function QuickEdit() {
           {scenes.map((scene, i) => (
             <button
               key={scene.id}
+              draggable
               onClick={() => setSelectedScene(i)}
+              onDragStart={() => setDraggedIndex(i)}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (draggedIndex !== null && draggedIndex !== i) {
+                  handleReorder(draggedIndex, i);
+                  setDraggedIndex(i);
+                }
+              }}
+              onDragEnd={() => setDraggedIndex(null)}
               className={`relative w-16 mx-auto mb-2 rounded-md overflow-hidden border-2 transition-all block ${
                 selectedScene === i
                   ? "border-primary ring-2 ring-primary/20"
                   : "border-transparent hover:border-border"
-              }`}
+              } ${draggedIndex === i ? "opacity-50 scale-95" : ""}`}
             >
               <div className="aspect-[9/16] bg-secondary">
                 {scene.imageUrl && (
                   <img
                     src={scene.imageUrl}
                     alt={`Scene ${i + 1}`}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover pointer-events-none"
                   />
                 )}
               </div>
               <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-black/50 flex items-center justify-center text-[9px] font-bold text-white">
                 {i + 1}
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 flex justify-center py-0.5 bg-black/40">
+                <GripVertical className="w-3 h-3 text-white/70" />
               </div>
             </button>
           ))}
@@ -236,7 +284,35 @@ export default function QuickEdit() {
         <div className="flex-1 flex flex-col items-center justify-center p-8">
           {/* Preview */}
           <div className="aspect-[9/16] w-[300px] bg-secondary rounded-xl overflow-hidden border border-border relative mb-6">
-            {currentScene?.imageUrl ? (
+            {videoUrl ? (
+              <>
+                <video
+                  ref={videoRef}
+                  src={videoUrl}
+                  className="w-full h-full object-cover"
+                  poster={currentScene?.imageUrl}
+                  onTimeUpdate={() => {
+                    if (videoRef.current) setCurrentTime(videoRef.current.currentTime);
+                  }}
+                  onLoadedMetadata={() => {
+                    if (videoRef.current) setDuration(videoRef.current.duration);
+                  }}
+                  onEnded={() => setIsPlaying(false)}
+                  playsInline
+                />
+                {/* Play overlay when paused */}
+                {!isPlaying && (
+                  <button
+                    onClick={togglePlay}
+                    className="absolute inset-0 flex items-center justify-center bg-black/20 transition-opacity hover:bg-black/30"
+                  >
+                    <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center">
+                      <Play className="w-6 h-6 text-black ml-0.5" />
+                    </div>
+                  </button>
+                )}
+              </>
+            ) : currentScene?.imageUrl ? (
               <img
                 src={currentScene.imageUrl}
                 alt="Preview"
@@ -250,11 +326,30 @@ export default function QuickEdit() {
             {/* Playback bar */}
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">
               <div className="flex items-center gap-2">
-                <Play className="w-4 h-4 text-white" />
-                <span className="text-xs text-white/80">0:00 / 0:15</span>
+                <button onClick={togglePlay} className="hover:opacity-80 transition-opacity">
+                  {isPlaying ? (
+                    <Pause className="w-4 h-4 text-white" />
+                  ) : (
+                    <Play className="w-4 h-4 text-white" />
+                  )}
+                </button>
+                <span className="text-xs text-white/80">
+                  {formatTime(currentTime)} / {formatTime(duration)}
+                </span>
               </div>
-              <div className="h-1 bg-white/30 rounded-full mt-1.5">
-                <div className="h-full w-0 bg-white rounded-full" />
+              <div
+                className="h-1 bg-white/30 rounded-full mt-1.5 cursor-pointer"
+                onClick={(e) => {
+                  if (!videoRef.current || !duration) return;
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const pct = (e.clientX - rect.left) / rect.width;
+                  videoRef.current.currentTime = pct * duration;
+                }}
+              >
+                <div
+                  className="h-full bg-white rounded-full transition-all"
+                  style={{ width: duration ? `${(currentTime / duration) * 100}%` : "0%" }}
+                />
               </div>
             </div>
           </div>
