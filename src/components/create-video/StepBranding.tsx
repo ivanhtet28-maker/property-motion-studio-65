@@ -1329,8 +1329,9 @@ export function StepBranding({
         {/* Preview area with pills */}
         <div className="flex gap-3">
           {/* Preview image/outro */}
+          <div className="flex-1 min-w-0">
           <div
-            className={`flex-1 bg-secondary rounded-xl overflow-hidden border border-border relative shadow-lg ${
+            className={`bg-secondary rounded-xl overflow-hidden border border-border relative shadow-lg ${
               orientation === "portrait" ? "aspect-[9/16] max-h-[520px]" : "aspect-video"
             }`}
           >
@@ -1351,6 +1352,7 @@ export function StepBranding({
               /* Outro preview */
               renderOutroPreview()
             )}
+          </div>
           </div>
 
           {/* Right-side Intro/Outro pills */}
