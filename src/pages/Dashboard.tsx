@@ -96,9 +96,10 @@ export default function Dashboard() {
           createdAt = createdDate.toLocaleDateString();
         }
 
-        // Map status
+        // Map status — treat any video with a video_url as ready,
+        // even if the status field wasn't updated (e.g. updateVideoRecord failed)
         let status: "ready" | "processing" | "failed";
-        if (v.status === "completed" || v.status === "done") {
+        if (v.video_url || v.status === "completed" || v.status === "done") {
           status = "ready";
         } else if (v.status === "failed") {
           status = "failed";
@@ -356,7 +357,10 @@ export default function Dashboard() {
                     {/* Processing indicator */}
                     {video.status === "processing" && (
                       <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                        <Video className="w-6 h-6 text-white animate-pulse" />
+                        <div className="text-center">
+                          <Video className="w-6 h-6 text-white animate-pulse mx-auto" />
+                          <span className="text-[10px] text-white/80 mt-1 block">Processing...</span>
+                        </div>
                       </div>
                     )}
 
@@ -388,7 +392,7 @@ export default function Dashboard() {
                     </h3>
                     <p className="text-xs text-muted-foreground mt-0.5">Edited {video.createdAt}</p>
 
-                    {/* Edit / Share buttons */}
+                    {/* Edit / Share buttons — show for ready videos */}
                     {video.status === "ready" && (
                       <div className="flex items-center gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
@@ -422,6 +426,19 @@ export default function Dashboard() {
                         <button className="flex items-center gap-1 px-3 py-1.5 border border-border rounded-lg text-xs font-medium text-foreground hover:bg-accent transition-colors">
                           Share
                           <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Quick Edit for processing videos — clips may be available before final stitch */}
+                    {video.status === "processing" && (
+                      <div className="flex items-center gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => navigate(`/quick-edit/${video.id}`)}
+                          className="flex items-center gap-1 px-3 py-1.5 border border-border rounded-lg text-xs font-medium text-foreground hover:bg-accent transition-colors"
+                        >
+                          <Zap className="w-3 h-3" />
+                          Quick Edit
                         </button>
                       </div>
                     )}
