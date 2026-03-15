@@ -35,7 +35,7 @@ const DESIGN_STYLES = [
     description: "Clean, sleek, contemporary", 
     gradient: "from-gray-100 to-gray-900", 
     emoji: "🏢",
-    imageUrl: "/staging-styles/modern.jpg" // Optional: stock/AI-generated image
+    imageUrl: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=500&h=400&fit=crop"
   },
   { 
     value: "SCANDINAVIAN", 
@@ -43,7 +43,7 @@ const DESIGN_STYLES = [
     description: "Light, minimal, cozy", 
     gradient: "from-blue-50 to-blue-200", 
     emoji: "❄️",
-    imageUrl: "/staging-styles/scandinavian.jpg"
+    imageUrl: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=500&h=400&fit=crop"
   },
   { 
     value: "LUXEMODERN", 
@@ -51,7 +51,7 @@ const DESIGN_STYLES = [
     description: "Elegant, premium finishes", 
     gradient: "from-yellow-50 to-amber-700", 
     emoji: "✨",
-    imageUrl: "/staging-styles/luxury-modern.jpg"
+    imageUrl: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500&h=400&fit=crop"
   },
   { 
     value: "FARMHOUSE", 
@@ -59,7 +59,7 @@ const DESIGN_STYLES = [
     description: "Rustic, warm, homey", 
     gradient: "from-yellow-100 to-amber-800", 
     emoji: "🌾",
-    imageUrl: "/staging-styles/farmhouse.jpg"
+    imageUrl: "https://images.unsplash.com/photo-1578500494198-246f612d03b3?w=500&h=400&fit=crop"
   },
   { 
     value: "MINIMALIST", 
@@ -67,7 +67,7 @@ const DESIGN_STYLES = [
     description: "Simple, uncluttered, calm", 
     gradient: "from-white to-gray-400", 
     emoji: "⬜",
-    imageUrl: "/staging-styles/minimalist.jpg"
+    imageUrl: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=500&h=400&fit=crop"
   },
   { 
     value: "INDUSTRIAL", 
@@ -75,7 +75,7 @@ const DESIGN_STYLES = [
     description: "Raw, exposed, edgy", 
     gradient: "from-gray-700 to-gray-900", 
     emoji: "🏭",
-    imageUrl: "/staging-styles/industrial.jpg"
+    imageUrl: "https://images.unsplash.com/photo-1567767292278-a4f21aa2d36d?w=500&h=400&fit=crop"
   },
   { 
     value: "COASTAL", 
@@ -83,7 +83,7 @@ const DESIGN_STYLES = [
     description: "Breezy, beach, relaxed", 
     gradient: "from-blue-100 to-blue-300", 
     emoji: "🌊",
-    imageUrl: "/staging-styles/coastal.jpg"
+    imageUrl: "https://images.unsplash.com/photo-1513694712202-7900aea1fc97?w=500&h=400&fit=crop"
   },
   { 
     value: "ARTDECO", 
@@ -91,7 +91,7 @@ const DESIGN_STYLES = [
     description: "Glamorous, geometric, bold", 
     gradient: "from-gray-900 to-yellow-600", 
     emoji: "💎",
-    imageUrl: "/staging-styles/artdeco.jpg"
+    imageUrl: "https://images.unsplash.com/photo-1549887534-2e3eef43c859?w=500&h=400&fit=crop"
   },
   { 
     value: "BOHO", 
@@ -99,7 +99,7 @@ const DESIGN_STYLES = [
     description: "Eclectic, artistic, free", 
     gradient: "from-orange-200 to-orange-900", 
     emoji: "🎨",
-    imageUrl: "/staging-styles/boho.jpg"
+    imageUrl: "https://images.unsplash.com/photo-1594736797933-d0501ba2fe65?w=500&h=400&fit=crop"
   },
   { 
     value: "CONTEMPORARY", 
@@ -107,7 +107,7 @@ const DESIGN_STYLES = [
     description: "Current, trendy, stylish", 
     gradient: "from-yellow-400 to-gray-800", 
     emoji: "🎭",
-    imageUrl: "/staging-styles/contemporary.jpg"
+    imageUrl: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=500&h=400&fit=crop"
   },
 ];
 
