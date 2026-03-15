@@ -339,6 +339,25 @@ export default function CreateVideo() {
           // All clips resolved — call stitch-video directly from browser
           // (bypasses internal edge-function-to-function gateway 401 issue)
           setGeneratingProgress(87);
+
+          // Save individual clip URLs to the clips column so Quick Edit can play them
+          if (videoId && Array.isArray(data.finalVideoUrls)) {
+            const clipRecords = (data.finalVideoUrls as string[]).map((url: string, i: number) => ({
+              index: i,
+              url,
+              duration: clipDurations?.[i] || 5,
+              camera_angle: cameraAngles?.[i] || "push-in",
+              image_url: imageUrls?.[i] || "",
+            }));
+            supabase
+              .from("videos")
+              .update({ clips: clipRecords })
+              .eq("id", videoId)
+              .then(({ error: clipErr }) => {
+                if (clipErr) console.error("Failed to save clips to DB:", clipErr);
+              });
+          }
+
           try {
             const stitchResult = await callStitchVideo<{ success: boolean; jobId?: string; error?: string }>({
               videoUrls: data.finalVideoUrls as string[],

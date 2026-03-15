@@ -98,7 +98,7 @@ export default function QuickEdit() {
         const photos: string[] = [];
         let cameraAngles: string[] = [];
         let clipDurations: number[] = [];
-        let clips: { url?: string }[] = [];
+        let clips: { url?: string; index?: number }[] = [];
         if (data.photos) {
           try {
             const parsed =
@@ -110,20 +110,30 @@ export default function QuickEdit() {
               cameraAngles = parsed.cameraAngles;
             if (Array.isArray(parsed.clipDurations))
               clipDurations = parsed.clipDurations;
-            if (Array.isArray(parsed.clips))
-              clips = parsed.clips;
             if (parsed.layout) setSelectedLayout(parsed.layout);
           } catch {
             // photos field might be array of URLs directly
           }
         }
 
+        // Clip URLs are stored in a separate `clips` column, not inside `photos`
+        if (Array.isArray(data.clips)) {
+          clips = data.clips;
+        }
+
         if (photos.length > 0) {
+          // Build a map of clip index -> url for quick lookup
+          const clipMap = new Map<number, string>();
+          clips.forEach((c) => {
+            const idx = c.index ?? clips.indexOf(c);
+            if (c.url) clipMap.set(idx, c.url);
+          });
+
           setScenes(
             photos.map((url, i) => ({
               id: `scene-${i}`,
               imageUrl: url,
-              clipUrl: clips[i]?.url || undefined,
+              clipUrl: clipMap.get(i) || undefined,
               cameraAction: (cameraAngles[i] || "push-in") as CameraAction,
               duration: clipDurations[i] || 5,
             }))
