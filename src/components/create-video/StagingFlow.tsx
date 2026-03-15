@@ -562,19 +562,30 @@ export default function StagingFlow() {
           {/* Design Style */}
           <div className="space-y-3">
             <label className="text-sm font-medium text-foreground">Design Style</label>
-            <div className="flex flex-wrap gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
               {DESIGN_STYLES.map((style) => (
                 <button
                   key={style.value}
                   onClick={() => staging.setDesignStyle(style.value)}
-                  className={`flex flex-col items-center gap-2 rounded-xl border-2 transition-all overflow-hidden ${
+                  className={`rounded-xl border-2 transition-all overflow-hidden ${
                     staging.designStyle === style.value
                       ? "border-primary ring-2 ring-primary/20"
                       : "border-border hover:border-primary/30"
                   }`}
                 >
-                  <div className={`w-24 h-16 bg-gradient-to-br ${style.color}`} />
-                  <span className="text-xs font-medium text-foreground pb-2">{style.label}</span>
+                  {style.imageUrl ? (
+                    <div className="h-20 overflow-hidden bg-secondary">
+                      <img src={style.imageUrl} alt={style.label} className="w-full h-full object-cover" loading="lazy" />
+                    </div>
+                  ) : (
+                    <div className={`h-20 bg-gradient-to-br ${style.color}`} />
+                  )}
+                  <div className="p-2 bg-background">
+                    <div className="text-xs font-medium text-foreground">{style.label}</div>
+                    {style.description && (
+                      <div className="text-[10px] text-muted-foreground">{style.description}</div>
+                    )}
+                  </div>
                 </button>
               ))}
             </div>
@@ -1047,14 +1058,22 @@ export default function StagingFlow() {
               <button
                 key={style.value}
                 onClick={() => handleRestageStyle(style.value)}
-                className={`flex flex-col items-center gap-2 rounded-xl border-2 transition-all overflow-hidden ${
+                className={`rounded-xl border-2 transition-all overflow-hidden ${
                   staging.designStyle === style.value
                     ? "border-primary ring-2 ring-primary/20"
                     : "border-border hover:border-primary/30"
                 }`}
               >
-                <div className={`w-full h-12 bg-gradient-to-br ${style.color}`} />
-                <span className="text-xs font-medium text-foreground pb-2">{style.label}</span>
+                {style.imageUrl ? (
+                  <div className="h-16 overflow-hidden bg-secondary">
+                    <img src={style.imageUrl} alt={style.label} className="w-full h-full object-cover" loading="lazy" />
+                  </div>
+                ) : (
+                  <div className={`h-12 bg-gradient-to-br ${style.color}`} />
+                )}
+                <div className="p-1.5 bg-background text-center">
+                  <span className="text-xs font-medium text-foreground">{style.label}</span>
+                </div>
               </button>
             ))}
           </div>
