@@ -72,6 +72,7 @@ export default function QuickEdit() {
 
   // Video playback
   const [clipIsPlaying, setClipIsPlaying] = useState(false);
+  const [clipError, setClipError] = useState(false);
   const clipVideoRef = useRef<HTMLVideoElement>(null);
 
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -216,6 +217,7 @@ export default function QuickEdit() {
     }
     // Reset playback when switching scenes
     setClipIsPlaying(false);
+    setClipError(false);
     if (clipVideoRef.current) {
       clipVideoRef.current.pause();
       clipVideoRef.current.currentTime = 0;
@@ -373,8 +375,12 @@ export default function QuickEdit() {
     const video = clipVideoRef.current;
     if (!video) return;
     if (video.paused) {
-      video.play();
-      setClipIsPlaying(true);
+      video.play().then(() => {
+        setClipIsPlaying(true);
+      }).catch((err) => {
+        console.error("Play failed:", err);
+        setClipIsPlaying(false);
+      });
     } else {
       video.pause();
       setClipIsPlaying(false);
@@ -504,7 +510,7 @@ export default function QuickEdit() {
                   {activeClipUrl ? "Generated Clip" : "Original Photo"}
                 </p>
                 <div className="aspect-[9/16] w-[200px] sm:w-[260px] bg-secondary rounded-xl overflow-hidden border border-border relative">
-                  {activeClipUrl ? (
+                  {activeClipUrl && !clipError ? (
                     <>
                       <video
                         ref={clipVideoRef}
@@ -513,8 +519,14 @@ export default function QuickEdit() {
                         className="w-full h-full object-cover"
                         poster={currentScene?.imageUrl}
                         loop
+                        muted
                         playsInline
-                        onEnded={() => setClipIsPlaying(false)}
+                        crossOrigin="anonymous"
+                        onError={() => {
+                          console.error("Clip failed to load:", activeClipUrl);
+                          setClipError(true);
+                        }}
+                        onLoadedData={() => setClipError(false)}
                       />
                       {/* Play/pause overlay */}
                       <button
