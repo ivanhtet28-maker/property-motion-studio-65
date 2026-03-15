@@ -4,13 +4,15 @@ import {
   ArrowLeft,
   Camera,
   Play,
+  Pause,
   Check,
   Loader2,
   Save,
   RefreshCw,
   ChevronRight,
-  Sparkles,
+  ChevronLeft,
   GripVertical,
+  Layout,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -29,6 +31,21 @@ interface SceneData {
   cameraAction: CameraAction;
   duration: number;
 }
+
+// Layout options (same as VideoTemplateSelector)
+const LAYOUT_OPTIONS = [
+  { id: "bold-banner", name: "Bold Banner", description: "Bottom banner with price and details" },
+  { id: "warm-elegance", name: "Warm Elegance", description: "Elegant serif with dark vignette" },
+] as const;
+
+// Template options (same as VideoTemplateSelector)
+const TEMPLATE_OPTIONS = [
+  { id: "just-listed", name: "Just Listed" },
+  { id: "minimalist", name: "Minimalist" },
+  { id: "cinematic", name: "Cinematic" },
+  { id: "luxury", name: "Luxury" },
+  { id: "real-estate-pro", name: "Real Estate Pro" },
+] as const;
 
 export default function QuickEdit() {
   const { id } = useParams<{ id: string }>();
@@ -49,6 +66,14 @@ export default function QuickEdit() {
   const [newClipUrl, setNewClipUrl] = useState<string | null>(null);
   const [regeneratedClips, setRegeneratedClips] = useState<Record<number, string>>({});
 
+  // Template/layout state
+  const [selectedTemplate, setSelectedTemplate] = useState("just-listed");
+  const [selectedLayout, setSelectedLayout] = useState("bold-banner");
+
+  // Video playback
+  const [clipIsPlaying, setClipIsPlaying] = useState(false);
+  const clipVideoRef = useRef<HTMLVideoElement>(null);
+
   const timelineRef = useRef<HTMLDivElement>(null);
 
   // Load video data
@@ -67,9 +92,13 @@ export default function QuickEdit() {
 
         setVideoTitle(data.property_address || "Untitled video");
 
+        // Load template/layout from DB
+        if (data.template_used) setSelectedTemplate(data.template_used);
+
         const photos: string[] = [];
         let cameraAngles: string[] = [];
         let clipDurations: number[] = [];
+        let clips: { url?: string; index?: number }[] = [];
         if (data.photos) {
           try {
             const parsed =
@@ -81,21 +110,34 @@ export default function QuickEdit() {
               cameraAngles = parsed.cameraAngles;
             if (Array.isArray(parsed.clipDurations))
               clipDurations = parsed.clipDurations;
+            if (parsed.layout) setSelectedLayout(parsed.layout);
           } catch {
             // photos field might be array of URLs directly
           }
         }
 
+        // Clip URLs are stored in a separate `clips` column, not inside `photos`
+        if (Array.isArray(data.clips)) {
+          clips = data.clips;
+        }
+
         if (photos.length > 0) {
+          // Build a map of clip index -> url for quick lookup
+          const clipMap = new Map<number, string>();
+          clips.forEach((c) => {
+            const idx = c.index ?? clips.indexOf(c);
+            if (c.url) clipMap.set(idx, c.url);
+          });
+
           setScenes(
             photos.map((url, i) => ({
               id: `scene-${i}`,
               imageUrl: url,
+              clipUrl: clipMap.get(i) || undefined,
               cameraAction: (cameraAngles[i] || "push-in") as CameraAction,
               duration: clipDurations[i] || 5,
             }))
           );
-          // Pre-select the first scene's camera angle
           if (cameraAngles[0]) {
             setSelectedCameraAngle(cameraAngles[0] as CameraAction);
           }
@@ -118,12 +160,18 @@ export default function QuickEdit() {
     })();
   }, [id, user]);
 
-  // When selected scene changes, sync camera angle selector
+  // When selected scene changes, sync camera angle selector and pause video
   useEffect(() => {
     const scene = scenes[selectedScene];
     if (scene) {
       setSelectedCameraAngle(scene.cameraAction);
       setNewClipUrl(regeneratedClips[selectedScene] || null);
+    }
+    // Reset playback when switching scenes
+    setClipIsPlaying(false);
+    if (clipVideoRef.current) {
+      clipVideoRef.current.pause();
+      clipVideoRef.current.currentTime = 0;
     }
   }, [selectedScene, scenes, regeneratedClips]);
 
@@ -158,6 +206,12 @@ export default function QuickEdit() {
           ...prev,
           [selectedScene]: result.clipUrl,
         }));
+        // Also update the scene's clipUrl in state
+        setScenes((prev) =>
+          prev.map((s, i) =>
+            i === selectedScene ? { ...s, clipUrl: result.clipUrl } : s
+          )
+        );
         toast({
           title: "Clip regenerated",
           description: `Scene ${selectedScene + 1} has a new clip ready to preview.`,
@@ -214,15 +268,15 @@ export default function QuickEdit() {
         }
       }
 
-      // Persist the current scene order (imageUrls, cameraAngles, clipDurations)
+      // Persist the current scene order
       photosJson.imageUrls = scenes.map((s) => s.imageUrl);
       photosJson.cameraAngles = scenes.map((s) => s.cameraAction);
       photosJson.clipDurations = scenes.map((s) => s.duration);
+      photosJson.layout = selectedLayout;
 
-      // Also update imageMetadata if it exists — rebuild in scene order
+      // Update imageMetadata if it exists
       if (Array.isArray(photosJson.imageMetadata)) {
         const oldMeta = photosJson.imageMetadata as Record<string, unknown>[];
-        // Match metadata by imageUrl to handle reordering
         const metaByUrl = new Map(oldMeta.map((m) => [m.url as string, m]));
         photosJson.imageMetadata = scenes.map((s, i) => {
           const existing = metaByUrl.get(s.imageUrl) || oldMeta[i] || {};
@@ -232,19 +286,21 @@ export default function QuickEdit() {
 
       const { error: updateErr } = await supabase
         .from("videos")
-        .update({ photos: JSON.stringify(photosJson) })
+        .update({
+          photos: JSON.stringify(photosJson),
+          template_used: selectedTemplate,
+        })
         .eq("id", id)
         .eq("user_id", user.id);
 
       if (updateErr) throw updateErr;
 
-      // Clear regenerated clips tracker
       setRegeneratedClips({});
       setNewClipUrl(null);
 
       toast({
-        title: "Clip updated!",
-        description: "Your changes have been saved successfully.",
+        title: "Changes saved!",
+        description: "Your video has been updated successfully.",
       });
     } catch (err) {
       console.error("Failed to save changes:", err);
@@ -266,6 +322,18 @@ export default function QuickEdit() {
     setSelectedCameraAngle(action);
   };
 
+  const toggleClipPlay = () => {
+    const video = clipVideoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      video.play();
+      setClipIsPlaying(true);
+    } else {
+      video.pause();
+      setClipIsPlaying(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center bg-background">
@@ -276,6 +344,8 @@ export default function QuickEdit() {
 
   const currentScene = scenes[selectedScene];
   const hasRegeneratedClip = regeneratedClips[selectedScene] !== undefined;
+  // The clip to show: regenerated > existing clip > null
+  const activeClipUrl = regeneratedClips[selectedScene] || currentScene?.clipUrl || null;
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -313,7 +383,7 @@ export default function QuickEdit() {
       </header>
 
       <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
-        {/* Timeline — horizontal clip cards */}
+        {/* Timeline + Preview */}
         <div className="lg:flex-1 flex flex-col">
           {/* Clip Timeline */}
           <div className="border-b border-border bg-card/50 p-4">
@@ -356,17 +426,14 @@ export default function QuickEdit() {
                         />
                       )}
                     </div>
-                    {/* Clip number badge */}
                     <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center text-[10px] font-bold text-white">
                       {i + 1}
                     </div>
-                    {/* Regenerated indicator */}
                     {wasRegenerated && (
                       <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
                         <Check className="w-3 h-3 text-white" />
                       </div>
                     )}
-                    {/* Drag handle + camera angle label */}
                     <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-1.5 py-1 flex items-center gap-1">
                       <GripVertical className="w-3 h-3 text-white/50 flex-shrink-0" />
                       <span className="text-[9px] text-white/90 font-medium truncate">
@@ -381,16 +448,48 @@ export default function QuickEdit() {
             </div>
           </div>
 
-          {/* Center preview */}
+          {/* Center preview — show clip video or original photo */}
           <div className="flex-1 flex items-center justify-center p-4 sm:p-8">
             <div className="flex flex-col sm:flex-row gap-6 items-center">
-              {/* Original image */}
+              {/* Main preview: Video clip if available, otherwise static image */}
               <div className="text-center">
                 <p className="text-xs text-muted-foreground mb-2 font-medium">
-                  Original Photo
+                  {activeClipUrl ? "Generated Clip" : "Original Photo"}
                 </p>
-                <div className="aspect-[9/16] w-[180px] sm:w-[220px] bg-secondary rounded-xl overflow-hidden border border-border">
-                  {currentScene?.imageUrl ? (
+                <div className="aspect-[9/16] w-[200px] sm:w-[260px] bg-secondary rounded-xl overflow-hidden border border-border relative">
+                  {activeClipUrl ? (
+                    <>
+                      <video
+                        ref={clipVideoRef}
+                        key={activeClipUrl}
+                        src={activeClipUrl}
+                        className="w-full h-full object-cover"
+                        poster={currentScene?.imageUrl}
+                        loop
+                        playsInline
+                        onEnded={() => setClipIsPlaying(false)}
+                      />
+                      {/* Play/pause overlay */}
+                      <button
+                        onClick={toggleClipPlay}
+                        className="absolute inset-0 flex items-center justify-center bg-black/10 hover:bg-black/20 transition-opacity"
+                      >
+                        {!clipIsPlaying && (
+                          <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                            <Play className="w-5 h-5 text-black ml-0.5" />
+                          </div>
+                        )}
+                      </button>
+                      {clipIsPlaying && (
+                        <button
+                          onClick={toggleClipPlay}
+                          className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-colors"
+                        >
+                          <Pause className="w-3.5 h-3.5 text-white" />
+                        </button>
+                      )}
+                    </>
+                  ) : currentScene?.imageUrl ? (
                     <img
                       src={currentScene.imageUrl}
                       alt="Original"
@@ -404,32 +503,13 @@ export default function QuickEdit() {
                 </div>
               </div>
 
-              {/* New clip preview (if regenerated) */}
-              {newClipUrl && (
-                <div className="text-center">
-                  <p className="text-xs text-muted-foreground mb-2 font-medium">
-                    New Clip Preview
-                  </p>
-                  <div className="aspect-[9/16] w-[180px] sm:w-[220px] bg-secondary rounded-xl overflow-hidden border-2 border-green-500/50">
-                    <video
-                      src={newClipUrl}
-                      className="w-full h-full object-cover"
-                      autoPlay
-                      loop
-                      muted
-                      playsInline
-                    />
-                  </div>
-                </div>
-              )}
-
               {/* Regeneration spinner */}
               {regenerating && (
                 <div className="text-center">
                   <p className="text-xs text-muted-foreground mb-2 font-medium">
                     Generating...
                   </p>
-                  <div className="aspect-[9/16] w-[180px] sm:w-[220px] bg-secondary rounded-xl overflow-hidden border border-border flex items-center justify-center">
+                  <div className="aspect-[9/16] w-[200px] sm:w-[260px] bg-secondary rounded-xl overflow-hidden border border-border flex items-center justify-center">
                     <div className="text-center">
                       <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
                       <p className="text-xs text-muted-foreground">
@@ -446,7 +526,7 @@ export default function QuickEdit() {
           </div>
         </div>
 
-        {/* Right panel: Selected Clip Editor */}
+        {/* Right panel: Editor */}
         <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-border bg-card overflow-y-auto p-5">
           <div className="flex items-center gap-2 mb-4">
             <Camera className="w-4 h-4 text-primary" />
@@ -458,9 +538,7 @@ export default function QuickEdit() {
           {/* Current info */}
           <div className="bg-secondary/50 rounded-lg p-3 mb-4">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-muted-foreground">
-                Current camera
-              </span>
+              <span className="text-xs text-muted-foreground">Current camera</span>
               <span className="text-xs font-medium text-foreground">
                 {CAMERA_ACTION_OPTIONS.find(
                   (o) => o.value === currentScene?.cameraAction
@@ -469,9 +547,7 @@ export default function QuickEdit() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">Duration</span>
-              <span className="text-xs font-medium text-foreground">
-                5 seconds
-              </span>
+              <span className="text-xs font-medium text-foreground">5 seconds</span>
             </div>
           </div>
 
@@ -489,9 +565,7 @@ export default function QuickEdit() {
                 return (
                   <button
                     key={option.value}
-                    onClick={() =>
-                      updateSceneMotion(selectedScene, option.value)
-                    }
+                    onClick={() => updateSceneMotion(selectedScene, option.value)}
                     disabled={regenerating}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all text-left ${
                       isSelected
@@ -513,6 +587,64 @@ export default function QuickEdit() {
             </p>
           </div>
 
+          {/* Template & Layout selector */}
+          <div className="mb-4 border-t border-border pt-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Layout className="w-4 h-4 text-primary" />
+              <label className="text-xs font-semibold text-foreground">
+                Template & Layout
+              </label>
+            </div>
+
+            {/* Template selector */}
+            <div className="mb-3">
+              <p className="text-[11px] text-muted-foreground mb-2">Template</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {TEMPLATE_OPTIONS.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setSelectedTemplate(t.id)}
+                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all text-left ${
+                      selectedTemplate === t.id
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-foreground hover:bg-accent"
+                    }`}
+                  >
+                    {t.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Layout selector */}
+            <div>
+              <p className="text-[11px] text-muted-foreground mb-2">Layout</p>
+              <div className="space-y-1.5">
+                {LAYOUT_OPTIONS.map((l) => (
+                  <button
+                    key={l.id}
+                    onClick={() => setSelectedLayout(l.id)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all text-left ${
+                      selectedLayout === l.id
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-foreground hover:bg-accent"
+                    }`}
+                  >
+                    <div>
+                      <span className="text-xs font-medium">{l.name}</span>
+                      <p className={`text-[10px] mt-0.5 ${
+                        selectedLayout === l.id ? "text-primary-foreground/70" : "text-muted-foreground"
+                      }`}>
+                        {l.description}
+                      </p>
+                    </div>
+                    {selectedLayout === l.id && <Check className="w-3 h-3 flex-shrink-0" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
           {/* Action buttons */}
           <div className="space-y-2 border-t border-border pt-4">
             <Button
@@ -529,34 +661,23 @@ export default function QuickEdit() {
               {regenerating ? "Generating..." : "Re-Generate This Clip"}
             </Button>
 
-            {hasRegeneratedClip && (
-              <Button
-                variant="default"
-                className="w-full"
-                onClick={handleApplyChanges}
-                disabled={saving || regenerating}
-              >
-                {saving ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                ) : (
-                  <Save className="w-4 h-4 mr-2" />
-                )}
-                {saving ? "Saving..." : "Apply Changes"}
-              </Button>
-            )}
+            <Button
+              variant="default"
+              className="w-full"
+              onClick={handleApplyChanges}
+              disabled={saving || regenerating}
+            >
+              {saving ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              {saving ? "Saving..." : "Save All Changes"}
+            </Button>
           </div>
 
           {/* Navigation */}
-          <div className="mt-6 pt-4 border-t border-border space-y-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={() => navigate(`/studio/${id}`)}
-            >
-              <Play className="w-3.5 h-3.5 mr-2" />
-              Back to Studio
-            </Button>
+          <div className="mt-6 pt-4 border-t border-border">
             <Button
               variant="ghost"
               size="sm"

@@ -1,44 +1,14 @@
 /// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
-
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { requireAuth } from "../_shared/auth.ts";
 
 const RUNWAY_API_KEY = Deno.env.get("RUNWAY_API_KEY");
 const RUNWAY_API_URL = "https://api.dev.runwayml.com/v1/image_to_video";
-const RUNWAY_TASK_URL = "https://api.dev.runwayml.com/v1/tasks";
 const RUNWAY_VERSION = "2024-11-06";
 
-// ── Retry wrapper (matches generate-runway-batch pattern) ────────────────
-async function fetchWithRetry(
-  url: string,
-  options: RequestInit,
-  retries = 2,
-  attempt = 1,
-): Promise<Response> {
-  try {
-    const response = await fetch(url, options);
-    if (response.status === 429 && retries > 0) {
-      const waitSec = 15 * Math.pow(2, attempt - 1);
-      console.warn(`Rate limited (429), waiting ${waitSec}s before retry (${retries} retries left)...`);
-      await new Promise((r) => setTimeout(r, waitSec * 1000));
-      return fetchWithRetry(url, options, retries - 1, attempt + 1);
-    }
-    if (response.status >= 500 && retries > 0) {
-      console.warn(`Server error ${response.status}, retrying in 2s (${retries} retries left)...`);
-      await new Promise((r) => setTimeout(r, 2000));
-      return fetchWithRetry(url, options, retries - 1, attempt + 1);
-    }
-    return response;
-  } catch (err) {
-    if (retries === 0) throw err;
-    console.warn(`Fetch failed, retrying in 2s (${retries} retries left)...`);
-    await new Promise((r) => setTimeout(r, 2000));
-    return fetchWithRetry(url, options, retries - 1, attempt + 1);
-  }
-}
+// ── Prompt-driven camera control (same as generate-runway-batch) ──────────
 
-// ── Camera motion prompts (identical to generate-runway-batch) ───────────
 const STABILITY_SUFFIX =
   "Maintain all visible surfaces, furniture, and architectural geometry exactly as shown. " +
   "Preserve the existing lighting and color temperature throughout. " +
@@ -83,82 +53,56 @@ const ORBIT_PORTRAIT_PROMPT =
   "Ease in from stillness, constant arc speed, ease out to stillness. Noticeable parallax shift between foreground and background. " +
   STABILITY_SUFFIX;
 
-function composePrompt(cameraAction: string, outputFormat?: string): string {
-  if (cameraAction === "orbit" && outputFormat !== "landscape") {
+function getPrompt(cameraAngle: string, aspectRatio?: string): string {
+  if (cameraAngle === "orbit" && aspectRatio !== "16:9") {
     return ORBIT_PORTRAIT_PROMPT;
   }
-  return MOTION_MAP[cameraAction] || MOTION_MAP["push-in"];
+  return MOTION_MAP[cameraAngle] || MOTION_MAP["push-in"];
 }
 
-// ── Poll Runway until terminal state ─────────────────────────────────────
-async function pollRunwayTask(taskId: string): Promise<{ status: string; videoUrl: string | null }> {
-  const maxAttempts = 60; // ~5 minutes at 5s intervals
-  const pollInterval = 5000;
+// ── Clip interface ────────────────────────────────────────────────────────
 
-  for (let i = 0; i < maxAttempts; i++) {
-    const response = await fetch(`${RUNWAY_TASK_URL}/${taskId}`, {
-      headers: {
-        Authorization: `Bearer ${RUNWAY_API_KEY}`,
-        "X-Runway-Version": RUNWAY_VERSION,
-      },
-    });
-
-    if (!response.ok) {
-      console.error(`Runway poll error: ${response.status}`);
-      await new Promise((r) => setTimeout(r, pollInterval));
-      continue;
-    }
-
-    const data = await response.json();
-    console.log(`Poll ${i + 1}: status=${data.status}`);
-
-    if (data.status === "SUCCEEDED") {
-      return { status: "completed", videoUrl: data.output?.[0] || null };
-    }
-    if (data.status === "FAILED") {
-      return { status: "failed", videoUrl: null };
-    }
-
-    // PENDING, THROTTLED, RUNNING → keep polling
-    await new Promise((r) => setTimeout(r, pollInterval));
-  }
-
-  return { status: "failed", videoUrl: null };
+interface ClipRecord {
+  index: number;
+  url: string;
+  duration: number;
+  camera_angle: string;
+  image_url: string;
+  generation_id?: string;
 }
 
-// ── Main handler ─────────────────────────────────────────────────────────
+// ── Edge function ─────────────────────────────────────────────────────────
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { status: 200, headers: corsHeaders });
   }
 
   try {
-    // 1. Auth check
     const { user, error: authErr } = await requireAuth(req);
     if (authErr) return authErr;
 
-    const { videoId, clipIndex, imageUrl, cameraAngle } = await req.json();
+    const { videoId, clipIndex, imageUrl, cameraAngle, duration } = await req.json();
 
-    // 2. Validate input
-    if (!videoId || typeof clipIndex !== "number" || !imageUrl) {
-      return new Response(
-        JSON.stringify({ error: "videoId, clipIndex, and imageUrl are required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+    // ── Validate inputs ───────────────────────────────────────────────
+    if (!videoId) throw new Error("videoId is required");
+    if (clipIndex === undefined || clipIndex === null) throw new Error("clipIndex is required");
+    if (!imageUrl) throw new Error("imageUrl is required");
+    if (!RUNWAY_API_KEY) throw new Error("RUNWAY_API_KEY not configured");
 
-    if (!RUNWAY_API_KEY) {
-      throw new Error("RUNWAY_API_KEY not configured");
-    }
+    const effectiveAngle = (cameraAngle && MOTION_MAP[cameraAngle]) ? cameraAngle : "push-in";
+    const effectiveDuration = Math.min(Math.max(duration || 5, 2), 5); // 2-5s, Runway clips always 5s generation
 
-    // 3. Verify user owns the video
+    console.log(`=== regenerate-clip: video=${videoId}, clip=${clipIndex}, angle=${effectiveAngle} ===`);
+
+    // ── Fetch video record ────────────────────────────────────────────
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { data: video, error: fetchErr } = await supabase
       .from("videos")
-      .select("*")
+      .select("id, user_id, clips, aspect_ratio, status")
       .eq("id", videoId)
       .single();
 
@@ -169,132 +113,139 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check ownership (skip for service-role calls)
-    if (user!.id !== "service-role" && video.user_id !== user!.id) {
+    if (video.user_id !== user!.id) {
       return new Response(
-        JSON.stringify({ error: "You do not own this video" }),
+        JSON.stringify({ error: "Not authorized" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    // Parse photos JSONB to validate clipIndex
-    let photosJson: Record<string, unknown> = {};
-    if (video.photos) {
-      try {
-        photosJson =
-          typeof video.photos === "string"
-            ? JSON.parse(video.photos)
-            : video.photos;
-      } catch {
-        photosJson = {};
-      }
-    }
+    // ── Submit to Runway Gen4 Turbo ───────────────────────────────────
+    const ratio = video.aspect_ratio === "16:9" ? "1280:720" : "720:1280";
+    const promptText = getPrompt(effectiveAngle, video.aspect_ratio);
 
-    const imageUrls = (photosJson.imageUrls as string[]) || [];
-    if (clipIndex < 0 || clipIndex >= imageUrls.length) {
-      return new Response(
-        JSON.stringify({ error: `Invalid clipIndex: ${clipIndex}. Video has ${imageUrls.length} clips.` }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+    console.log(`Submitting to Runway: angle=${effectiveAngle}, ratio=${ratio}`);
 
-    // 4. Determine output format from existing metadata
-    const outputFormat = photosJson.outputFormat as string | undefined;
-    const ratio = outputFormat === "landscape" ? "1280:720" : "720:1280";
-
-    const effectiveAction =
-      cameraAngle && MOTION_MAP[cameraAngle] ? cameraAngle : "push-in";
-    const promptText = composePrompt(effectiveAction, outputFormat);
-
-    console.log(`=== REGENERATE CLIP ${clipIndex} ===`);
-    console.log(`  Video: ${videoId}`);
-    console.log(`  Image: ${imageUrl}`);
-    console.log(`  Camera: ${effectiveAction}`);
-    console.log(`  Ratio: ${ratio}`);
-
-    // 5. Submit to Runway Gen4 Turbo
-    const requestBody = {
-      model: "gen4_turbo",
-      promptImage: imageUrl,
-      promptText: promptText,
-      ratio: ratio,
-      duration: 5, // Always 5s
-    };
-
-    const response = await fetchWithRetry(RUNWAY_API_URL, {
+    const runwayRes = await fetch(RUNWAY_API_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${RUNWAY_API_KEY}`,
+        "Authorization": `Bearer ${RUNWAY_API_KEY}`,
         "Content-Type": "application/json",
         "X-Runway-Version": RUNWAY_VERSION,
       },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify({
+        model: "gen4_turbo",
+        promptImage: imageUrl,
+        promptText: promptText,
+        ratio: ratio,
+        duration: 5, // Always 5s for best quality
+      }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Runway API error: ${response.status} — ${errorText}`);
-      return new Response(
-        JSON.stringify({ error: `Runway API error: ${response.status}` }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    if (!runwayRes.ok) {
+      const errText = await runwayRes.text();
+      console.error(`Runway API error: ${runwayRes.status}`, errText);
+      throw new Error(`Runway API ${runwayRes.status}: ${errText}`);
+    }
+
+    const runwayData = await runwayRes.json();
+    const generationId = runwayData.id;
+
+    if (!generationId) {
+      throw new Error("Runway returned no generation ID");
+    }
+
+    console.log(`Runway generation started: ${generationId}`);
+
+    // ── Poll for completion (max 60 polls × 2s = ~2 min) ─────────────
+    let clipUrl: string | null = null;
+    let pollCount = 0;
+    const MAX_POLLS = 60;
+
+    while (pollCount < MAX_POLLS) {
+      await new Promise((r) => setTimeout(r, 2000));
+      pollCount++;
+
+      const statusRes = await fetch(
+        `https://api.dev.runwayml.com/v1/tasks/${generationId}`,
+        {
+          headers: {
+            "Authorization": `Bearer ${RUNWAY_API_KEY}`,
+            "X-Runway-Version": RUNWAY_VERSION,
+          },
+        },
       );
+
+      if (!statusRes.ok) {
+        console.warn(`Poll ${pollCount}: status check failed (${statusRes.status})`);
+        continue;
+      }
+
+      const statusData = await statusRes.json();
+
+      if (statusData.status === "SUCCEEDED") {
+        clipUrl = statusData.output?.[0] || null;
+        console.log(`Clip generation completed: ${clipUrl}`);
+        break;
+      }
+
+      if (statusData.status === "FAILED") {
+        throw new Error(`Runway generation failed: ${statusData.failure || "Unknown reason"}`);
+      }
+
+      console.log(`Poll ${pollCount}: status=${statusData.status}`);
     }
 
-    const runwayData = await response.json();
-    if (!runwayData.id) {
-      throw new Error("Runway returned no task ID");
+    if (!clipUrl) {
+      throw new Error("Clip generation timed out after ~2 minutes");
     }
 
-    console.log(`Runway task started: ${runwayData.id}`);
+    // ── Update clips in DB ────────────────────────────────────────────
+    const existingClips: ClipRecord[] = Array.isArray(video.clips) ? video.clips : [];
 
-    // 6. Poll Runway until completion
-    const result = await pollRunwayTask(runwayData.id);
+    const newClip: ClipRecord = {
+      index: clipIndex,
+      url: clipUrl,
+      duration: effectiveDuration,
+      camera_angle: effectiveAngle,
+      image_url: imageUrl,
+      generation_id: generationId,
+    };
 
-    if (result.status !== "completed" || !result.videoUrl) {
-      return new Response(
-        JSON.stringify({ error: "Clip generation failed" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+    // Replace existing clip at this index, or append
+    const clipIdx = existingClips.findIndex((c) => c.index === clipIndex);
+    if (clipIdx >= 0) {
+      existingClips[clipIdx] = newClip;
+    } else {
+      existingClips.push(newClip);
+      existingClips.sort((a, b) => a.index - b.index);
     }
-
-    console.log(`Clip generated: ${result.videoUrl}`);
-
-    // 7. Update DB — update the generationIds and cameraAngles for the clip
-    const generationIds = (photosJson.generationIds as string[]) || [];
-    if (generationIds.length > clipIndex) {
-      generationIds[clipIndex] = runwayData.id;
-    }
-
-    const cameraAngles = (photosJson.cameraAngles as string[]) || [];
-    if (cameraAngles.length > clipIndex) {
-      cameraAngles[clipIndex] = effectiveAction;
-    }
-
-    photosJson.generationIds = generationIds;
-    photosJson.cameraAngles = cameraAngles;
 
     const { error: updateErr } = await supabase
       .from("videos")
-      .update({ photos: JSON.stringify(photosJson) })
+      .update({ clips: existingClips, updated_at: new Date().toISOString() })
       .eq("id", videoId);
 
     if (updateErr) {
-      console.error("DB update failed:", updateErr);
-      // Still return success since the clip was generated — frontend can retry save
+      console.error("Failed to update clips in DB:", updateErr);
+      // Don't fail — we still have the URL to return to the client
     }
+
+    console.log(`Clip ${clipIndex} updated successfully`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        clipUrl: result.videoUrl,
         clipIndex,
-        cameraAngle: effectiveAction,
-        estimatedSeconds: 15,
+        clipUrl,
+        cameraAngle: effectiveAngle,
+        duration: effectiveDuration,
+        generationId,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (error) {
-    console.error("Error in regenerate-clip:", error);
+    console.error("regenerate-clip error:", error);
     return new Response(
       JSON.stringify({
         success: false,
