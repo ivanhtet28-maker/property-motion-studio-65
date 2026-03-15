@@ -32,6 +32,20 @@ const MOTION_MAP: Record<string, string> = {
     "Camera moves along a curved dolly track, maintaining a fixed distance from the subject. " +
     "Ease in from stillness, constant arc speed, ease out to stillness. Subtle parallax shift between foreground and background. " +
     STABILITY_SUFFIX,
+  "orbit-right":
+    "Cinematic orbit sweeping clockwise approximately 35 degrees around the center of the scene. " +
+    "Camera glides along a wide curved dolly track moving steadily to the right, maintaining a fixed distance from the subject. " +
+    "Ease in from stillness over the first half-second, hold smooth constant arc speed, ease out to stillness in the final half-second. " +
+    "The wider arc progressively reveals adjacent rooms and connected spaces on the right side of the frame, " +
+    "creating noticeable parallax between foreground furniture and background architecture. " +
+    STABILITY_SUFFIX,
+  "orbit-left":
+    "Cinematic orbit sweeping counter-clockwise approximately 35 degrees around the center of the scene. " +
+    "Camera glides along a wide curved dolly track moving steadily to the left, maintaining a fixed distance from the subject. " +
+    "Ease in from stillness over the first half-second, hold smooth constant arc speed, ease out to stillness in the final half-second. " +
+    "The wider arc progressively reveals adjacent rooms and connected spaces on the left side of the frame, " +
+    "creating noticeable parallax between foreground furniture and background architecture. " +
+    STABILITY_SUFFIX,
   "drone-up":
     "Rising aerial reveal. Camera ascends vertically while tilting down to keep the scene centered in frame. " +
     "Smooth constant rise speed with gentle ease-in, clearing foreground obstructions. The landscape gradually enters the frame from the edges. " +

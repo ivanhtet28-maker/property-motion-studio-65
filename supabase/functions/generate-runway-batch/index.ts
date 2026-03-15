@@ -99,17 +99,21 @@ const MOTION_MAP: Record<string, MotionConfig> = {
   },
   "orbit-right": {
     promptText:
-      "Slow cinematic orbit moving clockwise around the center of the scene at approximately 20 degrees. " +
-      "Camera follows a curved dolly track moving to the right, maintaining a fixed distance from the subject. " +
-      "Ease in from stillness, constant arc speed, ease out to stillness. Smooth rightward motion revealing adjacent features and spatial depth. " +
+      "Cinematic orbit sweeping clockwise approximately 35 degrees around the center of the scene. " +
+      "Camera glides along a wide curved dolly track moving steadily to the right, maintaining a fixed distance from the subject. " +
+      "Ease in from stillness over the first half-second, hold smooth constant arc speed, ease out to stillness in the final half-second. " +
+      "The wider arc progressively reveals adjacent rooms and connected spaces on the right side of the frame, " +
+      "creating noticeable parallax between foreground furniture and background architecture. " +
       GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
     duration: 5,
   },
   "orbit-left": {
     promptText:
-      "Slow cinematic orbit moving counter-clockwise around the center of the scene at approximately 20 degrees. " +
-      "Camera follows a curved dolly track moving to the left, maintaining a fixed distance from the subject. " +
-      "Ease in from stillness, constant arc speed, ease out to stillness. Smooth leftward motion revealing adjacent features and spatial depth. " +
+      "Cinematic orbit sweeping counter-clockwise approximately 35 degrees around the center of the scene. " +
+      "Camera glides along a wide curved dolly track moving steadily to the left, maintaining a fixed distance from the subject. " +
+      "Ease in from stillness over the first half-second, hold smooth constant arc speed, ease out to stillness in the final half-second. " +
+      "The wider arc progressively reveals adjacent rooms and connected spaces on the left side of the frame, " +
+      "creating noticeable parallax between foreground furniture and background architecture. " +
       GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
     duration: 5,
   },
