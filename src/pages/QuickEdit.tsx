@@ -530,6 +530,7 @@ export default function QuickEdit() {
                         src={activeClipUrl}
                         className="w-full h-full object-cover"
                         poster={currentScene?.imageUrl}
+                        autoPlay
                         loop
                         muted
                         playsInline
@@ -538,6 +539,8 @@ export default function QuickEdit() {
                           setClipError(true);
                         }}
                         onLoadedData={() => setClipError(false)}
+                        onPlay={() => setClipIsPlaying(true)}
+                        onPause={() => setClipIsPlaying(false)}
                       />
                       {/* Play/pause overlay */}
                       <button
