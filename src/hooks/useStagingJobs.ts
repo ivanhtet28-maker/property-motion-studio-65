@@ -1,231 +1,428 @@
 import { useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+
+// ── Types ──────────────────────────────────────────────────────────────────
 
 export interface StagingJob {
   id: string;
   original_url: string;
   staged_urls: string[];
   status: "pending" | "processing" | "complete" | "failed";
-  error_message?: string;
-  stage_options: {
-    room_type: string;
-    style: string;
-  };
-  created_at: string;
-  updated_at: string;
+  error_message: string | null;
+  stage_options: { room_type?: string; style?: string };
 }
 
-export interface UseStagingJobsReturn {
+export interface UploadedFile {
+  file: File;
+  preview: string;
+  name: string;
+  size: string;
+}
+
+export interface StagingState {
+  files: UploadedFile[];
   jobs: StagingJob[];
   isProcessing: boolean;
-  stagePhotos: (
-    imageUrls: string[],
-    roomType: string,
-    designStyle: string,
-    userId: string
-  ) => Promise<void>;
-  restageWithOptions: (
-    jobIds: string[],
-    roomType: string,
-    designStyle: string
-  ) => Promise<void>;
-  retryJob: (jobId: string) => Promise<void>;
-  reset: () => void;
+  roomType: string;
+  designStyle: string;
+  selectedVariation: Record<string, number>;
 }
 
-export function useStagingJobs(): UseStagingJobsReturn {
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / 1048576).toFixed(1) + " MB";
+}
+
+export function useStagingJobs() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const [files, setFiles] = useState<UploadedFile[]>([]);
   const [jobs, setJobs] = useState<StagingJob[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [roomType, setRoomType] = useState("LIVINGROOM");
+  const [designStyle, setDesignStyle] = useState("MODERN");
+  const [selectedVariation, setSelectedVariation] = useState<Record<string, number>>({});
 
-  // Initial photo staging submission
-  const stagePhotos = useCallback(
-    async (
-      imageUrls: string[],
-      roomType: string,
-      designStyle: string,
-      userId: string
-    ) => {
+  const completedJobs = jobs.filter((j) => j.status === "complete");
+
+  const addFiles = useCallback((newFiles: File[]) => {
+    const valid = newFiles.filter(
+      (f) =>
+        (f.type === "image/jpeg" || f.type === "image/png" || f.type === "image/webp") &&
+        f.size <= 20 * 1024 * 1024,
+    );
+    setFiles((prev) => {
+      const combined = [
+        ...prev,
+        ...valid.map((f) => ({
+          file: f,
+          preview: URL.createObjectURL(f),
+          name: f.name,
+          size: formatFileSize(f.size),
+        })),
+      ];
+      return combined.slice(0, 5);
+    });
+  }, []);
+
+  const removeFile = useCallback((index: number) => {
+    setFiles((prev) => {
+      URL.revokeObjectURL(prev[index].preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  }, []);
+
+  const getSelectedVariationIndex = useCallback(
+    (jobId: string) => selectedVariation[jobId] ?? 0,
+    [selectedVariation],
+  );
+
+  const selectVariation = useCallback((jobId: string, index: number) => {
+    setSelectedVariation((prev) => ({ ...prev, [jobId]: index }));
+  }, []);
+
+  const stagePhotos = useCallback(async (): Promise<boolean> => {
+    if (!user?.id || files.length === 0) return false;
+    setIsProcessing(true);
+    setJobs([]);
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      const uploadedJobs: StagingJob[] = [];
+
+      for (const f of files) {
+        const ext = f.file.name.split(".").pop() || "jpg";
+        const path = `${user.id}/originals/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("property-images")
+          .upload(path, f.file, { cacheControl: "3600" });
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage.from("property-images").getPublicUrl(path);
+
+        const { data: job, error: jobError } = await supabase
+          .from("photo_jobs")
+          .insert({
+            user_id: user.id,
+            job_type: "stage",
+            original_url: urlData.publicUrl,
+            status: "pending",
+            stage_options: {
+              room_type: roomType,
+              style: designStyle,
+            },
+          })
+          .select()
+          .single();
+        if (jobError) throw jobError;
+
+        uploadedJobs.push({
+          id: job.id,
+          original_url: job.original_url,
+          staged_urls: [],
+          status: "pending",
+          error_message: null,
+          stage_options: job.stage_options,
+        });
+      }
+
+      setJobs(uploadedJobs);
+
+      // Call edge function for each
+      for (const job of uploadedJobs) {
+        invokeEdgeFunction("stage-room", { body: { job_id: job.id } }).catch((err) => {
+          console.error("stage-room invocation failed:", err);
+          setJobs((prev) =>
+            prev.map((j) =>
+              j.id === job.id
+                ? {
+                    ...j,
+                    status: "failed" as const,
+                    error_message: err instanceof Error ? err.message : "Failed to start staging",
+                  }
+                : j,
+            ),
+          );
+          toast({
+            title: "Staging failed",
+            description: err instanceof Error ? err.message : "Failed to start room staging",
+            variant: "destructive",
+          });
+        });
+      }
+
+      // Realtime + polling
+      const channel = supabase
+        .channel("photo-jobs-staging")
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "photo_jobs",
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            const updated = payload.new as Record<string, unknown>;
+            setJobs((prev) =>
+              prev.map((j) =>
+                j.id === updated.id
+                  ? {
+                      ...j,
+                      status: updated.status as StagingJob["status"],
+                      staged_urls: (updated.staged_urls as string[]) || [],
+                      error_message: (updated.error_message as string) || null,
+                    }
+                  : j,
+              ),
+            );
+          },
+        )
+        .subscribe();
+
+      const pollIds = new Set(uploadedJobs.map((j) => j.id));
+      const pollInterval = setInterval(async () => {
+        if (pollIds.size === 0) {
+          clearInterval(pollInterval);
+          return;
+        }
+        const { data } = await supabase
+          .from("photo_jobs")
+          .select("*")
+          .in("id", Array.from(pollIds));
+        if (data) {
+          for (const row of data) {
+            if (row.status === "complete" || row.status === "failed") pollIds.delete(row.id);
+            setJobs((prev) =>
+              prev.map((j) =>
+                j.id === row.id
+                  ? {
+                      ...j,
+                      status: row.status,
+                      staged_urls: row.staged_urls || [],
+                      error_message: row.error_message,
+                    }
+                  : j,
+              ),
+            );
+          }
+        }
+        if (pollIds.size === 0) {
+          clearInterval(pollInterval);
+          channel.unsubscribe();
+          setIsProcessing(false);
+        }
+      }, 3000);
+
+      return true;
+    } catch (err) {
+      console.error("Staging error:", err);
+      toast({ title: "Error", description: "Failed to start staging", variant: "destructive" });
+      setIsProcessing(false);
+      return false;
+    }
+  }, [user, files, roomType, designStyle, toast]);
+
+  const restageWithOptions = useCallback(
+    async (newRoomType?: string, newStyle?: string) => {
+      if (newRoomType) setRoomType(newRoomType);
+      if (newStyle) setDesignStyle(newStyle);
+      // Wait for state to update, then re-stage
+      // We need to use the new values directly since setState is async
+      if (!user?.id || files.length === 0) return;
+
+      const effectiveRoom = newRoomType || roomType;
+      const effectiveStyle = newStyle || designStyle;
+
       setIsProcessing(true);
+      setJobs([]);
+      setSelectedVariation({});
+
       try {
-        // Upload images to storage and create jobs
-        const newJobs: StagingJob[] = [];
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session) throw new Error("Not authenticated");
 
-        for (let i = 0; i < imageUrls.length; i++) {
-          const imageUrl = imageUrls[i];
+        const uploadedJobs: StagingJob[] = [];
 
-          // Create photo job record in DB
+        for (const f of files) {
+          const ext = f.file.name.split(".").pop() || "jpg";
+          const path = `${user.id}/originals/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+          const { error: uploadError } = await supabase.storage
+            .from("property-images")
+            .upload(path, f.file, { cacheControl: "3600" });
+          if (uploadError) throw uploadError;
+
+          const { data: urlData } = supabase.storage.from("property-images").getPublicUrl(path);
+
           const { data: job, error: jobError } = await supabase
             .from("photo_jobs")
             .insert({
-              user_id: userId,
+              user_id: user.id,
               job_type: "stage",
-              original_url: imageUrl,
+              original_url: urlData.publicUrl,
               status: "pending",
               stage_options: {
-                room_type: roomType,
-                style: designStyle,
+                room_type: effectiveRoom,
+                style: effectiveStyle,
               },
             })
             .select()
             .single();
+          if (jobError) throw jobError;
 
-          if (jobError) {
-            console.error("Failed to create staging job:", jobError);
-            continue;
-          }
-
-          newJobs.push({
+          uploadedJobs.push({
             id: job.id,
             original_url: job.original_url,
             staged_urls: [],
             status: "pending",
-            error_message: undefined,
+            error_message: null,
             stage_options: job.stage_options,
-            created_at: job.created_at,
-            updated_at: job.updated_at,
-          });
-
-          // Trigger edge function for this job
-          try {
-            await invokeEdgeFunction("stage-room", {
-              body: { job_id: job.id },
-            });
-          } catch (err) {
-            console.error("Failed to invoke stage-room:", err);
-          }
-        }
-
-        setJobs((prev) => [...prev, ...newJobs]);
-
-        // Poll for completion
-        pollJobsForCompletion(newJobs.map((j) => j.id));
-      } catch (err) {
-        console.error("Error staging photos:", err);
-      } finally {
-        setIsProcessing(false);
-      }
-    },
-    []
-  );
-
-  // Re-stage with different room/style (without re-uploading)
-  const restageWithOptions = useCallback(
-    async (jobIds: string[], roomType: string, designStyle: string) => {
-      setIsProcessing(true);
-      try {
-        for (const jobId of jobIds) {
-          // Update job with new options
-          await supabase
-            .from("photo_jobs")
-            .update({
-              stage_options: { room_type: roomType, style: designStyle },
-              status: "pending",
-              staged_urls: [],
-            })
-            .eq("id", jobId);
-
-          // Re-trigger staging
-          await invokeEdgeFunction("stage-room", {
-            body: { job_id: jobId },
           });
         }
 
-        // Update local state
-        setJobs((prev) =>
-          prev.map((job) =>
-            jobIds.includes(job.id)
-              ? {
-                  ...job,
-                  status: "pending" as const,
-                  staged_urls: [],
-                  stage_options: { room_type: roomType, style: designStyle },
-                }
-              : job
+        setJobs(uploadedJobs);
+
+        for (const job of uploadedJobs) {
+          invokeEdgeFunction("stage-room", { body: { job_id: job.id } }).catch((err) => {
+            console.error("stage-room invocation failed:", err);
+            setJobs((prev) =>
+              prev.map((j) =>
+                j.id === job.id
+                  ? {
+                      ...j,
+                      status: "failed" as const,
+                      error_message:
+                        err instanceof Error ? err.message : "Failed to start staging",
+                    }
+                  : j,
+              ),
+            );
+          });
+        }
+
+        const channel = supabase
+          .channel("photo-jobs-restaging")
+          .on(
+            "postgres_changes",
+            {
+              event: "UPDATE",
+              schema: "public",
+              table: "photo_jobs",
+              filter: `user_id=eq.${user.id}`,
+            },
+            (payload) => {
+              const updated = payload.new as Record<string, unknown>;
+              setJobs((prev) =>
+                prev.map((j) =>
+                  j.id === updated.id
+                    ? {
+                        ...j,
+                        status: updated.status as StagingJob["status"],
+                        staged_urls: (updated.staged_urls as string[]) || [],
+                        error_message: (updated.error_message as string) || null,
+                      }
+                    : j,
+                ),
+              );
+            },
           )
-        );
+          .subscribe();
 
-        // Poll for completion
-        pollJobsForCompletion(jobIds);
+        const pollIds = new Set(uploadedJobs.map((j) => j.id));
+        const pollInterval = setInterval(async () => {
+          if (pollIds.size === 0) {
+            clearInterval(pollInterval);
+            return;
+          }
+          const { data } = await supabase
+            .from("photo_jobs")
+            .select("*")
+            .in("id", Array.from(pollIds));
+          if (data) {
+            for (const row of data) {
+              if (row.status === "complete" || row.status === "failed") pollIds.delete(row.id);
+              setJobs((prev) =>
+                prev.map((j) =>
+                  j.id === row.id
+                    ? {
+                        ...j,
+                        status: row.status,
+                        staged_urls: row.staged_urls || [],
+                        error_message: row.error_message,
+                      }
+                    : j,
+                ),
+              );
+            }
+          }
+          if (pollIds.size === 0) {
+            clearInterval(pollInterval);
+            channel.unsubscribe();
+            setIsProcessing(false);
+          }
+        }, 3000);
       } catch (err) {
-        console.error("Error restaging photos:", err);
-      } finally {
+        console.error("Re-staging error:", err);
+        toast({ title: "Error", description: "Failed to re-stage", variant: "destructive" });
         setIsProcessing(false);
       }
     },
-    []
+    [user, files, roomType, designStyle, toast],
   );
 
-  // Retry a failed job
-  const retryJob = useCallback(async (jobId: string) => {
-    setIsProcessing(true);
-    try {
-      await supabase
-        .from("photo_jobs")
-        .update({ status: "pending" })
-        .eq("id", jobId);
-
-      await invokeEdgeFunction("stage-room", {
-        body: { job_id: jobId },
+  const retryJob = useCallback(
+    (jobId: string) => {
+      invokeEdgeFunction("stage-room", { body: { job_id: jobId } }).catch((err) => {
+        toast({
+          title: "Retry failed",
+          description: err instanceof Error ? err.message : "Failed to retry staging",
+          variant: "destructive",
+        });
       });
-
       setJobs((prev) =>
-        prev.map((job) =>
-          job.id === jobId ? { ...job, status: "pending" as const } : job
-        )
+        prev.map((j) =>
+          j.id === jobId ? { ...j, status: "processing" as const, error_message: null } : j,
+        ),
       );
+    },
+    [toast],
+  );
 
-      pollJobsForCompletion([jobId]);
-    } catch (err) {
-      console.error("Error retrying job:", err);
-    } finally {
-      setIsProcessing(false);
-    }
-  }, []);
-
-  // Reset state
   const reset = useCallback(() => {
+    setFiles([]);
     setJobs([]);
     setIsProcessing(false);
+    setSelectedVariation({});
   }, []);
 
-  // Poll function (internal)
-  const pollJobsForCompletion = (jobIds: string[]) => {
-    const pollInterval = setInterval(async () => {
-      try {
-        const { data: updatedJobs } = await supabase
-          .from("photo_jobs")
-          .select("*")
-          .in("id", jobIds);
-
-        if (updatedJobs) {
-          setJobs((prev) =>
-            prev.map((job) => {
-              const updated = updatedJobs.find((j) => j.id === job.id);
-              return updated ? { ...job, ...updated } : job;
-            })
-          );
-
-          // Check if all jobs are complete
-          const allComplete = updatedJobs.every(
-            (j) => j.status === "complete" || j.status === "failed"
-          );
-          if (allComplete) {
-            clearInterval(pollInterval);
-          }
-        }
-      } catch (err) {
-        console.error("Error polling job status:", err);
-      }
-    }, 2000); // Poll every 2 seconds
-
-    // Stop polling after 5 minutes
-    setTimeout(() => clearInterval(pollInterval), 5 * 60 * 1000);
-  };
-
   return {
+    // State
+    files,
     jobs,
     isProcessing,
+    roomType,
+    designStyle,
+    selectedVariation,
+    completedJobs,
+
+    // Actions
+    addFiles,
+    removeFile,
+    setRoomType,
+    setDesignStyle,
+    getSelectedVariationIndex,
+    selectVariation,
     stagePhotos,
     restageWithOptions,
     retryJob,
