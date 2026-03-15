@@ -15,7 +15,8 @@ async function updateVideoRecord(
   status: "processing" | "completed" | "failed",
   videoUrl: string | null = null,
   _progress: number = 0,
-  errorMessage: string | null = null
+  errorMessage: string | null = null,
+  renderId: string | null = null
 ) {
   if (!videoId) return;
 
@@ -29,6 +30,7 @@ async function updateVideoRecord(
       video_url?: string;
       completed_at?: string;
       error_message?: string;
+      render_id?: string;
     } = {
       status,
     };
@@ -39,6 +41,10 @@ async function updateVideoRecord(
 
     if (status === "completed") {
       updateData.completed_at = new Date().toISOString();
+    }
+
+    if (renderId) {
+      updateData.render_id = renderId;
     }
 
     if (errorMessage) {
@@ -383,7 +389,7 @@ Deno.serve(async (req) => {
         console.log("Shotstack status:", shotstackStatus);
 
         if (shotstackStatus === "done" && videoUrl) {
-          await updateVideoRecord(videoId, "completed", videoUrl, 100);
+          await updateVideoRecord(videoId, "completed", videoUrl, 100, null, stitchJobId as string);
           await notifyByEmail(videoId as string | undefined, "completed", videoUrl);
           return new Response(
             JSON.stringify({

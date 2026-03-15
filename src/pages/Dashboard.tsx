@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import { callVideoStatus } from "@/lib/callVideoStatus";
+import { callStitchVideo } from "@/lib/callStitchVideo";
 import { useAuth } from "@/contexts/AuthContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import {
@@ -189,6 +190,31 @@ export default function Dashboard() {
           if (data.status === "done" || data.status === "failed") {
             loadVideos();
             break;
+          } else if (data.status === "ready_to_stitch" && data.finalVideoUrls) {
+            // Clips are done but stitch was never started (user navigated away before stitching).
+            // Trigger the stitch now so the video can complete.
+            try {
+              const ctx = video.generationContext ? JSON.parse(video.generationContext) : {};
+              const stitchResult = await callStitchVideo<{ success: boolean; jobId?: string }>({
+                videoUrls: data.finalVideoUrls,
+                clipDurations: ctx.clipDurations || [],
+                audioUrl: ctx.audioUrl || null,
+                musicUrl: ctx.musicUrl || null,
+                agentInfo: ctx.agentInfo || null,
+                propertyData: ctx.propertyData || {},
+                style: ctx.style || "open-house",
+                layout: ctx.layout || "open-house",
+                customTitle: ctx.customTitle || "",
+                videoId: video.id,
+                outputFormat: ctx.outputFormat || "portrait",
+              });
+              if (stitchResult.success && stitchResult.jobId) {
+                console.log("Dashboard recovery: triggered stitch for video", video.id, "jobId:", stitchResult.jobId);
+                // stitch-video saves render_id to DB; next poll cycle will pick it up
+              }
+            } catch (stitchErr) {
+              console.error("Dashboard recovery: failed to trigger stitch for video", video.id, stitchErr);
+            }
           }
         } catch (err) {
           console.error("Error polling stuck video:", err);
