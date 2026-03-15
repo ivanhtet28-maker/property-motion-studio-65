@@ -1330,7 +1330,7 @@ export function StepBranding({
         <div className="flex gap-3">
           {/* Preview image/outro */}
           <div
-            className={`bg-secondary rounded-xl overflow-hidden border border-border relative shadow-lg ${
+            className={`flex-1 bg-secondary rounded-xl overflow-hidden border border-border relative shadow-lg ${
               orientation === "portrait" ? "aspect-[9/16] max-h-[520px]" : "aspect-video"
             }`}
           >
