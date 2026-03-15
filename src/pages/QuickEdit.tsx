@@ -121,6 +121,53 @@ export default function QuickEdit() {
           clips = data.clips;
         }
 
+        // Recovery: if clips column is empty but we have generationIds in photos,
+        // re-check Runway for completed clip URLs and save them to DB
+        let parsedPhotos: Record<string, unknown> | null = null;
+        if (data.photos) {
+          try {
+            parsedPhotos = typeof data.photos === "string" ? JSON.parse(data.photos) : data.photos;
+          } catch { /* ignore */ }
+        }
+
+        if (
+          clips.length === 0 &&
+          parsedPhotos?.generationIds &&
+          Array.isArray(parsedPhotos.generationIds) &&
+          (parsedPhotos.generationIds as string[]).length > 0
+        ) {
+          try {
+            console.log("Clips column empty — recovering clip URLs from generation IDs...");
+            const statusResult = await invokeEdgeFunction<{
+              status: string;
+              finalVideoUrls?: string[];
+            }>("video-status", {
+              body: {
+                generationIds: parsedPhotos.generationIds,
+                videoId: id,
+                clipDurations: parsedPhotos.clipDurations || [],
+                provider: (parsedPhotos.provider as string) || "runway",
+                imageUrls: parsedPhotos.imageUrls || [],
+                cameraAngles: parsedPhotos.cameraAngles || [],
+              },
+            });
+            // If clips were recovered and saved by video-status, re-fetch them
+            if (statusResult.status === "ready_to_stitch" || statusResult.finalVideoUrls) {
+              const { data: refreshed } = await supabase
+                .from("videos")
+                .select("clips")
+                .eq("id", id)
+                .single();
+              if (Array.isArray(refreshed?.clips)) {
+                clips = refreshed.clips;
+                console.log(`Recovered ${clips.length} clips from generation IDs`);
+              }
+            }
+          } catch (recoverErr) {
+            console.error("Clip recovery failed:", recoverErr);
+          }
+        }
+
         if (photos.length > 0) {
           // Build a map of clip index -> url for quick lookup
           const clipMap = new Map<number, string>();
