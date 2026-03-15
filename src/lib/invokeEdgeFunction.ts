@@ -34,6 +34,16 @@ export class EdgeFunctionError extends Error {
   }
 }
 
+/** Sign out and redirect to login when the session is unrecoverable. */
+async function forceSignOut(): Promise<void> {
+  try {
+    await supabase.auth.signOut();
+  } catch {
+    // Best-effort — redirect regardless
+  }
+  window.location.href = "/login";
+}
+
 interface InvokeOptions {
   body?: Record<string, unknown>;
   /** Extra headers to merge (do NOT include Authorization — the SDK handles it) */
@@ -96,6 +106,7 @@ export async function invokeEdgeFunction<T = Record<string, unknown>>(
   if (requireAuth) {
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData?.session?.access_token) {
+      await forceSignOut();
       throw new EdgeFunctionError(
         "Your session has expired. Please sign in again.",
         401,
@@ -118,6 +129,7 @@ export async function invokeEdgeFunction<T = Record<string, unknown>>(
 
     const { error: refreshError } = await supabase.auth.refreshSession();
     if (refreshError) {
+      await forceSignOut();
       throw new EdgeFunctionError(
         "Authentication failed (401). Your session has expired — please sign in again.",
         401,
@@ -132,6 +144,7 @@ export async function invokeEdgeFunction<T = Record<string, unknown>>(
     }
 
     if (result2.is401) {
+      await forceSignOut();
       throw new EdgeFunctionError(
         "Authentication failed (401). Your session has expired — please sign in again.",
         401,
@@ -145,6 +158,7 @@ export async function invokeEdgeFunction<T = Record<string, unknown>>(
 
   // Non-401 error — throw immediately
   if (result1.is401) {
+    await forceSignOut();
     throw new EdgeFunctionError(
       "Authentication failed (401). Your session has expired — please sign in again.",
       401,

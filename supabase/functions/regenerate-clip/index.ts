@@ -36,18 +36,22 @@ const MOTION_MAP: Record<string, string> = {
     "Smooth cinematic rightward pan revealing adjacent areas and connected spaces. " +
     STABILITY_SUFFIX,
   "orbit-right":
-    "Cinematic orbit sweeping clockwise approximately 35 degrees around the center of the scene. " +
-    "Camera glides along a wide curved dolly track moving steadily to the right, maintaining a fixed distance from the subject. " +
-    "Ease in from stillness over the first half-second, hold smooth constant arc speed, ease out to stillness in the final half-second. " +
-    "The wider arc progressively reveals adjacent rooms and connected spaces on the right side of the frame, " +
-    "creating noticeable parallax between foreground furniture and background architecture. " +
+    "Smooth arc shot — camera executes a slow, deliberate clockwise orbit around the center of the room, " +
+    "maintaining the room's focal point as the fixed center of rotation. " +
+    "Camera follows a gentle curved arc of approximately 15–20 degrees to the right, " +
+    "keeping a constant radial distance from the subject throughout. " +
+    "Ease in from stillness, hold slow constant orbital speed, ease out to stillness. " +
+    "The arc reveals new depth and perspective of the space, " +
+    "creating smooth parallax between foreground furniture and background walls. " +
     STABILITY_SUFFIX,
   "orbit-left":
-    "Cinematic orbit sweeping counter-clockwise approximately 35 degrees around the center of the scene. " +
-    "Camera glides along a wide curved dolly track moving steadily to the left, maintaining a fixed distance from the subject. " +
-    "Ease in from stillness over the first half-second, hold smooth constant arc speed, ease out to stillness in the final half-second. " +
-    "The wider arc progressively reveals adjacent rooms and connected spaces on the left side of the frame, " +
-    "creating noticeable parallax between foreground furniture and background architecture. " +
+    "Smooth arc shot — camera executes a slow, deliberate counter-clockwise orbit around the center of the room, " +
+    "maintaining the room's focal point as the fixed center of rotation. " +
+    "Camera follows a gentle curved arc of approximately 15–20 degrees to the left, " +
+    "keeping a constant radial distance from the subject throughout. " +
+    "Ease in from stillness, hold slow constant orbital speed, ease out to stillness. " +
+    "The arc reveals new depth and perspective of the space, " +
+    "creating smooth parallax between foreground furniture and background walls. " +
     STABILITY_SUFFIX,
   "drone-up":
     "Rising aerial reveal. Camera ascends vertically while tilting down to keep the scene centered in frame. " +
