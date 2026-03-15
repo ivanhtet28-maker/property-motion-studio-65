@@ -1460,6 +1460,23 @@ import { corsHeaders } from "../_shared/cors.ts";
 
       console.log("Shotstack stitch job started:", jobId);
 
+      // Persist render_id to DB so Dashboard recovery can poll this Shotstack job
+      // even if the user navigates away from the CreateVideo page.
+      if (videoId) {
+        try {
+          const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+          const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+          const supabase = createClient(supabaseUrl, supabaseServiceKey);
+          await supabase
+            .from("videos")
+            .update({ render_id: jobId })
+            .eq("id", videoId);
+          console.log("Saved render_id to DB:", jobId);
+        } catch (err) {
+          console.error("Failed to save render_id:", err);
+        }
+      }
+
       return new Response(
         JSON.stringify({
           success: true,
