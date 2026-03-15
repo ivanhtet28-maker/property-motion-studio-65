@@ -42,8 +42,8 @@ const CAMERA_ANGLES = [
   { value: "push-in", label: "Push In", description: "Dolly forward toward subject" },
   { value: "pull-out", label: "Pull Out", description: "Dolly backward revealing space" },
   { value: "orbit", label: "Orbit", description: "Arc around the scene center" },
-  { value: "tracking", label: "Tracking", description: "Lateral sliding shot" },
-  { value: "crane-up", label: "Crane Up", description: "Vertical rise with tilt" },
+  { value: "glide-left", label: "Glide Left", description: "Lateral slide to the left" },
+  { value: "glide-right", label: "Glide Right", description: "Lateral slide to the right" },
   { value: "drone-up", label: "Drone Up", description: "Aerial ascending reveal" },
   { value: "static", label: "Static", description: "Locked tripod, no movement" },
 ] as const;

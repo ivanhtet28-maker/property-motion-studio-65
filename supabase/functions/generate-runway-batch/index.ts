@@ -82,10 +82,21 @@ const MOTION_MAP: Record<string, MotionConfig> = {
       STABILITY_SUFFIX,
     duration: 5,
   },
-  "tracking": {
+  "glide-left": {
     promptText:
-      "Professional lateral tracking shot sliding sideways at a steady pace. Camera faces forward while the entire rig glides on a dolly track. " +
-      "Ease in gently from stillness, hold constant speed, ease out in the final half-second. Smooth cinematic pan revealing adjacent areas. " +
+      "Professional lateral tracking shot gliding smoothly to the left at a steady pace. " +
+      "Camera faces forward while the entire rig slides leftward on a dolly track. " +
+      "Ease in gently from stillness over the first half-second, hold constant speed, ease out in the final half-second. " +
+      "Smooth cinematic leftward pan revealing adjacent areas and connected spaces. " +
+      STABILITY_SUFFIX,
+    duration: 5,
+  },
+  "glide-right": {
+    promptText:
+      "Professional lateral tracking shot gliding smoothly to the right at a steady pace. " +
+      "Camera faces forward while the entire rig slides rightward on a dolly track. " +
+      "Ease in gently from stillness over the first half-second, hold constant speed, ease out in the final half-second. " +
+      "Smooth cinematic rightward pan revealing adjacent areas and connected spaces. " +
       STABILITY_SUFFIX,
     duration: 5,
   },
@@ -99,33 +110,29 @@ const MOTION_MAP: Record<string, MotionConfig> = {
   },
   "orbit-right": {
     promptText:
-      "Slow cinematic orbit moving clockwise around the center of the scene at approximately 20 degrees. " +
-      "Camera follows a curved dolly track moving to the right, maintaining a fixed distance from the subject. " +
-      "Ease in from stillness, constant arc speed, ease out to stillness. Smooth rightward motion revealing adjacent features and spatial depth. " +
+      "Cinematic orbit sweeping clockwise approximately 35 degrees around the center of the scene. " +
+      "Camera glides along a wide curved dolly track moving steadily to the right, maintaining a fixed distance from the subject. " +
+      "Ease in from stillness over the first half-second, hold smooth constant arc speed, ease out to stillness in the final half-second. " +
+      "The wider arc progressively reveals adjacent rooms and connected spaces on the right side of the frame, " +
+      "creating noticeable parallax between foreground furniture and background architecture. " +
       GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
     duration: 5,
   },
   "orbit-left": {
     promptText:
-      "Slow cinematic orbit moving counter-clockwise around the center of the scene at approximately 20 degrees. " +
-      "Camera follows a curved dolly track moving to the left, maintaining a fixed distance from the subject. " +
-      "Ease in from stillness, constant arc speed, ease out to stillness. Smooth leftward motion revealing adjacent features and spatial depth. " +
-      GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
-    duration: 5,
-  },
-  "crane-up": {
-    promptText:
-      "Professional videography: Slow vertical crane rise revealing the full vertical extent of the space. " +
-      "Camera ascends straight up while tilting gently downward to keep the scene centered in frame. " +
-      "Ease in from stillness, constant ascent speed, ease out at the top. Cinematic vertical reveal showcasing room height and features. " +
+      "Cinematic orbit sweeping counter-clockwise approximately 35 degrees around the center of the scene. " +
+      "Camera glides along a wide curved dolly track moving steadily to the left, maintaining a fixed distance from the subject. " +
+      "Ease in from stillness over the first half-second, hold smooth constant arc speed, ease out to stillness in the final half-second. " +
+      "The wider arc progressively reveals adjacent rooms and connected spaces on the left side of the frame, " +
+      "creating noticeable parallax between foreground furniture and background architecture. " +
       GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
     duration: 5,
   },
   "drone-up": {
     promptText:
-      "Professional aerial videography: Rising drone reveal ascending vertically while tilting down to keep the property centered in frame. " +
-      "Smooth constant rise speed with gentle ease-in from the ground. The landscape and context gradually enter the frame from the edges. " +
-      "Cinematic aerial reveal showcasing property scale and surroundings. " +
+      "Professional aerial videography: Rising reveal ascending vertically while tilting down to keep the scene centered in frame. " +
+      "Smooth constant rise speed with gentle ease-in from the ground, clearing foreground obstructions. " +
+      "The landscape and context gradually enter the frame from the edges. Cinematic vertical reveal showcasing scale and surroundings. " +
       GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
     duration: 5,
   },

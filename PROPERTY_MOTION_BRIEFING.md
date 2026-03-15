@@ -155,8 +155,7 @@ Photos → smart-crop-portrait (9:16) → generate-runway-batch → [poll video-
 | pull-out | Backward dolly, revealing space |
 | tracking | Lateral tracking shot |
 | orbit | Slow cinematic 20° arc |
-| crane-up | Vertical rise with tilt compensation |
-| drone-up | Aerial vertical reveal |
+| drone-up | Aerial vertical rise and reveal |
 | static | Locked tripod (Shotstack only) |
 
 ### Shotstack Video Templates

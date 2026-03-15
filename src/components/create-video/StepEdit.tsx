@@ -428,8 +428,8 @@ function CameraActionPicker({
           { value: "orbit" as CameraAction, label: "Orbit (Center)" },
           { value: "orbit-right" as CameraAction, label: "Orbit Right" },
           { value: "orbit-left" as CameraAction, label: "Orbit Left" },
-          { value: "tracking" as CameraAction, label: "Tracking" },
-          { value: "crane-up" as CameraAction, label: "Crane Up" },
+          { value: "glide-left" as CameraAction, label: "Glide Left" },
+          { value: "glide-right" as CameraAction, label: "Glide Right" },
           { value: "drone-up" as CameraAction, label: "Drone Up" },
           { value: "static" as CameraAction, label: "Static" },
         ].map((option, i) => (

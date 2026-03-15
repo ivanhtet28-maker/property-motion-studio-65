@@ -23,22 +23,40 @@ const MOTION_MAP: Record<string, string> = {
     "Steady dolly backward at a gentle pace, easing in from stillness and maintaining constant speed. " +
     "Camera retreats straight back along a smooth rail, gradually revealing the full extent of the space. " +
     STABILITY_SUFFIX,
-  "tracking":
-    "Smooth lateral tracking shot sliding sideways at a steady pace. Camera faces forward while the entire rig glides on a dolly track. " +
-    "Ease in gently from stillness, hold constant speed, ease out in the final half-second. " +
+  "glide-left":
+    "Professional lateral tracking shot gliding smoothly to the left at a steady pace. " +
+    "Camera faces forward while the entire rig slides leftward on a dolly track. " +
+    "Ease in gently from stillness over the first half-second, hold constant speed, ease out in the final half-second. " +
+    "Smooth cinematic leftward pan revealing adjacent areas and connected spaces. " +
+    STABILITY_SUFFIX,
+  "glide-right":
+    "Professional lateral tracking shot gliding smoothly to the right at a steady pace. " +
+    "Camera faces forward while the entire rig slides rightward on a dolly track. " +
+    "Ease in gently from stillness over the first half-second, hold constant speed, ease out in the final half-second. " +
+    "Smooth cinematic rightward pan revealing adjacent areas and connected spaces. " +
     STABILITY_SUFFIX,
   "orbit":
     "Slow cinematic orbit arc of approximately 20 degrees around the center of the scene. " +
     "Camera moves along a curved dolly track, maintaining a fixed distance from the subject. " +
     "Ease in from stillness, constant arc speed, ease out to stillness. Subtle parallax shift between foreground and background. " +
     STABILITY_SUFFIX,
-  "crane-up":
-    "Slow vertical crane rise. Camera ascends straight up while tilting gently downward to keep the scene centered in frame. " +
-    "Ease in from stillness, constant ascent speed, ease out at the top. " +
+  "orbit-right":
+    "Cinematic orbit sweeping clockwise approximately 35 degrees around the center of the scene. " +
+    "Camera glides along a wide curved dolly track moving steadily to the right, maintaining a fixed distance from the subject. " +
+    "Ease in from stillness over the first half-second, hold smooth constant arc speed, ease out to stillness in the final half-second. " +
+    "The wider arc progressively reveals adjacent rooms and connected spaces on the right side of the frame, " +
+    "creating noticeable parallax between foreground furniture and background architecture. " +
+    STABILITY_SUFFIX,
+  "orbit-left":
+    "Cinematic orbit sweeping counter-clockwise approximately 35 degrees around the center of the scene. " +
+    "Camera glides along a wide curved dolly track moving steadily to the left, maintaining a fixed distance from the subject. " +
+    "Ease in from stillness over the first half-second, hold smooth constant arc speed, ease out to stillness in the final half-second. " +
+    "The wider arc progressively reveals adjacent rooms and connected spaces on the left side of the frame, " +
+    "creating noticeable parallax between foreground furniture and background architecture. " +
     STABILITY_SUFFIX,
   "drone-up":
-    "Rising aerial drone reveal. Camera ascends vertically while tilting down to keep the property centered in frame. " +
-    "Smooth constant rise speed with gentle ease-in from the ground. The landscape gradually enters the frame from the edges. " +
+    "Rising aerial reveal. Camera ascends vertically while tilting down to keep the scene centered in frame. " +
+    "Smooth constant rise speed with gentle ease-in, clearing foreground obstructions. The landscape gradually enters the frame from the edges. " +
     STABILITY_SUFFIX,
   "static":
     "Locked-off tripod shot. Camera is perfectly stationary on a heavy tripod with zero movement. " +
@@ -54,10 +72,12 @@ const ORBIT_PORTRAIT_PROMPT =
   STABILITY_SUFFIX;
 
 function getPrompt(cameraAngle: string, aspectRatio?: string): string {
-  if (cameraAngle === "orbit" && aspectRatio !== "16:9") {
+  // Backwards compat: crane-up was merged into drone-up
+  const angle = cameraAngle === "crane-up" ? "drone-up" : cameraAngle;
+  if (angle === "orbit" && aspectRatio !== "16:9") {
     return ORBIT_PORTRAIT_PROMPT;
   }
-  return MOTION_MAP[cameraAngle] || MOTION_MAP["push-in"];
+  return MOTION_MAP[angle] || MOTION_MAP["push-in"];
 }
 
 // ── Clip interface ────────────────────────────────────────────────────────

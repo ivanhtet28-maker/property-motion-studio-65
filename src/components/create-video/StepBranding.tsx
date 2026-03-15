@@ -247,7 +247,6 @@ export function StepBranding({
   const TAB_LIST = [
     { id: "templates", icon: LayoutTemplate, label: "Templates" },
     { id: "music", icon: Music, label: "Music" },
-    { id: "agent", icon: User, label: "Agent\nBranding" },
   ];
 
   // Sync previewFocus with templateStyleTab when on templates tab
@@ -1291,58 +1290,10 @@ export function StepBranding({
           </div>
         )}
 
-        {/* Agent Branding tab */}
-        {activeTab === "agent" && (
-          <div>
-            <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
-              <User className="w-4 h-4 text-primary" />
-              Agent Branding
-            </h3>
-            <p className="text-sm text-muted-foreground mt-1 mb-5">
-              Configure agent branding for the video.
-            </p>
-
-            <div className="space-y-5">
-              <div className="space-y-3">
-                <div>
-                  <Label htmlFor="agent-name">Name *</Label>
-                  <Input
-                    id="agent-name"
-                    placeholder="John Smith"
-                    value={settings.agentInfo.name}
-                    onChange={(e) => updateAgent({ name: e.target.value })}
-                    className="mt-1 h-10"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="agent-phone">Phone *</Label>
-                  <Input
-                    id="agent-phone"
-                    placeholder="0412 345 678"
-                    value={settings.agentInfo.phone}
-                    onChange={(e) => updateAgent({ phone: e.target.value })}
-                    className="mt-1 h-10"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="agent-email">Email</Label>
-                  <Input
-                    id="agent-email"
-                    type="email"
-                    placeholder="john@agency.com"
-                    value={settings.agentInfo.email}
-                    onChange={(e) => updateAgent({ email: e.target.value })}
-                    className="mt-1 h-10"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Right: Preview */}
-      <div className="w-[40%] min-w-[360px] flex-shrink-0">
+      <div className="w-[40%] min-w-[360px] flex-shrink-0 self-start">
         <div className="text-center mb-4">
           <h3 className="text-sm font-semibold text-foreground">Preview</h3>
           <p className="text-xs text-muted-foreground">
@@ -1379,8 +1330,8 @@ export function StepBranding({
         <div className="flex gap-3">
           {/* Preview image/outro */}
           <div
-            className={`bg-secondary rounded-xl overflow-hidden border border-border flex-1 relative shadow-lg ${
-              orientation === "portrait" ? "aspect-[9/16]" : "aspect-video"
+            className={`bg-secondary rounded-xl overflow-hidden border border-border relative shadow-lg ${
+              orientation === "portrait" ? "aspect-[9/16] max-h-[520px]" : "aspect-video"
             }`}
           >
             {previewFocus === "intro" ? (
