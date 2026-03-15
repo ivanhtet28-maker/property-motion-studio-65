@@ -155,10 +155,7 @@ export default function CreateVideo() {
       case 3:
         return selectedIndices.length >= 3;
       case 4:
-        return (
-          !!customization.agentInfo.name.trim() &&
-          !!customization.agentInfo.phone.trim()
-        );
+        return true;
       default:
         return true;
     }
@@ -496,15 +493,6 @@ export default function CreateVideo() {
       setError(`Maximum 10 photos (you have ${imageCount})`);
       return;
     }
-    if (!customization.agentInfo.name.trim()) {
-      setError("Please fill in your agent name");
-      return;
-    }
-    if (!customization.agentInfo.phone.trim()) {
-      setError("Please fill in your agent phone number");
-      return;
-    }
-
     // Check subscription
     if (user?.id) {
       const { data: userData, error: userError } = await supabase
@@ -946,11 +934,7 @@ export default function CreateVideo() {
             <Button
               variant="hero"
               onClick={handleGenerate}
-              disabled={
-                !customization.agentInfo.name.trim() ||
-                !customization.agentInfo.phone.trim() ||
-                selectedIndices.length < 3
-              }
+              disabled={selectedIndices.length < 3}
             >
               <LayoutTemplate className="w-4 h-4" />
               Render branded video
