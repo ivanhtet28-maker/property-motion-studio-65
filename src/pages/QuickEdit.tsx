@@ -1,15 +1,22 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera, Play, Pause, Check, Loader2, Save, GripVertical } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  ArrowLeft,
+  Camera,
+  Play,
+  Check,
+  Loader2,
+  Save,
+  RefreshCw,
+  ChevronRight,
+  Sparkles,
+  GripVertical,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import {
   type CameraAction,
   CAMERA_ACTION_OPTIONS,
@@ -18,6 +25,7 @@ import {
 interface SceneData {
   id: string;
   imageUrl: string;
+  clipUrl?: string;
   cameraAction: CameraAction;
   duration: number;
 }
@@ -32,9 +40,16 @@ export default function QuickEdit() {
   const [selectedScene, setSelectedScene] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoTitle, setVideoTitle] = useState("Untitled video");
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  // Clip regeneration state
+  const [selectedCameraAngle, setSelectedCameraAngle] = useState<CameraAction>("push-in");
+  const [regenerating, setRegenerating] = useState(false);
+  const [newClipUrl, setNewClipUrl] = useState<string | null>(null);
+  const [regeneratedClips, setRegeneratedClips] = useState<Record<number, string>>({});
+
+  const timelineRef = useRef<HTMLDivElement>(null);
 
   // Load video data
   useEffect(() => {
@@ -51,43 +66,46 @@ export default function QuickEdit() {
         if (error) throw error;
 
         setVideoTitle(data.property_address || "Untitled video");
-        setVideoUrl(data.video_url);
 
-        // Parse scene data from the video's photos/metadata
         const photos: string[] = [];
         let cameraAngles: string[] = [];
         let clipDurations: number[] = [];
         if (data.photos) {
           try {
-            const parsed = typeof data.photos === "string"
-              ? JSON.parse(data.photos)
-              : data.photos;
+            const parsed =
+              typeof data.photos === "string"
+                ? JSON.parse(data.photos)
+                : data.photos;
             if (parsed.imageUrls) photos.push(...parsed.imageUrls);
-            if (Array.isArray(parsed.cameraAngles)) cameraAngles = parsed.cameraAngles;
-            if (Array.isArray(parsed.clipDurations)) clipDurations = parsed.clipDurations;
+            if (Array.isArray(parsed.cameraAngles))
+              cameraAngles = parsed.cameraAngles;
+            if (Array.isArray(parsed.clipDurations))
+              clipDurations = parsed.clipDurations;
           } catch {
             // photos field might be array of URLs directly
           }
         }
 
-        // Create scene data — if no photo URLs, create placeholder scenes
         if (photos.length > 0) {
           setScenes(
             photos.map((url, i) => ({
               id: `scene-${i}`,
               imageUrl: url,
               cameraAction: (cameraAngles[i] || "push-in") as CameraAction,
-              duration: clipDurations[i] || 3.5,
+              duration: clipDurations[i] || 5,
             }))
           );
+          // Pre-select the first scene's camera angle
+          if (cameraAngles[0]) {
+            setSelectedCameraAngle(cameraAngles[0] as CameraAction);
+          }
         } else {
-          // Fallback: show 5 placeholder scenes
           setScenes(
             Array.from({ length: 5 }, (_, i) => ({
               id: `scene-${i}`,
               imageUrl: data.thumbnail_url || "",
               cameraAction: "push-in" as CameraAction,
-              duration: 3.5,
+              duration: 5,
             }))
           );
         }
@@ -100,10 +118,64 @@ export default function QuickEdit() {
     })();
   }, [id, user]);
 
-  const updateSceneMotion = (index: number, action: CameraAction) => {
-    setScenes((prev) =>
-      prev.map((s, i) => (i === index ? { ...s, cameraAction: action } : s))
-    );
+  // When selected scene changes, sync camera angle selector
+  useEffect(() => {
+    const scene = scenes[selectedScene];
+    if (scene) {
+      setSelectedCameraAngle(scene.cameraAction);
+      setNewClipUrl(regeneratedClips[selectedScene] || null);
+    }
+  }, [selectedScene, scenes, regeneratedClips]);
+
+  const handleRegenerate = async () => {
+    if (!id || selectedScene === null) return;
+    const scene = scenes[selectedScene];
+    if (!scene) return;
+
+    setRegenerating(true);
+    setNewClipUrl(null);
+
+    try {
+      const result = await invokeEdgeFunction<{
+        success: boolean;
+        clipUrl: string;
+        clipIndex: number;
+        cameraAngle: string;
+        error?: string;
+      }>("regenerate-clip", {
+        body: {
+          videoId: id,
+          clipIndex: selectedScene,
+          imageUrl: scene.imageUrl,
+          cameraAngle: selectedCameraAngle,
+          duration: 5,
+        },
+      });
+
+      if (result.success && result.clipUrl) {
+        setNewClipUrl(result.clipUrl);
+        setRegeneratedClips((prev) => ({
+          ...prev,
+          [selectedScene]: result.clipUrl,
+        }));
+        toast({
+          title: "Clip regenerated",
+          description: `Scene ${selectedScene + 1} has a new clip ready to preview.`,
+        });
+      } else {
+        throw new Error(result.error || "Clip generation failed");
+      }
+    } catch (err) {
+      console.error("Failed to regenerate clip:", err);
+      toast({
+        title: "Regeneration failed",
+        description:
+          err instanceof Error ? err.message : "Could not regenerate clip",
+        variant: "destructive",
+      });
+    } finally {
+      setRegenerating(false);
+    }
   };
 
   const handleReorder = (fromIndex: number, toIndex: number) => {
@@ -116,11 +188,11 @@ export default function QuickEdit() {
     setSelectedScene(toIndex);
   };
 
-  const handleSave = async () => {
+  const handleApplyChanges = async () => {
     if (!id || !user?.id) return;
     setSaving(true);
+
     try {
-      // Load existing photos JSON so we can merge updated camera actions
       const { data: videoData, error: fetchErr } = await supabase
         .from("videos")
         .select("photos")
@@ -133,9 +205,10 @@ export default function QuickEdit() {
       let photosJson: Record<string, unknown> = {};
       if (videoData?.photos) {
         try {
-          photosJson = typeof videoData.photos === "string"
-            ? JSON.parse(videoData.photos)
-            : videoData.photos;
+          photosJson =
+            typeof videoData.photos === "string"
+              ? JSON.parse(videoData.photos)
+              : videoData.photos;
         } catch {
           photosJson = {};
         }
@@ -165,17 +238,32 @@ export default function QuickEdit() {
 
       if (updateErr) throw updateErr;
 
-      toast({ title: "Changes saved", description: "Your video has been updated." });
+      // Clear regenerated clips tracker
+      setRegeneratedClips({});
+      setNewClipUrl(null);
+
+      toast({
+        title: "Clip updated!",
+        description: "Your changes have been saved successfully.",
+      });
     } catch (err) {
       console.error("Failed to save changes:", err);
       toast({
         title: "Save failed",
-        description: err instanceof Error ? err.message : "Could not save changes",
+        description:
+          err instanceof Error ? err.message : "Could not save changes",
         variant: "destructive",
       });
     } finally {
       setSaving(false);
     }
+  };
+
+  const updateSceneMotion = (index: number, action: CameraAction) => {
+    setScenes((prev) =>
+      prev.map((s, i) => (i === index ? { ...s, cameraAction: action } : s))
+    );
+    setSelectedCameraAngle(action);
   };
 
   if (loading) {
@@ -187,206 +275,297 @@ export default function QuickEdit() {
   }
 
   const currentScene = scenes[selectedScene];
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-
-  const togglePlay = () => {
-    const video = videoRef.current;
-    if (!video) return;
-    if (video.paused) {
-      video.play();
-      setIsPlaying(true);
-    } else {
-      video.pause();
-      setIsPlaying(false);
-    }
-  };
-
-  const formatTime = (t: number) => {
-    const m = Math.floor(t / 60);
-    const s = Math.floor(t % 60);
-    return `${m}:${s.toString().padStart(2, "0")}`;
-  };
+  const hasRegeneratedClip = regeneratedClips[selectedScene] !== undefined;
 
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Top bar */}
-      <header className="h-14 border-b border-border bg-card flex items-center justify-between px-6 flex-shrink-0">
+      <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4 sm:px-6 flex-shrink-0">
         <button
           onClick={() => navigate("/dashboard")}
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to project
+          <span className="hidden sm:inline">Dashboard</span>
         </button>
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-foreground">{videoTitle}</span>
+          <span className="text-xs text-muted-foreground hidden sm:inline">
+            Dashboard
+          </span>
+          <ChevronRight className="w-3 h-3 text-muted-foreground hidden sm:inline" />
+          <span className="text-sm font-medium text-foreground truncate max-w-[200px]">
+            {videoTitle}
+          </span>
           <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
             Quick Edit
           </span>
         </div>
-        <Button
-          variant="hero"
-          size="sm"
-          onClick={handleSave}
-          disabled={saving}
-        >
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          {saving ? "Saving..." : "Save changes"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/studio/${id}`)}
+            className="hidden sm:flex"
+          >
+            Open Studio
+          </Button>
+        </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left: Scene filmstrip */}
-        <div className="w-20 bg-card border-r border-border overflow-y-auto py-3 flex-shrink-0">
-          {scenes.map((scene, i) => (
-            <button
-              key={scene.id}
-              draggable
-              onClick={() => setSelectedScene(i)}
-              onDragStart={() => setDraggedIndex(i)}
-              onDragOver={(e) => {
-                e.preventDefault();
-                if (draggedIndex !== null && draggedIndex !== i) {
-                  handleReorder(draggedIndex, i);
-                  setDraggedIndex(i);
-                }
-              }}
-              onDragEnd={() => setDraggedIndex(null)}
-              className={`relative w-16 mx-auto mb-2 rounded-md overflow-hidden border-2 transition-all block ${
-                selectedScene === i
-                  ? "border-primary ring-2 ring-primary/20"
-                  : "border-transparent hover:border-border"
-              } ${draggedIndex === i ? "opacity-50 scale-95" : ""}`}
-            >
-              <div className="aspect-[9/16] bg-secondary">
-                {scene.imageUrl && (
-                  <img
-                    src={scene.imageUrl}
-                    alt={`Scene ${i + 1}`}
-                    className="w-full h-full object-cover pointer-events-none"
-                  />
-                )}
-              </div>
-              <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-black/50 flex items-center justify-center text-[9px] font-bold text-white">
-                {i + 1}
-              </div>
-              <div className="absolute bottom-0 left-0 right-0 flex justify-center py-0.5 bg-black/40">
-                <GripVertical className="w-3 h-3 text-white/70" />
-              </div>
-            </button>
-          ))}
-        </div>
-
-        {/* Center: Preview + Controls */}
-        <div className="flex-1 flex flex-col items-center justify-center p-8">
-          {/* Preview */}
-          <div className="aspect-[9/16] w-[300px] bg-secondary rounded-xl overflow-hidden border border-border relative mb-6">
-            {videoUrl ? (
-              <>
-                <video
-                  ref={videoRef}
-                  src={videoUrl}
-                  className="w-full h-full object-cover"
-                  poster={currentScene?.imageUrl}
-                  onTimeUpdate={() => {
-                    if (videoRef.current) setCurrentTime(videoRef.current.currentTime);
-                  }}
-                  onLoadedMetadata={() => {
-                    if (videoRef.current) setDuration(videoRef.current.duration);
-                  }}
-                  onEnded={() => setIsPlaying(false)}
-                  playsInline
-                />
-                {/* Play overlay when paused */}
-                {!isPlaying && (
-                  <button
-                    onClick={togglePlay}
-                    className="absolute inset-0 flex items-center justify-center bg-black/20 transition-opacity hover:bg-black/30"
-                  >
-                    <div className="w-14 h-14 rounded-full bg-white/90 flex items-center justify-center">
-                      <Play className="w-6 h-6 text-black ml-0.5" />
-                    </div>
-                  </button>
-                )}
-              </>
-            ) : currentScene?.imageUrl ? (
-              <img
-                src={currentScene.imageUrl}
-                alt="Preview"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                No preview
-              </div>
-            )}
-            {/* Playback bar */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">
-              <div className="flex items-center gap-2">
-                <button onClick={togglePlay} className="hover:opacity-80 transition-opacity">
-                  {isPlaying ? (
-                    <Pause className="w-4 h-4 text-white" />
-                  ) : (
-                    <Play className="w-4 h-4 text-white" />
-                  )}
-                </button>
-                <span className="text-xs text-white/80">
-                  {formatTime(currentTime)} / {formatTime(duration)}
-                </span>
-              </div>
-              <div
-                className="h-1 bg-white/30 rounded-full mt-1.5 cursor-pointer"
-                onClick={(e) => {
-                  if (!videoRef.current || !duration) return;
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const pct = (e.clientX - rect.left) / rect.width;
-                  videoRef.current.currentTime = pct * duration;
-                }}
-              >
-                <div
-                  className="h-full bg-white rounded-full transition-all"
-                  style={{ width: duration ? `${(currentTime / duration) * 100}%` : "0%" }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Camera motion control */}
-          <div className="bg-card rounded-xl border border-border p-5 w-full max-w-md">
-            <h3 className="text-sm font-semibold text-foreground mb-1">
-              Scene {selectedScene + 1} — Camera motion
+      <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
+        {/* Timeline — horizontal clip cards */}
+        <div className="lg:flex-1 flex flex-col">
+          {/* Clip Timeline */}
+          <div className="border-b border-border bg-card/50 p-4">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+              Timeline — {scenes.length} clips · Drag to reorder
             </h3>
-            <p className="text-xs text-muted-foreground mb-4">
-              Change the motion for this scene only. Other scenes won't be affected.
-            </p>
-
-            <div className="grid grid-cols-2 gap-2">
-              {CAMERA_ACTION_OPTIONS.map((option) => {
-                const isSelected = currentScene?.cameraAction === option.value;
+            <div
+              ref={timelineRef}
+              className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory"
+            >
+              {scenes.map((scene, i) => {
+                const isSelected = selectedScene === i;
+                const wasRegenerated = regeneratedClips[i] !== undefined;
                 return (
                   <button
-                    key={option.value}
-                    onClick={() => updateSceneMotion(selectedScene, option.value)}
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-all ${
+                    key={scene.id}
+                    draggable
+                    onClick={() => setSelectedScene(i)}
+                    onDragStart={() => setDraggedIndex(i)}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (draggedIndex !== null && draggedIndex !== i) {
+                        handleReorder(draggedIndex, i);
+                        setDraggedIndex(i);
+                      }
+                    }}
+                    onDragEnd={() => setDraggedIndex(null)}
+                    className={`relative flex-shrink-0 w-[100px] rounded-lg overflow-hidden border-2 transition-all snap-start ${
                       isSelected
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-secondary text-foreground hover:bg-accent"
-                    }`}
+                        ? "border-primary ring-2 ring-primary/20 scale-105"
+                        : "border-transparent hover:border-border"
+                    } ${draggedIndex === i ? "opacity-50 scale-95" : ""}`}
                   >
-                    <Camera className="w-3.5 h-3.5" />
-                    {option.label}
-                    {isSelected && <Check className="w-3 h-3 ml-auto" />}
+                    <div className="aspect-[9/16] bg-secondary">
+                      {scene.imageUrl && (
+                        <img
+                          src={scene.imageUrl}
+                          alt={`Clip ${i + 1}`}
+                          className="w-full h-full object-cover pointer-events-none"
+                        />
+                      )}
+                    </div>
+                    {/* Clip number badge */}
+                    <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center text-[10px] font-bold text-white">
+                      {i + 1}
+                    </div>
+                    {/* Regenerated indicator */}
+                    {wasRegenerated && (
+                      <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+                        <Check className="w-3 h-3 text-white" />
+                      </div>
+                    )}
+                    {/* Drag handle + camera angle label */}
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-1.5 py-1 flex items-center gap-1">
+                      <GripVertical className="w-3 h-3 text-white/50 flex-shrink-0" />
+                      <span className="text-[9px] text-white/90 font-medium truncate">
+                        {CAMERA_ACTION_OPTIONS.find(
+                          (o) => o.value === scene.cameraAction
+                        )?.label || scene.cameraAction}
+                      </span>
+                    </div>
                   </button>
                 );
               })}
             </div>
+          </div>
 
-            <p className="text-xs text-muted-foreground mt-3">
-              {CAMERA_ACTION_OPTIONS.find((o) => o.value === currentScene?.cameraAction)?.description}
+          {/* Center preview */}
+          <div className="flex-1 flex items-center justify-center p-4 sm:p-8">
+            <div className="flex flex-col sm:flex-row gap-6 items-center">
+              {/* Original image */}
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground mb-2 font-medium">
+                  Original Photo
+                </p>
+                <div className="aspect-[9/16] w-[180px] sm:w-[220px] bg-secondary rounded-xl overflow-hidden border border-border">
+                  {currentScene?.imageUrl ? (
+                    <img
+                      src={currentScene.imageUrl}
+                      alt="Original"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
+                      No preview
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* New clip preview (if regenerated) */}
+              {newClipUrl && (
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground mb-2 font-medium">
+                    New Clip Preview
+                  </p>
+                  <div className="aspect-[9/16] w-[180px] sm:w-[220px] bg-secondary rounded-xl overflow-hidden border-2 border-green-500/50">
+                    <video
+                      src={newClipUrl}
+                      className="w-full h-full object-cover"
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Regeneration spinner */}
+              {regenerating && (
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground mb-2 font-medium">
+                    Generating...
+                  </p>
+                  <div className="aspect-[9/16] w-[180px] sm:w-[220px] bg-secondary rounded-xl overflow-hidden border border-border flex items-center justify-center">
+                    <div className="text-center">
+                      <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
+                      <p className="text-xs text-muted-foreground">
+                        Re-generating clip...
+                      </p>
+                      <p className="text-[10px] text-muted-foreground/60 mt-1">
+                        This takes ~15-20 seconds
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right panel: Selected Clip Editor */}
+        <div className="w-full lg:w-80 border-t lg:border-t-0 lg:border-l border-border bg-card overflow-y-auto p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Camera className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">
+              Scene {selectedScene + 1} Editor
+            </h3>
+          </div>
+
+          {/* Current info */}
+          <div className="bg-secondary/50 rounded-lg p-3 mb-4">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs text-muted-foreground">
+                Current camera
+              </span>
+              <span className="text-xs font-medium text-foreground">
+                {CAMERA_ACTION_OPTIONS.find(
+                  (o) => o.value === currentScene?.cameraAction
+                )?.label || "—"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">Duration</span>
+              <span className="text-xs font-medium text-foreground">
+                5 seconds
+              </span>
+            </div>
+          </div>
+
+          {/* Camera angle selector */}
+          <div className="mb-4">
+            <label className="text-xs font-semibold text-foreground block mb-2">
+              Camera Motion
+            </label>
+            <p className="text-[11px] text-muted-foreground mb-3">
+              Select a new camera motion for this clip.
             </p>
+            <div className="grid grid-cols-1 gap-1.5">
+              {CAMERA_ACTION_OPTIONS.map((option) => {
+                const isSelected = selectedCameraAngle === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    onClick={() =>
+                      updateSceneMotion(selectedScene, option.value)
+                    }
+                    disabled={regenerating}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all text-left ${
+                      isSelected
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary text-foreground hover:bg-accent"
+                    } ${regenerating ? "opacity-50 cursor-not-allowed" : ""}`}
+                  >
+                    <Camera className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="flex-1">{option.label}</span>
+                    {isSelected && <Check className="w-3 h-3" />}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-2">
+              {CAMERA_ACTION_OPTIONS.find(
+                (o) => o.value === selectedCameraAngle
+              )?.description}
+            </p>
+          </div>
+
+          {/* Action buttons */}
+          <div className="space-y-2 border-t border-border pt-4">
+            <Button
+              variant="hero"
+              className="w-full"
+              onClick={handleRegenerate}
+              disabled={regenerating}
+            >
+              {regenerating ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <RefreshCw className="w-4 h-4 mr-2" />
+              )}
+              {regenerating ? "Generating..." : "Re-Generate This Clip"}
+            </Button>
+
+            {hasRegeneratedClip && (
+              <Button
+                variant="default"
+                className="w-full"
+                onClick={handleApplyChanges}
+                disabled={saving || regenerating}
+              >
+                {saving ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Save className="w-4 h-4 mr-2" />
+                )}
+                {saving ? "Saving..." : "Apply Changes"}
+              </Button>
+            )}
+          </div>
+
+          {/* Navigation */}
+          <div className="mt-6 pt-4 border-t border-border space-y-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => navigate(`/studio/${id}`)}
+            >
+              <Play className="w-3.5 h-3.5 mr-2" />
+              Back to Studio
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full"
+              onClick={() => navigate("/dashboard")}
+            >
+              <ArrowLeft className="w-3.5 h-3.5 mr-2" />
+              Back to Dashboard
+            </Button>
           </div>
         </div>
       </div>
