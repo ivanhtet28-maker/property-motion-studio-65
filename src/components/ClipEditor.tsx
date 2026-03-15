@@ -41,9 +41,10 @@ interface ClipEditorProps {
 const CAMERA_ANGLES = [
   { value: "push-in", label: "Push In", description: "Dolly forward toward subject" },
   { value: "pull-out", label: "Pull Out", description: "Dolly backward revealing space" },
-  { value: "orbit", label: "Orbit", description: "Arc around the scene center" },
   { value: "glide-left", label: "Glide Left", description: "Lateral slide to the left" },
   { value: "glide-right", label: "Glide Right", description: "Lateral slide to the right" },
+  { value: "orbit-right", label: "Orbit Right", description: "Clockwise arc around subject" },
+  { value: "orbit-left", label: "Orbit Left", description: "Counter-clockwise arc around subject" },
   { value: "drone-up", label: "Drone Up", description: "Aerial ascending reveal" },
   { value: "static", label: "Static", description: "Locked tripod, no movement" },
 ] as const;

@@ -28,7 +28,8 @@ const VALID_INTENTS = [
   "pull-out",
   "glide-left",
   "glide-right",
-  "orbit",
+  "orbit-right",
+  "orbit-left",
   "drone-up",
   "static",
 ] as const;
@@ -55,14 +56,15 @@ Step 4 — CHOOSE YOUR SHOT from these standard videography moves:
 - pull-out: Dolly backward revealing space. Use for bedrooms, tight rooms, any "look how spacious" shot.
 - glide-left: Smooth lateral slide to the left. Use for entries with staircases on the left, rooms with features to reveal on the left side.
 - glide-right: Smooth lateral slide to the right. Use for entries with staircases on the right, rooms with features to reveal on the right side.
-- orbit: Cinematic arc around subject. Use for living rooms, kitchens, open-plan spaces with features to reveal.
+- orbit-right: Cinematic clockwise arc sweeping right. Use for living rooms, kitchens, open-plan spaces with features to reveal on the right.
+- orbit-left: Cinematic counter-clockwise arc sweeping left. Use for open-plan spaces with features to reveal on the left.
 - drone-up: Aerial rising reveal. Use for pools, backyards, outdoor areas, large properties, or exteriors with fences/obstructions to clear foreground.
 - static: Locked tripod, no movement. Use sparingly — only when the composition is already perfect.
 
 RULES:
 - Bedrooms: ALWAYS pull-out. Never push-in toward a bed.
 - Exteriors with fence: ALWAYS drone-up. Never push-in through a fence.
-- Living rooms with visible kitchen: orbit toward the kitchen side.
+- Living rooms with visible kitchen: orbit-right or orbit-left toward the kitchen side.
 - Entries with staircase: glide-left or glide-right toward the staircase side to reveal it.
 
 Step 5 — JUSTIFY in one sentence.
@@ -84,8 +86,8 @@ interface DetectionResult {
 function getDefaultIntent(roomType: string): string {
   if (roomType.startsWith("exterior") || roomType === "front-door") return "glide-right";
   if (roomType === "entry-foyer") return "push-in";
-  if (roomType.startsWith("living-room")) return "orbit";
-  if (roomType.startsWith("kitchen")) return "orbit";
+  if (roomType.startsWith("living-room")) return "orbit-right";
+  if (roomType.startsWith("kitchen")) return "orbit-right";
   if (roomType === "master-bedroom" || roomType === "bedroom") return "pull-out";
   if (roomType === "bathroom") return "push-in";
   return "drone-up";

@@ -51,7 +51,8 @@ const MOTION_MAP: Record<string, MotionConfig> = {
   "pull-out": { motion: 140, guidanceScale: 1.8 }, // moderate backward dolly feel
   "glide-left":  { motion: 160, guidanceScale: 1.8 }, // lateral left — needs more motion
   "glide-right": { motion: 160, guidanceScale: 1.8 }, // lateral right — needs more motion
-  "orbit":    { motion: 180, guidanceScale: 1.6 }, // arc around subject — highest motion
+  "orbit-right": { motion: 180, guidanceScale: 1.6 }, // arc right — highest motion
+  "orbit-left":  { motion: 180, guidanceScale: 1.6 }, // arc left — highest motion
   "drone-up": { motion: 170, guidanceScale: 1.6 }, // aerial reveal — high motion
   "static":   { motion: 40,  guidanceScale: 2.0 }, // locked tripod — minimal motion, max fidelity
 };
