@@ -38,6 +38,7 @@ export default function CreateVideo() {
 
   // ─── Wizard state ──────────────────────────────────
   const [step, setStep] = useState(1);
+  const [highestStep, setHighestStep] = useState(1);
 
   // ─── Form state ────────────────────────────────────
   const [propertyDetails, setPropertyDetails] = useState<PropertyDetails>({
@@ -164,10 +165,26 @@ export default function CreateVideo() {
   };
 
   const goNext = () => {
-    if (step < 4 && canGoNext()) setStep(step + 1);
+    if (step < 4 && canGoNext()) {
+      const next = step + 1;
+      setStep(next);
+      setHighestStep((h) => Math.max(h, next));
+    }
   };
   const goBack = () => {
     if (step > 1) setStep(step - 1);
+  };
+  const goToStep = (target: number) => {
+    if (isGenerating) return;
+    // Going backward is always allowed
+    if (target < step) {
+      setStep(target);
+      return;
+    }
+    // Going forward only to previously visited steps
+    if (target <= highestStep) {
+      setStep(target);
+    }
   };
 
   // ─── Business logic (preserved from original) ─────
@@ -701,11 +718,12 @@ export default function CreateVideo() {
           Back to project
         </button>
 
-        {/* Stepper */}
+        {/* Stepper — clickable for visited steps */}
         <div className="flex-1 flex items-center justify-center gap-0">
           {STEPS.map((s, i) => {
             const isDone = step > s.id;
             const isCurrent = step === s.id;
+            const isClickable = !isGenerating && (s.id <= highestStep || s.id < step);
             return (
               <div key={s.id} className="flex items-center">
                 {i > 0 && (
@@ -715,7 +733,17 @@ export default function CreateVideo() {
                     }`}
                   />
                 )}
-                <div className="flex flex-col items-center gap-1">
+                <button
+                  onClick={() => isClickable && goToStep(s.id)}
+                  disabled={!isClickable}
+                  className={`flex flex-col items-center gap-1 transition-opacity ${
+                    isClickable && !isCurrent
+                      ? "cursor-pointer hover:opacity-80"
+                      : isCurrent
+                      ? "cursor-default"
+                      : "cursor-not-allowed opacity-60"
+                  }`}
+                >
                   <div
                     className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
                       isCurrent
@@ -734,7 +762,7 @@ export default function CreateVideo() {
                   >
                     {s.label}
                   </span>
-                </div>
+                </button>
               </div>
             );
           })}
