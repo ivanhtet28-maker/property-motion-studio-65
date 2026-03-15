@@ -23,9 +23,17 @@ const MOTION_MAP: Record<string, string> = {
     "Steady dolly backward at a gentle pace, easing in from stillness and maintaining constant speed. " +
     "Camera retreats straight back along a smooth rail, gradually revealing the full extent of the space. " +
     STABILITY_SUFFIX,
-  "tracking":
-    "Smooth lateral tracking shot sliding sideways at a steady pace. Camera faces forward while the entire rig glides on a dolly track. " +
-    "Ease in gently from stillness, hold constant speed, ease out in the final half-second. " +
+  "glide-left":
+    "Professional lateral tracking shot gliding smoothly to the left at a steady pace. " +
+    "Camera faces forward while the entire rig slides leftward on a dolly track. " +
+    "Ease in gently from stillness over the first half-second, hold constant speed, ease out in the final half-second. " +
+    "Smooth cinematic leftward pan revealing adjacent areas and connected spaces. " +
+    STABILITY_SUFFIX,
+  "glide-right":
+    "Professional lateral tracking shot gliding smoothly to the right at a steady pace. " +
+    "Camera faces forward while the entire rig slides rightward on a dolly track. " +
+    "Ease in gently from stillness over the first half-second, hold constant speed, ease out in the final half-second. " +
+    "Smooth cinematic rightward pan revealing adjacent areas and connected spaces. " +
     STABILITY_SUFFIX,
   "orbit":
     "Slow cinematic orbit arc of approximately 20 degrees around the center of the scene. " +

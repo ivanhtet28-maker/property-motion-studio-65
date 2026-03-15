@@ -49,7 +49,8 @@ interface MotionConfig {
 const MOTION_MAP: Record<string, MotionConfig> = {
   "push-in":  { motion: 140, guidanceScale: 1.8 }, // moderate forward dolly feel
   "pull-out": { motion: 140, guidanceScale: 1.8 }, // moderate backward dolly feel
-  "tracking": { motion: 160, guidanceScale: 1.8 }, // lateral movement — needs more motion
+  "glide-left":  { motion: 160, guidanceScale: 1.8 }, // lateral left — needs more motion
+  "glide-right": { motion: 160, guidanceScale: 1.8 }, // lateral right — needs more motion
   "orbit":    { motion: 180, guidanceScale: 1.6 }, // arc around subject — highest motion
   "drone-up": { motion: 170, guidanceScale: 1.6 }, // aerial reveal — high motion
   "static":   { motion: 40,  guidanceScale: 2.0 }, // locked tripod — minimal motion, max fidelity

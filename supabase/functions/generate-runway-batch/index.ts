@@ -82,10 +82,21 @@ const MOTION_MAP: Record<string, MotionConfig> = {
       STABILITY_SUFFIX,
     duration: 5,
   },
-  "tracking": {
+  "glide-left": {
     promptText:
-      "Professional lateral tracking shot sliding sideways at a steady pace. Camera faces forward while the entire rig glides on a dolly track. " +
-      "Ease in gently from stillness, hold constant speed, ease out in the final half-second. Smooth cinematic pan revealing adjacent areas. " +
+      "Professional lateral tracking shot gliding smoothly to the left at a steady pace. " +
+      "Camera faces forward while the entire rig slides leftward on a dolly track. " +
+      "Ease in gently from stillness over the first half-second, hold constant speed, ease out in the final half-second. " +
+      "Smooth cinematic leftward pan revealing adjacent areas and connected spaces. " +
+      STABILITY_SUFFIX,
+    duration: 5,
+  },
+  "glide-right": {
+    promptText:
+      "Professional lateral tracking shot gliding smoothly to the right at a steady pace. " +
+      "Camera faces forward while the entire rig slides rightward on a dolly track. " +
+      "Ease in gently from stillness over the first half-second, hold constant speed, ease out in the final half-second. " +
+      "Smooth cinematic rightward pan revealing adjacent areas and connected spaces. " +
       STABILITY_SUFFIX,
     duration: 5,
   },

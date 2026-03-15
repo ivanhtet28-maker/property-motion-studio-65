@@ -1128,7 +1128,7 @@ import { corsHeaders } from "../_shared/cors.ts";
           // Ken Burns: map camera intent to Shotstack effect or offset animation.
           const angle = cameraAngles?.[index] || "auto";
 
-          if (angle === "tracking" || angle === "orbit") {
+          if (angle === "glide-left" || angle === "glide-right" || angle === "tracking" || angle === "orbit") {
             // Portrait 9:16 heavily crops wide-angle photos — increase pan range
             // so orbit reveals hidden content (e.g. kitchen beside the living room).
             const panTo = outputFormat === "landscape" ? -0.04 : -0.15;
@@ -1151,7 +1151,7 @@ import { corsHeaders } from "../_shared/cors.ts";
           // The tour must always finish — never break the sequence.
           const angle = cameraAngles?.[index] || "push-in";
 
-          if (angle === "tracking" || angle === "orbit") {
+          if (angle === "glide-left" || angle === "glide-right" || angle === "tracking" || angle === "orbit") {
             const panTo = outputFormat === "landscape" ? -0.04 : -0.15;
             clip.offset = {
               x: [{ from: 0, to: panTo, start: 0, length: clipDuration,

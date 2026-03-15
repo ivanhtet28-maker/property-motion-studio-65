@@ -8,6 +8,8 @@ type CameraAngle =
   | "wide-shot"
   | "push-in"
   | "pull-out"
+  | "glide-left"
+  | "glide-right"
   | "tracking"
   | "orbit"
   | "drone-up"
@@ -63,9 +65,14 @@ function getTransform(
       const t = easeIn(progress);
       return { scale: 1.04 - 0.04 * t, offsetX: 0, offsetY: 0 };
     }
+    case "glide-left":
     case "tracking": {
       const t = easeInOut(progress);
       return { scale: 1, offsetX: -panRange * t, offsetY: 0 };
+    }
+    case "glide-right": {
+      const t = easeInOut(progress);
+      return { scale: 1, offsetX: panRange * t, offsetY: 0 };
     }
     case "orbit": {
       const t = easeInOut(progress);

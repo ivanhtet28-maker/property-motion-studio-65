@@ -64,7 +64,8 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
       case "pull-out":
       case "drone-up":
       case "crane-up":     return "zoomOutSlow"; // crane-up kept for backwards compat
-      case "tracking":
+      case "glide-left":   return "slideLeftSlow";
+      case "glide-right":  return "slideRightSlow";
       case "orbit":        return "slideLeftSlow";
       case "static":       return "none"; // locked shot — no Ken Burns effect
       case "push-in":
