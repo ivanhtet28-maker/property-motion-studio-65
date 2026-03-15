@@ -20,6 +20,7 @@ import {
   Search,
   ImagePlus,
   Image as ImageIcon,
+  Zap,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -377,8 +378,8 @@ export default function Dashboard() {
                               Edit Photos
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => navigate(`/quick-edit/${video.id}`)}>
-                              <Pencil className="w-4 h-4 mr-2" />
-                              Quick Edit
+                              <Zap className="w-4 h-4 mr-2" />
+                              Quick Edit Clip
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => toast({ title: "Under Construction", description: "Studio mode is currently under construction. Stay tuned!" })}>
                               <Construction className="w-4 h-4 mr-2 text-muted-foreground" />
