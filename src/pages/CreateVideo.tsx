@@ -13,8 +13,7 @@ import {
   CustomizationSettings,
 } from "@/components/create-video";
 import { uploadImagesToStorage } from "@/utils/uploadToStorage";
-import { uploadVideoToStorage } from "@/utils/uploadVideoToStorage";
-import { generateCanvasVideo } from "@/utils/generateCanvasVideo";
+
 import { getMusicId } from "@/config/musicMapping";
 import { cropImageToFile } from "@/utils/cropImage";
 import { type CameraAction, type ImageMetadata } from "@/components/create-video/PhotoUpload";
@@ -210,18 +209,12 @@ export default function CreateVideo() {
     setIsDownloadingLandscape(true);
     try {
       toast({ title: "Rendering landscape version...", description: "Generating 16:9 video — this takes about a minute." });
-      const landscapeFolder = `landscape-${Date.now()}`;
-      const landscapeClipUrls: string[] = [];
-      for (let i = 0; i < uploadedImageUrls.length; i++) {
-        const meta = imageMetadata[i];
-        const blob = await generateCanvasVideo(uploadedImageUrls[i], meta?.cameraAngle || "auto", meta?.duration || 3.5, 30, "landscape");
-        const clipUrl = await uploadVideoToStorage(blob, landscapeFolder, `clip-${i + 1}`);
-        landscapeClipUrls.push(clipUrl);
-      }
       const clipDurations = imageMetadata.map((m) => m?.duration || 3.5);
+      const cameraAngles = imageMetadata.map((m) => m?.cameraAngle || "push-in");
       const stitchData = await invokeEdgeFunction<{ jobId: string }>("stitch-video", {
         body: {
-          videoUrls: landscapeClipUrls,
+          imageUrls: uploadedImageUrls,
+          cameraAngles,
           clipDurations,
           audioUrl: generationData.audioUrl,
           musicUrl: generationData.musicUrl,
