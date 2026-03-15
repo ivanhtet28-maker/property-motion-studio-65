@@ -329,6 +329,24 @@ export default function CreateVideo() {
         }
         consecutiveErrors = 0;
         if (data.status === "done" && data.videoUrl) {
+          // Safety-net: persist video_url to DB from the client side.
+          // Server-side updateVideoRecord in video-status should have done this,
+          // but save here too in case it failed silently — otherwise the video
+          // won't be playable or editable from the Dashboard.
+          if (videoId) {
+            supabase
+              .from("videos")
+              .update({
+                video_url: data.videoUrl as string,
+                status: "completed",
+                completed_at: new Date().toISOString(),
+              })
+              .eq("id", videoId)
+              .then(({ error: saveErr }) => {
+                if (saveErr) console.error("Client-side video_url save failed:", saveErr);
+                else console.log("Client-side video_url saved to DB");
+              });
+          }
           setVideoUrl(data.videoUrl as string);
           setVideoUrls((data.videoUrls as string[]) || [data.videoUrl as string]);
           setGeneratingProgress(100);
