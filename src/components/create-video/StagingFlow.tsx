@@ -29,16 +29,86 @@ const STYLE_RECOMMENDATIONS: Record<string, string[]> = {
 };
 
 const DESIGN_STYLES = [
-  { value: "MODERN", label: "Modern", description: "Clean, sleek, contemporary", gradient: "from-gray-100 to-gray-900", emoji: "🏢" },
-  { value: "SCANDINAVIAN", label: "Scandinavian", description: "Light, minimal, cozy", gradient: "from-blue-50 to-blue-200", emoji: "❄️" },
-  { value: "LUXEMODERN", label: "Luxury Modern", description: "Elegant, premium finishes", gradient: "from-yellow-50 to-amber-700", emoji: "✨" },
-  { value: "FARMHOUSE", label: "Farmhouse", description: "Rustic, warm, homey", gradient: "from-yellow-100 to-amber-800", emoji: "🌾" },
-  { value: "MINIMALIST", label: "Minimalist", description: "Simple, uncluttered, calm", gradient: "from-white to-gray-400", emoji: "⬜" },
-  { value: "INDUSTRIAL", label: "Industrial", description: "Raw, exposed, edgy", gradient: "from-gray-700 to-gray-900", emoji: "🏭" },
-  { value: "COASTAL", label: "Coastal", description: "Breezy, beach, relaxed", gradient: "from-blue-100 to-blue-300", emoji: "🌊" },
-  { value: "ARTDECO", label: "Art Deco", description: "Glamorous, geometric, bold", gradient: "from-gray-900 to-yellow-600", emoji: "💎" },
-  { value: "BOHO", label: "Bohemian", description: "Eclectic, artistic, free", gradient: "from-orange-200 to-orange-900", emoji: "🎨" },
-  { value: "CONTEMPORARY", label: "Contemporary", description: "Current, trendy, stylish", gradient: "from-yellow-400 to-gray-800", emoji: "🎭" },
+  { 
+    value: "MODERN", 
+    label: "Modern", 
+    description: "Clean, sleek, contemporary", 
+    gradient: "from-gray-100 to-gray-900", 
+    emoji: "🏢",
+    imageUrl: "/staging-styles/modern.jpg" // Optional: stock/AI-generated image
+  },
+  { 
+    value: "SCANDINAVIAN", 
+    label: "Scandinavian", 
+    description: "Light, minimal, cozy", 
+    gradient: "from-blue-50 to-blue-200", 
+    emoji: "❄️",
+    imageUrl: "/staging-styles/scandinavian.jpg"
+  },
+  { 
+    value: "LUXEMODERN", 
+    label: "Luxury Modern", 
+    description: "Elegant, premium finishes", 
+    gradient: "from-yellow-50 to-amber-700", 
+    emoji: "✨",
+    imageUrl: "/staging-styles/luxury-modern.jpg"
+  },
+  { 
+    value: "FARMHOUSE", 
+    label: "Farmhouse", 
+    description: "Rustic, warm, homey", 
+    gradient: "from-yellow-100 to-amber-800", 
+    emoji: "🌾",
+    imageUrl: "/staging-styles/farmhouse.jpg"
+  },
+  { 
+    value: "MINIMALIST", 
+    label: "Minimalist", 
+    description: "Simple, uncluttered, calm", 
+    gradient: "from-white to-gray-400", 
+    emoji: "⬜",
+    imageUrl: "/staging-styles/minimalist.jpg"
+  },
+  { 
+    value: "INDUSTRIAL", 
+    label: "Industrial", 
+    description: "Raw, exposed, edgy", 
+    gradient: "from-gray-700 to-gray-900", 
+    emoji: "🏭",
+    imageUrl: "/staging-styles/industrial.jpg"
+  },
+  { 
+    value: "COASTAL", 
+    label: "Coastal", 
+    description: "Breezy, beach, relaxed", 
+    gradient: "from-blue-100 to-blue-300", 
+    emoji: "🌊",
+    imageUrl: "/staging-styles/coastal.jpg"
+  },
+  { 
+    value: "ARTDECO", 
+    label: "Art Deco", 
+    description: "Glamorous, geometric, bold", 
+    gradient: "from-gray-900 to-yellow-600", 
+    emoji: "💎",
+    imageUrl: "/staging-styles/artdeco.jpg"
+  },
+  { 
+    value: "BOHO", 
+    label: "Bohemian", 
+    description: "Eclectic, artistic, free", 
+    gradient: "from-orange-200 to-orange-900", 
+    emoji: "🎨",
+    imageUrl: "/staging-styles/boho.jpg"
+  },
+  { 
+    value: "CONTEMPORARY", 
+    label: "Contemporary", 
+    description: "Current, trendy, stylish", 
+    gradient: "from-yellow-400 to-gray-800", 
+    emoji: "🎭",
+    imageUrl: "/staging-styles/contemporary.jpg"
+  },
 ];
 
 interface StagingFlowProps {
@@ -196,10 +266,16 @@ export function StagingFlow({ imageUrls, onComplete, userId }: StagingFlowProps)
                       : "border-primary/30 hover:border-primary/50"
                   }`}
                 >
-                  {/* Color Preview Block */}
-                  <div className={`h-16 bg-gradient-to-br ${style.gradient} flex items-center justify-center`}>
-                    <span className="text-2xl">{style.emoji}</span>
-                  </div>
+                  {/* Image or Color Preview Block */}
+                  {style.imageUrl ? (
+                    <div className="h-24 overflow-hidden bg-gray-200">
+                      <img src={style.imageUrl} alt={style.label} className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className={`h-16 bg-gradient-to-br ${style.gradient} flex items-center justify-center`}>
+                      <span className="text-2xl">{style.emoji}</span>
+                    </div>
+                  )}
                   {/* Style Info */}
                   <div className="p-3 bg-background">
                     <div className="font-medium text-sm">{style.label}</div>
@@ -224,10 +300,16 @@ export function StagingFlow({ imageUrls, onComplete, userId }: StagingFlowProps)
                       : "border-border hover:border-primary/30"
                   }`}
                 >
-                  {/* Color Preview Block */}
-                  <div className={`h-16 bg-gradient-to-br ${style.gradient} flex items-center justify-center`}>
-                    <span className="text-2xl">{style.emoji}</span>
-                  </div>
+                  {/* Image or Color Preview Block */}
+                  {style.imageUrl ? (
+                    <div className="h-24 overflow-hidden bg-gray-200">
+                      <img src={style.imageUrl} alt={style.label} className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className={`h-16 bg-gradient-to-br ${style.gradient} flex items-center justify-center`}>
+                      <span className="text-2xl">{style.emoji}</span>
+                    </div>
+                  )}
                   {/* Style Info */}
                   <div className="p-3 bg-background">
                     <div className="font-medium text-sm">{style.label}</div>
