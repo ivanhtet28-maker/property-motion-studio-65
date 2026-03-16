@@ -34,14 +34,24 @@ export class EdgeFunctionError extends Error {
   }
 }
 
-/** Sign out and redirect to login when the session is unrecoverable. */
+/**
+ * Sign out when the session is unrecoverable.
+ *
+ * The redirect to /login is handled automatically by React's auth flow:
+ * `supabase.auth.signOut()` fires `onAuthStateChange` → `AuthContext`
+ * sets `user = null` → `ProtectedRoute` renders `<Navigate to="/login">`.
+ *
+ * We intentionally do NOT do `window.location.href = "/login"` here because
+ * that hard-navigates the browser, bypassing React Router and racing with
+ * the calling code's error handling (toasts never display, user gets kicked
+ * out of QuickEdit mid-action).
+ */
 async function forceSignOut(): Promise<void> {
   try {
     await supabase.auth.signOut();
   } catch {
-    // Best-effort — redirect regardless
+    // Best-effort — React auth listener will still pick up the state change
   }
-  window.location.href = "/login";
 }
 
 interface InvokeOptions {
@@ -102,15 +112,21 @@ export async function invokeEdgeFunction<T = Record<string, unknown>>(
 ): Promise<T> {
   const { body, headers = {}, requireAuth = true } = options;
 
-  // Pre-flight: if auth is required, verify a session exists before calling
+  // Pre-flight: if auth is required, verify a session exists before calling.
+  // If the cached token is stale/missing, attempt a refresh before giving up.
   if (requireAuth) {
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData?.session?.access_token) {
-      await forceSignOut();
-      throw new EdgeFunctionError(
-        "Your session has expired. Please sign in again.",
-        401,
-      );
+      console.warn("[invokeEdgeFunction] No cached session — attempting refresh...");
+      const { data: refreshData, error: refreshErr } = await supabase.auth.refreshSession();
+      if (refreshErr || !refreshData?.session?.access_token) {
+        await forceSignOut();
+        throw new EdgeFunctionError(
+          "Your session has expired. Please sign in again.",
+          401,
+        );
+      }
+      // Refresh succeeded — continue with the freshly-minted token
     }
   }
 
