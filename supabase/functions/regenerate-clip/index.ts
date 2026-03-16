@@ -41,22 +41,22 @@ const MOTION_MAP: Record<string, string> = {
     "Smooth cinematic rightward pan revealing adjacent areas and connected spaces. " +
     STABILITY_SUFFIX,
   "orbit-right":
-    "Dramatic arc shot — camera executes a confident, steady clockwise orbit around the center of the room, " +
+    "Cinematic arc shot — camera executes a confident, smooth clockwise orbit around the center of the room, " +
     "maintaining the room's focal point as the fixed center of rotation. " +
-    "Camera sweeps a wide curved arc of approximately 90 degrees to the right — a full quarter-circle — " +
+    "Camera sweeps a wide, deliberate arc of approximately 45 degrees to the right, " +
     "keeping a constant radial distance from the subject throughout. " +
-    "Ease in quickly from stillness, hold steady constant orbital speed through the full arc, ease out in the final half-second. " +
-    "The wide arc dramatically reveals the side walls, depth, and three-dimensional layout of the space, " +
-    "creating strong parallax between foreground furniture and background walls. " +
+    "Ease in from stillness, hold steady constant orbital speed through the arc, ease out in the final half-second. " +
+    "The arc reveals the side walls, depth, and three-dimensional layout of the space, " +
+    "creating parallax between foreground furniture and background walls. " +
     GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
   "orbit-left":
-    "Dramatic arc shot — camera executes a confident, steady counter-clockwise orbit around the center of the room, " +
+    "Cinematic arc shot — camera executes a confident, smooth counter-clockwise orbit around the center of the room, " +
     "maintaining the room's focal point as the fixed center of rotation. " +
-    "Camera sweeps a wide curved arc of approximately 90 degrees to the left — a full quarter-circle — " +
+    "Camera sweeps a wide, deliberate arc of approximately 45 degrees to the left, " +
     "keeping a constant radial distance from the subject throughout. " +
-    "Ease in quickly from stillness, hold steady constant orbital speed through the full arc, ease out in the final half-second. " +
-    "The wide arc dramatically reveals the side walls, depth, and three-dimensional layout of the space, " +
-    "creating strong parallax between foreground furniture and background walls. " +
+    "Ease in from stillness, hold steady constant orbital speed through the arc, ease out in the final half-second. " +
+    "The arc reveals the side walls, depth, and three-dimensional layout of the space, " +
+    "creating parallax between foreground furniture and background walls. " +
     GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
   "drone-up":
     "Rising aerial reveal. Camera ascends vertically while tilting down to keep the scene centered in frame. " +
