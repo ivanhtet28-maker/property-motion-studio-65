@@ -102,25 +102,25 @@ const MOTION_MAP: Record<string, MotionConfig> = {
   },
   "orbit-right": {
     promptText:
-      "Smooth arc shot — camera executes a slow, deliberate clockwise orbit around the center of the room, " +
+      "Dramatic arc shot — camera executes a confident, steady clockwise orbit around the center of the room, " +
       "maintaining the room's focal point as the fixed center of rotation. " +
-      "Camera follows a gentle curved arc of approximately 15–20 degrees to the right, " +
+      "Camera sweeps a wide curved arc of approximately 90 degrees to the right — a full quarter-circle — " +
       "keeping a constant radial distance from the subject throughout. " +
-      "Ease in from stillness, hold slow constant orbital speed, ease out to stillness. " +
-      "The arc reveals new depth and perspective of the space, " +
-      "creating smooth parallax between foreground furniture and background walls. " +
+      "Ease in quickly from stillness, hold steady constant orbital speed through the full arc, ease out in the final half-second. " +
+      "The wide arc dramatically reveals the side walls, depth, and three-dimensional layout of the space, " +
+      "creating strong parallax between foreground furniture and background walls. " +
       GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
     duration: 5,
   },
   "orbit-left": {
     promptText:
-      "Smooth arc shot — camera executes a slow, deliberate counter-clockwise orbit around the center of the room, " +
+      "Dramatic arc shot — camera executes a confident, steady counter-clockwise orbit around the center of the room, " +
       "maintaining the room's focal point as the fixed center of rotation. " +
-      "Camera follows a gentle curved arc of approximately 15–20 degrees to the left, " +
+      "Camera sweeps a wide curved arc of approximately 90 degrees to the left — a full quarter-circle — " +
       "keeping a constant radial distance from the subject throughout. " +
-      "Ease in from stillness, hold slow constant orbital speed, ease out to stillness. " +
-      "The arc reveals new depth and perspective of the space, " +
-      "creating smooth parallax between foreground furniture and background walls. " +
+      "Ease in quickly from stillness, hold steady constant orbital speed through the full arc, ease out in the final half-second. " +
+      "The wide arc dramatically reveals the side walls, depth, and three-dimensional layout of the space, " +
+      "creating strong parallax between foreground furniture and background walls. " +
       GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
     duration: 5,
   },
