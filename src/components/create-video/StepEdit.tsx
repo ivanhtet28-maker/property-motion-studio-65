@@ -32,6 +32,8 @@ interface StepEditProps {
   onOrientationChange: (orientation: "portrait" | "landscape") => void;
   cropData?: Record<number, CropData>;
   onCropChange?: (index: number, crop: CropData) => void;
+  suggestedMotions?: Record<number, { motion: CameraAction; roomType: string; heroFeature: string }>;
+  isDetectingMotions?: boolean;
 }
 
 export function StepEdit({
@@ -43,6 +45,8 @@ export function StepEdit({
   onOrientationChange,
   cropData = {},
   onCropChange,
+  suggestedMotions = {},
+  isDetectingMotions = false,
 }: StepEditProps) {
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [croppingIndex, setCroppingIndex] = useState<number | null>(null);
@@ -159,6 +163,8 @@ export function StepEdit({
                   value={action}
                   onChange={(a) => onCameraActionChange(photoIndex, a)}
                   label={actionLabel}
+                  suggestedMotion={suggestedMotions[photoIndex]?.motion}
+                  isDetecting={isDetectingMotions}
                 />
                 {/* Crop button */}
                 <button
@@ -400,13 +406,23 @@ function CameraActionPicker({
   value,
   onChange,
   label,
+  suggestedMotion,
+  isDetecting,
 }: {
   value: CameraAction;
   onChange: (action: CameraAction) => void;
   label: string;
+  suggestedMotion?: CameraAction;
+  isDetecting?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [hoveredMotion, setHoveredMotion] = useState<CameraAction | null>(null);
+
+  // Auto option resolves to AI suggestion or falls back to push-in
+  const autoValue = suggestedMotion ?? "push-in";
+  const autoLabel = suggestedMotion
+    ? CAMERA_ACTION_OPTIONS.find((o) => o.value === suggestedMotion)?.label ?? "Auto"
+    : "Auto";
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -426,7 +442,7 @@ function CameraActionPicker({
               Choose camera motion...
             </div>
             {[
-              { value: "push-in" as CameraAction, label: "Auto", recommended: true },
+              { value: autoValue, label: "Auto", recommended: true },
               { value: "push-in" as CameraAction, label: "Push In" },
               { value: "pull-out" as CameraAction, label: "Pull Out" },
               { value: "orbit-right" as CameraAction, label: "Orbit Right" },
@@ -445,7 +461,7 @@ function CameraActionPicker({
                 onMouseEnter={() => setHoveredMotion(option.value)}
                 onMouseLeave={() => setHoveredMotion(null)}
                 className={`w-full flex items-center gap-2 px-2 py-2 rounded text-sm hover:bg-accent transition-colors ${
-                  (i === 0 && value === "push-in") ||
+                  (i === 0 && value === autoValue) ||
                   option.label.toLowerCase().replace(" ", "-") === value
                     ? "text-primary font-medium"
                     : "text-foreground"
@@ -454,7 +470,15 @@ function CameraActionPicker({
                 <Camera className="w-3.5 h-3.5 text-muted-foreground" />
                 {option.label}
                 {option.recommended && (
-                  <span className="text-xs text-muted-foreground ml-auto">(Recommended)</span>
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    {isDetecting ? (
+                      "Analyzing..."
+                    ) : suggestedMotion ? (
+                      <>AI: {autoLabel}</>
+                    ) : (
+                      "(Recommended)"
+                    )}
+                  </span>
                 )}
               </button>
             ))}
