@@ -60,6 +60,11 @@ export default function CreateVideo() {
   const [imageMetadata, setImageMetadata] = useState<ImageMetadata[]>([]);
   const [script, setScript] = useState("");
 
+  // ─── AI auto-suggest camera motions ──────────────────
+  const [suggestedMotions, setSuggestedMotions] = useState<Record<number, { motion: CameraAction; roomType: string; heroFeature: string }>>({});
+  const [isDetectingMotions, setIsDetectingMotions] = useState(false);
+  const detectionRanRef = useRef(false);
+
   const [customization, setCustomization] = useState<CustomizationSettings>({
     musicStyle: "Cinematic & Epic",
     musicTrack: "cinematic-epic-1",
@@ -120,6 +125,12 @@ export default function CreateVideo() {
     };
   }, []);
 
+  // Reset motion detection when photo selection changes
+  useEffect(() => {
+    detectionRanRef.current = false;
+    setSuggestedMotions({});
+  }, [selectedIndices.length]);
+
   // Sync imageMetadata when selection or camera actions change
   useEffect(() => {
     const meta: ImageMetadata[] = selectedIndices.map((idx) => ({
@@ -160,9 +171,62 @@ export default function CreateVideo() {
     }
   };
 
+  // ─── Detect room types & auto-suggest motions ───────
+  const detectMotions = async (indices: number[]) => {
+    if (detectionRanRef.current) return; // already ran for this selection
+    detectionRanRef.current = true;
+    setIsDetectingMotions(true);
+    try {
+      // Convert selected photos to base64
+      const images = await Promise.all(
+        indices.map(async (idx) => {
+          const file = photos[idx];
+          const buffer = await file.arrayBuffer();
+          const base64 = btoa(
+            new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
+          );
+          return { id: String(idx), base64, mimeType: file.type || "image/jpeg" };
+        })
+      );
+
+      const result = await invokeEdgeFunction<{
+        results: Array<{
+          id: string;
+          room_type: string;
+          camera_intent: string;
+          hero_feature: string;
+          hazards: string;
+        }>;
+      }>("detect-room-types", { body: { images } });
+
+      const newSuggestions: Record<number, { motion: CameraAction; roomType: string; heroFeature: string }> = {};
+      const newActions: Record<number, CameraAction> = {};
+
+      for (const r of result.results) {
+        const idx = Number(r.id);
+        const motion = r.camera_intent as CameraAction;
+        newSuggestions[idx] = { motion, roomType: r.room_type, heroFeature: r.hero_feature };
+        newActions[idx] = motion;
+      }
+
+      setSuggestedMotions(newSuggestions);
+      // Pre-populate camera actions with AI suggestions (user can override)
+      setCameraActions((prev) => ({ ...newActions, ...prev }));
+    } catch (err) {
+      console.error("[auto-suggest] Motion detection failed, using defaults:", err);
+      // Silently fall back — user can still pick manually
+    } finally {
+      setIsDetectingMotions(false);
+    }
+  };
+
   const goNext = () => {
     if (step < 4 && canGoNext()) {
       const next = step + 1;
+      // Trigger AI motion detection when entering Edit step
+      if (step === 2 && next === 3) {
+        detectMotions(selectedIndices);
+      }
       setStep(next);
       setHighestStep((h) => Math.max(h, next));
     }
@@ -784,6 +848,8 @@ export default function CreateVideo() {
               onCropChange={(idx, crop) =>
                 setCropData((prev) => ({ ...prev, [idx]: crop }))
               }
+              suggestedMotions={suggestedMotions}
+              isDetectingMotions={isDetectingMotions}
             />
           )}
 
