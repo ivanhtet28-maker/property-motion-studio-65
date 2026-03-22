@@ -61,6 +61,7 @@ const GEOMETRY_PRESERVATION =
 
 interface MotionConfig {
   promptText: string;
+  landscapePromptText?: string; // Landscape-specific prompt (wider arc for orbit motions)
   duration: 5; // Always 5s — research shows best quality and consistency
 }
 
@@ -96,16 +97,32 @@ const MOTION_MAP: Record<string, MotionConfig> = {
   },
   "orbit-right": {
     promptText:
-      "Smooth sweeping arc shot — camera swoops clockwise around the room in a wide, bold arc of approximately 50 degrees to the right. " +
-      "The room's center stays fixed as the camera sweeps around it, creating strong parallax between foreground furniture and background walls. " +
+      "Sweeping arc shot — camera curves clockwise on a circular dolly track, arcing approximately 50 degrees to the right around the room's center. " +
+      "Constant radial distance from the subject — no forward or backward movement, only lateral arc. " +
+      "Foreground objects shift against the background, creating strong parallax depth. " +
+      "Steady orbital speed throughout. " +
+      GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
+    landscapePromptText:
+      "Wide sweeping arc shot — camera orbits clockwise around the room in a dramatic 60-degree arc to the right. " +
+      "Strong lateral camera displacement — the viewpoint physically moves sideways, not zooming. " +
+      "Foreground objects shift significantly against the background, creating bold parallax. " +
+      "The camera traces a curved dolly path, never pushing straight forward. " +
       "Steady orbital speed throughout. " +
       GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
     duration: 5,
   },
   "orbit-left": {
     promptText:
-      "Smooth arc shot — camera orbits counter-clockwise around the center of the room, sweeping approximately 45 degrees to the left. " +
-      "Constant radial distance from the subject, creating parallax between foreground furniture and background walls. " +
+      "Sweeping arc shot — camera curves counter-clockwise on a circular dolly track, arcing approximately 50 degrees to the left around the room's center. " +
+      "Constant radial distance from the subject — no forward or backward movement, only lateral arc. " +
+      "Foreground objects shift against the background, creating strong parallax depth. " +
+      "Steady orbital speed throughout. " +
+      GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
+    landscapePromptText:
+      "Wide sweeping arc shot — camera orbits counter-clockwise around the room in a dramatic 60-degree arc to the left. " +
+      "Strong lateral camera displacement — the viewpoint physically moves sideways, not zooming. " +
+      "Foreground objects shift significantly against the background, creating bold parallax. " +
+      "The camera traces a curved dolly path, never pushing straight forward. " +
       "Steady orbital speed throughout. " +
       GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
     duration: 5,
@@ -126,11 +143,15 @@ const MOTION_MAP: Record<string, MotionConfig> = {
   },
 };
 
-function composePrompt(cameraAction: string): string {
+function composePrompt(cameraAction: string, outputFormat?: string): string {
   // Backwards compat: map legacy "orbit" to orbit-right
   const action = cameraAction === "orbit" ? "orbit-right" : cameraAction;
   const config = MOTION_MAP[action];
   if (!config) return MOTION_MAP["push-in"].promptText;
+  // Use landscape-specific prompt if available and format is landscape
+  if (outputFormat === "landscape" && config.landscapePromptText) {
+    return config.landscapePromptText;
+  }
   return config.promptText;
 }
 
@@ -174,7 +195,7 @@ Deno.serve(async (req) => {
       const { url: imageUrl, cameraAction, seed } = metadata;
       try {
         const effectiveAction = (cameraAction && MOTION_MAP[cameraAction]) ? cameraAction : "push-in";
-        const promptText = composePrompt(effectiveAction);
+        const promptText = composePrompt(effectiveAction, outputFormat);
 
         // All clips are 5s — research shows quality degrades significantly
         // after 5s with Gen4 Turbo, especially for architecture/interiors.
