@@ -298,9 +298,9 @@ import { checkRateLimit, getClientIP, hashIP } from "../_shared/rate-limit.ts";
         }
       }
 
-      // Calculate expected duration — all Runway clips are 5s, Shotstack hard-cuts at 3.5s
+      // Calculate expected duration — all Runway clips are 5s, Shotstack hard-cuts at 4.5s
       const metadataSource = imageMetadata || imageUrls.map(url => ({ url, cameraAngle: "auto", duration: 5 }));
-      const expectedDuration = metadataSource.length * 3.5; // 3.5s per clip after Shotstack hard-cut
+      const expectedDuration = metadataSource.length * 4.5; // 4.5s per clip after Shotstack hard-cut
       console.log("Expected video duration:", expectedDuration, "seconds");
 
       let audioUrl: string | null = null;

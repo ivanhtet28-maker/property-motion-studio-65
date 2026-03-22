@@ -1074,13 +1074,15 @@ import { corsHeaders } from "../_shared/cors.ts";
       });
       console.log(`Duration alignment: ${rawDurations.length} provided → ${durations.length} needed (${sourceUrls.length} clips)`);
 
-      // ── Pacing Lock: 3.5s hard cut + 0.5s crossfade ────────────────────────
+      // ── Pacing Lock: 4.5s hard cut + 1.0s crossfade ────────────────────────
       // Runway generates 5s clips (shortest it supports). Shotstack hard-cuts at
-      // 3.5s for punchy social-media pacing — this also eliminates the melt zone
-      // entirely (melt artifacts live in the last ~1s). Adjacent AI clips overlap
-      // by 0.5s for high-energy crossfade transitions.
-      const CLIP_HARD_CUT = 3.5;
-      const TRANSITION_OVERLAP = 0.5;
+      // 4.5s — this gives each clip enough screen time for the camera motion to
+      // develop fully while still trimming the last ~0.5s melt zone.
+      // Adjacent AI clips overlap by 1.0s for smooth cinematic crossfade
+      // transitions (the old 0.5s felt too abrupt — cuts fired before the
+      // camera motion had a chance to start).
+      const CLIP_HARD_CUT = 4.5;
+      const TRANSITION_OVERLAP = 1.0;
 
       const fallbackSet = new Set(fallbackSlots || []);
       const effectiveDurations = isKenBurns

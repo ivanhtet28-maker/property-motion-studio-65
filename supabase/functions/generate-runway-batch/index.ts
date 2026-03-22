@@ -102,25 +102,25 @@ const MOTION_MAP: Record<string, MotionConfig> = {
   },
   "orbit-right": {
     promptText:
-      "Smooth arc shot — camera executes a slow, deliberate clockwise orbit around the center of the room, " +
+      "Cinematic arc shot — camera executes a confident, smooth clockwise orbit around the center of the room, " +
       "maintaining the room's focal point as the fixed center of rotation. " +
-      "Camera follows a gentle curved arc of approximately 15–20 degrees to the right, " +
+      "Camera sweeps a wide, deliberate arc of approximately 45 degrees to the right, " +
       "keeping a constant radial distance from the subject throughout. " +
-      "Ease in from stillness, hold slow constant orbital speed, ease out to stillness. " +
-      "The arc reveals new depth and perspective of the space, " +
-      "creating smooth parallax between foreground furniture and background walls. " +
+      "Ease in from stillness, hold steady constant orbital speed through the arc, ease out in the final half-second. " +
+      "The arc reveals the side walls, depth, and three-dimensional layout of the space, " +
+      "creating parallax between foreground furniture and background walls. " +
       GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
     duration: 5,
   },
   "orbit-left": {
     promptText:
-      "Smooth arc shot — camera executes a slow, deliberate counter-clockwise orbit around the center of the room, " +
+      "Cinematic arc shot — camera executes a confident, smooth counter-clockwise orbit around the center of the room, " +
       "maintaining the room's focal point as the fixed center of rotation. " +
-      "Camera follows a gentle curved arc of approximately 15–20 degrees to the left, " +
+      "Camera sweeps a wide, deliberate arc of approximately 45 degrees to the left, " +
       "keeping a constant radial distance from the subject throughout. " +
-      "Ease in from stillness, hold slow constant orbital speed, ease out to stillness. " +
-      "The arc reveals new depth and perspective of the space, " +
-      "creating smooth parallax between foreground furniture and background walls. " +
+      "Ease in from stillness, hold steady constant orbital speed through the arc, ease out in the final half-second. " +
+      "The arc reveals the side walls, depth, and three-dimensional layout of the space, " +
+      "creating parallax between foreground furniture and background walls. " +
       GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
     duration: 5,
   },
@@ -193,8 +193,7 @@ Deno.serve(async (req) => {
 
         // All clips are 5s — research shows quality degrades significantly
         // after 5s with Gen4 Turbo, especially for architecture/interiors.
-        // Social media pacing (3.5s hard-cut in Shotstack) means we only
-        // use the first 3.5s anyway — the extra 1.5s is buffer.
+        // Shotstack uses first 4.5s (trimming the last ~0.5s melt zone).
         const clipDuration = 5;
 
         console.log(`\n--- Clip ${index + 1}/${imageMetadata.length} ---`);
