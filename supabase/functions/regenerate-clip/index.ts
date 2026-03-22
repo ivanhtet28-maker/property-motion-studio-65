@@ -40,9 +40,23 @@ const MOTION_MAP: Record<string, string> = {
     "The room's center stays fixed as the camera sweeps around it, creating strong parallax between foreground furniture and background walls. " +
     "Steady orbital speed throughout. " +
     GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
+  "orbit-right-landscape":
+    "Wide sweeping arc shot — camera orbits clockwise around the room in a dramatic 60-degree arc to the right. " +
+    "Strong lateral camera displacement — the viewpoint physically moves sideways, not zooming. " +
+    "Foreground objects shift significantly against the background, creating bold parallax. " +
+    "The camera traces a curved dolly path, never pushing straight forward. " +
+    "Steady orbital speed throughout. " +
+    GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
   "orbit-left":
     "Smooth arc shot — camera orbits counter-clockwise around the center of the room, sweeping approximately 45 degrees to the left. " +
     "Constant radial distance from the subject, creating parallax between foreground furniture and background walls. " +
+    "Steady orbital speed throughout. " +
+    GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
+  "orbit-left-landscape":
+    "Wide sweeping arc shot — camera orbits counter-clockwise around the room in a dramatic 60-degree arc to the left. " +
+    "Strong lateral camera displacement — the viewpoint physically moves sideways, not zooming. " +
+    "Foreground objects shift significantly against the background, creating bold parallax. " +
+    "The camera traces a curved dolly path, never pushing straight forward. " +
     "Steady orbital speed throughout. " +
     GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
   "drone-up":
@@ -58,6 +72,11 @@ const MOTION_MAP: Record<string, string> = {
 function getPrompt(cameraAngle: string, aspectRatio?: string): string {
   // Backwards compat: crane-up → drone-up, orbit → orbit-right
   const angle = cameraAngle === "crane-up" ? "drone-up" : cameraAngle === "orbit" ? "orbit-right" : cameraAngle;
+  // Use landscape-specific orbit prompts when aspect ratio is 16:9
+  const isLandscape = aspectRatio === "16:9";
+  if (isLandscape && (angle === "orbit-right" || angle === "orbit-left")) {
+    return MOTION_MAP[`${angle}-landscape`] || MOTION_MAP[angle] || MOTION_MAP["push-in"];
+  }
   return MOTION_MAP[angle] || MOTION_MAP["push-in"];
 }
 
