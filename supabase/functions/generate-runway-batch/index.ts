@@ -97,8 +97,9 @@ const MOTION_MAP: Record<string, MotionConfig> = {
   },
   "orbit-right": {
     promptText:
-      "Smooth sweeping arc shot — camera swoops clockwise around the room in a wide, bold arc of approximately 50 degrees to the right. " +
-      "The room's center stays fixed as the camera sweeps around it, creating strong parallax between foreground furniture and background walls. " +
+      "Sweeping arc shot — camera curves clockwise on a circular dolly track, arcing approximately 50 degrees to the right around the room's center. " +
+      "Constant radial distance from the subject — no forward or backward movement, only lateral arc. " +
+      "Foreground objects shift against the background, creating strong parallax depth. " +
       "Steady orbital speed throughout. " +
       GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
     landscapePromptText:
@@ -112,8 +113,9 @@ const MOTION_MAP: Record<string, MotionConfig> = {
   },
   "orbit-left": {
     promptText:
-      "Smooth arc shot — camera orbits counter-clockwise around the center of the room, sweeping approximately 45 degrees to the left. " +
-      "Constant radial distance from the subject, creating parallax between foreground furniture and background walls. " +
+      "Sweeping arc shot — camera curves counter-clockwise on a circular dolly track, arcing approximately 50 degrees to the left around the room's center. " +
+      "Constant radial distance from the subject — no forward or backward movement, only lateral arc. " +
+      "Foreground objects shift against the background, creating strong parallax depth. " +
       "Steady orbital speed throughout. " +
       GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
     landscapePromptText:
