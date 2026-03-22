@@ -29,30 +29,39 @@ export function Navbar() {
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-xl border-b border-border/50">
       <div className="container mx-auto px-6">
-        <div className="flex h-24 items-center justify-between">
+        <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center">
+          <Link to="/" className="flex items-center gap-3">
             <img
-              src="/logo-with-text.jpeg"
+              src="/logo-monogram.png"
               alt="Property Motion"
-              className="h-24 w-auto"
-              style={{ mixBlendMode: 'multiply' }}
+              className="h-9 w-9 rounded-full"
             />
+            <span className="text-lg font-bold text-foreground tracking-tight hidden sm:block">
+              Property Motion
+            </span>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-6">
+          <div className="hidden md:flex items-center gap-1">
             {!isAuthenticated ? (
               <>
-                <Link to="/#pricing" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Pricing
-                </Link>
-                <Link to="/#features" className="text-muted-foreground hover:text-foreground transition-colors">
+                <Link to="/#features" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-secondary">
                   Features
                 </Link>
-                <Link to="/login" className="text-muted-foreground hover:text-foreground transition-colors">
+                <Link to="/#pricing" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-secondary">
+                  Pricing
+                </Link>
+                <Link to="/#testimonials" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-secondary">
+                  Testimonials
+                </Link>
+                <Link to="/#faq" className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-secondary">
+                  FAQ
+                </Link>
+                <div className="w-px h-6 bg-border mx-2" />
+                <Link to="/login" className="px-4 py-2 text-sm font-medium text-foreground hover:text-primary transition-colors">
                   Sign In
                 </Link>
                 <Button asChild variant="hero" size="default">
@@ -69,7 +78,7 @@ export function Navbar() {
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="rounded-full">
+                    <Button variant="ghost" size="icon" className="rounded-full ml-2">
                       <User className="w-5 h-5" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -106,34 +115,14 @@ export function Navbar() {
         {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-border animate-slide-up">
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
               {!isAuthenticated ? (
                 <>
-                  <Link
-                    to="/#pricing"
-                    className="text-muted-foreground hover:text-foreground transition-colors py-2"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Pricing
-                  </Link>
-                  <Link
-                    to="/#features"
-                    className="text-muted-foreground hover:text-foreground transition-colors py-2"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Features
-                  </Link>
-                  <Link
-                    to="/login"
-                    className="text-muted-foreground hover:text-foreground transition-colors py-2"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Sign In
-                  </Link>
-                  <Button asChild variant="hero" size="lg" className="w-full">
-                    <Link to="/signup" onClick={() => setMobileMenuOpen(false)}>
-                      Start Free Trial
-                    </Link>
+                  <Link to="/#features" className="text-muted-foreground hover:text-foreground transition-colors py-2 px-3 rounded-lg hover:bg-secondary" onClick={() => setMobileMenuOpen(false)}>Features</Link>
+                  <Link to="/#pricing" className="text-muted-foreground hover:text-foreground transition-colors py-2 px-3 rounded-lg hover:bg-secondary" onClick={() => setMobileMenuOpen(false)}>Pricing</Link>
+                  <Link to="/login" className="text-foreground font-medium py-2 px-3" onClick={() => setMobileMenuOpen(false)}>Sign In</Link>
+                  <Button asChild variant="hero" size="lg" className="w-full mt-2">
+                    <Link to="/signup" onClick={() => setMobileMenuOpen(false)}>Start Free Trial</Link>
                   </Button>
                 </>
               ) : (
@@ -144,31 +133,11 @@ export function Navbar() {
                       Create Video
                     </Link>
                   </Button>
-                  <Link
-                    to="/settings"
-                    className="text-muted-foreground hover:text-foreground transition-colors py-2 flex items-center gap-2"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <Settings className="w-4 h-4" />
-                    Settings
+                  <Link to="/settings" className="text-muted-foreground hover:text-foreground transition-colors py-2 px-3 flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
+                    <Settings className="w-4 h-4" /> Settings
                   </Link>
-                  <Link
-                    to="/settings?tab=billing"
-                    className="text-muted-foreground hover:text-foreground transition-colors py-2 flex items-center gap-2"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <CreditCard className="w-4 h-4" />
-                    Billing
-                  </Link>
-                  <button
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      handleLogout();
-                    }}
-                    className="text-destructive hover:text-destructive/80 transition-colors py-2 flex items-center gap-2 text-left"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Logout
+                  <button onClick={() => { setMobileMenuOpen(false); handleLogout(); }} className="text-destructive py-2 px-3 flex items-center gap-2 text-left">
+                    <LogOut className="w-4 h-4" /> Logout
                   </button>
                 </>
               )}

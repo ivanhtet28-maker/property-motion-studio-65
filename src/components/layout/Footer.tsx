@@ -1,159 +1,85 @@
 import { Link } from "react-router-dom";
-import { Video, Facebook, Instagram, Linkedin, Youtube } from "lucide-react";
+import { Facebook, Instagram, Linkedin, Youtube } from "lucide-react";
 
 export function Footer() {
   return (
-    <footer className="bg-gradient-to-b from-primary/90 to-primary text-primary-foreground">
+    <footer className="bg-navy text-navy-foreground">
       <div className="container mx-auto px-6 py-16">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
           {/* Logo & Description */}
           <div className="col-span-2 md:col-span-1">
-            <Link to="/" className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-primary-foreground/20 flex items-center justify-center">
-                <Video className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="text-lg font-bold text-primary-foreground">Property Motion</span>
+            <Link to="/" className="flex items-center gap-3 mb-4">
+              <img src="/logo-monogram.png" alt="Property Motion" className="h-10 w-10 rounded-full" />
+              <span className="text-lg font-bold">Property Motion</span>
             </Link>
-            <p className="text-primary-foreground/70 text-sm leading-relaxed">
+            <p className="text-navy-foreground/60 text-sm leading-relaxed">
               Turn real estate photos into stunning marketing videos in minutes.
             </p>
             <div className="flex items-center gap-3 mt-6">
-              <a
-                href="https://facebook.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary-foreground/60 hover:text-primary-foreground transition-colors"
-                aria-label="Facebook"
-              >
-                <Facebook className="w-5 h-5" />
-              </a>
-              <a
-                href="https://instagram.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary-foreground/60 hover:text-primary-foreground transition-colors"
-                aria-label="Instagram"
-              >
-                <Instagram className="w-5 h-5" />
-              </a>
-              <a
-                href="https://linkedin.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary-foreground/60 hover:text-primary-foreground transition-colors"
-                aria-label="LinkedIn"
-              >
-                <Linkedin className="w-5 h-5" />
-              </a>
-              <a
-                href="https://youtube.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary-foreground/60 hover:text-primary-foreground transition-colors"
-                aria-label="YouTube"
-              >
-                <Youtube className="w-5 h-5" />
-              </a>
+              {[
+                { icon: Facebook, href: "https://facebook.com", label: "Facebook" },
+                { icon: Instagram, href: "https://instagram.com", label: "Instagram" },
+                { icon: Linkedin, href: "https://linkedin.com", label: "LinkedIn" },
+                { icon: Youtube, href: "https://youtube.com", label: "YouTube" },
+              ].map(({ icon: Icon, href, label }) => (
+                <a key={label} href={href} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-navy-foreground/10 flex items-center justify-center text-navy-foreground/60 hover:text-navy-foreground hover:bg-navy-foreground/20 transition-all" aria-label={label}>
+                  <Icon className="w-4 h-4" />
+                </a>
+              ))}
             </div>
           </div>
 
-          {/* Who It's For */}
           <div>
-            <h4 className="font-semibold text-primary-foreground mb-4 text-sm">Who It's For</h4>
+            <h4 className="font-semibold mb-4 text-sm uppercase tracking-wider text-navy-foreground/80">Who It's For</h4>
             <ul className="space-y-2.5">
-              <li>
-                <Link to="/#features" className="text-primary-foreground/70 hover:text-primary-foreground transition-colors text-sm">
-                  Real Estate Professionals
-                </Link>
-              </li>
-              <li>
-                <Link to="/#features" className="text-primary-foreground/70 hover:text-primary-foreground transition-colors text-sm">
-                  Realtors
-                </Link>
-              </li>
-              <li>
-                <Link to="/#features" className="text-primary-foreground/70 hover:text-primary-foreground transition-colors text-sm">
-                  Photographers
-                </Link>
-              </li>
+              {["Real Estate Agents", "Photographers", "Property Managers"].map(item => (
+                <li key={item}><Link to="/#features" className="text-navy-foreground/60 hover:text-primary transition-colors text-sm">{item}</Link></li>
+              ))}
             </ul>
           </div>
 
-          {/* Features */}
           <div>
-            <h4 className="font-semibold text-primary-foreground mb-4 text-sm">Features</h4>
+            <h4 className="font-semibold mb-4 text-sm uppercase tracking-wider text-navy-foreground/80">Features</h4>
             <ul className="space-y-2.5">
-              <li>
-                <Link to="/#features" className="text-primary-foreground/70 hover:text-primary-foreground transition-colors text-sm">
-                  Overview
-                </Link>
-              </li>
-              <li>
-                <Link to="/create" className="text-primary-foreground/70 hover:text-primary-foreground transition-colors text-sm">
-                  Create a Video
-                </Link>
-              </li>
-              <li>
-                <Link to="/#features" className="text-primary-foreground/70 hover:text-primary-foreground transition-colors text-sm">
-                  Branded Videos
-                </Link>
-              </li>
-              <li>
-                <Link to="/#features" className="text-primary-foreground/70 hover:text-primary-foreground transition-colors text-sm">
-                  Photo Edits
-                </Link>
-              </li>
+              {[
+                { label: "Overview", to: "/#features" },
+                { label: "Create a Video", to: "/create" },
+                { label: "Branded Videos", to: "/#features" },
+                { label: "Photo Edits", to: "/#features" },
+              ].map(item => (
+                <li key={item.label}><Link to={item.to} className="text-navy-foreground/60 hover:text-primary transition-colors text-sm">{item.label}</Link></li>
+              ))}
             </ul>
           </div>
 
-          {/* Help */}
           <div>
-            <h4 className="font-semibold text-primary-foreground mb-4 text-sm">Help</h4>
+            <h4 className="font-semibold mb-4 text-sm uppercase tracking-wider text-navy-foreground/80">Help</h4>
             <ul className="space-y-2.5">
-              <li>
-                <Link to="/help" className="text-primary-foreground/70 hover:text-primary-foreground transition-colors text-sm">
-                  Resources & FAQ
-                </Link>
-              </li>
-              <li>
-                <Link to="/contact" className="text-primary-foreground/70 hover:text-primary-foreground transition-colors text-sm">
-                  Contact
-                </Link>
-              </li>
+              {[
+                { label: "FAQ", to: "/#faq" },
+                { label: "Contact", to: "mailto:hello@propertymotion.com.au" },
+              ].map(item => (
+                <li key={item.label}><Link to={item.to} className="text-navy-foreground/60 hover:text-primary transition-colors text-sm">{item.label}</Link></li>
+              ))}
             </ul>
           </div>
 
-          {/* Company */}
           <div>
-            <h4 className="font-semibold text-primary-foreground mb-4 text-sm">Company</h4>
+            <h4 className="font-semibold mb-4 text-sm uppercase tracking-wider text-navy-foreground/80">Company</h4>
             <ul className="space-y-2.5">
-              <li>
-                <Link to="/about" className="text-primary-foreground/70 hover:text-primary-foreground transition-colors text-sm">
-                  About
-                </Link>
-              </li>
-              <li>
-                <Link to="/#pricing" className="text-primary-foreground/70 hover:text-primary-foreground transition-colors text-sm">
-                  Pricing
-                </Link>
-              </li>
-              <li>
-                <Link to="/terms" className="text-primary-foreground/70 hover:text-primary-foreground transition-colors text-sm">
-                  Terms
-                </Link>
-              </li>
-              <li>
-                <Link to="/privacy" className="text-primary-foreground/70 hover:text-primary-foreground transition-colors text-sm">
-                  Privacy
-                </Link>
-              </li>
+              {[
+                { label: "Pricing", to: "/#pricing" },
+                { label: "Terms", to: "/terms" },
+                { label: "Privacy", to: "/privacy" },
+              ].map(item => (
+                <li key={item.label}><Link to={item.to} className="text-navy-foreground/60 hover:text-primary transition-colors text-sm">{item.label}</Link></li>
+              ))}
             </ul>
           </div>
         </div>
 
-        {/* Bottom */}
-        <div className="mt-12 pt-8 border-t border-primary-foreground/20">
-          <p className="text-primary-foreground/60 text-sm text-center">
+        <div className="mt-12 pt-8 border-t border-navy-foreground/10">
+          <p className="text-navy-foreground/40 text-sm text-center">
             &copy; {new Date().getFullYear()} Property Motion. Built for Australian Real Estate Agents.
           </p>
         </div>

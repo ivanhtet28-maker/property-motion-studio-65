@@ -1,12 +1,13 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Play, Link2, Wand2, Download, Check, X, Star, ChevronRight, Loader2, Tag, ArrowRight, Plus, Minus, ChevronLeft, Quote } from "lucide-react";
+import { Play, Link2, Wand2, Download, Check, X, Star, ChevronRight, Loader2, Tag, ArrowRight, Plus, Minus, ChevronLeft, Quote, Sparkles, Camera, Palette, Clock, Image, Zap, Shield, Users } from "lucide-react";
 import { useState, useRef } from "react";
 import { invokeEdgeFunction } from "@/lib/invokeEdgeFunction";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import heroProperty from "@/assets/hero-property.jpg";
 
 const steps = [
   {
@@ -27,30 +28,18 @@ const steps = [
 ];
 
 const features = [
-  {
-    title: "Paste Listing URL",
-    description: "Works with realestate.com.au & domain.com.au",
-  },
-  {
-    title: "Professional Templates",
-    description: "5 stunning video styles to choose from",
-  },
-  {
-    title: "60 Second Generation",
-    description: "Your video ready in under a minute",
-  },
-  {
-    title: "Agent Branding",
-    description: "Add your photo, logo and contact details",
-  },
-  {
-    title: "HD Quality",
-    description: "1080p professional videos every time",
-  },
-  {
-    title: "Mobile Friendly",
-    description: "Create videos on any device",
-  },
+  { icon: Link2, title: "Paste Listing URL", description: "Works with realestate.com.au & domain.com.au" },
+  { icon: Palette, title: "Professional Templates", description: "5 stunning video styles to choose from" },
+  { icon: Clock, title: "60 Second Generation", description: "Your video ready in under a minute" },
+  { icon: Camera, title: "Agent Branding", description: "Add your photo, logo and contact details" },
+  { icon: Image, title: "HD Quality", description: "1080p professional videos every time" },
+  { icon: Zap, title: "Mobile Friendly", description: "Create videos on any device" },
+];
+
+const addOnTools = [
+  { icon: Sparkles, title: "AI Photo Enhancement", description: "Enhance listing photos with AI-powered editing" },
+  { icon: Camera, title: "Virtual Staging", description: "Digitally stage empty rooms with AI furniture" },
+  { icon: Wand2, title: "Smart Cropping", description: "Auto-crop and optimize photos for video" },
 ];
 
 const testimonials = [
@@ -87,74 +76,26 @@ const testimonials = [
 ];
 
 const faqs = [
-  {
-    question: "How long does video processing take?",
-    answer: "Most videos are ready in 60-90 seconds. Our AI processes your listing photos and property details to create a professional walkthrough video almost instantly.",
-  },
-  {
-    question: "Does Property Motion support portrait mode?",
-    answer: "Yes! We support both landscape and portrait/vertical video formats, perfect for Instagram Reels, TikTok, and other social media platforms.",
-  },
-  {
-    question: "How many images can I use per video?",
-    answer: "Free plans support up to 5 images per video. All paid plans support up to 20 images per video for richer, more detailed property tours.",
-  },
-  {
-    question: "How long is each video?",
-    answer: "Free plan videos are up to 15 seconds. All paid plans support videos up to 60 seconds, giving you plenty of time to showcase every room and feature.",
-  },
-  {
-    question: "Is there a free trial?",
-    answer: "Yes! All paid plans come with a 7-day free trial. You can also use our Free plan with 2 videos per month to test things out before committing.",
-  },
-  {
-    question: "Do I need a credit card to sign up?",
-    answer: "No credit card is required for the Free plan. You only need a credit card when you upgrade to a paid plan or start a free trial.",
-  },
-  {
-    question: "Is there a file size limit for images?",
-    answer: "Free and Starter plans support images up to 10MB each. Growth and Pro plans support up to 25MB per image for higher resolution photos.",
-  },
-  {
-    question: "How do I get rid of the watermark in the video?",
-    answer: "Watermarks are only on the Free plan. Upgrade to any paid plan (Starter, Growth, or Pro) to export videos without watermarks.",
-  },
-  {
-    question: "What makes Property Motion a better real estate video editor than generic editing tools?",
-    answer: "Property Motion is purpose-built for Australian real estate. It automatically imports listings from realestate.com.au and domain.com.au, adds agent branding, and creates professional videos in seconds — no editing skills required.",
-  },
-  {
-    question: "My question isn't answered here. How can I get help?",
-    answer: "Reach out to us at hello@propertymotion.com.au and we'll get back to you within 24 hours. Growth and Pro plan members also have access to priority human support.",
-  },
+  { question: "How long does video processing take?", answer: "Most videos are ready in 60-90 seconds. Our AI processes your listing photos and property details to create a professional walkthrough video almost instantly." },
+  { question: "Does Property Motion support portrait mode?", answer: "Yes! We support both landscape and portrait/vertical video formats, perfect for Instagram Reels, TikTok, and other social media platforms." },
+  { question: "How many images can I use per video?", answer: "Free plans support up to 5 images per video. All paid plans support up to 20 images per video for richer, more detailed property tours." },
+  { question: "How long is each video?", answer: "Free plan videos are up to 15 seconds. All paid plans support videos up to 60 seconds, giving you plenty of time to showcase every room and feature." },
+  { question: "Is there a free trial?", answer: "Yes! All paid plans come with a 7-day free trial. You can also use our Free plan with 2 videos per month to test things out before committing." },
+  { question: "Do I need a credit card to sign up?", answer: "No credit card is required for the Free plan. You only need a credit card when you upgrade to a paid plan or start a free trial." },
+  { question: "Is there a file size limit for images?", answer: "Free and Starter plans support images up to 10MB each. Growth and Pro plans support up to 25MB per image for higher resolution photos." },
+  { question: "How do I get rid of the watermark in the video?", answer: "Watermarks are only on the Free plan. Upgrade to any paid plan (Starter, Growth, or Pro) to export videos without watermarks." },
+  { question: "What makes Property Motion better than generic editing tools?", answer: "Property Motion is purpose-built for Australian real estate. It automatically imports listings from realestate.com.au and domain.com.au, adds agent branding, and creates professional videos in seconds — no editing skills required." },
+  { question: "My question isn't answered here. How can I get help?", answer: "Reach out to us at hello@propertymotion.com.au and we'll get back to you within 24 hours. Growth and Pro plan members also have access to priority human support." },
 ];
 
-interface PlanFeature {
-  text: string;
-  included: boolean;
-}
+interface PlanFeature { text: string; included: boolean; }
 
 interface PlanTier {
   id: string;
   name: string;
   description: string;
-  monthly: {
-    price: number;
-    perVideo: number;
-    videosLabel: string;
-    videosCount: string;
-    additionalVideoPrice: number | null;
-    rollover: string;
-  };
-  yearly: {
-    price: number;
-    perVideo: number;
-    videosLabel: string;
-    videosCount: string;
-    additionalVideoPrice: number | null;
-    discount: number;
-    rollover: string;
-  };
+  monthly: { price: number; perVideo: number; videosLabel: string; videosCount: string; additionalVideoPrice: number | null; rollover: string; };
+  yearly: { price: number; perVideo: number; videosLabel: string; videosCount: string; additionalVideoPrice: number | null; discount: number; rollover: string; };
   features: PlanFeature[];
   highlighted?: boolean;
   badge?: string;
@@ -162,9 +103,7 @@ interface PlanTier {
 
 const pricingPlans: PlanTier[] = [
   {
-    id: "free",
-    name: "FREE",
-    description: "For people who want to see how it works.",
+    id: "free", name: "FREE", description: "For people who want to see how it works.",
     monthly: { price: 0, perVideo: 0, videosLabel: "/month", videosCount: "2 videos", additionalVideoPrice: null, rollover: "Credits reset every month" },
     yearly: { price: 0, perVideo: 0, videosLabel: "/month", videosCount: "2 videos", additionalVideoPrice: null, discount: 0, rollover: "Credits reset every month" },
     features: [
@@ -181,9 +120,7 @@ const pricingPlans: PlanTier[] = [
     ],
   },
   {
-    id: "starter",
-    name: "STARTER",
-    description: "For individuals ready to publish a few videos each month.",
+    id: "starter", name: "STARTER", description: "For individuals ready to publish a few videos each month.",
     monthly: { price: 49, perVideo: 16, videosLabel: "/month", videosCount: "3 videos", additionalVideoPrice: 8, rollover: "Credits rollover for 3 months" },
     yearly: { price: 39, perVideo: 19, videosLabel: "/year", videosCount: "25 videos", additionalVideoPrice: 8, discount: 20, rollover: "Credits rollover for 1 year" },
     features: [
@@ -200,11 +137,8 @@ const pricingPlans: PlanTier[] = [
     ],
   },
   {
-    id: "growth",
-    name: "GROWTH",
-    description: "For growing individuals and small teams scaling their video content.",
-    highlighted: true,
-    badge: "MOST POPULAR",
+    id: "growth", name: "GROWTH", description: "For growing individuals and small teams scaling their video content.",
+    highlighted: true, badge: "MOST POPULAR",
     monthly: { price: 99, perVideo: 10, videosLabel: "/month", videosCount: "10 videos", additionalVideoPrice: 8, rollover: "Credits rollover for 3 months" },
     yearly: { price: 79, perVideo: 9, videosLabel: "/year", videosCount: "100 videos", additionalVideoPrice: 7, discount: 20, rollover: "Credits rollover for 1 year" },
     features: [
@@ -221,9 +155,7 @@ const pricingPlans: PlanTier[] = [
     ],
   },
   {
-    id: "pro",
-    name: "PRO",
-    description: "For top producers, teams, and agencies creating videos at scale.",
+    id: "pro", name: "PRO", description: "For top producers, teams, and agencies creating videos at scale.",
     monthly: { price: 179, perVideo: 9, videosLabel: "/month", videosCount: "20 videos", additionalVideoPrice: 7, rollover: "Credits rollover for 3 months" },
     yearly: { price: 149, perVideo: 9, videosLabel: "/year", videosCount: "200 videos", additionalVideoPrice: 7, discount: 17, rollover: "Credits rollover for 1 year" },
     features: [
@@ -266,160 +198,238 @@ export default function Index() {
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [testimonialIndex, setTestimonialIndex] = useState(0);
-  const testimonialRef = useRef<HTMLDivElement>(null);
 
   const handleSelectPlan = async (planId: string) => {
-    if (planId === "free") {
-      navigate(user ? "/create" : "/signup");
-      return;
-    }
-
-    if (!user) {
-      navigate("/signup");
-      return;
-    }
-
+    if (planId === "free") { navigate(user ? "/create" : "/signup"); return; }
+    if (!user) { navigate("/signup"); return; }
     setLoadingPlan(planId);
-
     try {
       const data = await invokeEdgeFunction<{ url?: string }>("create-checkout-session", {
-        body: {
-          plan: planId,
-          userId: user.id,
-          email: user.email,
-        },
+        body: { plan: planId, userId: user.id, email: user.email },
       });
-
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error("No checkout URL returned");
-      }
+      if (data.url) { window.location.href = data.url; }
+      else { throw new Error("No checkout URL returned"); }
     } catch (error) {
       console.error("Checkout error:", error);
-      toast({
-        title: "Checkout Error",
-        description: error instanceof Error ? error.message : "Failed to start checkout",
-        variant: "destructive",
-      });
+      toast({ title: "Checkout Error", description: error instanceof Error ? error.message : "Failed to start checkout", variant: "destructive" });
       setLoadingPlan(null);
     }
   };
 
   const scrollTestimonials = (direction: "left" | "right") => {
     const maxIndex = testimonials.length - 1;
-    if (direction === "left") {
-      setTestimonialIndex(Math.max(0, testimonialIndex - 1));
-    } else {
-      setTestimonialIndex(Math.min(maxIndex, testimonialIndex + 1));
-    }
+    if (direction === "left") setTestimonialIndex(Math.max(0, testimonialIndex - 1));
+    else setTestimonialIndex(Math.min(maxIndex, testimonialIndex + 1));
   };
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      {/* Hero Section */}
-      <section className="pt-32 pb-20 px-6">
-        <div className="container mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground max-w-4xl mx-auto leading-tight animate-slide-up">
-            Turn Any Australian Property Listing Into a Professional Video in{" "}
-            <span className="text-gradient">60 Seconds</span>
-          </h1>
-          <p className="mt-6 text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto animate-slide-up" style={{ animationDelay: "0.1s" }}>
-            Just paste your realestate.com.au or domain.com.au URL. No editing skills required.
-          </p>
-          <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center animate-slide-up" style={{ animationDelay: "0.2s" }}>
-            <Button asChild variant="hero" size="xl">
-              <Link to="/signup">Start Free Trial</Link>
-            </Button>
-            <Button asChild variant="hero-outline" size="xl">
-              <Link to="#demo">
-                <Play className="w-5 h-5" />
-                Watch Demo
-              </Link>
-            </Button>
+      {/* ══════════════════ HERO ══════════════════ */}
+      <section className="relative pt-24 pb-0 overflow-hidden">
+        {/* Subtle background pattern */}
+        <div className="absolute inset-0 bg-gradient-to-b from-accent/30 to-background pointer-events-none" />
+
+        <div className="container mx-auto px-6 relative">
+          <div className="text-center max-w-4xl mx-auto pt-12 pb-16">
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-8 animate-fade-in">
+              <Sparkles className="w-4 h-4" />
+              AI-POWERED VIDEO CREATION
+            </span>
+
+            <h1 className="text-4xl md:text-5xl lg:text-[3.5rem] font-bold text-foreground leading-[1.15] mb-6 animate-slide-up">
+              Create Stunning Property{" "}
+              <br className="hidden md:block" />
+              Videos <span className="text-gradient">Instantly</span> with AI
+            </h1>
+
+            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 animate-slide-up" style={{ animationDelay: "0.1s" }}>
+              Turn your realestate.com.au & domain.com.au listings into scroll-stopping videos in 60 seconds. No editing skills needed.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center animate-slide-up" style={{ animationDelay: "0.15s" }}>
+              <Button asChild variant="hero" size="xl">
+                <Link to="/signup">
+                  Start Free Trial
+                  <ArrowRight className="w-5 h-5" />
+                </Link>
+              </Button>
+              <Button asChild variant="hero-outline" size="xl">
+                <Link to="#demo">
+                  <Play className="w-5 h-5" />
+                  Watch Demo
+                </Link>
+              </Button>
+            </div>
           </div>
 
-          {/* Hero Image Placeholder */}
-          <div className="mt-16 relative max-w-4xl mx-auto animate-slide-up" style={{ animationDelay: "0.3s" }}>
-            <div className="aspect-video bg-secondary rounded-2xl shadow-2xl overflow-hidden border border-border">
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10">
-                <div className="text-center">
-                  <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                    <Play className="w-8 h-8 text-primary" />
-                  </div>
-                  <p className="text-muted-foreground">Video Preview</p>
-                </div>
-              </div>
+          {/* Hero Property Image */}
+          <div className="relative max-w-5xl mx-auto animate-slide-up" style={{ animationDelay: "0.25s" }}>
+            <div className="rounded-t-2xl overflow-hidden shadow-premium border border-border/50">
+              <img
+                src={heroProperty}
+                alt="Stunning luxury property video preview"
+                className="w-full h-auto object-cover"
+                loading="eager"
+              />
             </div>
           </div>
         </div>
       </section>
 
-      {/* Three-Step Process */}
-      <section className="py-20 bg-secondary">
+      {/* ══════════════════ STATS BAR ══════════════════ */}
+      <section className="py-16 bg-secondary">
         <div className="container mx-auto px-6">
-          <h2 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-16">
-            How It Works
-          </h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            {steps.map((step, index) => (
-              <div
-                key={index}
-                className="relative bg-card rounded-2xl p-8 shadow-card hover-lift text-center"
-              >
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
-                  {index + 1}
-                </div>
-                <div className="w-16 h-16 rounded-xl bg-accent flex items-center justify-center mx-auto mt-4">
-                  <step.icon className="w-8 h-8 text-primary" />
-                </div>
-                <h3 className="mt-6 text-xl font-semibold text-foreground">{step.title}</h3>
-                <p className="mt-3 text-muted-foreground">{step.description}</p>
+          <div className="text-center mb-12">
+            <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">YOUR ALL-IN-ONE SOLUTION</span>
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+              Your All-in-One <span className="text-gradient">Solution</span> for<br className="hidden md:block" /> Property Videos
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              From listing URL to polished video in under a minute. Property Motion handles everything so you can focus on selling.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-8 max-w-3xl mx-auto">
+            {[
+              { value: "100,000+", label: "Videos Created" },
+              { value: "10 mins", label: "Average Time Saved" },
+              { value: "+403%", label: "Engagement Boost" },
+            ].map((stat) => (
+              <div key={stat.label} className="text-center">
+                <p className="text-3xl md:text-4xl font-bold text-primary mb-1">{stat.value}</p>
+                <p className="text-sm text-muted-foreground">{stat.label}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Pricing Section */}
-      <section id="pricing" className="py-20">
+      {/* ══════════════════ HOW IT WORKS ══════════════════ */}
+      <section className="py-20">
         <div className="container mx-auto px-6">
-          <h2 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-3">
-            Choose the <span className="text-gradient">perfect</span> plan for your needs
-          </h2>
-          <p className="text-center text-muted-foreground mb-8">
-            Start for free, upgrade when you love it.
-          </p>
+          <div className="text-center mb-16">
+            <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">HOW IT WORKS</span>
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+              Create scroll-stopping reels in<br />
+              <span className="text-gradient">minutes</span>, not days
+            </h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              Go from raw photos and a URL to a fully branded video in seconds.
+            </p>
+          </div>
 
-          {/* Monthly / Yearly Toggle */}
-          <div className="flex items-center justify-center mt-4 mb-12">
-            <div className="inline-flex items-center bg-secondary rounded-full p-1">
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {steps.map((step, index) => (
+              <div key={index} className="relative group">
+                <div className="bg-card rounded-2xl p-8 shadow-card border border-border hover:shadow-card-hover hover:border-primary/20 transition-all duration-300 text-center h-full">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-xs">
+                    {index + 1}
+                  </div>
+                  <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mt-2 mb-5 group-hover:bg-primary/20 transition-colors">
+                    <step.icon className="w-7 h-7 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-foreground mb-3">{step.title}</h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed">{step.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-12">
+            <Button asChild variant="hero" size="lg">
+              <Link to="/signup">
+                Start Creating Videos
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════ FEATURES ══════════════════ */}
+      <section id="features" className="py-20 bg-secondary">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-16">
+            <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">FEATURES</span>
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+              Tailored for real estate and visual<br />
+              <span className="text-gradient">storytelling</span> professionals
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Our AI is built specifically for property marketing — not generic video templates.
+            </p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {features.map((feature, index) => (
+              <div key={index} className="bg-card rounded-xl p-6 shadow-card border border-border hover:shadow-card-hover hover:border-primary/20 transition-all duration-300 group">
+                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
+                  <feature.icon className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-2">{feature.title}</h3>
+                <p className="text-muted-foreground text-sm">{feature.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════ ADD-ON TOOLS ══════════════════ */}
+      <section className="py-20">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-16">
+            <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">ADD-ONS</span>
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+              Go beyond basic editing with<br />
+              <span className="text-gradient">powerful</span> add-on tools
+            </h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              Enhance your listings with AI-powered photo tools included with every plan.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+            {addOnTools.map((tool, index) => (
+              <div key={index} className="text-center group">
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-5 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
+                  <tool.icon className="w-8 h-8 text-primary group-hover:text-primary-foreground transition-colors" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-2">{tool.title}</h3>
+                <p className="text-muted-foreground text-sm">{tool.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════ PRICING ══════════════════ */}
+      <section id="pricing" className="py-20 bg-secondary">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-12">
+            <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">PRICING</span>
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
+              Choose the <span className="text-gradient">perfect</span> plan for your needs
+            </h2>
+            <p className="text-muted-foreground">Start for free, upgrade when you love it.</p>
+          </div>
+
+          {/* Toggle */}
+          <div className="flex items-center justify-center mb-12">
+            <div className="inline-flex items-center bg-card rounded-full p-1 border border-border shadow-sm">
               <button
                 onClick={() => setBillingPeriod("monthly")}
-                className={`px-6 py-2.5 rounded-full text-sm font-semibold transition-all ${
-                  billingPeriod === "monthly"
-                    ? "bg-primary text-primary-foreground shadow-md"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                Monthly
-              </button>
+                className={`px-6 py-2.5 rounded-full text-sm font-semibold transition-all ${billingPeriod === "monthly" ? "bg-primary text-primary-foreground shadow-md" : "text-muted-foreground hover:text-foreground"}`}
+              >Monthly</button>
               <button
                 onClick={() => setBillingPeriod("yearly")}
-                className={`px-6 py-2.5 rounded-full text-sm font-semibold transition-all ${
-                  billingPeriod === "yearly"
-                    ? "bg-primary text-primary-foreground shadow-md"
-                    : "text-primary hover:text-foreground"
-                }`}
-              >
-                Yearly &middot; up to 30% off
-              </button>
+                className={`px-6 py-2.5 rounded-full text-sm font-semibold transition-all ${billingPeriod === "yearly" ? "bg-primary text-primary-foreground shadow-md" : "text-primary hover:text-foreground"}`}
+              >Yearly &middot; up to 30% off</button>
             </div>
           </div>
 
-          {/* 4-Column Pricing Grid */}
+          {/* Pricing Grid */}
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto items-start">
             {pricingPlans.map((plan) => {
               const isYearly = billingPeriod === "yearly";
@@ -428,43 +438,27 @@ export default function Index() {
               const isHighlighted = plan.highlighted;
 
               return (
-                <div
-                  key={plan.id}
-                  className={`relative rounded-2xl p-7 transition-all duration-300 ${
-                    isHighlighted
-                      ? "border-2 border-primary shadow-xl"
-                      : "border border-border shadow-card"
-                  } bg-card`}
-                >
-                  {/* MOST POPULAR badge */}
+                <div key={plan.id} className={`relative rounded-2xl p-7 transition-all duration-300 ${isHighlighted ? "border-2 border-primary shadow-xl ring-4 ring-primary/10" : "border border-border shadow-card"} bg-card`}>
                   {plan.badge && (
-                    <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-bold px-4 py-1.5 rounded-full whitespace-nowrap">
-                      {plan.badge}
-                    </span>
+                    <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs font-bold px-4 py-1.5 rounded-full whitespace-nowrap">{plan.badge}</span>
                   )}
 
-                  {/* Header: name + discount badge */}
                   <div className="flex items-center gap-2 mb-2">
                     <h3 className="text-lg font-bold text-primary">{plan.name}</h3>
                     {isYearly && tier.discount > 0 && (
                       <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-bold px-2.5 py-1 rounded-full">
-                        <Tag className="w-3 h-3" />
-                        {tier.discount}% OFF
+                        <Tag className="w-3 h-3" />{tier.discount}% OFF
                       </span>
                     )}
                   </div>
 
-                  <p className="text-sm text-muted-foreground mb-4 min-h-[40px]">
-                    {plan.description}
-                  </p>
+                  <p className="text-sm text-muted-foreground mb-4 min-h-[40px]">{plan.description}</p>
 
-                  {/* Video count */}
                   <div className="mb-4">
                     <span className="text-3xl font-bold text-foreground">{tier.videosCount}</span>
                     <span className="text-sm text-muted-foreground ml-2">{tier.videosLabel}</span>
                   </div>
 
-                  {/* Price pills */}
                   <div className="flex items-center gap-2 mb-1">
                     <span className="inline-flex items-center px-3 py-1.5 rounded-lg bg-secondary text-sm font-bold text-foreground">
                       A${tier.price} <span className="font-normal text-muted-foreground ml-1">/ month</span>
@@ -476,7 +470,6 @@ export default function Index() {
                     )}
                   </div>
 
-                  {/* Strikethrough prices for yearly */}
                   {isYearly && !isFree && tier.discount > 0 && (
                     <div className="flex items-center gap-3 mt-1 mb-3">
                       <span className="text-sm text-muted-foreground line-through">A${plan.monthly.price}/month</span>
@@ -485,46 +478,25 @@ export default function Index() {
                   )}
                   {(!isYearly || isFree || tier.discount === 0) && <div className="h-4 mb-3" />}
 
-                  {/* CTA Button */}
-                  <Button
-                    variant="hero"
-                    size="lg"
-                    className="w-full mb-2"
-                    onClick={() => handleSelectPlan(isFree ? "free" : isYearly ? `${plan.id}_yearly` : plan.id)}
-                    disabled={!!loadingPlan}
-                  >
+                  <Button variant="hero" size="lg" className="w-full mb-2" onClick={() => handleSelectPlan(isFree ? "free" : isYearly ? `${plan.id}_yearly` : plan.id)} disabled={!!loadingPlan}>
                     {loadingPlan === plan.id || loadingPlan === `${plan.id}_yearly` ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Loading...
-                      </>
+                      <><Loader2 className="w-4 h-4 animate-spin" />Loading...</>
                     ) : isFree ? (
                       <>Try Now <ArrowRight className="w-4 h-4" /></>
                     ) : (
                       <>Start Free Trial <ArrowRight className="w-4 h-4" /></>
                     )}
                   </Button>
-                  {!isFree && (
-                    <p className="text-xs text-muted-foreground text-center mb-5">
-                      7-day free trial — cancel anytime*
-                    </p>
-                  )}
+                  {!isFree && <p className="text-xs text-muted-foreground text-center mb-5">7-day free trial — cancel anytime*</p>}
                   {isFree && <div className="h-5 mb-5" />}
 
-                  {/* Feature list */}
                   <ul className="space-y-2.5 border-t border-border pt-5">
                     {plan.features.map((feature, index) => {
                       const text = resolveFeatureText(feature.text, plan, isYearly);
                       return (
                         <li key={index} className="flex items-start gap-2.5 text-sm">
-                          {feature.included ? (
-                            <Check className="w-4 h-4 flex-shrink-0 text-primary mt-0.5" />
-                          ) : (
-                            <X className="w-4 h-4 flex-shrink-0 text-destructive/50 mt-0.5" />
-                          )}
-                          <span className={feature.included ? "text-foreground" : "text-muted-foreground"}>
-                            {text}
-                          </span>
+                          {feature.included ? <Check className="w-4 h-4 flex-shrink-0 text-primary mt-0.5" /> : <X className="w-4 h-4 flex-shrink-0 text-destructive/50 mt-0.5" />}
+                          <span className={feature.included ? "text-foreground" : "text-muted-foreground"}>{text}</span>
                         </li>
                       );
                     })}
@@ -534,24 +506,15 @@ export default function Index() {
             })}
           </div>
 
-          {/* Enterprise Section */}
+          {/* Enterprise */}
           <div className="max-w-6xl mx-auto mt-10">
             <div className="bg-card rounded-2xl border border-border p-8 md:p-10">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
                 <div className="md:max-w-md">
                   <h3 className="text-xl font-bold text-primary mb-2">ENTERPRISE / API ACCESS</h3>
-                  <p className="text-muted-foreground mb-6">
-                    Need more? Get in touch for custom plans for your business needs.
-                  </p>
-                  <Button
-                    variant="hero"
-                    size="lg"
-                    className="w-full md:w-auto"
-                    asChild
-                  >
-                    <a href="mailto:hello@propertymotion.com.au">
-                      Contact Us <ArrowRight className="w-4 h-4" />
-                    </a>
+                  <p className="text-muted-foreground mb-6">Need more? Get in touch for custom plans for your business needs.</p>
+                  <Button variant="hero" size="lg" className="w-full md:w-auto" asChild>
+                    <a href="mailto:hello@propertymotion.com.au">Contact Us <ArrowRight className="w-4 h-4" /></a>
                   </Button>
                 </div>
                 <div className="grid grid-cols-2 gap-x-12 gap-y-3">
@@ -568,36 +531,11 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Features Grid */}
-      <section id="features" className="py-20 bg-secondary">
-        <div className="container mx-auto px-6">
-          <h2 className="text-3xl md:text-4xl font-bold text-center text-foreground mb-16">
-            Everything You Need
-          </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {features.map((feature, index) => (
-              <div
-                key={index}
-                className="bg-card rounded-xl p-6 shadow-card hover-lift border border-border"
-              >
-                <div className="w-12 h-12 rounded-lg bg-accent flex items-center justify-center mb-4">
-                  <Check className="w-6 h-6 text-primary" />
-                </div>
-                <h3 className="text-lg font-semibold text-foreground">{feature.title}</h3>
-                <p className="mt-2 text-muted-foreground text-sm">{feature.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section className="py-20 bg-primary/5">
+      {/* ══════════════════ TESTIMONIALS ══════════════════ */}
+      <section id="testimonials" className="py-20">
         <div className="container mx-auto px-6">
           <div className="text-center mb-12">
-            <span className="inline-block px-4 py-1.5 rounded-full border border-primary/30 text-primary text-sm font-semibold mb-6">
-              TESTIMONIALS
-            </span>
+            <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">TESTIMONIALS</span>
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
               What our users are saying
             </h2>
@@ -606,79 +544,51 @@ export default function Index() {
             </p>
           </div>
 
-          {/* Testimonial Cards */}
           <div className="relative overflow-hidden">
-            <div
-              ref={testimonialRef}
-              className="flex transition-transform duration-500 ease-in-out"
-              style={{ transform: `translateX(-${testimonialIndex * (100 / 3)}%)` }}
-            >
+            <div className="flex transition-transform duration-500 ease-in-out" style={{ transform: `translateX(-${testimonialIndex * (100 / 3)}%)` }}>
               {testimonials.map((testimonial, index) => (
-                <div
-                  key={index}
-                  className="w-full md:w-1/3 flex-shrink-0 px-3"
-                >
-                  <div className="bg-card rounded-2xl p-8 shadow-card border border-border h-full">
-                    <div className="flex items-center gap-4 mb-6">
-                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <span className="text-sm font-bold text-primary">
-                          {testimonial.initials}
-                        </span>
+                <div key={index} className="w-full md:w-1/3 flex-shrink-0 px-3">
+                  <div className="bg-card rounded-2xl p-8 shadow-card border border-border h-full hover:shadow-card-hover transition-shadow">
+                    <div className="flex gap-1 mb-4">
+                      {[...Array(5)].map((_, i) => <Star key={i} className="w-4 h-4 fill-primary text-primary" />)}
+                    </div>
+                    <p className="text-foreground leading-relaxed mb-6 text-sm">{testimonial.quote}</p>
+                    <div className="flex items-center gap-3 pt-4 border-t border-border">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <span className="text-xs font-bold text-primary">{testimonial.initials}</span>
                       </div>
                       <div>
-                        <p className="font-semibold text-foreground">{testimonial.name}</p>
-                        <p className="text-sm text-muted-foreground">{testimonial.role}</p>
+                        <p className="font-semibold text-foreground text-sm">{testimonial.name}</p>
+                        <p className="text-xs text-muted-foreground">{testimonial.role}</p>
                       </div>
                     </div>
-                    <p className="text-foreground leading-relaxed">
-                      {testimonial.quote}
-                    </p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Carousel Controls */}
           <div className="flex items-center justify-center gap-4 mt-10">
-            <button
-              onClick={() => scrollTestimonials("left")}
-              className="w-10 h-10 rounded-full border border-border bg-card flex items-center justify-center hover:bg-secondary transition-colors disabled:opacity-30"
-              disabled={testimonialIndex === 0}
-            >
+            <button onClick={() => scrollTestimonials("left")} className="w-10 h-10 rounded-full border border-border bg-card flex items-center justify-center hover:bg-secondary transition-colors disabled:opacity-30" disabled={testimonialIndex === 0}>
               <ChevronLeft className="w-5 h-5 text-foreground" />
             </button>
             <div className="flex gap-2">
               {testimonials.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setTestimonialIndex(index)}
-                  className={`w-2.5 h-2.5 rounded-full transition-all ${
-                    index === testimonialIndex
-                      ? "bg-primary w-6"
-                      : "bg-border hover:bg-muted-foreground"
-                  }`}
-                />
+                <button key={index} onClick={() => setTestimonialIndex(index)} className={`w-2.5 h-2.5 rounded-full transition-all ${index === testimonialIndex ? "bg-primary w-6" : "bg-border hover:bg-muted-foreground"}`} />
               ))}
             </div>
-            <button
-              onClick={() => scrollTestimonials("right")}
-              className="w-10 h-10 rounded-full border border-border bg-card flex items-center justify-center hover:bg-secondary transition-colors disabled:opacity-30"
-              disabled={testimonialIndex >= testimonials.length - 1}
-            >
+            <button onClick={() => scrollTestimonials("right")} className="w-10 h-10 rounded-full border border-border bg-card flex items-center justify-center hover:bg-secondary transition-colors disabled:opacity-30" disabled={testimonialIndex >= testimonials.length - 1}>
               <ChevronRight className="w-5 h-5 text-foreground" />
             </button>
           </div>
         </div>
       </section>
 
-      {/* FAQ Section */}
-      <section className="py-20">
+      {/* ══════════════════ FAQ ══════════════════ */}
+      <section id="faq" className="py-20 bg-secondary">
         <div className="container mx-auto px-6">
           <div className="text-center mb-12">
-            <span className="inline-block px-4 py-1.5 rounded-full border border-primary/30 text-primary text-sm font-semibold mb-6">
-              FAQ
-            </span>
+            <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">FAQ</span>
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
               Got questions? We've got <span className="text-gradient">answers</span>.
             </h2>
@@ -689,25 +599,15 @@ export default function Index() {
 
           <div className="grid md:grid-cols-2 gap-4 max-w-5xl mx-auto">
             {faqs.map((faq, index) => (
-              <button
-                key={index}
-                onClick={() => setOpenFaq(openFaq === index ? null : index)}
-                className="text-left bg-card rounded-xl border border-border p-5 hover:shadow-card transition-all"
-              >
+              <button key={index} onClick={() => setOpenFaq(openFaq === index ? null : index)} className="text-left bg-card rounded-xl border border-border p-5 hover:shadow-card hover:border-primary/20 transition-all">
                 <div className="flex items-start justify-between gap-4">
                   <h4 className="font-semibold text-foreground text-sm">{faq.question}</h4>
                   <div className="flex-shrink-0 w-6 h-6 rounded-full border border-border flex items-center justify-center">
-                    {openFaq === index ? (
-                      <Minus className="w-3.5 h-3.5 text-muted-foreground" />
-                    ) : (
-                      <Plus className="w-3.5 h-3.5 text-muted-foreground" />
-                    )}
+                    {openFaq === index ? <Minus className="w-3.5 h-3.5 text-primary" /> : <Plus className="w-3.5 h-3.5 text-muted-foreground" />}
                   </div>
                 </div>
                 {openFaq === index && (
-                  <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
-                    {faq.answer}
-                  </p>
+                  <p className="mt-3 text-sm text-muted-foreground leading-relaxed">{faq.answer}</p>
                 )}
               </button>
             ))}
@@ -715,21 +615,24 @@ export default function Index() {
         </div>
       </section>
 
-      {/* CTA Section */}
+      {/* ══════════════════ BOTTOM CTA ══════════════════ */}
       <section className="relative">
-        <div className="bg-gradient-to-br from-primary to-primary/80 rounded-t-[3rem] py-20 px-6">
+        <div className="bg-navy rounded-t-[3rem] py-20 px-6">
           <div className="container mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold text-primary-foreground mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-navy-foreground mb-4">
               Create your AI property videos today
             </h2>
-            <p className="text-primary-foreground/80 mb-10 max-w-2xl mx-auto">
+            <p className="text-navy-foreground/70 mb-10 max-w-2xl mx-auto">
               Property Motion helps creators, marketers, and real estate pros turn raw content into polished, platform-ready reels in minutes.
             </p>
-            <Button asChild variant="secondary" size="xl" className="text-primary font-semibold">
-              <Link to={user ? "/create" : "/signup"}>
-                {user ? "Go to dashboard" : "Start Your Free Trial"}
-              </Link>
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button asChild variant="hero" size="xl">
+                <Link to={user ? "/create" : "/signup"}>
+                  {user ? "Go to Dashboard" : "Start Your Free Trial"}
+                  <ArrowRight className="w-5 h-5" />
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
       </section>
