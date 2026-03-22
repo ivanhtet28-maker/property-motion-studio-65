@@ -823,9 +823,11 @@ import { corsHeaders } from "../_shared/cors.ts";
     layout: string,
     propertyData: StitchVideoRequest["propertyData"],
     start: number,
-    length: number
+    length: number,
+    outputFormat: string = "portrait"
   ): any[] {
     const clips: any[] = [];
+    const isLandscape = outputFormat === "landscape";
 
     // Collect specs that have values
     const specs: { icon: string; value: string }[] = [];
@@ -838,19 +840,19 @@ import { corsHeaders } from "../_shared/cors.ts";
     // Position config based on layout
     let baseY: number;
     let baseX: number;
-    const iconSpacing = 0.095; // Space between each icon+number pair
+    const iconSpacing = isLandscape ? 0.065 : 0.095; // Tighter spacing for wider landscape
 
     if (layout === "minimal-focus") {
       // Centered below the title/address
-      baseY = -0.08;
+      baseY = isLandscape ? -0.14 : -0.08;
       // Calculate starting X to center the full specs group (icons + land size)
       const hasLand = !!propertyData.landSize;
       const totalWidth = (specs.length * iconSpacing) + (hasLand ? 0.07 : 0);
       baseX = 0.5 - (totalWidth / 2);
     } else {
       // Bottom-left for Bold Banner and Modern Luxe (raised above player controls)
-      baseY = -0.32;
-      baseX = 0.055;
+      baseY = isLandscape ? -0.38 : -0.32;
+      baseX = isLandscape ? 0.035 : 0.055;
     }
 
     specs.forEach((spec, index) => {
@@ -1274,24 +1276,24 @@ import { corsHeaders } from "../_shared/cors.ts";
                           text-align: center;
                           width: 85%;
                         ">
-                          <div style="font-size: 44px; font-weight: 800; margin-bottom: 20px; letter-spacing: 1px; text-shadow: 2px 2px 6px rgba(0,0,0,0.8);">${agentInfo.name}</div>
-                          ${agentInfo.phone ? `<div style="font-size: 32px; margin-bottom: 12px; font-weight: 500; opacity: 0.9; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">${agentInfo.phone}</div>` : ''}
-                          ${agentInfo.email ? `<div style="font-size: 28px; font-weight: 500; opacity: 0.85; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">${agentInfo.email}</div>` : ''}
+                          <div style="font-size: ${outputFormat === "landscape" ? 36 : 44}px; font-weight: 800; margin-bottom: ${outputFormat === "landscape" ? 12 : 20}px; letter-spacing: 1px; text-shadow: 2px 2px 6px rgba(0,0,0,0.8);">${agentInfo.name}</div>
+                          ${agentInfo.phone ? `<div style="font-size: ${outputFormat === "landscape" ? 26 : 32}px; margin-bottom: ${outputFormat === "landscape" ? 8 : 12}px; font-weight: 500; opacity: 0.9; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">${agentInfo.phone}</div>` : ''}
+                          ${agentInfo.email ? `<div style="font-size: ${outputFormat === "landscape" ? 22 : 28}px; font-weight: 500; opacity: 0.85; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">${agentInfo.email}</div>` : ''}
                         </div>
 
                         <!-- CTA button at bottom -->
                         <div style="
                           position: absolute;
-                          bottom: 180px;
+                          bottom: ${outputFormat === "landscape" ? 80 : 180}px;
                           left: 50%;
                           transform: translateX(-50%);
                           text-align: center;
                         ">
                           <table style="margin: 0 auto;"><tr><td style="
                             background: linear-gradient(135deg, #c8a84e, #e8c84e);
-                            padding: 22px 60px;
+                            padding: ${outputFormat === "landscape" ? "16px 48px" : "22px 60px"};
                             border-radius: 12px;
-                            font-size: 34px;
+                            font-size: ${outputFormat === "landscape" ? 28 : 34}px;
                             font-weight: 800;
                             color: #1a1a1a;
                             letter-spacing: 2px;
@@ -1341,7 +1343,8 @@ import { corsHeaders } from "../_shared/cors.ts";
                   layout || "open-house",
                   propertyData,
                   0.1,
-                  Math.max(effectiveDurations[0] - 0.1, 0.5)
+                  Math.max(effectiveDurations[0] - 0.1, 0.5),
+                  outputFormat || "portrait"
                 ),
               },
             ]),
