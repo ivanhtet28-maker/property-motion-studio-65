@@ -285,6 +285,7 @@ export default function Studio() {
           } catch { /* ignore */ }
         }
 
+        ctx.aspect_ratio = data.aspect_ratio || "9:16";
         setStoredContext(ctx);
 
         if (imageUrls.length > 0) {
@@ -463,7 +464,7 @@ export default function Studio() {
         propertyData: (ctx.propertyData as Record<string, unknown>) || { address: videoTitle, price: "", beds: 0, baths: 0, description: "" },
         style: selectedTemplate, layout: selectedTemplate,
         customTitle: (ctx.customTitle as string) || "",
-        videoId: id, outputFormat: "portrait",
+        videoId: id, outputFormat: storedContext?.aspect_ratio === "16:9" ? "landscape" : "portrait",
       });
 
       if (!stitchResult.success || !stitchResult.jobId) throw new Error(stitchResult.error || "Failed to start render");
