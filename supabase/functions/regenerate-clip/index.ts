@@ -28,11 +28,13 @@ const MOTION_MAP: Record<string, string> = {
     "Smooth, steady speed throughout. " +
     STABILITY_SUFFIX,
   "glide-left":
-    "Lateral tracking shot — camera glides smoothly to the left on a dolly track while facing forward. " +
+    "Lateral tracking shot — camera glides smoothly to the left on a straight dolly track while facing forward. " +
+    "Pure sideways movement — no forward push, no zoom, no arc. The camera slides left in a straight line. " +
     "Steady speed throughout, revealing adjacent areas and connected spaces. " +
     STABILITY_SUFFIX,
   "glide-right":
-    "Lateral tracking shot — camera glides smoothly to the right on a dolly track while facing forward. " +
+    "Lateral tracking shot — camera glides smoothly to the right on a straight dolly track while facing forward. " +
+    "Pure sideways movement — no forward push, no zoom, no arc. The camera slides right in a straight line. " +
     "Steady speed throughout, revealing adjacent areas and connected spaces. " +
     STABILITY_SUFFIX,
   "orbit-right":
