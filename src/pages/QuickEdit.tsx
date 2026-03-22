@@ -84,6 +84,10 @@ export default function QuickEdit() {
   const [selectedTemplate, setSelectedTemplate] = useState("open-house");
   const [selectedLayout, setSelectedLayout] = useState("open-house");
 
+  // Aspect ratio from DB (portrait default)
+  const [aspectRatio, setAspectRatio] = useState<string>("9:16");
+  const isLandscape = aspectRatio === "16:9";
+
   // Final stitched video URL (for full-video preview when individual clips unavailable)
   const [finalVideoUrl, setFinalVideoUrl] = useState<string | null>(null);
 
@@ -109,6 +113,7 @@ export default function QuickEdit() {
         if (error) throw error;
 
         setVideoTitle(data.property_address || "Untitled video");
+        if (data.aspect_ratio) setAspectRatio(data.aspect_ratio);
 
         // Load template/layout from DB
         if (data.template_used) setSelectedTemplate(data.template_used);
@@ -366,11 +371,21 @@ export default function QuickEdit() {
         });
       }
 
+      // Build clips array so regenerated clip URLs are persisted to the DB
+      const updatedClips = scenes.map((s, i) => ({
+        index: i,
+        url: regeneratedClips[i] || s.clipUrl || null,
+        duration: s.duration || 5,
+        camera_angle: s.cameraAction,
+        image_url: s.imageUrl,
+      }));
+
       const { error: updateErr } = await supabase
         .from("videos")
         .update({
           photos: JSON.stringify(photosJson),
           template_used: selectedTemplate,
+          clips: updatedClips,
         })
         .eq("id", id)
         .eq("user_id", user.id);
@@ -455,6 +470,9 @@ export default function QuickEdit() {
           <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
             Quick Edit
           </span>
+          <span className="text-xs px-2 py-0.5 rounded bg-secondary text-muted-foreground font-medium">
+            {isLandscape ? "16:9 Landscape" : "9:16 Portrait"}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -497,13 +515,13 @@ export default function QuickEdit() {
                       }
                     }}
                     onDragEnd={() => setDraggedIndex(null)}
-                    className={`relative flex-shrink-0 w-[100px] rounded-lg overflow-hidden border-2 transition-all snap-start ${
+                    className={`relative flex-shrink-0 ${isLandscape ? "w-[140px]" : "w-[100px]"} rounded-lg overflow-hidden border-2 transition-all snap-start ${
                       isSelected
                         ? "border-primary ring-2 ring-primary/20 scale-105"
                         : "border-transparent hover:border-border"
                     } ${draggedIndex === i ? "opacity-50 scale-95" : ""}`}
                   >
-                    <div className="aspect-[9/16] bg-secondary">
+                    <div className={`${isLandscape ? "aspect-[16/9]" : "aspect-[9/16]"} bg-secondary`}>
                       {scene.imageUrl && (
                         <img
                           src={scene.imageUrl}
@@ -542,7 +560,7 @@ export default function QuickEdit() {
                 <p className="text-xs text-muted-foreground mb-2 font-medium">
                   {activeClipUrl ? "Generated Clip" : finalVideoUrl ? "Full Video Preview" : "Original Photo"}
                 </p>
-                <div className="aspect-[9/16] w-[200px] sm:w-[260px] bg-secondary rounded-xl overflow-hidden border border-border relative">
+                <div className={`${isLandscape ? "aspect-[16/9] w-[360px] sm:w-[460px]" : "aspect-[9/16] w-[200px] sm:w-[260px]"} bg-secondary rounded-xl overflow-hidden border border-border relative`}>
                   {activeClipUrl && !clipError ? (
                     <>
                       <video
@@ -621,7 +639,7 @@ export default function QuickEdit() {
                   <p className="text-xs text-muted-foreground mb-2 font-medium">
                     Generating...
                   </p>
-                  <div className="aspect-[9/16] w-[200px] sm:w-[260px] bg-secondary rounded-xl overflow-hidden border border-border flex items-center justify-center">
+                  <div className={`${isLandscape ? "aspect-[16/9] w-[360px] sm:w-[460px]" : "aspect-[9/16] w-[200px] sm:w-[260px]"} bg-secondary rounded-xl overflow-hidden border border-border flex items-center justify-center`}>
                     <div className="text-center">
                       <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
                       <p className="text-xs text-muted-foreground">
@@ -659,7 +677,7 @@ export default function QuickEdit() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">Duration</span>
-              <span className="text-xs font-medium text-foreground">5 seconds</span>
+              <span className="text-xs font-medium text-foreground">{currentScene?.duration || 5} seconds</span>
             </div>
           </div>
 
