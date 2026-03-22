@@ -53,12 +53,11 @@ const STABILITY_SUFFIX =
   "Preserve the existing lighting and color temperature throughout. " +
   "Photo-realistic cinematography, 24fps filmic motion blur.";
 
-// Enhanced geometry preservation for rotational/vertical motions.
-// Mitigates hallucination risk on orbit, crane, drone motions.
+// Concise geometry lock for rotational/vertical motions.
+// Research shows one clear sentence outperforms a full paragraph — the model
+// responds better to concise constraints than detailed lists of prohibitions.
 const GEOMETRY_PRESERVATION =
-  "Critical: Maintain perfect perspective geometry—walls remain perfectly straight, " +
-  "floor lines parallel, ceiling lines parallel. No architectural distortion, no furniture repositioning, " +
-  "no morphing of existing elements. All architectural lines must remain unchanged.";
+  "Maintain perfect perspective geometry — all architectural lines stay straight and unchanged.";
 
 interface MotionConfig {
   promptText: string;
@@ -68,67 +67,53 @@ interface MotionConfig {
 const MOTION_MAP: Record<string, MotionConfig> = {
   "push-in": {
     promptText:
-      "Professional videography: Steady dolly forward at a gentle pace, easing in from stillness over the first half-second and maintaining constant speed. " +
-      "Camera advances straight ahead toward the center of the frame on a smooth rail with minimal vibration. " +
-      "Cinematic framing, subject centered and well-composed. " +
+      "Steady dolly forward — camera advances straight ahead toward the center of the frame on a smooth rail with minimal vibration. " +
+      "Smooth, steady speed throughout. " +
       STABILITY_SUFFIX,
     duration: 5,
   },
   "pull-out": {
     promptText:
-      "Professional videography: Steady dolly backward at a gentle pace, easing in from stillness and maintaining constant speed. " +
-      "Camera retreats straight back along a smooth rail, gradually revealing the full context and spatial depth of the property. " +
-      "Cinematic reveal showcasing the entire room or space. " +
+      "Steady dolly backward — camera retreats straight back along the room's center axis on a smooth rail with minimal vibration. " +
+      "Frame stays perfectly centered throughout, gradually revealing the full width and depth of the space. " +
+      "Smooth, steady speed throughout. " +
       STABILITY_SUFFIX,
     duration: 5,
   },
   "glide-left": {
     promptText:
-      "Professional lateral tracking shot gliding smoothly to the left at a steady pace. " +
-      "Camera faces forward while the entire rig slides leftward on a dolly track. " +
-      "Ease in gently from stillness over the first half-second, hold constant speed, ease out in the final half-second. " +
-      "Smooth cinematic leftward pan revealing adjacent areas and connected spaces. " +
+      "Lateral tracking shot — camera glides smoothly to the left on a dolly track while facing forward. " +
+      "Steady speed throughout, revealing adjacent areas and connected spaces. " +
       STABILITY_SUFFIX,
     duration: 5,
   },
   "glide-right": {
     promptText:
-      "Professional lateral tracking shot gliding smoothly to the right at a steady pace. " +
-      "Camera faces forward while the entire rig slides rightward on a dolly track. " +
-      "Ease in gently from stillness over the first half-second, hold constant speed, ease out in the final half-second. " +
-      "Smooth cinematic rightward pan revealing adjacent areas and connected spaces. " +
+      "Lateral tracking shot — camera glides smoothly to the right on a dolly track while facing forward. " +
+      "Steady speed throughout, revealing adjacent areas and connected spaces. " +
       STABILITY_SUFFIX,
     duration: 5,
   },
   "orbit-right": {
     promptText:
-      "Cinematic arc shot — camera executes a confident, smooth clockwise orbit around the center of the room, " +
-      "maintaining the room's focal point as the fixed center of rotation. " +
-      "Camera sweeps a wide, deliberate arc of approximately 45 degrees to the right, " +
-      "keeping a constant radial distance from the subject throughout. " +
-      "Ease in from stillness, hold steady constant orbital speed through the arc, ease out in the final half-second. " +
-      "The arc reveals the side walls, depth, and three-dimensional layout of the space, " +
-      "creating parallax between foreground furniture and background walls. " +
+      "Smooth sweeping arc shot — camera swoops clockwise around the room in a wide, bold arc of approximately 50 degrees to the right. " +
+      "The room's center stays fixed as the camera sweeps around it, creating strong parallax between foreground furniture and background walls. " +
+      "Steady orbital speed throughout. " +
       GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
     duration: 5,
   },
   "orbit-left": {
     promptText:
-      "Cinematic arc shot — camera executes a confident, smooth counter-clockwise orbit around the center of the room, " +
-      "maintaining the room's focal point as the fixed center of rotation. " +
-      "Camera sweeps a wide, deliberate arc of approximately 45 degrees to the left, " +
-      "keeping a constant radial distance from the subject throughout. " +
-      "Ease in from stillness, hold steady constant orbital speed through the arc, ease out in the final half-second. " +
-      "The arc reveals the side walls, depth, and three-dimensional layout of the space, " +
-      "creating parallax between foreground furniture and background walls. " +
+      "Smooth arc shot — camera orbits counter-clockwise around the center of the room, sweeping approximately 45 degrees to the left. " +
+      "Constant radial distance from the subject, creating parallax between foreground furniture and background walls. " +
+      "Steady orbital speed throughout. " +
       GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
     duration: 5,
   },
   "drone-up": {
     promptText:
-      "Professional aerial videography: Rising reveal ascending vertically while tilting down to keep the scene centered in frame. " +
-      "Smooth constant rise speed with gentle ease-in from the ground, clearing foreground obstructions. " +
-      "The landscape and context gradually enter the frame from the edges. Cinematic vertical reveal showcasing scale and surroundings. " +
+      "Crane up — camera rises smoothly upward at a moderate, steady speed while gently tilting down to keep the scene centered. " +
+      "The landscape and surroundings gradually enter the frame from the edges, revealing the full scale of the property. " +
       GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
     duration: 5,
   },

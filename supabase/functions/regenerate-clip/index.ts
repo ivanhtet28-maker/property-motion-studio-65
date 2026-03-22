@@ -15,56 +15,43 @@ const STABILITY_SUFFIX =
   "Photo-realistic cinematography, 24fps filmic motion blur.";
 
 const GEOMETRY_PRESERVATION =
-  "Critical: Maintain perfect perspective geometry—walls remain perfectly straight, " +
-  "floor lines parallel, ceiling lines parallel. No architectural distortion, no furniture repositioning, " +
-  "no morphing of existing elements. All architectural lines must remain unchanged.";
+  "Maintain perfect perspective geometry — all architectural lines stay straight and unchanged.";
 
 const MOTION_MAP: Record<string, string> = {
   "push-in":
-    "Steady dolly forward at a gentle pace, easing in from stillness over the first half-second and maintaining constant speed. " +
-    "Camera advances straight ahead toward the center of the frame on a smooth rail. " +
+    "Steady dolly forward — camera advances straight ahead toward the center of the frame on a smooth rail with minimal vibration. " +
+    "Smooth, steady speed throughout. " +
     STABILITY_SUFFIX,
   "pull-out":
-    "Steady dolly backward at a gentle pace, easing in from stillness and maintaining constant speed. " +
-    "Camera retreats straight back along a smooth rail, gradually revealing the full extent of the space. " +
+    "Steady dolly backward — camera retreats straight back along the room's center axis on a smooth rail with minimal vibration. " +
+    "Frame stays perfectly centered throughout, gradually revealing the full width and depth of the space. " +
+    "Smooth, steady speed throughout. " +
     STABILITY_SUFFIX,
   "glide-left":
-    "Professional lateral tracking shot gliding smoothly to the left at a steady pace. " +
-    "Camera faces forward while the entire rig slides leftward on a dolly track. " +
-    "Ease in gently from stillness over the first half-second, hold constant speed, ease out in the final half-second. " +
-    "Smooth cinematic leftward pan revealing adjacent areas and connected spaces. " +
+    "Lateral tracking shot — camera glides smoothly to the left on a dolly track while facing forward. " +
+    "Steady speed throughout, revealing adjacent areas and connected spaces. " +
     STABILITY_SUFFIX,
   "glide-right":
-    "Professional lateral tracking shot gliding smoothly to the right at a steady pace. " +
-    "Camera faces forward while the entire rig slides rightward on a dolly track. " +
-    "Ease in gently from stillness over the first half-second, hold constant speed, ease out in the final half-second. " +
-    "Smooth cinematic rightward pan revealing adjacent areas and connected spaces. " +
+    "Lateral tracking shot — camera glides smoothly to the right on a dolly track while facing forward. " +
+    "Steady speed throughout, revealing adjacent areas and connected spaces. " +
     STABILITY_SUFFIX,
   "orbit-right":
-    "Cinematic arc shot — camera executes a confident, smooth clockwise orbit around the center of the room, " +
-    "maintaining the room's focal point as the fixed center of rotation. " +
-    "Camera sweeps a wide, deliberate arc of approximately 45 degrees to the right, " +
-    "keeping a constant radial distance from the subject throughout. " +
-    "Ease in from stillness, hold steady constant orbital speed through the arc, ease out in the final half-second. " +
-    "The arc reveals the side walls, depth, and three-dimensional layout of the space, " +
-    "creating parallax between foreground furniture and background walls. " +
+    "Smooth sweeping arc shot — camera swoops clockwise around the room in a wide, bold arc of approximately 50 degrees to the right. " +
+    "The room's center stays fixed as the camera sweeps around it, creating strong parallax between foreground furniture and background walls. " +
+    "Steady orbital speed throughout. " +
     GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
   "orbit-left":
-    "Cinematic arc shot — camera executes a confident, smooth counter-clockwise orbit around the center of the room, " +
-    "maintaining the room's focal point as the fixed center of rotation. " +
-    "Camera sweeps a wide, deliberate arc of approximately 45 degrees to the left, " +
-    "keeping a constant radial distance from the subject throughout. " +
-    "Ease in from stillness, hold steady constant orbital speed through the arc, ease out in the final half-second. " +
-    "The arc reveals the side walls, depth, and three-dimensional layout of the space, " +
-    "creating parallax between foreground furniture and background walls. " +
+    "Smooth arc shot — camera orbits counter-clockwise around the center of the room, sweeping approximately 45 degrees to the left. " +
+    "Constant radial distance from the subject, creating parallax between foreground furniture and background walls. " +
+    "Steady orbital speed throughout. " +
     GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
   "drone-up":
-    "Rising aerial reveal. Camera ascends vertically while tilting down to keep the scene centered in frame. " +
-    "Smooth constant rise speed with gentle ease-in, clearing foreground obstructions. The landscape gradually enters the frame from the edges. " +
-    STABILITY_SUFFIX,
+    "Crane up — camera rises smoothly upward at a moderate, steady speed while gently tilting down to keep the scene centered. " +
+    "The landscape and surroundings gradually enter the frame from the edges, revealing the full scale of the property. " +
+    GEOMETRY_PRESERVATION + " " + STABILITY_SUFFIX,
   "static":
     "Locked-off tripod shot. Camera is perfectly stationary on a heavy tripod with zero movement. " +
-    "Only the natural ambient environment has subtle life — gentle light shifts, soft atmosphere. The frame is completely stable. " +
+    "Natural ambient environment with subtle life — gentle light shifts, soft atmosphere. The frame is completely stable. " +
     STABILITY_SUFFIX,
 };
 
