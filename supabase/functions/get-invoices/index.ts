@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { userId, error: authErr } = await requireAuth(req);
+    const { user, error: authErr } = await requireAuth(req);
     if (authErr) return authErr;
 
     if (!STRIPE_SECRET_KEY) {
@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
     const { data: userData, error: dbError } = await supabase
       .from("users")
       .select("stripe_customer_id")
-      .eq("id", userId)
+      .eq("id", user!.id)
       .single();
 
     if (dbError || !userData?.stripe_customer_id) {
@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
     const params = new URLSearchParams({
       customer: customerId,
       limit: "24",
-      expand: ["data.charge"],
+      "expand[]": "data.charge",
     });
 
     const stripeRes = await fetch(

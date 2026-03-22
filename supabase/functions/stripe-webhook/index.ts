@@ -44,23 +44,15 @@ Deno.serve(async (req) => {
         const isTopup = session.metadata?.type === "topup";
 
         if (userId && plan && isTopup) {
-          // One-time top-up: add extra videos to the user's current limit
+          // One-time top-up: atomically add extra videos to the user's current limit
           const extraVideos = parseInt(session.metadata?.extra_videos || "0");
           if (extraVideos > 0) {
-            // Use RPC or read-then-update to atomically increment
-            const { data: prefs } = await supabase
-              .from("users")
-              .select("videos_limit")
-              .eq("id", userId)
-              .single();
-
-            const currentLimit = prefs?.videos_limit || 2;
-            const { error: topupError } = await supabase
-              .from("users")
-              .update({ videos_limit: currentLimit + extraVideos })
-              .eq("id", userId);
+            const { error: topupError } = await supabase.rpc("increment_videos_limit", {
+              p_user_id: userId,
+              p_extra: extraVideos,
+            });
             if (topupError) console.error("Top-up DB update failed:", topupError);
-            else console.log(`Top-up: added ${extraVideos} videos for user ${userId} (${currentLimit} → ${currentLimit + extraVideos})`);
+            else console.log(`Top-up: added ${extraVideos} videos for user ${userId}`);
           }
         } else if (userId && plan) {
           // Subscription checkout
@@ -87,7 +79,8 @@ Deno.serve(async (req) => {
       case "customer.subscription.created":
       case "customer.subscription.updated": {
         const subscription = event.data.object;
-        console.log("Subscription event:", subscription.id);
+        const isCreated = event.type === "customer.subscription.created";
+        console.log(`Subscription ${isCreated ? "created" : "updated"}:`, subscription.id);
 
         const userId = subscription.metadata?.supabase_user_id;
         if (!userId) {
@@ -131,10 +124,14 @@ Deno.serve(async (req) => {
           subscription_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
           subscription_cancel_at_period_end: subscription.cancel_at_period_end,
           period_reset_date: new Date(subscription.current_period_end * 1000).toISOString(),
-          videos_used_this_period: 0,
           payment_method_last4: paymentMethodLast4,
           payment_method_brand: paymentMethodBrand,
         };
+        // Only reset usage counter on new subscriptions — not on updates
+        // (invoice.payment_succeeded handles periodic resets)
+        if (isCreated) {
+          subUpdate.videos_used_this_period = 0;
+        }
         if (videosLimit) {
           subUpdate.videos_limit = videosLimit;
         }
