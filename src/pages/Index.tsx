@@ -28,18 +28,18 @@ const steps = [
 ];
 
 const features = [
-  { icon: Link2, title: "Paste Listing URL", description: "Works with realestate.com.au & domain.com.au" },
+  { icon: Link2, title: "Paste Listing URL", description: "Import from realestate.com.au & domain.com.au instantly" },
   { icon: Palette, title: "Professional Templates", description: "5 stunning video styles to choose from" },
-  { icon: Clock, title: "60 Second Generation", description: "Your video ready in under a minute" },
-  { icon: Camera, title: "Agent Branding", description: "Add your photo, logo and contact details" },
-  { icon: Image, title: "HD Quality", description: "1080p professional videos every time" },
-  { icon: Zap, title: "Mobile Friendly", description: "Create videos on any device" },
+  { icon: Camera, title: "Virtual Staging", description: "Stage empty rooms with AI-generated furniture in seconds" },
+  { icon: Image, title: "Photo Touch-Ups", description: "Enhance, retouch & rework listing photos instantly" },
+  { icon: Clock, title: "60 Second Turnaround", description: "Videos, staging & edits ready in under a minute" },
+  { icon: Zap, title: "One Platform, Zero Freelancers", description: "Replace your videographer, stager & editor" },
 ];
 
 const addOnTools = [
-  { icon: Sparkles, title: "AI Photo Enhancement", description: "Enhance listing photos with AI-powered editing" },
-  { icon: Camera, title: "Virtual Staging", description: "Digitally stage empty rooms with AI furniture" },
-  { icon: Wand2, title: "Smart Cropping", description: "Auto-crop and optimize photos for video" },
+  { icon: Sparkles, title: "AI Photo Enhancement", description: "Touch up and rework listing photos — sky replacements, colour correction & more" },
+  { icon: Camera, title: "Virtual Staging", description: "Digitally furnish empty rooms with realistic AI staging" },
+  { icon: Wand2, title: "Smart Cropping", description: "Auto-crop and optimize photos for any platform" },
 ];
 
 const testimonials = [
@@ -235,17 +235,17 @@ export default function Index() {
           <div className="text-center max-w-4xl mx-auto pt-12 pb-16">
             <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-8 animate-fade-in">
               <Sparkles className="w-4 h-4" />
-              AI-POWERED VIDEO CREATION
+              YOUR IN-HOUSE MEDIA TEAM
             </span>
 
             <h1 className="text-4xl md:text-5xl lg:text-[3.5rem] font-bold text-foreground leading-[1.15] mb-6 animate-slide-up">
-              Create Stunning Property{" "}
+              Your Ultimate Real Estate{" "}
               <br className="hidden md:block" />
-              Videos <span className="text-gradient">Instantly</span> with AI
+              <span className="text-gradient">Media Team</span> — All in One Place
             </h1>
 
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 animate-slide-up" style={{ animationDelay: "0.1s" }}>
-              Turn your realestate.com.au & domain.com.au listings into scroll-stopping videos in 60 seconds. No editing skills needed.
+              Stop outsourcing to videographers, stagers & editors. Make stunning property videos, virtually stage rooms, and touch up photos in seconds — an entire media team for a fraction of the price.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center animate-slide-up" style={{ animationDelay: "0.15s" }}>
@@ -282,12 +282,12 @@ export default function Index() {
       <section className="py-16 bg-secondary">
         <div className="container mx-auto px-6">
           <div className="text-center mb-12">
-            <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">YOUR ALL-IN-ONE SOLUTION</span>
+            <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">REPLACE YOUR ENTIRE TEAM</span>
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-              Your All-in-One <span className="text-gradient">Solution</span> for<br className="hidden md:block" /> Property Videos
+              One Platform. <span className="text-gradient">Zero Outsourcing.</span>
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              From listing URL to polished video in under a minute. Property Motion handles everything so you can focus on selling.
+              Videos, virtual staging, and photo retouching — all automated in one place. No more juggling freelancers, editors, and stagers.
             </p>
           </div>
 
@@ -312,11 +312,11 @@ export default function Index() {
           <div className="text-center mb-16">
             <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">HOW IT WORKS</span>
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-              Create scroll-stopping reels in<br />
-              <span className="text-gradient">minutes</span>, not days
+              From listing to <span className="text-gradient">launch-ready</span>{" "}
+              <br className="hidden md:block" />in three simple steps
             </h2>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              Go from raw photos and a URL to a fully branded video in seconds.
+              Automate your entire media workflow — no editing skills, no freelancers, no waiting.
             </p>
           </div>
 
