@@ -312,11 +312,11 @@ export default function Index() {
           <div className="text-center mb-16">
             <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">HOW IT WORKS</span>
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-              Create scroll-stopping reels in<br />
-              <span className="text-gradient">minutes</span>, not days
+              From listing to <span className="text-gradient">launch-ready</span>{" "}
+              <br className="hidden md:block" />in three simple steps
             </h2>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              Go from raw photos and a URL to a fully branded video in seconds.
+              Automate your entire media workflow — no editing skills, no freelancers, no waiting.
             </p>
           </div>
 
