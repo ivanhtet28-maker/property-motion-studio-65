@@ -235,17 +235,17 @@ export default function Index() {
           <div className="text-center max-w-4xl mx-auto pt-12 pb-16">
             <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-8 animate-fade-in">
               <Sparkles className="w-4 h-4" />
-              AI-POWERED VIDEO CREATION
+              YOUR IN-HOUSE MEDIA TEAM
             </span>
 
             <h1 className="text-4xl md:text-5xl lg:text-[3.5rem] font-bold text-foreground leading-[1.15] mb-6 animate-slide-up">
-              Create Stunning Property{" "}
+              Your Ultimate Real Estate{" "}
               <br className="hidden md:block" />
-              Videos <span className="text-gradient">Instantly</span> with AI
+              <span className="text-gradient">Media Team</span> — All in One Place
             </h1>
 
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 animate-slide-up" style={{ animationDelay: "0.1s" }}>
-              Turn your realestate.com.au & domain.com.au listings into scroll-stopping videos in 60 seconds. No editing skills needed.
+              Stop outsourcing to videographers, stagers & editors. Make stunning property videos, virtually stage rooms, and touch up photos in seconds — an entire media team for a fraction of the price.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center animate-slide-up" style={{ animationDelay: "0.15s" }}>
