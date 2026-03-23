@@ -282,12 +282,12 @@ export default function Index() {
       <section className="py-16 bg-secondary">
         <div className="container mx-auto px-6">
           <div className="text-center mb-12">
-            <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">YOUR ALL-IN-ONE SOLUTION</span>
+            <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">REPLACE YOUR ENTIRE TEAM</span>
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-              Your All-in-One <span className="text-gradient">Solution</span> for<br className="hidden md:block" /> Property Videos
+              One Platform. <span className="text-gradient">Zero Outsourcing.</span>
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              From listing URL to polished video in under a minute. Property Motion handles everything so you can focus on selling.
+              Videos, virtual staging, and photo retouching — all automated in one place. No more juggling freelancers, editors, and stagers.
             </p>
           </div>
 
