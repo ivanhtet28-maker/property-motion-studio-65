@@ -94,7 +94,7 @@ interface PlanTier {
   id: string;
   name: string;
   description: string;
-  monthly: { price: number; perVideo: number; videosLabel: string; videosCount: string; additionalVideoPrice: number | null; rollover: string; };
+  monthly: { price: number; perVideo: number; videosLabel: string; videosCount: string; additionalVideoPrice: number | null; rollover: string; discount?: number; };
   yearly: { price: number; perVideo: number; videosLabel: string; videosCount: string; additionalVideoPrice: number | null; discount: number; rollover: string; };
   features: PlanFeature[];
   highlighted?: boolean;

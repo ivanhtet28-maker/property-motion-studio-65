@@ -75,7 +75,7 @@ function getTransform(
       const t = easeInOut(progress);
       return { scale: 1, offsetX: panRange * t, offsetY: 0 };
     }
-    case "crane-up": // backwards compat — merged into drone-up
+    case "crane-up" as any: // backwards compat — merged into drone-up
     case "drone-up": {
       const t = easeIn(progress);
       return { scale: 1.04 - 0.04 * t, offsetX: 0, offsetY: 0.02 * t };
