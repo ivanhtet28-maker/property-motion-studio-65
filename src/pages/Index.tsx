@@ -28,18 +28,18 @@ const steps = [
 ];
 
 const features = [
-  { icon: Link2, title: "Paste Listing URL", description: "Works with realestate.com.au & domain.com.au" },
+  { icon: Link2, title: "Paste Listing URL", description: "Import from realestate.com.au & domain.com.au instantly" },
   { icon: Palette, title: "Professional Templates", description: "5 stunning video styles to choose from" },
-  { icon: Clock, title: "60 Second Generation", description: "Your video ready in under a minute" },
-  { icon: Camera, title: "Agent Branding", description: "Add your photo, logo and contact details" },
-  { icon: Image, title: "HD Quality", description: "1080p professional videos every time" },
-  { icon: Zap, title: "Mobile Friendly", description: "Create videos on any device" },
+  { icon: Camera, title: "Virtual Staging", description: "Stage empty rooms with AI-generated furniture in seconds" },
+  { icon: Image, title: "Photo Touch-Ups", description: "Enhance, retouch & rework listing photos instantly" },
+  { icon: Clock, title: "60 Second Turnaround", description: "Videos, staging & edits ready in under a minute" },
+  { icon: Zap, title: "One Platform, Zero Freelancers", description: "Replace your videographer, stager & editor" },
 ];
 
 const addOnTools = [
-  { icon: Sparkles, title: "AI Photo Enhancement", description: "Enhance listing photos with AI-powered editing" },
-  { icon: Camera, title: "Virtual Staging", description: "Digitally stage empty rooms with AI furniture" },
-  { icon: Wand2, title: "Smart Cropping", description: "Auto-crop and optimize photos for video" },
+  { icon: Sparkles, title: "AI Photo Enhancement", description: "Touch up and rework listing photos — sky replacements, colour correction & more" },
+  { icon: Camera, title: "Virtual Staging", description: "Digitally furnish empty rooms with realistic AI staging" },
+  { icon: Wand2, title: "Smart Cropping", description: "Auto-crop and optimize photos for any platform" },
 ];
 
 const testimonials = [
