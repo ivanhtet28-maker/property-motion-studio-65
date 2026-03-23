@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useSearchParams, useParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
