@@ -8,9 +8,8 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
           {/* Logo & Description */}
           <div className="col-span-2 md:col-span-1">
-            <Link to="/" className="flex items-center gap-3 mb-4">
-              <img src="/logo.svg" alt="Property Motion" className="h-10 w-auto" />
-              <span className="text-lg font-bold">Property Motion</span>
+            <Link to="/" className="mb-4 inline-block">
+              <img src="/logo.svg" alt="Property Motion" className="h-12 w-auto" />
             </Link>
             <p className="text-navy-foreground/60 text-sm leading-relaxed">
               Turn real estate photos into stunning marketing videos in minutes.
