@@ -35,9 +35,9 @@ export function Navbar() {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3">
             <img
-              src="/logo-monogram.png"
+              src="/logo.svg"
               alt="Property Motion"
-              className="h-9 w-9 rounded-full"
+              className="h-9 w-auto"
             />
             <span className="text-lg font-bold text-foreground tracking-tight hidden sm:block">
               Property Motion

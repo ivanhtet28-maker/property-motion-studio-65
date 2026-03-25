@@ -71,9 +71,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="px-4 pt-4 pb-2">
           <Link to="/">
             <img
-              src="/logo-no-text.png"
+              src="/logo.svg"
               alt="Property Motion"
-              className="h-12 w-12 rounded-xl"
+              className="h-12 w-auto"
             />
           </Link>
         </div>
