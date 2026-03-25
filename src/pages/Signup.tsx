@@ -81,10 +81,9 @@ export default function Signup() {
         {/* Logo */}
         <Link to="/" className="flex items-center justify-center">
           <img
-            src="/logo-with-text.jpeg"
+            src="/logo.svg"
             alt="Property Motion"
-            className="h-36 w-auto"
-            style={{ mixBlendMode: 'multiply' }}
+            className="h-24 w-auto"
           />
         </Link>
 
