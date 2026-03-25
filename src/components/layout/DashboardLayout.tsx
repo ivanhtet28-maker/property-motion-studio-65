@@ -68,12 +68,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Sidebar */}
       <aside className="fixed left-0 top-0 bottom-0 w-[200px] bg-card border-r border-border flex flex-col z-40">
         {/* Logo */}
-        <div className="px-4 pt-4 pb-2">
+        <div className="px-4 pt-4 pb-3">
           <Link to="/">
             <img
               src="/logo.svg"
               alt="Property Motion"
-              className="h-10 w-auto"
+              className="h-12 w-auto max-w-full object-contain"
             />
           </Link>
         </div>
