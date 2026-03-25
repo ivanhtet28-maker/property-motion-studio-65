@@ -33,15 +33,12 @@ export function Navbar() {
       <div className="container mx-auto px-6">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3">
+          <Link to="/" className="flex items-center">
             <img
               src="/logo.svg"
               alt="Property Motion"
-              className="h-9 w-auto"
+              className="h-10 sm:h-11 w-auto"
             />
-            <span className="text-lg font-bold text-foreground tracking-tight hidden sm:block">
-              Property Motion
-            </span>
           </Link>
 
           {/* Desktop Navigation */}

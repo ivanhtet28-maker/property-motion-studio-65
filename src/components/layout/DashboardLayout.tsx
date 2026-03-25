@@ -73,7 +73,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <img
               src="/logo.svg"
               alt="Property Motion"
-              className="h-12 w-auto"
+              className="h-10 w-auto"
             />
           </Link>
         </div>
