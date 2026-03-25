@@ -9,7 +9,7 @@ export function Footer() {
           {/* Logo & Description */}
           <div className="col-span-2 md:col-span-1">
             <Link to="/" className="flex items-center gap-3 mb-4">
-              <img src="/logo-monogram.png" alt="Property Motion" className="h-10 w-10 rounded-full" />
+              <img src="/logo.svg" alt="Property Motion" className="h-10 w-auto" />
               <span className="text-lg font-bold">Property Motion</span>
             </Link>
             <p className="text-navy-foreground/60 text-sm leading-relaxed">
