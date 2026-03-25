@@ -9,7 +9,7 @@ export function Footer() {
           {/* Logo & Description */}
           <div className="col-span-2 md:col-span-1">
             <Link to="/" className="mb-4 inline-block">
-              <img src="/logo.svg" alt="Property Motion" className="h-12 w-auto" />
+              <img src="/logo.svg" alt="Property Motion" className="h-14 w-auto max-w-full object-contain" />
             </Link>
             <p className="text-navy-foreground/60 text-sm leading-relaxed">
               Turn real estate photos into stunning marketing videos in minutes.
