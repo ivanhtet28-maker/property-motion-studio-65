@@ -1,0 +1,155 @@
+# Security Audit Report — Property Motion Studio
+
+**Date:** 2026-03-25
+**Scope:** Full codebase (frontend, Supabase edge functions, database migrations, configuration)
+
+---
+
+## Executive Summary
+
+Property Motion Studio is a React/TypeScript SPA with a Supabase backend (PostgreSQL, Edge Functions, Auth, Storage) integrating multiple third-party APIs (Runway ML, Shotstack, ElevenLabs, Anthropic Claude, Stripe). The codebase demonstrates solid security fundamentals — no hardcoded secrets, parameterized queries, RLS policies, JWT auth, SSRF protection, and rate limiting. However, several medium-to-high severity issues were identified that should be addressed before or shortly after production launch.
+
+---
+
+## Findings
+
+### CRITICAL / HIGH
+
+#### 1. Prompt Injection Vulnerability
+**Severity: HIGH**
+**File:** `supabase/functions/generate-script/index.ts` (lines 60–69)
+
+User-controlled fields (`address`, `description`, `features`) are interpolated directly into the Claude AI prompt without sanitization:
+
+```typescript
+const prompt = `You are a professional real estate copywriter...
+- Address: ${address || "this stunning property"}
+- Features: ${featuresList}
+${description ? `- Additional Info: ${description}` : ''}`;
+```
+
+A malicious user could inject prompt-overriding instructions via the `description` field.
+
+**Recommendation:**
+- Sanitize/escape all user inputs before prompt interpolation
+- Use Claude API's `system` parameter to separate instructions from user data
+- Validate input fields against suspicious patterns (e.g., "ignore previous instructions")
+
+---
+
+### MEDIUM
+
+#### 2. Email Template HTML Injection (XSS)
+**Severity: MEDIUM**
+**File:** `supabase/functions/_shared/send-email.ts` (lines 25–37, 79–91)
+
+`propertyAddress` is interpolated directly into HTML email templates without escaping:
+
+```typescript
+<p>...your listing video for <strong>${propertyAddress}</strong> has finished...</p>
+```
+
+If `propertyAddress` contains HTML (e.g., `<img src=x onerror=...>`), it could execute in email clients.
+
+**Recommendation:**
+- HTML-escape all user-controlled values before embedding in templates
+- Validate `dashboardUrl` is a valid `https://` URL before use in `<a href>`
+
+#### 3. CORS Bypass via text/plain Content-Type
+**Severity: MEDIUM**
+**Files:** `src/lib/callVideoStatus.ts` (lines 35–46), `src/lib/callStitchVideo.ts` (lines 24–35)
+
+JWT tokens are sent in the request body with `Content-Type: text/plain` to avoid CORS preflight:
+
+```typescript
+headers: { "Content-Type": "text/plain" },
+body: JSON.stringify({ ...body, _jwt: jwt, _apikey: SUPABASE_ANON_KEY }),
+```
+
+This non-standard auth pattern puts credentials in request bodies (potentially logged) and circumvents standard CORS protections.
+
+**Recommendation:**
+- Fix CORS on the backend to allow `Authorization` headers properly
+- Move JWT back to the `Authorization` header
+
+#### 4. Incomplete File Upload Validation
+**Severity: MEDIUM**
+**File:** `src/components/create-video/PhotoUpload.tsx` (lines 173–175)
+
+Client-side validation checks `file.type.startsWith("image/")` only — MIME types can be spoofed.
+
+**Recommendation:**
+- Implement server-side validation (magic bytes, file size limits, extension checks)
+- Set maximum file size and count limits on both client and server
+
+#### 5. dangerouslySetInnerHTML in Chart Component
+**Severity: MEDIUM**
+**File:** `src/components/ui/chart.tsx` (lines 68–86)
+
+CSS is injected via `dangerouslySetInnerHTML`. Current data comes from config objects, but the pattern is fragile.
+
+**Recommendation:**
+- Use inline `style` properties or CSS variables set via `.style` instead
+
+#### 6. Dashboard URL Validation in Emails
+**Severity: MEDIUM**
+**File:** `supabase/functions/_shared/send-email.ts` (lines 31, 85)
+
+`dashboardUrl` is used in `<a href>` without validation. A `javascript:` or malicious URL could be injected.
+
+**Recommendation:**
+- Validate URL scheme is `https://` and domain matches expected dashboard origin
+
+---
+
+### LOW / INFORMATIONAL
+
+#### 7. Integer Parsing Without Validation
+**File:** `supabase/functions/generate-script/index.ts` (line 54)
+
+`parseInt(price)` returns `NaN` for non-numeric input — no validation before formatting.
+
+#### 8. Input Validation in Checkout Session
+**File:** `supabase/functions/create-checkout-session/index.ts` (lines 83–100)
+
+Checks for presence of `userId`, `email`, and `plan` but does not validate format (email RFC 5322, plan against known values, userId as UUID).
+
+#### 9. Rate Limit Key Cleanup
+**File:** `supabase/functions/_shared/rate-limit.ts`
+
+Expired rate limit records are only cleaned up opportunistically (1% chance per request). Over time this could lead to table bloat.
+
+---
+
+## Secure Patterns Found (Strengths)
+
+| Area | Status | Details |
+|------|--------|---------|
+| **Secrets Management** | PASS | No hardcoded API keys; all loaded from env vars |
+| **SQL Injection** | PASS | All queries use Supabase client (parameterized) |
+| **Row-Level Security** | PASS | RLS enabled on all user-data tables with `auth.uid()` isolation |
+| **Authentication** | PASS | JWT verification via `requireAuth()` on all edge functions |
+| **SSRF Protection** | PASS | HTTPS-only, private IP blocking, domain allowlist (`_shared/auth.ts`) |
+| **Rate Limiting** | PASS | Sliding window, DB-backed, per-action/user limits |
+| **CORS** | PASS | Origin allowlist with env-based config (`_shared/cors.ts`) |
+| **Storage Policies** | PASS | Folder-based access control tied to `auth.uid()` |
+| **Stripe Webhooks** | PASS | Signature verification on webhook endpoint |
+| **Frontend Env Vars** | PASS | Only `VITE_*` public vars exposed; no secrets in client bundle |
+
+---
+
+## Summary
+
+| Severity | Count |
+|----------|-------|
+| **High** | 1 |
+| **Medium** | 5 |
+| **Low** | 3 |
+
+### Recommended Priority Actions
+
+1. **Sanitize AI prompt inputs** — highest risk of exploitation
+2. **HTML-escape email template variables** — prevents XSS in email clients
+3. **Fix CORS / move JWT to Authorization header** — follow standard auth patterns
+4. **Add server-side file upload validation** — client checks are insufficient
+5. **Validate URLs in email templates** — prevent open redirect / JS injection
